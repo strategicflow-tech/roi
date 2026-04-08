@@ -1,16 +1,414 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>replit</title>
-  <link href="style.css" rel="stylesheet" type="text/css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow | Free Email Audit</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070d1a;
+    --bg2: #0d1628;
+    --surface: #111d35;
+    --border: #1e2f50;
+    --teal: #00d4c8;
+    --teal-glow: rgba(0,212,200,0.12);
+    --red: #ff4455;
+    --text: #e8edf5;
+    --muted: #6b7fa3;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-mono); min-height:100vh; overflow-x:hidden; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(rgba(0,212,200,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,212,200,0.03) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:0;
+  }
+  .container { max-width:820px; margin:0 auto; padding:40px 20px 80px; position:relative; z-index:1; }
+
+  /* HEADER */
+  .header { text-align:center; margin-bottom:48px; animation:fadeDown 0.6s ease both; }
+  .logo-badge { display:inline-flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:8px 18px; margin-bottom:28px; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--teal); }
+  .logo-dot { width:7px; height:7px; background:var(--teal); border-radius:50%; animation:pulse 2s infinite; }
+  h1 { font-family:var(--font-head); font-size:clamp(28px,6vw,46px); font-weight:800; line-height:1.1; margin-bottom:16px; letter-spacing:-0.02em; }
+  h1 span { color:var(--teal); }
+  .subtitle { color:var(--muted); font-size:14px; line-height:1.7; max-width:520px; margin:0 auto; }
+  .proof-strip { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:24px; }
+  .proof-tag { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:4px 12px; font-size:11px; color:var(--muted); }
+
+  /* FORM */
+  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:36px; animation:fadeUp 0.7s ease 0.1s both; }
+  .section-label { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--teal); margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+  .field-group { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .field { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  label { font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+  input, select, textarea { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; color:var(--text); font-family:var(--font-mono); font-size:13px; transition:border-color 0.2s,box-shadow 0.2s; outline:none; width:100%; }
+  input:focus, select:focus, textarea:focus { border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-glow); }
+  textarea { resize:vertical; min-height:160px; line-height:1.6; }
+  select option { background:var(--bg2); }
+  .divider { height:1px; background:var(--border); margin:28px 0; }
+  .submit-btn { width:100%; background:var(--teal); color:var(--bg); border:none; border-radius:10px; padding:16px 24px; font-family:var(--font-head); font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .submit-btn:hover { background:#00f0e2; transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,212,200,0.25); }
+  .submit-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .disclaimer { text-align:center; font-size:11px; color:var(--muted); margin-top:14px; line-height:1.6; }
+  .error-msg { background:rgba(255,68,85,0.1); border:1px solid var(--red); border-radius:8px; padding:12px 16px; font-size:12px; color:var(--red); margin-top:12px; display:none; }
+  .error-msg.active { display:block; }
+
+  /* LOADING */
+  .loading-state { display:none; text-align:center; padding:60px 20px; }
+  .loading-state.active { display:block; animation:fadeUp 0.4s ease both; }
+  .terminal-loader { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:24px; text-align:left; max-width:500px; margin:0 auto 24px; font-size:12px; line-height:2.2; }
+  .tline { color:var(--muted); opacity:0; }
+  .tline.teal { color:var(--teal); }
+  .tline.active { opacity:1; animation:fadeIn 0.3s ease both; }
+  .tcursor { display:inline-block; width:8px; height:14px; background:var(--teal); vertical-align:middle; animation:blink 1s infinite; }
+
+  /* RESULT */
+  .result-state { display:none; }
+  .result-state.active { display:block; animation:fadeUp 0.5s ease both; }
+  .result-header { text-align:center; margin-bottom:32px; }
+  .result-badge { display:inline-block; background:rgba(0,212,200,0.1); border:1px solid var(--teal); border-radius:100px; padding:6px 16px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--teal); margin-bottom:16px; }
+  .result-header h2 { font-family:var(--font-head); font-size:clamp(22px,4vw,32px); font-weight:800; }
+
+  /* CARDS */
+  .audit-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:16px; }
+  .card-header { background:var(--bg2); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:10px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--teal); }
+  .card-body { padding:24px; font-size:13px; line-height:1.8; }
+  .diagnosis-text { color:var(--text); font-style:italic; border-left:3px solid var(--teal); padding-left:16px; }
+
+  /* ISSUES */
+  .issues-grid { display:grid; gap:12px; margin-bottom:16px; }
+  .issue-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--red); border-radius:12px; padding:20px 24px; animation:fadeUp 0.4s ease both; }
+  .issue-number { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--red); margin-bottom:6px; }
+  .issue-title { font-family:var(--font-head); font-size:15px; font-weight:700; margin-bottom:8px; }
+  .issue-desc { font-size:12px; color:var(--muted); line-height:1.7; margin-bottom:12px; }
+  .before-after { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .ba-box { border-radius:8px; padding:12px; font-size:12px; line-height:1.6; }
+  .ba-box.before { background:rgba(255,68,85,0.07); border:1px solid rgba(255,68,85,0.25); }
+  .ba-box.after { background:rgba(0,212,200,0.07); border:1px solid rgba(0,212,200,0.25); }
+  .ba-label { font-size:9px; letter-spacing:0.12em; text-transform:uppercase; font-weight:600; margin-bottom:6px; }
+  .ba-box.before .ba-label { color:var(--red); }
+  .ba-box.after .ba-label { color:var(--teal); }
+
+  /* UPGRADES */
+  .upgrade-item { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:flex-start; }
+  .upgrade-item:last-child { border-bottom:none; }
+  .upgrade-num { width:28px; height:28px; background:rgba(0,212,200,0.1); border:1px solid rgba(0,212,200,0.3); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--teal); flex-shrink:0; }
+  .upgrade-title { font-family:var(--font-head); font-size:13px; font-weight:700; margin-bottom:4px; }
+  .upgrade-desc { font-size:12px; color:var(--muted); line-height:1.65; }
+
+  /* CTA */
+  .cta-card { background:linear-gradient(135deg,rgba(0,212,200,0.08),rgba(0,212,200,0.02)); border:1px solid var(--teal); border-radius:16px; padding:32px; text-align:center; margin-top:16px; }
+  .cta-card h3 { font-family:var(--font-head); font-size:22px; font-weight:800; margin-bottom:10px; }
+  .cta-card p { color:var(--muted); font-size:13px; margin-bottom:24px; line-height:1.7; }
+  .plans-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+  .plan-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 12px; cursor:pointer; transition:all 0.2s; position:relative; }
+  .plan-card:hover, .plan-card.selected { border-color:var(--teal); background:rgba(0,212,200,0.07); }
+  .plan-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--teal); color:var(--bg); font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:3px 10px; border-radius:100px; white-space:nowrap; }
+  .plan-name { font-family:var(--font-head); font-size:13px; font-weight:700; margin-bottom:4px; }
+  .plan-price { font-size:20px; font-weight:700; color:var(--teal); font-family:var(--font-head); }
+  .plan-price span { font-size:11px; color:var(--muted); }
+  .plan-desc { font-size:10px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .cta-btn { display:block; background:var(--teal); color:var(--bg); border:none; border-radius:10px; padding:15px 32px; font-family:var(--font-head); font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; width:100%; transition:all 0.2s; }
+  .cta-btn:hover { background:#00f0e2; transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,212,200,0.3); }
+  .restart-btn { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:10px 20px; font-family:var(--font-mono); font-size:12px; cursor:pointer; margin-top:12px; transition:all 0.2s; width:100%; }
+  .restart-btn:hover { border-color:var(--teal); color:var(--teal); }
+  .spinner { width:18px; height:18px; border:2px solid rgba(7,13,26,0.3); border-top-color:var(--bg); border-radius:50%; animation:spin 0.8s linear infinite; }
+
+  @media(max-width:560px) { .field-group{grid-template-columns:1fr;} .form-card{padding:20px;} .plans-grid{grid-template-columns:1fr;} .before-after{grid-template-columns:1fr;} }
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
 </head>
-
 <body>
-  Hello world
-  <script src="script.js"></script>
-</body>
+<div class="container">
 
+  <div class="header">
+    <div class="logo-badge"><div class="logo-dot"></div>Strategic Flow · Free Audit</div>
+    <h1>Your SaaS email is<br>leaking <span>revenue.</span><br>Let's find exactly where.</h1>
+    <p class="subtitle">Paste your last email. We run the full Strategic Flow Method — 7-point surgical breakdown with before/after contrast, free in under 60 seconds.</p>
+    <div class="proof-strip">
+      <span class="proof-tag">✓ Uber Rentals</span>
+      <span class="proof-tag">✓ Wizz Air</span>
+      <span class="proof-tag">✓ Revolut</span>
+      <span class="proof-tag">✓ HeyGen</span>
+      <span class="proof-tag">✓ Memrise</span>
+      <span class="proof-tag">✓ Cato Networks</span>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div id="formState">
+    <div class="form-card">
+      <div class="section-label">01 — Company Info</div>
+      <div class="field-group">
+        <div class="field"><label>Company Name *</label><input type="text" id="company" placeholder="e.g. Acme SaaS"/></div>
+        <div class="field"><label>Your Name *</label><input type="text" id="name" placeholder="e.g. Alex"/></div>
+      </div>
+      <div class="field-group">
+        <div class="field"><label>Email *</label><input type="email" id="email" placeholder="you@company.com"/></div>
+        <div class="field"><label>Main Goal</label>
+          <select id="goal">
+            <option value="">Select goal...</option>
+            <option value="conversions">More conversions / clicks</option>
+            <option value="retention">Reduce churn / retention</option>
+            <option value="engagement">More opens / engagement</option>
+            <option value="leads">Generate leads</option>
+            <option value="onboarding">Better onboarding flow</option>
+          </select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label">02 — Your Email</div>
+      <div class="field"><label>Subject Line *</label><input type="text" id="subject" placeholder="e.g. Product Updates — March 2026"/></div>
+      <div class="field">
+        <label>Email Body * <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0">(paste full text)</span></label>
+        <textarea id="emailBody" placeholder="Paste your email content here...&#10;&#10;The more complete, the sharper the breakdown."></textarea>
+      </div>
+      <div class="divider"></div>
+      <button class="submit-btn" id="submitBtn" onclick="runAudit()">
+        <span id="btnText">Run Strategic Flow Audit →</span>
+        <div class="spinner" id="btnSpinner" style="display:none"></div>
+      </button>
+      <p class="disclaimer">No pitch. No spam. Just your breakdown — delivered instantly.</p>
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-state" id="loadingState">
+    <div class="terminal-loader">
+      <div class="tline teal" id="t1">→ Initializing Strategic Flow Engine...</div>
+      <div class="tline" id="t2">→ Parsing email structure & visual hierarchy...</div>
+      <div class="tline" id="t3">→ Auditing subject line for curiosity gap...</div>
+      <div class="tline" id="t4">→ Detecting Feature-First Bias patterns...</div>
+      <div class="tline" id="t5">→ Scanning CTA ownership language...</div>
+      <div class="tline" id="t6">→ Checking before/after contrast visibility...</div>
+      <div class="tline" id="t7">→ Identifying social proof gaps...</div>
+      <div class="tline teal" id="t8">→ Generating 7-point Strategic Flow report... <span class="tcursor"></span></div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;">Running full methodology audit — ~30 seconds</p>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-state" id="resultState">
+    <div class="result-header">
+      <div class="result-badge">✓ Audit Complete</div>
+      <h2>Your Strategic Flow Breakdown</h2>
+    </div>
+
+    <div class="audit-card" id="diagnosisCard">
+      <div class="card-header"><span>⚡</span> The Diagnosis</div>
+      <div class="card-body"><p class="diagnosis-text" id="diagnosisText"></p></div>
+    </div>
+
+    <div class="issues-grid" id="issuesGrid"></div>
+
+    <div class="audit-card" id="upgradesCard">
+      <div class="card-header"><span>🔧</span> The 7 Strategic Flow Upgrades</div>
+      <div id="upgradesList"></div>
+    </div>
+
+    <div class="cta-card">
+      <h3>Want the full rebuild?</h3>
+      <p>This audit found the problems. Strategic Flow delivers the complete fix — copy, structure, CTA, and measurable results.</p>
+      <div class="plans-grid">
+        <div class="plan-card" onclick="selectPlan(this)">
+          <div class="plan-name">Lite</div>
+          <div class="plan-price">$299<span>/mo</span></div>
+          <div class="plan-desc">4 newsletters · A/B subjects · Human review</div>
+        </div>
+        <div class="plan-card" onclick="selectPlan(this)" style="border-color:var(--teal)">
+          <div class="plan-badge">Most Popular</div>
+          <div class="plan-name">Growth</div>
+          <div class="plan-price">$499<span>/mo</span></div>
+          <div class="plan-desc">8 newsletters · Graphics · Segmentation</div>
+        </div>
+        <div class="plan-card" onclick="selectPlan(this)">
+          <div class="plan-name">High-Impact</div>
+          <div class="plan-price">$899<span>/mo</span></div>
+          <div class="plan-desc">Full stack · Landing page CRO · Automated flows</div>
+        </div>
+      </div>
+      <a href="mailto:strategicflow@proton.me?subject=Strategic Flow Inquiry" class="cta-btn">Book a 20-min Strategy Call →</a>
+      <button class="restart-btn" onclick="restart()">← Run another audit</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const API_URL="https://api.anthropic.com/v1/messages";
+
+function showError(msg){const e=document.getElementById('errorMsg');e.textContent=msg;e.classList.add('active');}
+function hideError(){document.getElementById('errorMsg').classList.remove('active');}
+function selectPlan(el){document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');}
+
+function animateTerminal(){
+  ['t1','t2','t3','t4','t5','t6','t7','t8'].forEach((id,i)=>{
+    setTimeout(()=>document.getElementById(id).classList.add('active'),i*500);
+  });
+}
+
+function restart(){
+  document.getElementById('resultState').classList.remove('active');
+  document.getElementById('formState').style.display='block';
+  document.getElementById('emailBody').value='';
+  document.getElementById('subject').value='';
+  hideError();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderResults(data){
+  document.getElementById('diagnosisText').textContent=data.diagnosis||'';
+
+  const grid=document.getElementById('issuesGrid');
+  grid.innerHTML='';
+  (data.issues||[]).forEach((issue,i)=>{
+    const d=document.createElement('div');
+    d.className='issue-card';
+    d.style.animationDelay=(i*0.1)+'s';
+    d.innerHTML=`
+      <div class="issue-number">Issue ${i+1} of ${(data.issues||[]).length}</div>
+      <div class="issue-title">⚠ ${issue.title||''}</div>
+      <div class="issue-desc">${issue.description||''}</div>
+      ${issue.before&&issue.after?`
+      <div class="before-after">
+        <div class="ba-box before"><div class="ba-label">❌ Before</div><div>${issue.before}</div></div>
+        <div class="ba-box after"><div class="ba-label">✅ After — Strategic Flow</div><div>${issue.after}</div></div>
+      </div>`:''}`;
+    grid.appendChild(d);
+  });
+
+  const list=document.getElementById('upgradesList');
+  list.innerHTML='';
+  (data.upgrades||[]).forEach((upg,i)=>{
+    const d=document.createElement('div');
+    d.className='upgrade-item';
+    d.innerHTML=`
+      <div class="upgrade-num">${i+1}</div>
+      <div>
+        <div class="upgrade-title">${upg.title||''}</div>
+        <div class="upgrade-desc">${upg.description||''}</div>
+      </div>`;
+    list.appendChild(d);
+  });
+}
+
+async function runAudit(){
+  hideError();
+  const company=document.getElementById('company').value.trim();
+  const name=document.getElementById('name').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const subject=document.getElementById('subject').value.trim();
+  const body=document.getElementById('emailBody').value.trim();
+  const goal=document.getElementById('goal').value;
+
+  if(!company||!name||!email||!subject||!body){showError('Please fill in all required fields.');return;}
+  if(body.length<50){showError('Please paste the full email body for an accurate audit.');return;}
+
+  document.getElementById('formState').style.display='none';
+  document.getElementById('loadingState').classList.add('active');
+  animateTerminal();
+
+  const prompt=`You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
+
+Company: ${company}
+Contact: ${name} (${email})
+Goal: ${goal||'General conversion improvement'}
+Subject Line: "${subject}"
+Email Body:
+---
+${body}
+---
+
+Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
+
+{
+  "diagnosis": "2-3 sentences. Name the exact failure pattern — e.g. Feature-First Bias, Generic Urgency Theatre, Filing Label Subject, Consequence-After-Caveat, Missing Hierarchy, Zero Social Proof. Be specific to THIS email's actual content.",
+
+  "issues": [
+    {
+      "title": "Name of the issue",
+      "description": "2-3 sentences. WHY this kills conversion. Reference specific lines from the email.",
+      "before": "The actual problematic line from the email — quote it directly",
+      "after": "The Strategic Flow rewrite — specific, outcome-first, concrete"
+    },
+    { "title": "...", "description": "...", "before": "...", "after": "..." },
+    { "title": "...", "description": "...", "before": "...", "after": "..." }
+  ],
+
+  "upgrades": [
+    {
+      "title": "Subject line: curiosity gap over filing label",
+      "description": "Specific diagnosis of this email's subject line + Strategic Flow principle + exact rewrite with number, outcome, and specificity."
+    },
+    {
+      "title": "Lead: consequence before caveat",
+      "description": "Does this email open with a disclaimer, context, or caveat? Name it. The rewrite should open with the reader's outcome — what they can now do or no longer have to worry about."
+    },
+    {
+      "title": "Feature-to-outcome translation",
+      "description": "Identify the most egregious feature-dump in this email. Apply the formula: [Technical fact] → [What the team no longer has to do]. Give the exact before/after."
+    },
+    {
+      "title": "Visual hierarchy: major announcement leads",
+      "description": "Does the email treat everything as equal weight? Name the most important item and explain how to make it lead visually and structurally."
+    },
+    {
+      "title": "Before/after contrast: make it the story",
+      "description": "Is the old-state / new-state contrast visible or buried? The contrast IS the value. Explain where it's missing or hidden and how to surface it."
+    },
+    {
+      "title": "Social proof: third-party voice",
+      "description": "Is there a named customer quote? Role-specific, outcome-specific validation answers 'does this work in practice for someone like me?' — brand claims cannot replace it. What would the ideal quote look like for this email?"
+    },
+    {
+      "title": "CTA: ownership language over guest language",
+      "description": "How many CTAs exist? What exact language is used? Apply ownership language (Claim / Start my / See what changed in my account) vs guest language (Book / Try / Learn more). Give the exact rewrite."
+    }
+  ]
+}`;
+
+  try{
+    const response=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:2000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    if(!response.ok)throw new Error(`API error: ${response.status}`);
+    const apiData=await response.json();
+    const raw=apiData.content.map(b=>b.text||'').join('');
+    let parsed;
+    try{
+      const clean=raw.replace(/```json|```/g,'').trim();
+      parsed=JSON.parse(clean);
+    }catch(e){throw new Error('Failed to parse response.');}
+
+    setTimeout(()=>{
+      document.getElementById('loadingState').classList.remove('active');
+      renderResults(parsed);
+      document.getElementById('resultState').classList.add('active');
+      window.scrollTo({top:0,behavior:'smooth'});
+    },400);
+
+  }catch(err){
+    document.getElementById('loadingState').classList.remove('active');
+    document.getElementById('formState').style.display='block';
+    showError('Something went wrong. Please try again.');
+    console.error(err);
+  }
+}
+</script>
+</body>
 </html>
