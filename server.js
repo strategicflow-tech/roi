@@ -23,6 +23,31 @@ pool.query(`
   )
 `).catch(err => console.error('DB init error:', err.message));
 
+function robustJsonParse(raw) {
+  let text = raw;
+
+  // Strip markdown code fences if present
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) text = fenceMatch[1].trim();
+
+  // Find the outermost JSON object
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) throw new Error('No JSON object found in response');
+  text = text.slice(start, end + 1);
+
+  // First attempt: direct parse
+  try { return JSON.parse(text); } catch (_) {}
+
+  // Second attempt: fix common AI JSON mistakes
+  const fixed = text
+    .replace(/,\s*([}\]])/g, '$1')          // trailing commas
+    .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":') // unquoted keys
+    .replace(/:\s*'([^']*)'/g, ': "$1"');   // single-quoted values
+
+  return JSON.parse(fixed);
+}
+
 // ─── HTML ATTACHMENT ──────────────────────────────────────────────────────────
 function buildAuditAttachmentHtml(company, name, email, originalSubject, originalBody, parsed, rewrite) {
   const issues = parsed.issues || [];
@@ -329,7 +354,7 @@ async function sendAuditEmail(company, name, email, originalSubject, originalBod
         messages: [{ role: 'user', content: `You are the Strategic Flow rewrite engine. Rewrite this SaaS email completely using the Strategic Flow Method:\n\n- Outcome-first subject line: curiosity gap, specific result or number, no filing-label titles\n- Lead with consequence before caveat: open with the reader's outcome, not a disclaimer or context\n- Translate features to outcomes: [Technical fact] → [What the team no longer has to do]\n- Human, direct tone — no corporate speak, no passive voice\n- Ownership CTA language: "Claim / Start my / See what changed" — not guest language like "Book / Try / Learn more"\n\nCompany: ${company}\nOriginal Subject: "${originalSubject}"\nOriginal Body:\n${originalBody}\n\nReturn ONLY valid JSON with exactly two keys:\n{"subject":"rewritten subject line","body":"full rewritten email body"}` }]
       });
       const raw = msg.content.map(b => b.text || '').join('');
-      rewrite = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+      rewrite = robustJsonParse(raw);
     } catch (rwErr) {
       console.error('Rewrite for attachment failed:', rwErr.message);
     }
@@ -377,7 +402,7 @@ app.post('/audit', async (req, res) => {
       messages: [{ role: 'user', content: `You are the Strategic Flow audit engine. Analyze this SaaS email and return ONLY valid JSON with keys: diagnosis (string), issues (array of {title,description,before,after}), upgrades (array of {title,description}).\n\nCompany: ${company}\nContact: ${name} (${email})\nGoal: ${goal || 'General conversion improvement'}\nSubject: "${subject}"\nBody:\n${body}` }]
     });
     const raw = message.content.map(b => b.text || '').join('');
-    const parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    const parsed = robustJsonParse(raw);
 
     if (!isWhitelisted) {
       await pool.query(`
@@ -406,7 +431,7 @@ app.post('/rewrite', async (req, res) => {
       messages: [{ role: 'user', content: `You are the Strategic Flow rewrite engine. Rewrite this SaaS email completely using the Strategic Flow Method:\n\n- Outcome-first subject line: curiosity gap, specific result or number, no filing-label titles\n- Lead with consequence before caveat: open with the reader's outcome, not a disclaimer or context\n- Translate features to outcomes: [Technical fact] → [What the team no longer has to do]\n- Human, direct tone — no corporate speak, no passive voice\n- Ownership CTA language: "Claim / Start my / See what changed" — not guest language like "Book / Try / Learn more"\n\nCompany: ${company}\nOriginal Subject: "${subject}"\nOriginal Body:\n${body}\n\nReturn ONLY valid JSON with exactly two keys:\n{"subject":"rewritten subject line","body":"full rewritten email body"}` }]
     });
     const raw = message.content.map(b => b.text || '').join('');
-    const parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    const parsed = robustJsonParse(raw);
     res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: err.message });
