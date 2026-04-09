@@ -67,7 +67,13 @@ function buildEmailHtml(company, name, email, parsed) {
       <h2 style="margin:24px 0 16px;color:#111;font-size:17px;">The 7 Strategic Flow Upgrades</h2>
       ${upgradesHtml}
 
-      <div style="margin-top:32px;padding:20px;background:#0a0e1a;border-radius:8px;text-align:center;">
+      <div style="margin-top:32px;padding:20px;background:#fff8e1;border:1px solid #ffc107;border-radius:8px;text-align:center;">
+        <p style="margin:0 0 4px;color:#111;font-size:15px;font-weight:700;">Want 8 emails like this every month?</p>
+        <p style="margin:0 0 12px;color:#555;font-size:13px;">Reply to this email or contact <a href="mailto:strategicflow@proton.me" style="color:#00a89e;">strategicflow@proton.me</a> — mention your audit and get <strong>20% off your first month.</strong></p>
+        <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request" style="display:inline-block;background:#00d4c8;color:#0a0e1a;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:700;font-size:14px;">Claim My 20% Off →</a>
+      </div>
+
+      <div style="margin-top:16px;padding:20px;background:#0a0e1a;border-radius:8px;text-align:center;">
         <p style="margin:0 0 4px;color:#fff;font-size:14px;font-weight:700;">Want the full rebuild?</p>
         <p style="margin:0 0 12px;color:#8899aa;font-size:13px;">Reply to this email to get started.</p>
         <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request" style="display:inline-block;background:#00d4c8;color:#0a0e1a;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:700;font-size:14px;">Get Your Full Rebuild</a>
@@ -133,6 +139,23 @@ app.post('/audit', async (req, res) => {
     res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: err.message, status: err.status || null, body: err.error || null });
+  }
+});
+
+app.post('/rewrite', async (req, res) => {
+  try {
+    const { company, subject, body } = req.body;
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: `You are the Strategic Flow rewrite engine. Rewrite this SaaS email completely using the Strategic Flow Method:\n\n- Outcome-first subject line: curiosity gap, specific result or number, no filing-label titles\n- Lead with consequence before caveat: open with the reader's outcome, not a disclaimer or context\n- Translate features to outcomes: [Technical fact] → [What the team no longer has to do]\n- Human, direct tone — no corporate speak, no passive voice\n- Ownership CTA language: "Claim / Start my / See what changed" — not guest language like "Book / Try / Learn more"\n\nCompany: ${company}\nOriginal Subject: "${subject}"\nOriginal Body:\n${body}\n\nReturn ONLY valid JSON with exactly two keys:\n{"subject":"rewritten subject line","body":"full rewritten email body"}` }]
+    });
+    const raw = message.content.map(b => b.text || '').join('');
+    const parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    res.json(parsed);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -118,7 +118,24 @@
   .restart-btn:hover { border-color:var(--teal); color:var(--teal); }
   .spinner { width:18px; height:18px; border:2px solid rgba(7,13,26,0.3); border-top-color:var(--bg); border-radius:50%; animation:spin 0.8s linear infinite; }
 
-  @media(max-width:560px) { .field-group{grid-template-columns:1fr;} .form-card{padding:20px;} .plans-grid{grid-template-columns:1fr;} .before-after{grid-template-columns:1fr;} }
+  /* REWRITE */
+  .rewrite-section { background:var(--surface); border:1px solid var(--teal); border-radius:16px; overflow:hidden; margin-bottom:16px; }
+  .rewrite-grid { display:grid; grid-template-columns:1fr 1fr; }
+  .rewrite-col { padding:20px 24px; }
+  .rewrite-col.original { border-right:1px solid var(--border); }
+  .rewrite-col-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:12px; }
+  .rewrite-col.original .rewrite-col-label { color:var(--red); }
+  .rewrite-col.rebuilt .rewrite-col-label { color:var(--teal); }
+  .rewrite-subject { font-family:var(--font-head); font-size:13px; font-weight:700; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+  .rewrite-body { font-size:12px; color:var(--muted); line-height:1.8; white-space:pre-wrap; }
+  .rewrite-loading { padding:32px; text-align:center; color:var(--muted); font-size:13px; }
+  .rewrite-pulse { display:inline-block; width:8px; height:8px; background:var(--teal); border-radius:50%; animation:pulse 1s infinite; margin-right:8px; vertical-align:middle; }
+  .offer-banner { background:linear-gradient(135deg,rgba(0,212,200,0.1),rgba(0,212,200,0.03)); border:1px solid rgba(0,212,200,0.4); border-radius:12px; padding:20px 24px; margin-bottom:16px; text-align:center; }
+  .offer-banner p { font-size:13px; color:var(--text); line-height:1.8; }
+  .offer-banner strong { color:var(--teal); }
+  .offer-banner a { color:var(--teal); text-decoration:none; }
+
+  @media(max-width:560px){.field-group{grid-template-columns:1fr;} .form-card{padding:20px;} .plans-grid{grid-template-columns:1fr;} .before-after{grid-template-columns:1fr;} .rewrite-grid{grid-template-columns:1fr;} .rewrite-col.original{border-right:none;border-bottom:1px solid var(--border);}}
   @keyframes fadeDown{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:translateY(0);}}
   @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
   @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
@@ -247,6 +264,19 @@
       <div id="upgradesList"></div>
     </div>
 
+    <!-- SAMPLE REWRITE -->
+    <div class="rewrite-section" id="rewriteSection">
+      <div class="card-header"><span>✍</span> Your Email — Rebuilt by Strategic Flow</div>
+      <div id="rewriteContent" class="rewrite-loading">
+        <span class="rewrite-pulse"></span>Generating your complete rewrite...
+      </div>
+    </div>
+
+    <!-- OFFER BANNER -->
+    <div class="offer-banner">
+      <p>Want <strong>8 emails like this every month?</strong> Reply to your audit email or contact <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request">strategicflow@proton.me</a> — mention your audit and get <strong>20% off your first month.</strong></p>
+    </div>
+
     <div class="cta-card">
       <h3>Want the full rebuild?</h3>
       <p>This audit found the problems. Strategic Flow delivers the complete fix — copy, structure, CTA, and measurable results.</p>
@@ -292,8 +322,43 @@ function restart(){
   document.getElementById('formState').style.display='block';
   document.getElementById('emailBody').value='';
   document.getElementById('subject').value='';
+  document.getElementById('rewriteContent').className='rewrite-loading';
+  document.getElementById('rewriteContent').innerHTML='<span class="rewrite-pulse"></span>Generating your complete rewrite...';
   hideError();
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderRewrite(originalSubject, originalBody, rw){
+  const el=document.getElementById('rewriteContent');
+  el.className='';
+  el.innerHTML=`
+    <div class="rewrite-grid">
+      <div class="rewrite-col original">
+        <div class="rewrite-col-label">❌ Original</div>
+        <div class="rewrite-subject">${originalSubject}</div>
+        <div class="rewrite-body">${originalBody}</div>
+      </div>
+      <div class="rewrite-col rebuilt">
+        <div class="rewrite-col-label">✅ Rebuilt — Strategic Flow</div>
+        <div class="rewrite-subject">${rw.subject||''}</div>
+        <div class="rewrite-body">${rw.body||''}</div>
+      </div>
+    </div>`;
+}
+
+async function loadRewrite(company, subject, body){
+  try{
+    const res=await fetch('/rewrite',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({company,subject,body})
+    });
+    const rw=await res.json();
+    if(rw.subject&&rw.body) renderRewrite(subject,body,rw);
+    else document.getElementById('rewriteContent').innerHTML='<div style="padding:24px;color:var(--muted);font-size:12px;">Rewrite unavailable.</div>';
+  }catch(e){
+    document.getElementById('rewriteContent').innerHTML='<div style="padding:24px;color:var(--muted);font-size:12px;">Rewrite unavailable.</div>';
+  }
 }
 
 function renderResults(data){
@@ -368,6 +433,7 @@ async function runAudit(){
       renderResults(data);
       document.getElementById('resultState').classList.add('active');
       window.scrollTo({top:0,behavior:'smooth'});
+      loadRewrite(company,subject,body);
     },400);
 
   }catch(err){
