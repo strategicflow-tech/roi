@@ -1,5 +1,5 @@
 entrypoint = "index.html"
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
 
 [nix]
 channel = "stable-24_11"
@@ -44,3 +44,4 @@ externalPort = 3000
 
 [agent]
 expertMode = true
+integrations = ["resend:1.0.0"]
