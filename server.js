@@ -1,190 +1,25 @@
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
-const { Pool } = require('pg');
-const path = require('path');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS audit_usage (
-      id SERIAL PRIMARY KEY,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      audit_count INTEGER NOT NULL DEFAULT 0,
-      first_audit_at TIMESTAMP DEFAULT NOW(),
-      last_audit_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-}
-ensureTable().catch(err => console.error('DB init error:', err.message));
-
-// Diagnostic test page — shows exact Anthropic + DB status in browser
-app.get('/test', async (req, res) => {
-  const results = {};
-
-  // 1. Check env vars
-  results.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-    ? `set (starts with: ${process.env.ANTHROPIC_API_KEY.slice(0, 8)}...)`
-    : 'MISSING';
-  results.DATABASE_URL = process.env.DATABASE_URL
-    ? `set (starts with: ${process.env.DATABASE_URL.slice(0, 20)}...)`
-    : 'MISSING';
-
-  // 2. Test DB connection
-  try {
-    const dbRes = await pool.query('SELECT NOW() as time');
-    results.db = { ok: true, time: dbRes.rows[0].time };
-  } catch (e) {
-    results.db = { ok: false, error: e.message };
-  }
-
-  // 3. Test Anthropic API call
-  try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 16,
-      messages: [{ role: 'user', content: 'Say OK' }]
-    });
-    results.anthropic = { ok: true, response: msg.content.map(b => b.text).join('') };
-  } catch (e) {
-    results.anthropic = {
-      ok: false,
-      error: e.message,
-      status: e.status || e.statusCode || null,
-      body: e.error || null
-    };
-  }
-
-  const allOk = results.db.ok && results.anthropic.ok;
-  res.status(allOk ? 200 : 500).send(`<!DOCTYPE html>
-<html><head><title>Diagnostic</title>
-<style>
-  body { font-family: monospace; padding: 2rem; background: #0f0f0f; color: #eee; }
-  h1 { color: ${allOk ? '#4ade80' : '#f87171'}; }
-  pre { background: #1a1a1a; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
-  .ok { color: #4ade80; } .fail { color: #f87171; }
-</style></head><body>
-<h1>${allOk ? '✓ All systems OK' : '✗ Something is failing'}</h1>
-<pre>${JSON.stringify(results, null, 2)}</pre>
-</body></html>`);
-});
-
-// API endpoint
 app.post('/audit', async (req, res) => {
-  const { company, name, email, goal, subject, body } = req.body;
-
-  if (!company || !name || !email || !subject || !body) {
-    return res.status(400).json({ error: 'Missing required fields.' });
-  }
-
-  const prompt = `You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
-
-Company: ${company}
-Contact: ${name} (${email})
-Goal: ${goal || 'General conversion improvement'}
-Subject Line: "${subject}"
-Email Body:
----
-${body}
----
-
-Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
-
-{
-  "diagnosis": "2-3 sentences. Name the exact failure pattern — e.g. Feature-First Bias, Filing Label Subject, Consequence-After-Caveat, Missing Hierarchy, Zero Social Proof. Be specific to THIS email.",
-
-  "issues": [
-    {
-      "title": "Name of the issue",
-      "description": "2-3 sentences. WHY this kills conversion. Reference specific lines from the email.",
-      "before": "The actual problematic line from the email — quote it directly",
-      "after": "The Strategic Flow rewrite — specific, outcome-first, concrete"
-    },
-    { "title": "...", "description": "...", "before": "...", "after": "..." },
-    { "title": "...", "description": "...", "before": "...", "after": "..." }
-  ],
-
-  "upgrades": [
-    {
-      "title": "Subject line: curiosity gap over filing label",
-      "description": "Specific diagnosis of this email subject line + Strategic Flow principle + exact rewrite."
-    },
-    {
-      "title": "Lead: consequence before caveat",
-      "description": "Does this email open with a disclaimer or context? Name it. Rewrite to open with the reader outcome."
-    },
-    {
-      "title": "Feature-to-outcome translation",
-      "description": "Identify the worst feature-dump. Apply: [Technical fact] → [What the team no longer has to do]. Give exact before/after."
-    },
-    {
-      "title": "Visual hierarchy: major announcement leads",
-      "description": "Does the email treat everything as equal weight? Name the most important item and how to make it lead."
-    },
-    {
-      "title": "Before/after contrast: make it the story",
-      "description": "Is the old-state/new-state contrast visible or buried? Explain where it is missing and how to surface it."
-    },
-    {
-      "title": "Social proof: third-party voice",
-      "description": "Is there a named customer quote? What would the ideal role-specific, outcome-specific quote look like for this email?"
-    },
-    {
-      "title": "CTA: ownership language over guest language",
-      "description": "How many CTAs exist? What language is used? Rewrite using ownership language (Claim / Start my / See what changed in my account)."
-    }
-  ]
-}`;
-
   try {
-    console.log(`[audit] calling Anthropic, prompt length: ${prompt.length}`);
+    const { company, name, email, goal, subject, body } = req.body;
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: `You are the Strategic Flow audit engine. Analyze this SaaS email and return ONLY valid JSON with keys: diagnosis (string), issues (array of {title,description,before,after}), upgrades (array of {title,description}).\n\nCompany: ${company}\nContact: ${name} (${email})\nGoal: ${goal || 'General conversion improvement'}\nSubject: "${subject}"\nBody:\n${body}` }]
     });
-
     const raw = message.content.map(b => b.text || '').join('');
-    console.log(`[audit] response length: ${raw.length}, stop_reason: ${message.stop_reason}`);
-
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) {
-      return res.status(500).json({ error: 'No JSON in response', rawPreview: raw.slice(0, 500) });
-    }
-
-    const parsed = JSON.parse(raw.slice(start, end + 1));
-    console.log('[audit] success');
-    res.json(parsed);
-
+    const json = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    res.json(JSON.parse(json));
   } catch (err) {
-    console.error('[audit] error:', err.message, err.stack);
-    res.status(500).json({
-      error: err.message || String(err),
-      stack: err.stack || null,
-      status: err.status || err.statusCode || null,
-      anthropicBody: err.error || null,
-      apiKeySet: !!process.env.ANTHROPIC_API_KEY,
-      apiKeyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.slice(0, 8) : null
-    });
+    res.status(500).json({ error: err.message, status: err.status || null, body: err.error || null });
   }
 });
 
-// Toate celelalte rute -> index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Strategic Flow Audit running on port ${PORT}`);
-});
+app.listen(process.env.PORT || 3000, '0.0.0.0');
