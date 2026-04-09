@@ -21,35 +21,8 @@ pool.query(`
   )
 `).catch(err => console.error('DB init error:', err.message));
 
-async function getResendClient() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL
-    : null;
 
-  if (!xReplitToken || !hostname) {
-    throw new Error('Resend connector credentials not available');
-  }
-
-  const data = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X-Replit-Token': xReplitToken
-      }
-    }
-  ).then(res => res.json());
-
-  const settings = data.items?.[0]?.settings;
-  if (!settings?.api_key) throw new Error('Resend not connected');
-
-  return { client: new Resend(settings.api_key), fromEmail: settings.from_email };
-}
-
-function buildEmailHtml(company, parsed) {
+function buildEmailHtml(company, name, email, parsed) {
   const issuesHtml = (parsed.issues || []).map((issue, i) => `
     <div style="margin-bottom:24px;padding:16px;background:#f9f9f9;border-left:4px solid #00d4c8;border-radius:4px;">
       <h3 style="margin:0 0 8px;color:#111;font-size:15px;">Issue ${i + 1}: ${issue.title}</h3>
@@ -81,7 +54,7 @@ function buildEmailHtml(company, parsed) {
     <div style="background:#0a0e1a;padding:28px 32px;">
       <p style="margin:0;color:#00d4c8;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Strategic Flow</p>
       <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:800;">Your Email Audit Results</h1>
-      <p style="margin:6px 0 0;color:#8899aa;font-size:13px;">${company}</p>
+      <p style="margin:6px 0 0;color:#8899aa;font-size:13px;">${company} &nbsp;·&nbsp; ${name} &lt;${email}&gt;</p>
     </div>
 
     <div style="padding:32px;">
@@ -144,14 +117,14 @@ app.post('/audit', async (req, res) => {
         SET audit_count = audit_usage.audit_count + 1, last_audit_at = NOW()
     `, [normalizedEmail]);
 
-    // Send email with results (non-blocking — don't fail the response if email fails)
+    // Send audit notification to owner email (non-blocking)
     try {
-      const { client: resend, fromEmail } = await getResendClient();
+      const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
-        from: fromEmail || 'Strategic Flow <onboarding@resend.dev>',
-        to: [email],
-        subject: `Your Strategic Flow Audit — ${company}`,
-        html: buildEmailHtml(company, parsed)
+        from: 'onboarding@resend.dev',
+        to: ['consultantcalatorii@gmail.com'],
+        subject: `New Audit Submitted — ${company} (${email})`,
+        html: buildEmailHtml(company, name, email, parsed)
       });
     } catch (emailErr) {
       console.error('Email send failed:', emailErr.message);

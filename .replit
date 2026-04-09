@@ -45,3 +45,9 @@ externalPort = 3000
 [agent]
 expertMode = true
 integrations = ["resend:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+RESEND_FROM = "onboarding@resend.dev"
+RESEND_TO = "consultantcalatorii@gmail.com"
