@@ -449,6 +449,18 @@ app.post('/debug', async (req, res) => {
   res.type('text/plain').send(JSON.stringify(message, null, 2));
 });
 
-app.listen(process.env.PORT || 3000, '0.0.0.0', () => {
-  console.log(`Server running on port ${process.env.PORT || 3000}`);
+app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+// Keep the process alive — log errors but never exit
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException] Caught — server staying alive:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection] Caught — server staying alive:', reason);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
