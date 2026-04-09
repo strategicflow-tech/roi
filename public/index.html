@@ -197,6 +197,37 @@
     <p style="color:var(--muted);font-size:12px;">Running full methodology audit — ~30 seconds</p>
   </div>
 
+  <!-- LIMIT REACHED -->
+  <div class="result-state" id="limitState">
+    <div class="result-header">
+      <div class="result-badge">✓ Free Audit Used</div>
+      <h2>You've already run your free audit</h2>
+    </div>
+    <div class="cta-card">
+      <h3>Ready for the full rebuild?</h3>
+      <p>Your free audit identified the issues. Strategic Flow delivers the complete fix — rewritten copy, restructured hierarchy, ownership-language CTAs, and measurable results.</p>
+      <div class="plans-grid">
+        <div class="plan-card" onclick="selectPlan(this)">
+          <div class="plan-name">Lite</div>
+          <div class="plan-price">$299<span>/mo</span></div>
+          <div class="plan-desc">4 newsletters · A/B subjects · Human review</div>
+        </div>
+        <div class="plan-card" onclick="selectPlan(this)" style="border-color:var(--teal)">
+          <div class="plan-badge">Most Popular</div>
+          <div class="plan-name">Growth</div>
+          <div class="plan-price">$499<span>/mo</span></div>
+          <div class="plan-desc">8 newsletters · Graphics · Segmentation</div>
+        </div>
+        <div class="plan-card" onclick="selectPlan(this)">
+          <div class="plan-name">High-Impact</div>
+          <div class="plan-price">$899<span>/mo</span></div>
+          <div class="plan-desc">Full stack · Landing page CRO · Automated flows</div>
+        </div>
+      </div>
+      <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request" class="cta-btn">Get Your Full Rebuild → strategicflow@proton.me</a>
+    </div>
+  </div>
+
   <!-- RESULT -->
   <div class="result-state" id="resultState">
     <div class="result-header">
@@ -257,6 +288,7 @@ function animateTerminal(){
 
 function restart(){
   document.getElementById('resultState').classList.remove('active');
+  document.getElementById('limitState').classList.remove('active');
   document.getElementById('formState').style.display='block';
   document.getElementById('emailBody').value='';
   document.getElementById('subject').value='';
@@ -323,6 +355,12 @@ async function runAudit(){
       body:JSON.stringify({company,name,email,goal,subject,body})
     });
     const data=await response.json();
+    if(response.status===403&&data.limitReached){
+      document.getElementById('loadingState').classList.remove('active');
+      document.getElementById('limitState').classList.add('active');
+      window.scrollTo({top:0,behavior:'smooth'});
+      return;
+    }
     if(!response.ok)throw new Error(data.error||`Server error: ${response.status}`);
 
     setTimeout(()=>{
