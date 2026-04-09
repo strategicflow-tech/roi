@@ -112,25 +112,58 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
   ]
 }`;
 
+  let raw = '';
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    });
+    console.log(`[audit] calling Anthropic for ${normalizedEmail}, prompt length: ${prompt.length}`);
 
-    const raw = message.content.map(b => b.text || '').join('');
+    let message;
+    try {
+      message = await client.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      });
+    } catch (apiErr) {
+      const status = apiErr.status || apiErr.statusCode || 'unknown';
+      const detail = apiErr.message || String(apiErr);
+      console.error(`[audit] Anthropic API error — status: ${status}, message: ${detail}`);
+      if (apiErr.error) console.error('[audit] Anthropic error body:', JSON.stringify(apiErr.error));
+      return res.status(502).json({
+        error: 'Anthropic API call failed.',
+        status,
+        detail
+      });
+    }
+
+    raw = message.content.map(b => b.text || '').join('');
+    console.log(`[audit] raw response length: ${raw.length}, stop_reason: ${message.stop_reason}`);
 
     // Robustly extract the JSON object — find the outermost { ... }
     const start = raw.indexOf('{');
     const end = raw.lastIndexOf('}');
     if (start === -1 || end === -1) {
-      throw new Error('No JSON object found in model response');
+      console.error('[audit] No JSON found in model response. Raw output:', raw.slice(0, 500));
+      return res.status(500).json({
+        error: 'Model did not return valid JSON.',
+        raw: raw.slice(0, 500)
+      });
     }
     const clean = raw.slice(start, end + 1);
-    const parsed = JSON.parse(clean);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (parseErr) {
+      console.error('[audit] JSON parse failed:', parseErr.message);
+      console.error('[audit] Attempted to parse:', clean.slice(0, 500));
+      return res.status(500).json({
+        error: 'Failed to parse model response as JSON.',
+        detail: parseErr.message,
+        raw: clean.slice(0, 500)
+      });
+    }
 
     // Record usage — insert or increment
     await pool.query(`
@@ -141,10 +174,11 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
             last_audit_at = NOW()
     `, [normalizedEmail]);
 
+    console.log(`[audit] success for ${normalizedEmail}`);
     res.json(parsed);
 
   } catch (err) {
-    console.error('Server error:', err.message || err);
+    console.error('[audit] unexpected error:', err.message || err);
     res.status(500).json({ error: 'Something went wrong. Please try again.', detail: err.message });
   }
 });
