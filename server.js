@@ -1,5 +1,5 @@
 const express = require('express');
-const fetch = require('node-fetch');
+const Anthropic = require('@anthropic-ai/sdk');
 const path = require('path');
 
 const app = express();
@@ -74,36 +74,23 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
 }`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Anthropic error:', err);
-      return res.status(500).json({ error: 'Audit engine error. Please try again.' });
-    }
-
-    const data = await response.json();
-    const raw = data.content.map(b => b.text || '').join('');
+    const raw = message.content.map(b => b.text || '').join('');
     const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
 
     res.json(parsed);
 
   } catch (err) {
-    console.error('Server error:', err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+    console.error('Server error:', err.message || err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.', detail: err.message });
   }
 });
 

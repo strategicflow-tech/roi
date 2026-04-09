@@ -9,6 +9,7 @@ packages = ["static-web-server"]
 publicDir = "/"
 deploymentTarget = "autoscale"
 run = ["node", "server.js"]
+build = ["npm", "install"]
 
 [workflows]
 runButton = "Project"
