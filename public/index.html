@@ -3,479 +3,1089 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Strategic Flow | Free Email Audit</title>
+<title>Strategic Flow | Email Rebuild Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    /* Pro app colors — converted from HSL */
-    --bg:       #080f1e;   /* hsl(218 73% 7%)  */
-    --bg2:      #0d1628;   /* hsl(218 60% 10%) */
-    --surface:  #111e34;   /* hsl(218 55% 13%) */
-    --border:   #1c2e4a;   /* hsl(218 42% 20%) */
-    --teal:     #00d4c8;   /* hsl(176 100% 42%) — pro primary */
-    --teal-dim: rgba(0,212,200,0.12);
-    --teal-mid: #00e8dc;
-    --red:      #e8455a;
-    --red-dim:  rgba(232,69,90,0.12);
-    --text:     #eef1f7;   /* hsl(210 20% 95%) */
-    --text-2:   #c4cedf;
-    --muted:    #7a8ba8;   /* hsl(218 20% 55%) */
-    --font-sans: 'Inter', sans-serif;
-    --font-mono: 'DM Mono', monospace;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:var(--font-sans); min-height:100vh; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
-  .container { max-width:800px; margin:0 auto; padding:48px 20px 80px; }
+:root {
+  --bg:       #080f1e;
+  --bg2:      #0d1628;
+  --surface:  #111e34;
+  --surface2: #162440;
+  --border:   #1c2e4a;
+  --teal:     #00d4c8;
+  --teal-dim: rgba(0,212,200,0.12);
+  --teal-glow:rgba(0,212,200,0.25);
+  --gold:     #f59e0b;
+  --gold-dim: rgba(245,158,11,0.12);
+  --red:      #e8455a;
+  --red-dim:  rgba(232,69,90,0.12);
+  --text:     #eef1f7;
+  --text2:    #c4cedf;
+  --muted:    #7a8ba8;
+  --font:     'Inter', sans-serif;
+  --mono:     'DM Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.container{max-width:860px;margin:0 auto;padding:40px 20px 100px;}
 
-  /* HEADER */
-  .header { text-align:center; margin-bottom:48px; animation:fadeDown 0.6s ease both; }
-  .logo-badge { display:inline-flex; align-items:center; gap:8px; background:rgba(0,212,200,0.08); border:1px solid rgba(0,212,200,0.22); border-radius:100px; padding:7px 16px; margin-bottom:28px; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--teal); font-family:var(--font-mono); }
-  .logo-dot { width:6px; height:6px; background:var(--teal); border-radius:50%; animation:pulse 2s infinite; }
-  h1 { font-family:var(--font-sans); font-size:clamp(28px,5.5vw,46px); font-weight:800; line-height:1.1; margin-bottom:16px; letter-spacing:-0.025em; color:var(--text); }
-  h1 span { color:var(--teal); }
-  .subtitle { color:var(--muted); font-size:14px; line-height:1.75; max-width:520px; margin:0 auto; }
-  .proof-strip { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:24px; }
-  .proof-tag { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:5px 12px; font-size:11px; color:var(--muted); font-family:var(--font-mono); }
+/* TYPOGRAPHY */
+h1{font-size:clamp(26px,5vw,44px);font-weight:800;line-height:1.1;letter-spacing:-0.025em;}
+h1 span{color:var(--teal);}
+h2{font-size:20px;font-weight:700;margin-bottom:16px;}
+h3{font-size:15px;font-weight:600;margin-bottom:10px;}
 
-  /* FORM */
-  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:36px; animation:fadeUp 0.7s ease 0.1s both; }
-  .section-label { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:var(--teal); margin-bottom:20px; display:flex; align-items:center; gap:10px; font-weight:600; font-family:var(--font-mono); }
-  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
-  .field-group { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-  .field { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
-  label { font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); font-weight:500; font-family:var(--font-mono); }
-  input, select, textarea { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:11px 14px; color:var(--text); font-family:var(--font-sans); font-size:13px; transition:border-color 0.2s, box-shadow 0.2s; outline:none; width:100%; }
-  input:focus, select:focus, textarea:focus { border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-dim); }
-  input::placeholder, textarea::placeholder { color:#3a4d6b; }
-  select option { background:var(--bg2); color:var(--text); }
-  textarea { resize:vertical; min-height:160px; line-height:1.65; }
-  .divider { height:1px; background:var(--border); margin:28px 0; }
-  .submit-btn { width:100%; background:var(--teal); color:var(--bg); border:none; border-radius:10px; padding:15px 24px; font-family:var(--font-sans); font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:10px; letter-spacing:-0.01em; }
-  .submit-btn:hover { background:var(--teal-mid); transform:translateY(-1px); box-shadow:0 8px 28px rgba(0,212,200,0.25); }
-  .submit-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; box-shadow:none; }
-  .disclaimer { text-align:center; font-size:11px; color:var(--muted); margin-top:12px; line-height:1.6; font-family:var(--font-mono); }
-  .error-msg { background:var(--red-dim); border:1px solid rgba(232,69,90,0.35); border-radius:8px; padding:12px 16px; font-size:12px; color:var(--red); margin-top:12px; display:none; }
-  .error-msg.active { display:block; }
+/* HEADER */
+.header{text-align:center;margin-bottom:48px;animation:fadeDown 0.5s ease both;}
+.logo-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.22);border-radius:100px;padding:7px 18px;margin-bottom:24px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--teal);font-family:var(--mono);}
+.logo-dot{width:6px;height:6px;background:var(--teal);border-radius:50%;animation:pulse 2s infinite;}
+.subtitle{color:var(--muted);font-size:14px;line-height:1.75;max-width:500px;margin:14px auto 0;}
 
-  /* LOADING */
-  .loading-state { display:none; text-align:center; padding:60px 20px; }
-  .loading-state.active { display:block; animation:fadeUp 0.4s ease both; }
-  .terminal-loader { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:24px; text-align:left; max-width:500px; margin:0 auto 24px; font-size:12px; line-height:2.2; font-family:var(--font-mono); }
-  .tline { color:var(--muted); opacity:0; }
-  .tline.teal { color:var(--teal); }
-  .tline.active { opacity:1; animation:fadeIn 0.3s ease both; }
-  .tcursor { display:inline-block; width:7px; height:13px; background:var(--teal); vertical-align:middle; animation:blink 1s infinite; }
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;animation:fadeUp 0.5s ease both;}
+.card+.card{margin-top:20px;}
+.section-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--teal);margin-bottom:20px;display:flex;align-items:center;gap:10px;font-weight:600;font-family:var(--mono);}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
 
-  /* RESULT */
-  .result-state { display:none; }
-  .result-state.active { display:block; animation:fadeUp 0.5s ease both; }
-  .result-header { text-align:center; margin-bottom:32px; }
-  .result-badge { display:inline-block; background:rgba(0,212,200,0.1); border:1px solid rgba(0,212,200,0.28); border-radius:100px; padding:6px 16px; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--teal); margin-bottom:14px; font-weight:600; font-family:var(--font-mono); }
-  .result-header h2 { font-size:clamp(20px,4vw,30px); font-weight:800; color:var(--text); letter-spacing:-0.02em; }
+/* FORM ELEMENTS */
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+label{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);font-weight:600;font-family:var(--mono);}
+input,select,textarea{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:var(--font);font-size:13px;transition:border-color .2s,box-shadow .2s;outline:none;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-dim);}
+input::placeholder,textarea::placeholder{color:#3a4d6b;}
+select option{background:var(--bg2);color:var(--text);}
+textarea{resize:vertical;line-height:1.7;}
 
-  /* CARDS */
-  .audit-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:16px; }
-  .card-header { background:var(--bg2); border-bottom:1px solid var(--border); padding:12px 22px; display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--teal); font-weight:600; font-family:var(--font-mono); }
-  .card-body { padding:22px; font-size:13px; line-height:1.85; color:var(--text-2); }
-  .diagnosis-text { color:var(--text-2); font-style:italic; border-left:3px solid var(--teal); padding-left:16px; }
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;border:none;font-family:var(--font);}
+.btn-primary{background:var(--teal);color:#080f1e;width:100%;}
+.btn-primary:hover{background:#00e8dc;transform:translateY(-1px);box-shadow:0 6px 24px var(--teal-glow);}
+.btn-secondary{background:transparent;color:var(--text2);border:1px solid var(--border);padding:10px 20px;font-size:13px;}
+.btn-secondary:hover{border-color:var(--teal);color:var(--teal);}
+.btn-ghost{background:transparent;color:var(--muted);font-size:12px;padding:8px 14px;border:1px solid var(--border);border-radius:8px;}
+.btn-ghost:hover{color:var(--text);border-color:var(--border);}
+.btn-gold{background:var(--gold);color:#080f1e;}
+.btn-gold:hover{background:#fbbf24;transform:translateY(-1px);}
+.btn-sm{padding:8px 16px;font-size:12px;border-radius:8px;}
 
-  /* ISSUES */
-  .issues-grid { display:grid; gap:12px; margin-bottom:16px; }
-  .issue-card { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--red); border-radius:12px; padding:20px 22px; animation:fadeUp 0.4s ease both; }
-  .issue-number { font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--red); margin-bottom:6px; font-weight:600; font-family:var(--font-mono); }
-  .issue-title { font-size:15px; font-weight:700; margin-bottom:8px; color:var(--text); letter-spacing:-0.01em; }
-  .issue-desc { font-size:12px; color:var(--muted); line-height:1.75; margin-bottom:12px; }
-  .before-after { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-  .ba-box { border-radius:8px; padding:12px; font-size:12px; line-height:1.65; }
-  .ba-box.before { background:var(--red-dim); border:1px solid rgba(232,69,90,0.22); color:var(--text-2); }
-  .ba-box.after { background:var(--teal-dim); border:1px solid rgba(0,212,200,0.22); color:var(--text-2); }
-  .ba-label { font-size:9px; letter-spacing:0.14em; text-transform:uppercase; font-weight:700; margin-bottom:6px; font-family:var(--font-mono); }
-  .ba-box.before .ba-label { color:var(--red); }
-  .ba-box.after .ba-label { color:var(--teal); }
+/* TIER BADGE */
+.tier-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-family:var(--mono);}
+.tier-single{background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);}
+.tier-lite{background:var(--teal-dim);color:var(--teal);border:1px solid rgba(0,212,200,0.3);}
+.tier-growth{background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.3);}
+.tier-high_impact{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(245,158,11,0.3);}
+.vip-badge{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(245,158,11,0.4);padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono);}
 
-  /* UPGRADES */
-  .upgrade-item { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; gap:14px; align-items:flex-start; }
-  .upgrade-item:last-child { border-bottom:none; }
-  .upgrade-num { width:28px; height:28px; background:rgba(0,212,200,0.1); border:1px solid rgba(0,212,200,0.25); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--teal); flex-shrink:0; font-family:var(--font-mono); }
-  .upgrade-title { font-size:13px; font-weight:700; margin-bottom:4px; color:var(--text); }
-  .upgrade-desc { font-size:12px; color:var(--muted); line-height:1.65; }
+/* ─── PRICING TABLE ─────────────────────────────────── */
+.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.plan-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px 18px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.plan-card:hover{border-color:var(--teal);transform:translateY(-2px);}
+.plan-card.featured{border-color:var(--gold);background:linear-gradient(145deg,#0f1a2e,#111a30);}
+.plan-card.featured::before{content:'MOST POWERFUL';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#080f1e;font-size:9px;font-weight:800;letter-spacing:0.12em;padding:3px 10px;border-radius:10px;white-space:nowrap;font-family:var(--mono);}
+.plan-name{font-size:12px;font-weight:700;letter-spacing:0.08em;margin-bottom:6px;font-family:var(--mono);}
+.plan-price{font-size:22px;font-weight:800;margin-bottom:4px;}
+.plan-period{font-size:10px;color:var(--muted);margin-bottom:16px;font-family:var(--mono);}
+.plan-features{text-align:left;margin-bottom:18px;}
+.plan-features li{font-size:11px;color:var(--text2);padding:4px 0;display:flex;gap:7px;align-items:flex-start;line-height:1.4;}
+.plan-features li::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0;margin-top:1px;}
+.plan-features li.hi::before{color:var(--gold);}
+.plan-btn{display:block;text-decoration:none;text-align:center;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:700;transition:all .2s;font-family:var(--mono);letter-spacing:0.06em;}
+.plan-btn-teal{background:var(--teal);color:#080f1e;}
+.plan-btn-teal:hover{background:#00e8dc;}
+.plan-btn-gold{background:var(--gold);color:#080f1e;}
+.plan-btn-gold:hover{background:#fbbf24;}
+.plan-btn-outline{background:transparent;color:var(--teal);border:1px solid rgba(0,212,200,0.4);}
+.plan-btn-outline:hover{background:var(--teal-dim);}
 
-  /* UNLOCK BUTTON */
-  .unlock-cta { display:block; background:var(--teal); color:var(--bg); border:none; border-radius:12px; padding:18px 32px; font-family:var(--font-sans); font-size:16px; font-weight:800; cursor:pointer; text-decoration:none; width:100%; text-align:center; transition:all 0.2s; letter-spacing:-0.01em; margin-bottom:16px; }
-  .unlock-cta:hover { background:var(--teal-mid); transform:translateY(-2px); box-shadow:0 12px 36px rgba(0,212,200,0.3); }
-  .unlock-wrap { margin-bottom:0; }
-  .unlock-sub { text-align:center; font-size:11px; color:var(--muted); margin-top:10px; font-family:var(--font-mono); }
+/* Comparison table */
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:20px;}
+.compare-table th{padding:10px 14px;text-align:center;color:var(--muted);font-weight:600;font-family:var(--mono);letter-spacing:0.08em;border-bottom:1px solid var(--border);}
+.compare-table th:first-child{text-align:left;}
+.compare-table td{padding:9px 14px;border-bottom:1px solid rgba(28,46,74,0.5);color:var(--text2);text-align:center;}
+.compare-table td:first-child{text-align:left;color:var(--muted);}
+.check{color:var(--teal);font-weight:700;}
+.check-gold{color:var(--gold);font-weight:700;}
+.cross{color:rgba(255,255,255,0.15);}
 
-  /* CTA CARD */
-  .cta-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; text-align:center; margin-top:16px; }
-  .cta-card h3 { font-size:21px; font-weight:800; margin-bottom:10px; color:var(--text); letter-spacing:-0.02em; }
-  .cta-card p { color:var(--muted); font-size:13px; margin-bottom:24px; line-height:1.75; }
-  .plans-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
-  .plan-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px 12px; cursor:pointer; transition:all 0.2s; position:relative; }
-  .plan-card:hover, .plan-card.selected { border-color:var(--teal); background:rgba(0,212,200,0.07); }
-  .plan-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--teal); color:var(--bg); font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:3px 10px; border-radius:100px; white-space:nowrap; font-family:var(--font-mono); }
-  .plan-name { font-size:13px; font-weight:700; margin-bottom:4px; color:var(--text); }
-  .plan-price { font-size:20px; font-weight:800; color:var(--teal); }
-  .plan-price span { font-size:11px; color:var(--muted); font-weight:400; }
-  .plan-desc { font-size:10px; color:var(--muted); margin-top:6px; line-height:1.5; font-family:var(--font-mono); }
-  .cta-btn { display:block; background:var(--teal); color:var(--bg); border:none; border-radius:10px; padding:14px 32px; font-family:var(--font-sans); font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; width:100%; transition:all 0.2s; letter-spacing:-0.01em; }
-  .cta-btn:hover { background:var(--teal-mid); transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,212,200,0.25); }
-  .restart-btn { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:10px 20px; font-family:var(--font-mono); font-size:12px; cursor:pointer; margin-top:12px; transition:all 0.2s; width:100%; }
-  .restart-btn:hover { border-color:var(--teal); color:var(--teal); }
-  .spinner { width:17px; height:17px; border:2px solid rgba(8,15,30,0.3); border-top-color:var(--bg); border-radius:50%; animation:spin 0.8s linear infinite; }
+/* ─── RESULT PANELS ─────────────────────────────────── */
+.result-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.result-subject{font-size:18px;font-weight:700;color:var(--teal);margin-bottom:8px;line-height:1.4;}
+.result-body{font-size:14px;color:var(--text2);line-height:1.8;white-space:pre-wrap;padding:20px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);}
+.changes-list{margin-top:16px;}
+.change-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(28,46,74,0.5);font-size:13px;color:var(--text2);align-items:flex-start;}
+.change-item::before{content:'→';color:var(--teal);flex-shrink:0;font-weight:700;margin-top:1px;}
+.panel-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+.mini-panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.mini-panel .label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-family:var(--mono);}
+.score-number{font-size:32px;font-weight:800;line-height:1;}
+.score-label{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:4px;}
+.score-bar{height:4px;background:var(--border);border-radius:4px;margin-top:10px;overflow:hidden;}
+.score-fill{height:100%;border-radius:4px;background:var(--teal);transition:width .8s ease;}
+.ab-item{padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;}
+.ab-angle{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--teal);font-family:var(--mono);margin-bottom:6px;}
+.ab-subject{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.ab-reasoning{font-size:11px;color:var(--muted);line-height:1.6;}
+.ab-lift{font-size:10px;color:var(--teal);font-family:var(--mono);margin-top:6px;}
+.segment-card{padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;}
+.segment-name{font-size:13px;font-weight:600;margin-bottom:5px;color:var(--text);}
+.segment-desc{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:6px;}
+.segment-why{font-size:11px;color:var(--teal);font-style:italic;}
+.cal-item{padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;}
+.cal-timing{font-size:9px;color:var(--gold);font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
+.cal-subject{font-size:13px;font-weight:600;margin-bottom:4px;}
+.cal-angle{font-size:11px;color:var(--muted);}
+.cohesion-score{font-size:36px;font-weight:800;}
+.flag-item{padding:12px 14px;background:var(--red-dim);border:1px solid rgba(232,69,90,0.25);border-radius:8px;margin-bottom:8px;}
+.flag-loc{font-size:10px;color:var(--red);font-family:var(--mono);margin-bottom:5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.flag-issue{font-size:12px;color:var(--text2);margin-bottom:5px;}
+.flag-fix{font-size:11px;color:var(--teal);font-style:italic;}
+.dna-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(28,46,74,0.5);font-size:12px;}
+.dna-key{color:var(--muted);font-family:var(--mono);width:100px;flex-shrink:0;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;}
+.dna-val{color:var(--text);}
+.color-swatch{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);display:inline-block;flex-shrink:0;}
 
-  /* REWRITE */
-  .rewrite-section { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:16px; }
-  .rewrite-grid { display:grid; grid-template-columns:1fr 1fr; }
-  .rewrite-col { padding:20px 22px; }
-  .rewrite-col.original { border-right:1px solid var(--border); background:var(--bg2); }
-  .rewrite-col.rebuilt { background:rgba(0,212,200,0.03); }
-  .rewrite-col-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:12px; font-family:var(--font-mono); }
-  .rewrite-col.original .rewrite-col-label { color:var(--red); }
-  .rewrite-col.rebuilt .rewrite-col-label { color:var(--teal); }
-  .rewrite-subject { font-size:13px; font-weight:700; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border); color:var(--text); }
-  .rewrite-body { font-size:12px; color:var(--muted); line-height:1.85; white-space:pre-wrap; }
-  .rewrite-loading { padding:32px; text-align:center; color:var(--muted); font-size:13px; font-family:var(--font-mono); }
-  .rewrite-pulse { display:inline-block; width:7px; height:7px; background:var(--teal); border-radius:50%; animation:pulse 1s infinite; margin-right:8px; vertical-align:middle; }
-  .offer-banner { background:rgba(0,212,200,0.06); border:1px solid rgba(0,212,200,0.2); border-radius:12px; padding:18px 22px; margin-bottom:16px; text-align:center; }
-  .offer-banner p { font-size:13px; color:var(--text-2); line-height:1.8; }
-  .offer-banner strong { color:var(--teal); }
-  .offer-banner a { color:var(--teal); text-decoration:none; font-weight:600; }
+/* ─── ADMIN PANEL ─────────────────────────────────── */
+.admin-header{background:var(--gold-dim);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+.stat-n{font-size:28px;font-weight:800;color:var(--teal);}
+.stat-l{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:4px;text-transform:uppercase;letter-spacing:0.1em;}
+.user-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(28,46,74,0.5);flex-wrap:wrap;}
+.user-email{font-size:12px;font-family:var(--mono);color:var(--text2);flex:1;min-width:180px;}
+.nl-row{padding:10px 0;border-bottom:1px solid rgba(28,46,74,0.5);font-size:12px;}
+.nl-subject{color:var(--text2);margin-bottom:3px;}
+.nl-meta{font-size:10px;color:var(--muted);font-family:var(--mono);}
 
-  @media(max-width:560px){
-    .field-group{grid-template-columns:1fr;}
-    .form-card{padding:20px;}
-    .plans-grid{grid-template-columns:1fr;}
-    .before-after{grid-template-columns:1fr;}
-    .rewrite-grid{grid-template-columns:1fr;}
-    .rewrite-col.original{border-right:none;border-bottom:1px solid var(--border);}
-    .unlock-cta{font-size:14px;padding:16px 24px;}
-  }
-  @keyframes fadeDown{from{opacity:0;transform:translateY(-14px);}to{opacity:1;transform:translateY(0);}}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
-  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
-  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
-  @keyframes spin{to{transform:rotate(360deg);}}
+/* ─── LOADING ─────────────────────────────────────── */
+.loading-wrap{text-align:center;padding:60px 20px;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 0.9s linear infinite;margin:0 auto 20px;}
+.loading-steps{list-style:none;text-align:left;max-width:300px;margin:20px auto 0;}
+.loading-steps li{font-size:12px;color:var(--muted);padding:6px 0;display:flex;gap:10px;font-family:var(--mono);}
+.loading-steps li.done{color:var(--teal);}
+.loading-steps li.active{color:var(--text);}
+
+/* MISC */
+.error-msg{background:var(--red-dim);border:1px solid rgba(232,69,90,0.3);color:#ff8a95;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;display:none;}
+.error-msg.active{display:block;}
+.success-msg{background:var(--teal-dim);border:1px solid rgba(0,212,200,0.3);color:var(--teal);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;}
+.info-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;font-family:var(--mono);}
+.info-note a{color:var(--teal);text-decoration:none;}
+.info-note a:hover{text-decoration:underline;}
+.divider{height:1px;background:var(--border);margin:24px 0;}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono);font-weight:700;letter-spacing:0.06em;}
+.tag-type{background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.3);}
+.section-divider{display:flex;align-items:center;gap:12px;margin:28px 0 20px;font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:0.12em;text-transform:uppercase;}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.upgrade-cta{text-align:center;padding:24px;background:var(--teal-dim);border:1px solid rgba(0,212,200,0.2);border-radius:12px;margin-top:20px;}
+.upgrade-cta a{color:var(--teal);font-weight:700;text-decoration:none;}
+.extract-btn-row{display:flex;gap:10px;align-items:flex-end;}
+.extract-btn-row .field{flex:1;margin-bottom:0;}
+.brand-logo{max-height:40px;border-radius:6px;margin-bottom:10px;}
+.before-after{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+.ba-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.ba-label{font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;}
+.ba-subject{font-size:13px;font-weight:600;margin-bottom:8px;}
+.ba-body{font-size:11px;color:var(--muted);line-height:1.65;max-height:140px;overflow:hidden;position:relative;}
+.ba-body::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--bg2));}
+
+/* FOOTER */
+.footer{text-align:center;padding:48px 20px 0;border-top:1px solid var(--border);margin-top:60px;}
+.footer p{font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.8;}
+.footer a{color:var(--teal);text-decoration:none;}
+
+/* ANIMATIONS */
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+[hidden]{display:none!important;}
+@media(max-width:640px){
+  .pricing-grid{grid-template-columns:1fr 1fr;}
+  .panel-row,.before-after,.field-row,.admin-stats{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
 <div class="container">
 
+  <!-- HEADER -->
   <div class="header">
-    <div class="logo-badge"><div class="logo-dot"></div>Strategic Flow · Free Audit</div>
-    <h1>Your SaaS email is<br>leaking <span>revenue.</span><br>Let's find exactly where.</h1>
-    <p class="subtitle">Paste your last email. We run the full Strategic Flow Method — 7-point surgical breakdown with before/after contrast, free in under 60 seconds.</p>
-    <div class="proof-strip">
-      <span class="proof-tag">✓ Uber Rentals</span>
-      <span class="proof-tag">✓ Wizz Air</span>
-      <span class="proof-tag">✓ Revolut</span>
-      <span class="proof-tag">✓ HeyGen</span>
-      <span class="proof-tag">✓ Memrise</span>
-      <span class="proof-tag">✓ Cato Networks</span>
+    <div class="logo-badge"><span class="logo-dot"></span>Strategic Flow</div>
+    <h1>The Email Rebuild <span>Platform</span></h1>
+    <p class="subtitle">Outcome-first subject lines. Hook above fold. Ownership CTAs. Applied per tier with full brand DNA preservation.</p>
+  </div>
+
+  <!-- EMAIL CHECK STATE -->
+  <div id="stateEmail" class="card">
+    <div class="section-label">Get Started</div>
+    <div class="error-msg" id="errEmail"></div>
+    <div class="field">
+      <label>Your Email Address</label>
+      <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email" />
+    </div>
+    <button class="btn btn-primary" onclick="checkEmail()">Continue →</button>
+    <p class="info-note" style="margin-top:16px;">Already activated? Enter your email to access your tier.</p>
+  </div>
+
+  <!-- PRICING STATE -->
+  <div id="statePricing" hidden>
+    <div class="card">
+      <div class="section-label">Choose Your Tier</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:24px;">Each tier generates a fundamentally different, richer newsletter experience.</p>
+
+      <div class="pricing-grid">
+
+        <!-- Single -->
+        <div class="plan-card">
+          <div class="plan-name" style="color:#94a3b8;">SINGLE</div>
+          <div class="plan-price">$49</div>
+          <div class="plan-period">one-time</div>
+          <ul class="plan-features">
+            <li>1 newsletter rebuild</li>
+            <li>Strategic Flow Method</li>
+            <li>Basic brand colors</li>
+            <li>Download HTML</li>
+            <li>Owner notification</li>
+          </ul>
+          <a href="https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04" target="_blank" class="plan-btn plan-btn-outline">Get Single →</a>
+        </div>
+
+        <!-- Lite -->
+        <div class="plan-card">
+          <div class="plan-name" style="color:var(--teal);">LITE</div>
+          <div class="plan-price">$299</div>
+          <div class="plan-period">per month</div>
+          <ul class="plan-features">
+            <li>4 newsletters/month</li>
+            <li>A/B subject lines (3)</li>
+            <li>Conversion score</li>
+            <li>Before/After view</li>
+            <li>Human review request</li>
+          </ul>
+          <a href="https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01" target="_blank" class="plan-btn plan-btn-teal">Get Lite →</a>
+        </div>
+
+        <!-- Growth -->
+        <div class="plan-card">
+          <div class="plan-name" style="color:#a78bfa;">GROWTH</div>
+          <div class="plan-price">$499</div>
+          <div class="plan-period">per month</div>
+          <ul class="plan-features">
+            <li>8 newsletters/month</li>
+            <li>Deep brand DNA</li>
+            <li>Voice preservation</li>
+            <li>Audience segments</li>
+            <li>Content calendar</li>
+            <li>Roadmap teaser block</li>
+          </ul>
+          <a href="https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02" target="_blank" class="plan-btn plan-btn-teal">Get Growth →</a>
+        </div>
+
+        <!-- High-Impact -->
+        <div class="plan-card featured">
+          <div class="plan-name" style="color:var(--gold);">HIGH-IMPACT</div>
+          <div class="plan-price">$899</div>
+          <div class="plan-period">per month</div>
+          <ul class="plan-features">
+            <li class="hi">Unlimited newsletters</li>
+            <li class="hi">Full-funnel cohesion check</li>
+            <li class="hi">Email type detection</li>
+            <li class="hi">VIP priority flag</li>
+            <li class="hi">Monthly conversion audit</li>
+            <li class="hi">Prompt webhook access</li>
+          </ul>
+          <a href="https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03" target="_blank" class="plan-btn plan-btn-gold">Get High-Impact →</a>
+        </div>
+
+      </div>
+
+      <!-- Compare table -->
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:36%">Feature</th>
+            <th>Single</th><th>Lite</th><th>Growth</th><th>High-Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Strategic Flow rebuild</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Download HTML</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>A/B subject lines</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Conversion score (1–10)</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Before/After comparison</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Human review request</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Brand DNA extraction</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Voice preservation</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Audience segments</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Content calendar</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Roadmap teaser block</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
+          <tr><td>Full-funnel cohesion check</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
+          <tr><td>Email type detection</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
+          <tr><td>VIP priority flag</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
+          <tr><td>Monthly conversion audit</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
+        </tbody>
+      </table>
+
+      <p class="info-note" style="margin-top:20px;">Monthly packages include onboarding via <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a></p>
+
+      <div style="margin-top:24px;text-align:center;">
+        <button class="btn btn-ghost" onclick="showActivate()">I already paid → Activate my account</button>
+      </div>
     </div>
   </div>
 
-  <!-- FORM -->
-  <div id="formState">
-    <div class="form-card">
-      <div class="section-label">01 — Company Info</div>
-      <div class="field-group">
-        <div class="field"><label>Company Name *</label><input type="text" id="company" placeholder="e.g. Acme SaaS"/></div>
-        <div class="field"><label>Your Name *</label><input type="text" id="name" placeholder="e.g. Alex"/></div>
-      </div>
-      <div class="field-group">
-        <div class="field"><label>Email *</label><input type="email" id="email" placeholder="you@company.com"/></div>
-        <div class="field"><label>Main Goal</label>
-          <select id="goal">
-            <option value="">Select goal...</option>
-            <option value="conversions">More conversions / clicks</option>
-            <option value="retention">Reduce churn / retention</option>
-            <option value="engagement">More opens / engagement</option>
-            <option value="leads">Generate leads</option>
-            <option value="onboarding">Better onboarding flow</option>
+  <!-- ACTIVATE STATE -->
+  <div id="stateActivate" hidden>
+    <div class="card">
+      <div class="section-label">Activate Your Account</div>
+      <div class="error-msg" id="errActivate"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">After completing your Stripe payment, enter your details below to unlock your tier immediately.</p>
+      <div class="field-row">
+        <div class="field">
+          <label>Your Email</label>
+          <input type="email" id="activateEmail" placeholder="you@company.com" />
+        </div>
+        <div class="field">
+          <label>Tier You Purchased</label>
+          <select id="activateTier">
+            <option value="">Select tier…</option>
+            <option value="single">Single Rebuild — $49</option>
+            <option value="lite">Lite — $299/mo</option>
+            <option value="growth">Growth — $499/mo</option>
+            <option value="high_impact">High-Impact — $899/mo</option>
           </select>
         </div>
       </div>
-      <div class="divider"></div>
-      <div class="section-label">02 — Your Email</div>
-      <div class="field"><label>Subject Line *</label><input type="text" id="subject" placeholder="e.g. Product Updates — March 2026"/></div>
+      <button class="btn btn-primary" onclick="activateAccount()">Activate →</button>
+      <p class="info-note" style="margin-top:14px;"><a href="#" onclick="showPricing();return false;">← Back to pricing</a></p>
+    </div>
+  </div>
+
+  <!-- AUDIT FORM STATE -->
+  <div id="stateForm" hidden>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="section-label" style="margin-bottom:0;">Your Newsletter</span>
+          <span id="formTierBadge" class="tier-badge"></span>
+          <span id="formVipBadge" class="vip-badge" hidden>⚡ VIP</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="usageLabel" style="font-size:10px;color:var(--muted);font-family:var(--mono);"></span>
+          <button id="adminPanelBtn" class="btn btn-ghost btn-sm" hidden onclick="showAdmin()">Admin ⚡</button>
+          <button class="btn btn-ghost btn-sm" onclick="restart()">← Switch</button>
+        </div>
+      </div>
+
+      <div class="error-msg" id="errForm"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Company Name</label>
+          <input type="text" id="fCompany" placeholder="Acme Corp" />
+        </div>
+        <div class="field">
+          <label>Your Name</label>
+          <input type="text" id="fName" placeholder="Jane Smith" />
+        </div>
+      </div>
+
+      <!-- Growth+: website URL + brand DNA extraction -->
+      <div id="brandDNARow" hidden>
+        <div class="extract-btn-row">
+          <div class="field">
+            <label>Website URL <span style="color:var(--teal);font-size:9px;">(Growth — extracts brand colors, logo, voice)</span></label>
+            <input type="url" id="fWebsite" placeholder="https://yourcompany.com" />
+          </div>
+          <button class="btn btn-secondary" onclick="runBrandDNA()" id="extractBtn" style="margin-bottom:16px;flex-shrink:0;padding:11px 16px;font-size:12px;">Extract DNA</button>
+        </div>
+        <div id="brandDNAResult" hidden></div>
+      </div>
+
       <div class="field">
-        <label>Email Body * <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0;font-family:var(--font-sans)">(paste full text)</span></label>
-        <textarea id="emailBody" placeholder="Paste your email content here...&#10;&#10;The more complete, the sharper the breakdown."></textarea>
+        <label>Newsletter Goal</label>
+        <select id="fGoal">
+          <option value="">Select primary goal…</option>
+          <option value="Drive trial signups">Drive trial signups</option>
+          <option value="Increase feature adoption">Increase feature adoption</option>
+          <option value="Retain churning users">Retain churning users</option>
+          <option value="Announce product update">Announce product update</option>
+          <option value="Reactivate dormant users">Reactivate dormant users</option>
+          <option value="Launch new feature">Launch new feature</option>
+          <option value="Drive event attendance">Drive event attendance</option>
+          <option value="Build brand awareness">Build brand awareness</option>
+          <option value="Upsell / upgrade users">Upsell / upgrade users</option>
+        </select>
       </div>
-      <div class="divider"></div>
-      <button class="submit-btn" id="submitBtn" onclick="runAudit()">
-        <span id="btnText">Run Strategic Flow Audit →</span>
-        <div class="spinner" id="btnSpinner" style="display:none"></div>
+
+      <!-- High-Impact: email type selector -->
+      <div id="emailTypeRow" hidden>
+        <div class="field">
+          <label>Email Type <span style="color:var(--gold);font-size:9px;">(High-Impact — applies type-specific generation strategy)</span></label>
+          <select id="fEmailType">
+            <option value="">Auto-detect (recommended)</option>
+            <option value="product_update">Product Update</option>
+            <option value="retention_campaign">Retention Campaign</option>
+            <option value="promotional_offer">Promotional Offer</option>
+            <option value="onboarding">Onboarding</option>
+            <option value="reengagement">Re-engagement</option>
+            <option value="feature_launch">Feature Launch</option>
+            <option value="brand_announcement">Brand Announcement</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Original Subject Line</label>
+        <input type="text" id="fSubject" placeholder="e.g. Product Update — June 2026" />
+      </div>
+
+      <div class="field">
+        <label>Original Email Body</label>
+        <textarea id="fBody" rows="10" placeholder="Paste your full email body here…"></textarea>
+      </div>
+
+      <!-- Growth+: Roadmap teaser -->
+      <div id="roadmapRow" hidden>
+        <div class="field">
+          <label>Roadmap Teaser <span style="color:#a78bfa;font-size:9px;">(optional — upcoming features to tease at the bottom)</span></label>
+          <textarea id="fRoadmap" rows="3" placeholder="e.g. We're launching AI-powered scheduling next month, plus a new mobile redesign…"></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitGenerate()" id="generateBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Rebuild with Strategic Flow
       </button>
-      <p class="disclaimer">No pitch. No spam. Just your breakdown — delivered instantly.</p>
-      <div class="error-msg" id="errorMsg"></div>
     </div>
   </div>
 
-  <!-- LOADING -->
-  <div class="loading-state" id="loadingState">
-    <div class="terminal-loader">
-      <div class="tline teal" id="t1">→ Initializing Strategic Flow Engine...</div>
-      <div class="tline" id="t2">→ Parsing email structure & visual hierarchy...</div>
-      <div class="tline" id="t3">→ Auditing subject line for curiosity gap...</div>
-      <div class="tline" id="t4">→ Detecting Feature-First Bias patterns...</div>
-      <div class="tline" id="t5">→ Scanning CTA ownership language...</div>
-      <div class="tline" id="t6">→ Checking before/after contrast visibility...</div>
-      <div class="tline" id="t7">→ Identifying social proof gaps...</div>
-      <div class="tline teal" id="t8">→ Generating 7-point Strategic Flow report... <span class="tcursor"></span></div>
+  <!-- LOADING STATE -->
+  <div id="stateLoading" hidden>
+    <div class="card loading-wrap">
+      <div class="spinner"></div>
+      <h3>Rebuilding your newsletter…</h3>
+      <ul class="loading-steps" id="loadingSteps">
+        <li id="step1">→ Analyzing email structure</li>
+        <li id="step2">→ Applying Strategic Flow Method</li>
+        <li id="step3">→ Generating rebuild</li>
+        <li id="step4" id="step4">→ Running tier features</li>
+      </ul>
     </div>
-    <p style="color:var(--muted);font-size:12px;font-family:var(--font-mono);">Running full methodology audit — ~30 seconds</p>
   </div>
 
-  <!-- LIMIT REACHED -->
-  <div class="result-state" id="limitState">
-    <div class="result-header">
-      <div class="result-badge">✓ Free Audit Used</div>
-      <h2>You've already run your free audit</h2>
-    </div>
-    <div class="unlock-wrap">
-      <a href="https://strategic-flow-pro.replit.app" target="_blank" class="unlock-cta">Unlock Your Rebuilt Newsletter → $49</a>
-      <p class="unlock-sub">Full rebuild · Rewritten copy · Outcome-first structure · Ownership CTAs</p>
-    </div>
-    <div class="cta-card">
-      <h3>Or choose a monthly plan</h3>
-      <p>Strategic Flow delivers the complete fix — rewritten copy, restructured hierarchy, ownership-language CTAs, and measurable results.</p>
-      <div class="plans-grid">
-        <div class="plan-card" onclick="selectPlan(this)">
-          <div class="plan-name">Lite</div>
-          <div class="plan-price">$299<span>/mo</span></div>
-          <div class="plan-desc">4 newsletters · A/B subjects · Human review</div>
+  <!-- RESULT STATE -->
+  <div id="stateResult" hidden>
+
+    <!-- Result header -->
+    <div class="card">
+      <div class="result-header">
+        <div>
+          <div id="resTierBadge"></div>
+          <div id="resTypeBadge" style="margin-top:8px;"></div>
         </div>
-        <div class="plan-card" onclick="selectPlan(this)" style="border-color:var(--teal)">
-          <div class="plan-badge">Most Popular</div>
-          <div class="plan-name">Growth</div>
-          <div class="plan-price">$499<span>/mo</span></div>
-          <div class="plan-desc">8 newsletters · Graphics · Segmentation</div>
-        </div>
-        <div class="plan-card" onclick="selectPlan(this)">
-          <div class="plan-name">High-Impact</div>
-          <div class="plan-price">$899<span>/mo</span></div>
-          <div class="plan-desc">Full stack · Landing page CRO · Automated flows</div>
+        <div id="resVipBadge" hidden class="vip-badge">⚡ VIP Priority</div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="downloadHTML()">↓ Download HTML</button>
+          <button class="btn btn-ghost btn-sm" onclick="restart()">← New Rebuild</button>
         </div>
       </div>
-      <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request" class="cta-btn">Get Your Full Rebuild → strategicflow@proton.me</a>
-    </div>
-  </div>
 
-  <!-- RESULT -->
-  <div class="result-state" id="resultState">
-    <div class="result-header">
-      <div class="result-badge">✓ Audit Complete</div>
-      <h2>Your Strategic Flow Breakdown</h2>
-    </div>
+      <div class="section-label">Rebuilt Subject</div>
+      <div class="result-subject" id="resSubject"></div>
 
-    <div class="audit-card" id="diagnosisCard">
-      <div class="card-header"><span>⚡</span> The Diagnosis</div>
-      <div class="card-body"><p class="diagnosis-text" id="diagnosisText"></p></div>
-    </div>
+      <div class="section-label">Rebuilt Body</div>
+      <div class="result-body" id="resBody"></div>
 
-    <div class="issues-grid" id="issuesGrid"></div>
+      <div class="divider"></div>
 
-    <div class="audit-card" id="upgradesCard">
-      <div class="card-header"><span>🔧</span> The 7 Strategic Flow Upgrades</div>
-      <div id="upgradesList"></div>
-    </div>
+      <div class="section-label">What Changed & Why</div>
+      <div class="changes-list" id="resChanges"></div>
 
-    <!-- SAMPLE REWRITE -->
-    <div class="rewrite-section" id="rewriteSection">
-      <div class="card-header"><span>✍</span> Your Email — Rebuilt by Strategic Flow</div>
-      <div id="rewriteContent" class="rewrite-loading">
-        <span class="rewrite-pulse"></span>Generating your complete rewrite...
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);">
+        <span style="color:var(--teal);font-weight:700;">Conversion hook:</span> <span id="resHook"></span>
       </div>
     </div>
 
-    <!-- UNLOCK BUTTON -->
-    <div class="unlock-wrap">
-      <a href="https://strategic-flow-pro.replit.app" target="_blank" class="unlock-cta">Unlock Your Rebuilt Newsletter → $49</a>
-      <p class="unlock-sub">Get the full rebuild delivered · Rewritten copy · Outcome-first structure · Ownership CTAs</p>
-    </div>
+    <!-- Lite+: Before/After + Scores -->
+    <div id="panelLite" hidden>
+      <div class="section-divider">Lite Features</div>
 
-    <!-- OFFER BANNER -->
-    <div class="offer-banner" style="margin-top:16px;">
-      <p>Want <strong>8 emails like this every month?</strong> Contact <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request">strategicflow@proton.me</a> — mention your audit and get <strong>20% off your first month.</strong></p>
-    </div>
-
-    <div class="cta-card">
-      <h3>Want the full rebuild?</h3>
-      <p>This audit found the problems. Strategic Flow delivers the complete fix — copy, structure, CTA, and measurable results.</p>
-      <div class="plans-grid">
-        <div class="plan-card" onclick="selectPlan(this)">
-          <div class="plan-name">Lite</div>
-          <div class="plan-price">$299<span>/mo</span></div>
-          <div class="plan-desc">4 newsletters · A/B subjects · Human review</div>
-        </div>
-        <div class="plan-card" onclick="selectPlan(this)" style="border-color:var(--teal)">
-          <div class="plan-badge">Most Popular</div>
-          <div class="plan-name">Growth</div>
-          <div class="plan-price">$499<span>/mo</span></div>
-          <div class="plan-desc">8 newsletters · Graphics · Segmentation</div>
-        </div>
-        <div class="plan-card" onclick="selectPlan(this)">
-          <div class="plan-name">High-Impact</div>
-          <div class="plan-price">$899<span>/mo</span></div>
-          <div class="plan-desc">Full stack · Landing page CRO · Automated flows</div>
+      <!-- Before / After comparison -->
+      <div class="card">
+        <div class="section-label">Before / After Comparison</div>
+        <div class="before-after">
+          <div class="ba-box">
+            <div class="ba-label">Original</div>
+            <div class="ba-subject" id="baOrigSubject"></div>
+            <div class="ba-body" id="baOrigBody"></div>
+          </div>
+          <div class="ba-box" style="border-color:rgba(0,212,200,0.3);">
+            <div class="ba-label" style="color:var(--teal);">Rebuilt by Strategic Flow</div>
+            <div class="ba-subject" id="baNewSubject" style="color:var(--teal);"></div>
+            <div class="ba-body" id="baNewBody"></div>
+          </div>
         </div>
       </div>
-      <a href="mailto:strategicflow@proton.me?subject=Strategic%20Flow%20Audit%20Request" class="cta-btn">Get Your Full Rebuild → strategicflow@proton.me</a>
-      <button class="restart-btn" onclick="restart()">← Run another audit</button>
+
+      <!-- Conversion Score -->
+      <div class="card">
+        <div class="section-label">Conversion Score</div>
+        <div id="scoreLoading" style="color:var(--muted);font-size:13px;font-family:var(--mono);">Scoring…</div>
+        <div id="scoreResult" hidden>
+          <div class="panel-row">
+            <div class="mini-panel">
+              <div class="label">Original Score</div>
+              <div class="score-number" id="scoreOrig">—</div>
+              <div class="score-label">out of 10</div>
+              <div class="score-bar"><div class="score-fill" id="scoreOrigBar" style="background:var(--red);width:0"></div></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:10px;" id="scoreOrigExp"></div>
+            </div>
+            <div class="mini-panel" style="border-color:rgba(0,212,200,0.3);">
+              <div class="label">Rebuilt Score</div>
+              <div class="score-number" id="scoreNew" style="color:var(--teal);">—</div>
+              <div class="score-label">out of 10</div>
+              <div class="score-bar"><div class="score-fill" id="scoreNewBar" style="width:0"></div></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:10px;" id="scoreNewExp"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- A/B Subjects -->
+      <div class="card">
+        <div class="section-label">A/B Subject Lines</div>
+        <div id="abLoading" style="color:var(--muted);font-size:13px;font-family:var(--mono);">Generating variants…</div>
+        <div id="abResult" hidden></div>
+      </div>
+
+      <!-- Human Review -->
+      <div class="card" style="text-align:center;padding:24px;">
+        <h3 style="margin-bottom:8px;">Request Human Review</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Send this rebuilt email to Strategic Flow for expert review and feedback.</p>
+        <button class="btn btn-secondary" onclick="requestReview()" id="reviewBtn">Send for Human Review →</button>
+        <div id="reviewSent" hidden class="success-msg" style="margin-top:12px;">Sent! You'll hear back at strategicflow@proton.me</div>
+      </div>
+    </div>
+
+    <!-- Growth+: Brand DNA + Segments + Calendar -->
+    <div id="panelGrowth" hidden>
+      <div class="section-divider">Growth Features</div>
+
+      <!-- Brand DNA display -->
+      <div class="card" id="brandDNAPanel" hidden>
+        <div class="section-label">Brand DNA Applied</div>
+        <div id="brandDNADisplay"></div>
+      </div>
+
+      <!-- Audience Segments -->
+      <div class="card">
+        <div class="section-label">Audience Segments</div>
+        <div id="segLoading" style="color:var(--muted);font-size:13px;font-family:var(--mono);">Identifying segments…</div>
+        <div id="segResult" hidden></div>
+      </div>
+
+      <!-- Content Calendar -->
+      <div class="card">
+        <div class="section-label">Content Calendar — 3 Follow-Up Emails</div>
+        <div id="calLoading" style="color:var(--muted);font-size:13px;font-family:var(--mono);">Building calendar…</div>
+        <div id="calResult" hidden></div>
+      </div>
+    </div>
+
+    <!-- High-Impact: Cohesion Check -->
+    <div id="panelHighImpact" hidden>
+      <div class="section-divider" style="border-top: none;">High-Impact Features</div>
+
+      <div class="card">
+        <div class="section-label">Full-Funnel Cohesion Check</div>
+        <div id="cohLoading" style="color:var(--muted);font-size:13px;font-family:var(--mono);">Checking narrative…</div>
+        <div id="cohResult" hidden>
+          <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
+            <div>
+              <div class="cohesion-score" id="cohScore" style="color:var(--teal);"></div>
+              <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">COHESION SCORE / 10</div>
+            </div>
+            <div id="cohVerdict" style="font-size:14px;color:var(--text2);flex:1;line-height:1.6;"></div>
+          </div>
+          <div id="cohFlags"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upgrade CTA for non-high-impact -->
+    <div id="upgradeCTA" hidden class="upgrade-cta">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;">Unlock more with a higher tier</div>
+      <div id="upgradeCTAText" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></div>
+      <a id="upgradeCTALink" href="#" target="_blank" class="btn btn-primary" style="display:inline-flex;max-width:280px;text-decoration:none;">Upgrade Now →</a>
+    </div>
+
+  </div><!-- /stateResult -->
+
+  <!-- ADMIN STATE -->
+  <div id="stateAdmin" hidden>
+    <div class="card">
+      <div class="admin-header">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--gold);">⚡ ADMIN DASHBOARD</div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;" id="adminEmailLabel"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showForm()">← Back to Builder</button>
+      </div>
+
+      <div class="admin-stats" id="adminStats">
+        <div class="stat-box"><div class="stat-n">—</div><div class="stat-l">Total Users</div></div>
+        <div class="stat-box"><div class="stat-n">—</div><div class="stat-l">Newsletters</div></div>
+        <div class="stat-box"><div class="stat-n">—</div><div class="stat-l">High-Impact</div></div>
+        <div class="stat-box"><div class="stat-n">—</div><div class="stat-l">Growth</div></div>
+      </div>
+
+      <div class="section-label" style="margin-top:8px;">User Management</div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="text" id="adminSearch" placeholder="Search by email…" style="flex:1;" oninput="searchUsers()" />
+      </div>
+      <div id="adminUserList" style="max-height:280px;overflow-y:auto;"></div>
+
+      <div class="section-label" style="margin-top:24px;">Recent Newsletters</div>
+      <div id="adminNLList" style="max-height:220px;overflow-y:auto;"></div>
     </div>
   </div>
 
-  <div style="text-align:center;padding:40px 20px 0;border-top:1px solid var(--border);margin-top:48px;">
-    <p style="font-size:11px;color:var(--muted);font-family:var(--font-mono);line-height:1.8;">
-      Strategic Flow © 2026 &nbsp;|&nbsp; Built for the Future of Tech Communication
-      &nbsp;|&nbsp;
-      <a href="https://strategicflow.carrd.co/#terms" target="_blank" style="color:var(--teal);text-decoration:none;">Terms</a>
-    </p>
-  </div>
+</div><!-- /container -->
 
+<!-- FOOTER -->
+<div class="footer">
+  <p>Strategic Flow © 2026 &nbsp;|&nbsp; Built for the Future of Tech Communication &nbsp;|&nbsp; <a href="https://strategicflow.carrd.co/#terms" target="_blank">Terms</a></p>
 </div>
+
 <script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentEmail = '', currentTier = '', currentIsAdmin = false, currentVip = false;
+let currentCompany = '', currentOrigSubject = '', currentOrigBody = '';
+let currentResult = null, currentBrandDNA = null, currentVoiceProfile = null;
+let downloadHtmlContent = '';
 
-function showError(msg){const e=document.getElementById('errorMsg');e.textContent=msg;e.classList.add('active');}
-function hideError(){document.getElementById('errorMsg').classList.remove('active');}
-function selectPlan(el){document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');}
+const TIER_ORDER = ['single','lite','growth','high_impact'];
+const TIER_NEXT = { single: { name:'Lite', url:'https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01' }, lite: { name:'Growth', url:'https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02' }, growth: { name:'High-Impact', url:'https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03' } };
+const TIER_NAMES = { single:'Single Rebuild', lite:'Lite', growth:'Growth', high_impact:'High-Impact' };
 
-function animateTerminal(){
-  ['t1','t2','t3','t4','t5','t6','t7','t8'].forEach((id,i)=>{
-    setTimeout(()=>document.getElementById(id).classList.add('active'),i*500);
-  });
+function show(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = false; }); }
+function hide(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; }); }
+function showOnly(id) {
+  ['stateEmail','statePricing','stateActivate','stateForm','stateLoading','stateResult','stateAdmin'].forEach(s => hide(s));
+  show(id);
 }
 
-function restart(){
-  document.getElementById('resultState').classList.remove('active');
-  document.getElementById('limitState').classList.remove('active');
-  document.getElementById('formState').style.display='block';
-  document.getElementById('emailBody').value='';
-  document.getElementById('subject').value='';
-  document.getElementById('rewriteContent').className='rewrite-loading';
-  document.getElementById('rewriteContent').innerHTML='<span class="rewrite-pulse"></span>Generating your complete rewrite...';
-  hideError();
-  window.scrollTo({top:0,behavior:'smooth'});
-}
+function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 
-function renderRewrite(originalSubject, originalBody, rw){
-  const el=document.getElementById('rewriteContent');
-  el.className='';
-  el.innerHTML=`
-    <div class="rewrite-grid">
-      <div class="rewrite-col original">
-        <div class="rewrite-col-label">❌ Original</div>
-        <div class="rewrite-subject">${originalSubject}</div>
-        <div class="rewrite-body">${originalBody}</div>
-      </div>
-      <div class="rewrite-col rebuilt">
-        <div class="rewrite-col-label">✅ Rebuilt — Strategic Flow</div>
-        <div class="rewrite-subject">${rw.subject||''}</div>
-        <div class="rewrite-body">${rw.body||''}</div>
-      </div>
-    </div>`;
-}
+function tierClass(tier) { return { single:'tier-single', lite:'tier-lite', growth:'tier-growth', high_impact:'tier-high_impact' }[tier] || 'tier-single'; }
 
-async function loadRewrite(company, subject, body){
-  try{
-    const res=await fetch('/rewrite',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({company,subject,body})
-    });
-    const rw=await res.json();
-    if(rw.subject&&rw.body) renderRewrite(subject,body,rw);
-    else document.getElementById('rewriteContent').innerHTML='<div style="padding:24px;color:var(--muted);font-size:12px;">Rewrite unavailable.</div>';
-  }catch(e){
-    document.getElementById('rewriteContent').innerHTML='<div style="padding:24px;color:var(--muted);font-size:12px;">Rewrite unavailable.</div>';
-  }
-}
-
-function renderResults(data){
-  document.getElementById('diagnosisText').textContent=data.diagnosis||'';
-
-  const grid=document.getElementById('issuesGrid');
-  grid.innerHTML='';
-  (data.issues||[]).forEach((issue,i)=>{
-    const d=document.createElement('div');
-    d.className='issue-card';
-    d.style.animationDelay=(i*0.1)+'s';
-    d.innerHTML=`
-      <div class="issue-number">Issue ${i+1} of ${(data.issues||[]).length}</div>
-      <div class="issue-title">⚠ ${issue.title||''}</div>
-      <div class="issue-desc">${issue.description||''}</div>
-      ${issue.before&&issue.after?`
-      <div class="before-after">
-        <div class="ba-box before"><div class="ba-label">❌ Before</div><div>${issue.before}</div></div>
-        <div class="ba-box after"><div class="ba-label">✅ After — Strategic Flow</div><div>${issue.after}</div></div>
-      </div>`:''}`;
-    grid.appendChild(d);
-  });
-
-  const list=document.getElementById('upgradesList');
-  list.innerHTML='';
-  (data.upgrades||[]).forEach((upg,i)=>{
-    const d=document.createElement('div');
-    d.className='upgrade-item';
-    d.innerHTML=`
-      <div class="upgrade-num">${i+1}</div>
-      <div>
-        <div class="upgrade-title">${upg.title||''}</div>
-        <div class="upgrade-desc">${upg.description||''}</div>
-      </div>`;
-    list.appendChild(d);
-  });
-}
-
-async function runAudit(){
-  hideError();
-  const company=document.getElementById('company').value.trim();
-  const name=document.getElementById('name').value.trim();
-  const email=document.getElementById('email').value.trim();
-  const subject=document.getElementById('subject').value.trim();
-  const body=document.getElementById('emailBody').value.trim();
-  const goal=document.getElementById('goal').value;
-
-  if(!company||!name||!email||!subject||!body){showError('Please fill in all required fields.');return;}
-  if(body.length<50){showError('Please paste the full email body for an accurate audit.');return;}
-
-  document.getElementById('formState').style.display='none';
-  document.getElementById('loadingState').classList.add('active');
-  animateTerminal();
-
-  try{
-    const response=await fetch('/audit',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({company,name,email,goal,subject,body})
-    });
-    const data=await response.json();
-    if(response.status===403&&data.limitReached){
-      document.getElementById('loadingState').classList.remove('active');
-      document.getElementById('limitState').classList.add('active');
-      window.scrollTo({top:0,behavior:'smooth'});
-      return;
+// ─── FLOW ──────────────────────────────────────────────────────────────────────
+async function checkEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email || !email.includes('@')) { setErr('errEmail','Enter a valid email address.'); return; }
+  setErr('errEmail','');
+  currentEmail = email;
+  try {
+    const data = await api('/check-email', { email });
+    if (data.status === 'admin') {
+      currentTier = 'high_impact'; currentIsAdmin = true; currentVip = true;
+      setupForm();
+    } else if (data.status === 'has_tier') {
+      currentTier = data.tier; currentIsAdmin = false; currentVip = data.vip || false;
+      currentCompany = data.company || '';
+      setupForm(data);
+    } else {
+      showOnly('statePricing');
     }
-    if(!response.ok)throw new Error(data.error||`Server error: ${response.status}`);
+  } catch (e) { setErr('errEmail', e.message); }
+}
 
-    setTimeout(()=>{
-      document.getElementById('loadingState').classList.remove('active');
-      renderResults(data);
-      document.getElementById('resultState').classList.add('active');
-      window.scrollTo({top:0,behavior:'smooth'});
-      loadRewrite(company,subject,body);
-    },400);
+function showPricing() { showOnly('statePricing'); }
+function showActivate() { showOnly('stateActivate'); document.getElementById('activateEmail').value = currentEmail; }
+function showForm() { showOnly('stateForm'); }
+function showAdmin() { showOnly('stateAdmin'); loadAdmin(); }
+function restart() { showOnly('stateEmail'); resetState(); }
+function resetState() {
+  currentEmail=''; currentTier=''; currentIsAdmin=false; currentVip=false;
+  currentCompany=''; currentOrigSubject=''; currentOrigBody='';
+  currentResult=null; currentBrandDNA=null; currentVoiceProfile=null;
+  downloadHtmlContent='';
+  hide('brandDNAResult','brandDNAPanel');
+}
 
-  }catch(err){
-    document.getElementById('loadingState').classList.remove('active');
-    document.getElementById('formState').style.display='block';
-    showError('Something went wrong: '+err.message);
-    console.error(err);
+async function activateAccount() {
+  const email = document.getElementById('activateEmail').value.trim();
+  const tier  = document.getElementById('activateTier').value;
+  if (!email || !tier) { setErr('errActivate','Enter your email and select the tier you purchased.'); return; }
+  setErr('errActivate','');
+  try {
+    const data = await api('/activate', { email, tier });
+    if (data.success) {
+      currentEmail = email; currentTier = tier; currentIsAdmin = false;
+      alert(`✓ Account activated! You now have access to ${data.tierName}.`);
+      setupForm();
+    }
+  } catch (e) { setErr('errActivate', e.message); }
+}
+
+function setupForm(userData) {
+  showOnly('stateForm');
+  const badgeEl = document.getElementById('formTierBadge');
+  badgeEl.textContent = TIER_NAMES[currentTier] || currentTier;
+  badgeEl.className = 'tier-badge ' + tierClass(currentTier);
+
+  if (currentVip || currentIsAdmin) show('formVipBadge'); else hide('formVipBadge');
+
+  if (currentIsAdmin) {
+    show('adminPanelBtn');
+    document.getElementById('usageLabel').textContent = 'Admin — unlimited access';
+  } else {
+    hide('adminPanelBtn');
+    if (userData && userData.used !== undefined) {
+      const lbl = userData.monthly
+        ? `${userData.used} / ${userData.limit === Infinity ? '∞' : userData.limit} this month`
+        : `${userData.used} / ${userData.limit} total`;
+      document.getElementById('usageLabel').textContent = lbl;
+    }
+  }
+
+  if (currentCompany) document.getElementById('fCompany').value = currentCompany;
+
+  // Show/hide tier-specific fields
+  const isGrowth = ['growth','high_impact'].includes(currentTier) || currentIsAdmin;
+  const isHI     = currentTier === 'high_impact' || currentIsAdmin;
+  if (isGrowth) { show('brandDNARow','roadmapRow'); } else { hide('brandDNARow','roadmapRow'); }
+  if (isHI)     { show('emailTypeRow'); } else { hide('emailTypeRow'); }
+}
+
+// ─── BRAND DNA ─────────────────────────────────────────────────────────────────
+async function runBrandDNA() {
+  const url = document.getElementById('fWebsite').value.trim();
+  if (!url) { alert('Enter a website URL first.'); return; }
+  const btn = document.getElementById('extractBtn');
+  btn.textContent = 'Extracting…'; btn.disabled = true;
+  try {
+    const data = await api('/brand-dna', { websiteUrl: url, email: currentEmail });
+    currentBrandDNA = data;
+    currentVoiceProfile = data.voiceProfile;
+    renderBrandDNASnippet(data);
+    show('brandDNAResult');
+  } catch (e) { alert('Brand extraction failed: ' + e.message); }
+  finally { btn.textContent = 'Extract DNA'; btn.disabled = false; }
+}
+
+function renderBrandDNASnippet(dna) {
+  const el = document.getElementById('brandDNAResult');
+  const vp = dna.voiceProfile || {};
+  const colors = (dna.colors||[]).map(c =>
+    `<span class="color-swatch" style="background:${c.value}" title="${c.value}"></span>`
+  ).join(' ');
+  const logoImg = dna.logo ? `<img src="${dna.logo}" class="brand-logo" onerror="this.style.display='none'" />` : '';
+  el.innerHTML = `<div style="padding:14px;background:var(--bg2);border:1px solid rgba(0,212,200,0.2);border-radius:10px;font-size:12px;">
+    ${logoImg}
+    <div class="dna-row"><span class="dna-key">Colors</span><span class="dna-val">${colors || 'none found'}</span></div>
+    <div class="dna-row"><span class="dna-key">Industry</span><span class="dna-val">${dna.industry||'—'}</span></div>
+    <div class="dna-row"><span class="dna-key">Audience</span><span class="dna-val">${dna.audience||'—'}</span></div>
+    ${vp.formality ? `<div class="dna-row"><span class="dna-key">Formality</span><span class="dna-val">${vp.formality}</span></div>` : ''}
+    ${vp.brandTone ? `<div class="dna-row"><span class="dna-key">Brand Tone</span><span class="dna-val">${vp.brandTone}</span></div>` : ''}
+    ${vp.ctaVerbs?.length ? `<div class="dna-row"><span class="dna-key">CTA Verbs</span><span class="dna-val">${vp.ctaVerbs.join(', ')}</span></div>` : ''}
+    ${!dna.success ? `<div style="color:var(--red);margin-top:8px;">Could not fetch website: ${dna.error}</div>` : ''}
+  </div>`;
+}
+
+// ─── GENERATE ─────────────────────────────────────────────────────────────────
+async function submitGenerate() {
+  const company = document.getElementById('fCompany').value.trim();
+  const subject = document.getElementById('fSubject').value.trim();
+  const body    = document.getElementById('fBody').value.trim();
+  if (!subject || !body) { setErr('errForm','Subject line and email body are required.'); return; }
+  setErr('errForm','');
+
+  currentCompany     = company;
+  currentOrigSubject = subject;
+  currentOrigBody    = body;
+
+  const emailType   = document.getElementById('fEmailType')?.value || '';
+  const roadmapNotes = document.getElementById('fRoadmap')?.value || '';
+
+  showOnly('stateLoading');
+  animateLoading();
+
+  try {
+    const gen = await api('/generate', {
+      email: currentEmail, company, name: document.getElementById('fName').value.trim(),
+      goal: document.getElementById('fGoal').value, subject, body,
+      emailType: emailType || null, roadmapNotes: roadmapNotes || null,
+      brandDNA: currentBrandDNA, voiceProfile: currentVoiceProfile
+    });
+
+    currentResult = gen;
+    downloadHtmlContent = gen.downloadHtml || '';
+    showResults(gen);
+
+  } catch (e) {
+    showOnly('stateForm');
+    setErr('errForm', e.message || 'Generation failed. Please try again.');
   }
 }
+
+function animateLoading() {
+  const steps = ['step1','step2','step3','step4'];
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i > 0) document.getElementById(steps[i-1])?.classList.replace('active','done');
+    if (i < steps.length) { document.getElementById(steps[i])?.classList.add('active'); i++; }
+    else clearInterval(iv);
+  }, 1200);
+}
+
+// ─── RESULTS ──────────────────────────────────────────────────────────────────
+function showResults(gen) {
+  showOnly('stateResult');
+
+  // Header
+  const badgeEl = document.getElementById('resTierBadge');
+  badgeEl.innerHTML = `<span class="tier-badge ${tierClass(gen.tier)}">${TIER_NAMES[gen.tier] || gen.tier} Rebuild</span>`;
+  if (gen.emailType) document.getElementById('resTypeBadge').innerHTML = `<span class="tag tag-type">${gen.emailType.replace(/_/g,' ')}</span>`;
+  if (currentVip && !currentIsAdmin) show('resVipBadge'); else hide('resVipBadge');
+
+  // Core
+  document.getElementById('resSubject').textContent = gen.rebuilt_subject || '';
+  document.getElementById('resBody').textContent = gen.rebuilt_body || '';
+  document.getElementById('resChanges').innerHTML = (gen.key_changes || []).map(c => `<div class="change-item">${c}</div>`).join('');
+  document.getElementById('resHook').textContent = gen.conversion_hook || '';
+
+  // Tier panels
+  hide('panelLite','panelGrowth','panelHighImpact','upgradeCTA','brandDNAPanel');
+
+  const t = gen.tier;
+  const isLite = ['lite','growth','high_impact'].includes(t);
+  const isGrowth = ['growth','high_impact'].includes(t);
+  const isHI = t === 'high_impact';
+
+  if (isLite || currentIsAdmin) {
+    show('panelLite');
+    document.getElementById('baOrigSubject').textContent = currentOrigSubject;
+    document.getElementById('baOrigBody').textContent = currentOrigBody.slice(0, 300) + (currentOrigBody.length > 300 ? '…' : '');
+    document.getElementById('baNewSubject').textContent = gen.rebuilt_subject;
+    document.getElementById('baNewBody').textContent = (gen.rebuilt_body || '').slice(0, 300) + ((gen.rebuilt_body||'').length > 300 ? '…' : '');
+    loadConversionScore();
+    loadABSubjects();
+  }
+
+  if (isGrowth || currentIsAdmin) {
+    show('panelGrowth');
+    if (currentBrandDNA) {
+      show('brandDNAPanel');
+      renderBrandDNAInResult(currentBrandDNA, currentVoiceProfile);
+    }
+    loadAudienceSegments();
+    loadContentCalendar();
+  }
+
+  if (isHI || currentIsAdmin) {
+    show('panelHighImpact');
+    loadCohesionCheck();
+  }
+
+  // Upgrade CTA
+  if (!currentIsAdmin && TIER_NEXT[t]) {
+    show('upgradeCTA');
+    const next = TIER_NEXT[t];
+    document.getElementById('upgradeCTAText').textContent = `Upgrade to ${next.name} to unlock additional generation features.`;
+    document.getElementById('upgradeCTALink').href = next.url;
+    document.getElementById('upgradeCTALink').textContent = `Upgrade to ${next.name} →`;
+  }
+}
+
+function renderBrandDNAInResult(dna, vp) {
+  const colors = (dna.colors||[]).map(c =>
+    `<span class="color-swatch" style="background:${c.value}" title="${c.value}"></span>`
+  ).join(' ');
+  const vpr = vp || {};
+  const logo = dna.logo ? `<img src="${dna.logo}" class="brand-logo" onerror="this.style.display='none'" />` : '';
+  document.getElementById('brandDNADisplay').innerHTML = `
+    ${logo}
+    <div class="dna-row"><span class="dna-key">Colors</span><span class="dna-val">${colors||'extracted'}</span></div>
+    <div class="dna-row"><span class="dna-key">Industry</span><span class="dna-val">${dna.industry||'—'}</span></div>
+    <div class="dna-row"><span class="dna-key">Audience</span><span class="dna-val">${dna.audience||'—'}</span></div>
+    ${vpr.formality?`<div class="dna-row"><span class="dna-key">Formality</span><span class="dna-val">${vpr.formality}</span></div>`:''}
+    ${vpr.brandTone?`<div class="dna-row"><span class="dna-key">Brand Tone</span><span class="dna-val">${vpr.brandTone}</span></div>`:''}
+    ${vpr.ctaVerbs?.length?`<div class="dna-row"><span class="dna-key">CTA Verbs</span><span class="dna-val">${vpr.ctaVerbs.join(', ')}</span></div>`:''}
+    <div style="font-size:11px;color:var(--teal);margin-top:8px;font-style:italic;">Brand voice preserved — structure and mechanics upgraded only.</div>`;
+}
+
+// ─── ASYNC LOADERS ────────────────────────────────────────────────────────────
+async function loadConversionScore() {
+  try {
+    const data = await api('/conversion-score', {
+      email: currentEmail, originalSubject: currentOrigSubject, originalBody: currentOrigBody,
+      rebuiltSubject: currentResult.rebuilt_subject, rebuiltBody: currentResult.rebuilt_body
+    });
+    hide('scoreLoading'); show('scoreResult');
+    document.getElementById('scoreOrig').textContent = data.original_score;
+    document.getElementById('scoreNew').textContent  = data.rebuilt_score;
+    document.getElementById('scoreOrigBar').style.width = (data.original_score / 10 * 100) + '%';
+    document.getElementById('scoreNewBar').style.width  = (data.rebuilt_score  / 10 * 100) + '%';
+    document.getElementById('scoreOrigExp').textContent = data.original_explanation || '';
+    document.getElementById('scoreNewExp').textContent  = data.rebuilt_explanation  || '';
+  } catch (e) { document.getElementById('scoreLoading').textContent = 'Score unavailable.'; }
+}
+
+async function loadABSubjects() {
+  try {
+    const data = await api('/ab-subjects', { email: currentEmail, company: currentCompany, subject: currentOrigSubject, body: currentOrigBody });
+    hide('abLoading'); show('abResult');
+    const labels = { curiosity_gap: 'Curiosity Gap', specific_outcome: 'Specific Outcome', pattern_interrupt: 'Pattern Interrupt' };
+    document.getElementById('abResult').innerHTML = (data.variants || []).map(v => `
+      <div class="ab-item">
+        <div class="ab-angle">${labels[v.angle] || v.angle}</div>
+        <div class="ab-subject">${v.subject}</div>
+        <div class="ab-reasoning">${v.reasoning || ''}</div>
+        <div class="ab-lift">${v.predicted_lift || ''}</div>
+      </div>`).join('');
+  } catch (e) { document.getElementById('abLoading').textContent = 'A/B variants unavailable.'; }
+}
+
+async function loadAudienceSegments() {
+  try {
+    const data = await api('/audience-segments', { email: currentEmail, company: currentCompany, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    hide('segLoading'); show('segResult');
+    document.getElementById('segResult').innerHTML = (data.segments || []).map(s => `
+      <div class="segment-card">
+        <div class="segment-name">${s.name}</div>
+        <div class="segment-desc">${s.description}</div>
+        <div class="segment-why">↳ ${s.why_converts}</div>
+        ${s.behavioral_signal ? `<div style="font-size:10px;color:var(--muted);margin-top:5px;font-family:var(--mono);">Signal: ${s.behavioral_signal}</div>` : ''}
+      </div>`).join('');
+  } catch (e) { document.getElementById('segLoading').textContent = 'Segments unavailable.'; }
+}
+
+async function loadContentCalendar() {
+  try {
+    const data = await api('/content-calendar', { email: currentEmail, company: currentCompany, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    hide('calLoading'); show('calResult');
+    document.getElementById('calResult').innerHTML = (data.follow_ups || []).map((f, i) => `
+      <div class="cal-item">
+        <div class="cal-timing">Email ${i+2} — ${f.timing}</div>
+        <div class="cal-subject">${f.subject_line}</div>
+        <div class="cal-angle">${f.angle}</div>
+        ${f.why_now ? `<div style="font-size:10px;color:var(--muted);margin-top:4px;font-style:italic;">${f.why_now}</div>` : ''}
+      </div>`).join('');
+  } catch (e) { document.getElementById('calLoading').textContent = 'Calendar unavailable.'; }
+}
+
+async function loadCohesionCheck() {
+  try {
+    const data = await api('/cohesion-check', { email: currentEmail, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    hide('cohLoading'); show('cohResult');
+    const score = data.cohesion_score || 0;
+    document.getElementById('cohScore').textContent = score;
+    document.getElementById('cohScore').style.color = score >= 8 ? 'var(--teal)' : score >= 5 ? 'var(--gold)' : 'var(--red)';
+    document.getElementById('cohVerdict').textContent = data.overall_verdict || '';
+    const flags = (data.narrative_breaks || []);
+    document.getElementById('cohFlags').innerHTML = flags.length
+      ? flags.map(f => `<div class="flag-item"><div class="flag-loc">${f.location}</div><div class="flag-issue">${f.issue}</div><div class="flag-fix">Fix: ${f.fix}</div></div>`).join('')
+      : '<div style="color:var(--teal);font-size:13px;">✓ No narrative breaks detected. Subject → hook → body → CTA tell one consistent story.</div>';
+  } catch (e) { document.getElementById('cohLoading').textContent = 'Cohesion check unavailable.'; }
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function downloadHTML() {
+  if (!downloadHtmlContent) return;
+  const blob = new Blob([downloadHtmlContent], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `strategic-flow-${(currentCompany||'newsletter').replace(/\s+/g,'-').toLowerCase()}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function requestReview() {
+  const btn = document.getElementById('reviewBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await api('/human-review', {
+      email: currentEmail, company: currentCompany, tier: currentTier,
+      rebuiltSubject: currentResult.rebuilt_subject, rebuiltBody: currentResult.rebuilt_body
+    });
+    hide('reviewBtn'); show('reviewSent');
+  } catch (e) { btn.disabled = false; btn.textContent = 'Send for Human Review →'; alert('Failed: ' + e.message); }
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+async function loadAdmin() {
+  document.getElementById('adminEmailLabel').textContent = currentEmail;
+  try {
+    const [stats, users] = await Promise.all([
+      fetch('/admin/stats', { headers: { 'x-admin-email': currentEmail } }).then(r => r.json()),
+      fetch('/admin/users', { headers: { 'x-admin-email': currentEmail } }).then(r => r.json())
+    ]);
+    const tierMap = {};
+    (stats.tierCounts || []).forEach(r => tierMap[r.tier] = r.count);
+    document.getElementById('adminStats').innerHTML = `
+      <div class="stat-box"><div class="stat-n" style="color:var(--gold);">${stats.totalUsers||0}</div><div class="stat-l">Total Users</div></div>
+      <div class="stat-box"><div class="stat-n">${stats.totalNewsletters||0}</div><div class="stat-l">Newsletters</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--gold);">${tierMap.high_impact||0}</div><div class="stat-l">High-Impact</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:#a78bfa;">${tierMap.growth||0}</div><div class="stat-l">Growth</div></div>`;
+    renderUserList(users.users || []);
+    renderNLList(stats.recentNewsletters || []);
+  } catch (e) { console.error('[admin]', e); }
+}
+
+function renderUserList(users) {
+  document.getElementById('adminUserList').innerHTML = users.length ? users.map(u => `
+    <div class="user-row">
+      <span class="user-email">${u.email}</span>
+      <span class="tier-badge ${tierClass(u.tier)}">${u.tier}</span>
+      ${u.vip ? '<span class="vip-badge">VIP</span>' : ''}
+      <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">${u.newsletter_count} total</span>
+      <select onchange="upgradeUser('${u.email}',this.value)" style="font-size:11px;padding:4px 8px;width:auto;background:var(--bg2);">
+        <option value="">Change tier…</option>
+        <option value="single">Single</option>
+        <option value="lite">Lite</option>
+        <option value="growth">Growth</option>
+        <option value="high_impact">High-Impact</option>
+      </select>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;">No users yet.</div>';
+}
+
+function renderNLList(nls) {
+  document.getElementById('adminNLList').innerHTML = nls.length ? nls.map(n => `
+    <div class="nl-row">
+      <div class="nl-subject">${n.rebuilt_subject || '—'}</div>
+      <div class="nl-meta">${n.email} · ${n.tier} · ${new Date(n.created_at).toLocaleDateString()}</div>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:12px;">No newsletters yet.</div>';
+}
+
+async function searchUsers() {
+  const q = document.getElementById('adminSearch').value;
+  try {
+    const data = await fetch(`/admin/users?q=${encodeURIComponent(q)}`, { headers: { 'x-admin-email': currentEmail } }).then(r => r.json());
+    renderUserList(data.users || []);
+  } catch (e) {}
+}
+
+async function upgradeUser(email, tier) {
+  if (!tier) return;
+  try {
+    await fetch('/admin/upgrade', { method:'POST', headers:{ 'content-type':'application/json','x-admin-email':currentEmail }, body: JSON.stringify({ email, tier }) });
+    await loadAdmin();
+  } catch (e) { alert('Upgrade failed: ' + e.message); }
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function api(path, body) {
+  const res = await fetch(path, { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.getElementById('emailInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
 </script>
 </body>
 </html>
