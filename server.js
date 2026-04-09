@@ -25,6 +25,58 @@ async function ensureTable() {
 }
 ensureTable().catch(err => console.error('DB init error:', err.message));
 
+// Diagnostic test page — shows exact Anthropic + DB status in browser
+app.get('/test', async (req, res) => {
+  const results = {};
+
+  // 1. Check env vars
+  results.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+    ? `set (starts with: ${process.env.ANTHROPIC_API_KEY.slice(0, 8)}...)`
+    : 'MISSING';
+  results.DATABASE_URL = process.env.DATABASE_URL
+    ? `set (starts with: ${process.env.DATABASE_URL.slice(0, 20)}...)`
+    : 'MISSING';
+
+  // 2. Test DB connection
+  try {
+    const dbRes = await pool.query('SELECT NOW() as time');
+    results.db = { ok: true, time: dbRes.rows[0].time };
+  } catch (e) {
+    results.db = { ok: false, error: e.message };
+  }
+
+  // 3. Test Anthropic API call
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'Say OK' }]
+    });
+    results.anthropic = { ok: true, response: msg.content.map(b => b.text).join('') };
+  } catch (e) {
+    results.anthropic = {
+      ok: false,
+      error: e.message,
+      status: e.status || e.statusCode || null,
+      body: e.error || null
+    };
+  }
+
+  const allOk = results.db.ok && results.anthropic.ok;
+  res.status(allOk ? 200 : 500).send(`<!DOCTYPE html>
+<html><head><title>Diagnostic</title>
+<style>
+  body { font-family: monospace; padding: 2rem; background: #0f0f0f; color: #eee; }
+  h1 { color: ${allOk ? '#4ade80' : '#f87171'}; }
+  pre { background: #1a1a1a; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #4ade80; } .fail { color: #f87171; }
+</style></head><body>
+<h1>${allOk ? '✓ All systems OK' : '✗ Something is failing'}</h1>
+<pre>${JSON.stringify(results, null, 2)}</pre>
+</body></html>`);
+});
+
 // API endpoint - cheia sta pe server, niciodata in browser
 app.post('/audit', async (req, res) => {
   const { company, name, email, goal, subject, body } = req.body;
