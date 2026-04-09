@@ -77,32 +77,12 @@ app.get('/test', async (req, res) => {
 </body></html>`);
 });
 
-// API endpoint - cheia sta pe server, niciodata in browser
+// API endpoint
 app.post('/audit', async (req, res) => {
   const { company, name, email, goal, subject, body } = req.body;
 
   if (!company || !name || !email || !subject || !body) {
     return res.status(400).json({ error: 'Missing required fields.' });
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-
-  try {
-    // Check usage
-    const usageResult = await pool.query(
-      'SELECT audit_count FROM audit_usage WHERE email = $1',
-      [normalizedEmail]
-    );
-
-    if (usageResult.rows.length > 0 && usageResult.rows[0].audit_count >= 1) {
-      return res.status(403).json({
-        limitReached: true,
-        message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
-      });
-    }
-  } catch (dbErr) {
-    console.error('DB check error:', dbErr.message);
-    return res.status(500).json({ error: 'Something went wrong. Please try again.', detail: dbErr.message });
   }
 
   const prompt = `You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
@@ -164,94 +144,39 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
   ]
 }`;
 
-  const debug = {
-    step: 'init',
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY
-      ? `set (${process.env.ANTHROPIC_API_KEY.slice(0, 8)}...)` : 'MISSING',
-    DATABASE_URL: process.env.DATABASE_URL
-      ? `set (${process.env.DATABASE_URL.slice(0, 20)}...)` : 'MISSING',
-  };
-
-  const fail = (step, err, extra = {}) => {
-    debug.step = step;
-    debug.error = err.message || String(err);
-    debug.stack = err.stack || null;
-    debug.status = err.status || err.statusCode || null;
-    debug.anthropicBody = err.error || null;
-    console.error(`[audit] FAIL at step=${step}:`, err.message, err.stack);
-    return res.status(500).json({ ...debug, ...extra });
-  };
-
-  // Step 1: DB usage check
-  let usageRows;
   try {
-    debug.step = 'db_check';
-    const r = await pool.query('SELECT audit_count FROM audit_usage WHERE email = $1', [normalizedEmail]);
-    usageRows = r.rows;
-  } catch (err) {
-    return fail('db_check', err);
-  }
-
-  if (usageRows.length > 0 && usageRows[0].audit_count >= 1) {
-    return res.status(403).json({
-      limitReached: true,
-      message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
-    });
-  }
-
-  // Step 2: Anthropic API call
-  let message;
-  try {
-    debug.step = 'anthropic_call';
-    debug.promptLength = prompt.length;
-    console.log(`[audit] calling Anthropic for ${normalizedEmail}, prompt length: ${prompt.length}`);
+    console.log(`[audit] calling Anthropic, prompt length: ${prompt.length}`);
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    message = await client.messages.create({
+    const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     });
-    debug.stopReason = message.stop_reason;
-    debug.rawLength = message.content.map(b => b.text || '').join('').length;
-    console.log(`[audit] raw response length: ${debug.rawLength}, stop_reason: ${debug.stopReason}`);
+
+    const raw = message.content.map(b => b.text || '').join('');
+    console.log(`[audit] response length: ${raw.length}, stop_reason: ${message.stop_reason}`);
+
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) {
+      return res.status(500).json({ error: 'No JSON in response', rawPreview: raw.slice(0, 500) });
+    }
+
+    const parsed = JSON.parse(raw.slice(start, end + 1));
+    console.log('[audit] success');
+    res.json(parsed);
+
   } catch (err) {
-    return fail('anthropic_call', err);
+    console.error('[audit] error:', err.message, err.stack);
+    res.status(500).json({
+      error: err.message || String(err),
+      stack: err.stack || null,
+      status: err.status || err.statusCode || null,
+      anthropicBody: err.error || null,
+      apiKeySet: !!process.env.ANTHROPIC_API_KEY,
+      apiKeyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.slice(0, 8) : null
+    });
   }
-
-  // Step 3: Extract JSON
-  const raw = message.content.map(b => b.text || '').join('');
-  const start = raw.indexOf('{');
-  const end = raw.lastIndexOf('}');
-  if (start === -1 || end === -1) {
-    return fail('json_extract', new Error('No JSON object found in model response'), { rawPreview: raw.slice(0, 500) });
-  }
-  const clean = raw.slice(start, end + 1);
-
-  // Step 4: Parse JSON
-  let parsed;
-  try {
-    debug.step = 'json_parse';
-    parsed = JSON.parse(clean);
-  } catch (err) {
-    return fail('json_parse', err, { rawPreview: clean.slice(0, 500) });
-  }
-
-  // Step 5: Record usage
-  try {
-    debug.step = 'db_write';
-    await pool.query(`
-      INSERT INTO audit_usage (email, audit_count, first_audit_at, last_audit_at)
-      VALUES ($1, 1, NOW(), NOW())
-      ON CONFLICT (email) DO UPDATE
-        SET audit_count = audit_usage.audit_count + 1,
-            last_audit_at = NOW()
-    `, [normalizedEmail]);
-  } catch (err) {
-    return fail('db_write', err);
-  }
-
-  console.log(`[audit] success for ${normalizedEmail}`);
-  res.json(parsed);
 });
 
 // Toate celelalte rute -> index.html
