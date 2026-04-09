@@ -147,27 +147,71 @@ async function claudeJSON(prompt, maxTokens = 2000) {
   }
 }
 
+// Returns true when a hex color is light enough to need dark text on top of it.
+function isLightHex(hex) {
+  if (!hex || !hex.startsWith('#')) return true;
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  if (full.length !== 6) return true;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 160;
+}
+
 function buildNewsletterHTML(company, subject, body, brandDNA) {
-  const primaryColor = (brandDNA?.colors?.[0]?.value) || '#00d4c8';
+  const colors = brandDNA?.colors || [];
+
+  // colors[0] → header / hero background  (was always used)
+  // colors[1] → accent: h1 heading + CTA button background
+  // colors[2] → page background:          replaces hardcoded #f4f4f7
+  const primaryColor  = colors[0]?.value || '#00d4c8';
+  const accentColor   = colors[1]?.value || primaryColor;
+  const bgColor       = colors[2]?.value || '#f4f4f7';
+
+  // Pick readable text colors for coloured backgrounds
+  const primaryText = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
+  const accentText  = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
+
   const logo = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;" /><br>` : '';
-  const formattedBody = (body || '').replace(/\n\n/g, '</p><p style="margin:0 0 16px;">').replace(/\n/g, '<br>');
+
+  // Separate the CTA (last short line) from the body so it can be rendered as a button.
+  // "Short" = under 80 chars and no trailing period (it's a call-to-action, not a sentence).
+  const lines = (body || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const lastLine = lines[lines.length - 1] || '';
+  const looksLikeCTA = lastLine.length > 0 && lastLine.length < 80 && !lastLine.endsWith('.');
+  const ctaText       = looksLikeCTA ? lastLine : '';
+  const bodyLines     = looksLikeCTA ? lines.slice(0, -1) : lines;
+  const formattedBody = bodyLines.join('\n')
+    .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
+    .replace(/\n/g, '<br>');
+
+  const ctaBlock = ctaText
+    ? `<table cellpadding="0" cellspacing="0" style="margin:28px 0 0;">
+         <tr><td style="background:${accentColor};border-radius:7px;padding:14px 28px;text-align:center;">
+           <a href="#" style="font-size:15px;font-weight:700;color:${accentText};text-decoration:none;white-space:nowrap;">${ctaText}</a>
+         </td></tr>
+       </table>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
-<body style="margin:0;padding:0;background:#f4f4f7;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 20px;">
+<body style="margin:0;padding:0;background:${bgColor};font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
-    ${logo}<span style="font-size:22px;font-weight:700;color:#fff;">${company}</span>
+    ${logo}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
   </td></tr>
   <tr><td style="padding:40px;">
-    <h1 style="font-size:22px;color:#1a1a2e;margin:0 0 24px;line-height:1.35;">${subject}</h1>
+    <h1 style="font-size:22px;color:${accentColor};margin:0 0 24px;line-height:1.35;">${subject}</h1>
     <p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>
+    ${ctaBlock}
   </td></tr>
-  <tr><td style="background:#f8f8fa;padding:18px 40px;text-align:center;border-top:1px solid #eee;">
-    <p style="font-size:11px;color:#999;margin:0;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${primaryColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
+  <tr><td style="background:${bgColor};padding:18px 40px;text-align:center;border-top:1px solid rgba(0,0,0,0.08);">
+    <p style="font-size:11px;color:#999;margin:0;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
