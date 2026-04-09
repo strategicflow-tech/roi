@@ -164,60 +164,81 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
   ]
 }`;
 
-  let raw = '';
+  const debug = {
+    step: 'init',
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY
+      ? `set (${process.env.ANTHROPIC_API_KEY.slice(0, 8)}...)` : 'MISSING',
+    DATABASE_URL: process.env.DATABASE_URL
+      ? `set (${process.env.DATABASE_URL.slice(0, 20)}...)` : 'MISSING',
+  };
+
+  const fail = (step, err, extra = {}) => {
+    debug.step = step;
+    debug.error = err.message || String(err);
+    debug.stack = err.stack || null;
+    debug.status = err.status || err.statusCode || null;
+    debug.anthropicBody = err.error || null;
+    console.error(`[audit] FAIL at step=${step}:`, err.message, err.stack);
+    return res.status(500).json({ ...debug, ...extra });
+  };
+
+  // Step 1: DB usage check
+  let usageRows;
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    debug.step = 'db_check';
+    const r = await pool.query('SELECT audit_count FROM audit_usage WHERE email = $1', [normalizedEmail]);
+    usageRows = r.rows;
+  } catch (err) {
+    return fail('db_check', err);
+  }
 
+  if (usageRows.length > 0 && usageRows[0].audit_count >= 1) {
+    return res.status(403).json({
+      limitReached: true,
+      message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
+    });
+  }
+
+  // Step 2: Anthropic API call
+  let message;
+  try {
+    debug.step = 'anthropic_call';
+    debug.promptLength = prompt.length;
     console.log(`[audit] calling Anthropic for ${normalizedEmail}, prompt length: ${prompt.length}`);
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    message = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    debug.stopReason = message.stop_reason;
+    debug.rawLength = message.content.map(b => b.text || '').join('').length;
+    console.log(`[audit] raw response length: ${debug.rawLength}, stop_reason: ${debug.stopReason}`);
+  } catch (err) {
+    return fail('anthropic_call', err);
+  }
 
-    let message;
-    try {
-      message = await client.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      });
-    } catch (apiErr) {
-      const status = apiErr.status || apiErr.statusCode || 'unknown';
-      const detail = apiErr.message || String(apiErr);
-      console.error(`[audit] Anthropic API error — status: ${status}, message: ${detail}`);
-      if (apiErr.error) console.error('[audit] Anthropic error body:', JSON.stringify(apiErr.error));
-      return res.status(502).json({
-        error: 'Anthropic API call failed.',
-        status,
-        detail
-      });
-    }
+  // Step 3: Extract JSON
+  const raw = message.content.map(b => b.text || '').join('');
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start === -1 || end === -1) {
+    return fail('json_extract', new Error('No JSON object found in model response'), { rawPreview: raw.slice(0, 500) });
+  }
+  const clean = raw.slice(start, end + 1);
 
-    raw = message.content.map(b => b.text || '').join('');
-    console.log(`[audit] raw response length: ${raw.length}, stop_reason: ${message.stop_reason}`);
+  // Step 4: Parse JSON
+  let parsed;
+  try {
+    debug.step = 'json_parse';
+    parsed = JSON.parse(clean);
+  } catch (err) {
+    return fail('json_parse', err, { rawPreview: clean.slice(0, 500) });
+  }
 
-    // Robustly extract the JSON object — find the outermost { ... }
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) {
-      console.error('[audit] No JSON found in model response. Raw output:', raw.slice(0, 500));
-      return res.status(500).json({
-        error: 'Model did not return valid JSON.',
-        raw: raw.slice(0, 500)
-      });
-    }
-    const clean = raw.slice(start, end + 1);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(clean);
-    } catch (parseErr) {
-      console.error('[audit] JSON parse failed:', parseErr.message);
-      console.error('[audit] Attempted to parse:', clean.slice(0, 500));
-      return res.status(500).json({
-        error: 'Failed to parse model response as JSON.',
-        detail: parseErr.message,
-        raw: clean.slice(0, 500)
-      });
-    }
-
-    // Record usage — insert or increment
+  // Step 5: Record usage
+  try {
+    debug.step = 'db_write';
     await pool.query(`
       INSERT INTO audit_usage (email, audit_count, first_audit_at, last_audit_at)
       VALUES ($1, 1, NOW(), NOW())
@@ -225,14 +246,12 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
         SET audit_count = audit_usage.audit_count + 1,
             last_audit_at = NOW()
     `, [normalizedEmail]);
-
-    console.log(`[audit] success for ${normalizedEmail}`);
-    res.json(parsed);
-
   } catch (err) {
-    console.error('[audit] unexpected error:', err.message || err);
-    res.status(500).json({ error: 'Something went wrong. Please try again.', detail: err.message });
+    return fail('db_write', err);
   }
+
+  console.log(`[audit] success for ${normalizedEmail}`);
+  res.json(parsed);
 });
 
 // Toate celelalte rute -> index.html
