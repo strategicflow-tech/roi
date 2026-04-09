@@ -244,7 +244,6 @@
 
 </div>
 <script>
-const API_URL="https://api.anthropic.com/v1/messages";
 
 function showError(msg){const e=document.getElementById('errorMsg');e.textContent=msg;e.classList.add('active');}
 function hideError(){document.getElementById('errorMsg').classList.remove('active');}
@@ -317,87 +316,18 @@ async function runAudit(){
   document.getElementById('loadingState').classList.add('active');
   animateTerminal();
 
-  const prompt=`You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
-
-Company: ${company}
-Contact: ${name} (${email})
-Goal: ${goal||'General conversion improvement'}
-Subject Line: "${subject}"
-Email Body:
----
-${body}
----
-
-Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
-
-{
-  "diagnosis": "2-3 sentences. Name the exact failure pattern — e.g. Feature-First Bias, Generic Urgency Theatre, Filing Label Subject, Consequence-After-Caveat, Missing Hierarchy, Zero Social Proof. Be specific to THIS email's actual content.",
-
-  "issues": [
-    {
-      "title": "Name of the issue",
-      "description": "2-3 sentences. WHY this kills conversion. Reference specific lines from the email.",
-      "before": "The actual problematic line from the email — quote it directly",
-      "after": "The Strategic Flow rewrite — specific, outcome-first, concrete"
-    },
-    { "title": "...", "description": "...", "before": "...", "after": "..." },
-    { "title": "...", "description": "...", "before": "...", "after": "..." }
-  ],
-
-  "upgrades": [
-    {
-      "title": "Subject line: curiosity gap over filing label",
-      "description": "Specific diagnosis of this email's subject line + Strategic Flow principle + exact rewrite with number, outcome, and specificity."
-    },
-    {
-      "title": "Lead: consequence before caveat",
-      "description": "Does this email open with a disclaimer, context, or caveat? Name it. The rewrite should open with the reader's outcome — what they can now do or no longer have to worry about."
-    },
-    {
-      "title": "Feature-to-outcome translation",
-      "description": "Identify the most egregious feature-dump in this email. Apply the formula: [Technical fact] → [What the team no longer has to do]. Give the exact before/after."
-    },
-    {
-      "title": "Visual hierarchy: major announcement leads",
-      "description": "Does the email treat everything as equal weight? Name the most important item and explain how to make it lead visually and structurally."
-    },
-    {
-      "title": "Before/after contrast: make it the story",
-      "description": "Is the old-state / new-state contrast visible or buried? The contrast IS the value. Explain where it's missing or hidden and how to surface it."
-    },
-    {
-      "title": "Social proof: third-party voice",
-      "description": "Is there a named customer quote? Role-specific, outcome-specific validation answers 'does this work in practice for someone like me?' — brand claims cannot replace it. What would the ideal quote look like for this email?"
-    },
-    {
-      "title": "CTA: ownership language over guest language",
-      "description": "How many CTAs exist? What exact language is used? Apply ownership language (Claim / Start my / See what changed in my account) vs guest language (Book / Try / Learn more). Give the exact rewrite."
-    }
-  ]
-}`;
-
   try{
-    const response=await fetch(API_URL,{
+    const response=await fetch('/audit',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:2000,
-        messages:[{role:'user',content:prompt}]
-      })
+      body:JSON.stringify({company,name,email,goal,subject,body})
     });
-    if(!response.ok)throw new Error(`API error: ${response.status}`);
-    const apiData=await response.json();
-    const raw=apiData.content.map(b=>b.text||'').join('');
-    let parsed;
-    try{
-      const clean=raw.replace(/```json|```/g,'').trim();
-      parsed=JSON.parse(clean);
-    }catch(e){throw new Error('Failed to parse response.');}
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error||`Server error: ${response.status}`);
 
     setTimeout(()=>{
       document.getElementById('loadingState').classList.remove('active');
-      renderResults(parsed);
+      renderResults(data);
       document.getElementById('resultState').classList.add('active');
       window.scrollTo({top:0,behavior:'smooth'});
     },400);
@@ -405,7 +335,7 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
   }catch(err){
     document.getElementById('loadingState').classList.remove('active');
     document.getElementById('formState').style.display='block';
-    showError('Something went wrong. Please try again.');
+    showError('Something went wrong: '+err.message);
     console.error(err);
   }
 }
