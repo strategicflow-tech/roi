@@ -1,10 +1,26 @@
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
+const { Pool } = require('pg');
 const path = require('path');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function ensureTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_usage (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      audit_count INTEGER NOT NULL DEFAULT 0,
+      first_audit_at TIMESTAMP DEFAULT NOW(),
+      last_audit_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+}
+ensureTable().catch(err => console.error('DB init error:', err.message));
 
 // API endpoint - cheia sta pe server, niciodata in browser
 app.post('/audit', async (req, res) => {
@@ -12,6 +28,21 @@ app.post('/audit', async (req, res) => {
 
   if (!company || !name || !email || !subject || !body) {
     return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Check usage
+  const usageResult = await pool.query(
+    'SELECT audit_count FROM audit_usage WHERE email = $1',
+    [normalizedEmail]
+  );
+
+  if (usageResult.rows.length > 0 && usageResult.rows[0].audit_count >= 1) {
+    return res.status(403).json({
+      limitReached: true,
+      message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
+    });
   }
 
   const prompt = `You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
@@ -85,6 +116,15 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
     const raw = message.content.map(b => b.text || '').join('');
     const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
+
+    // Record usage — insert or increment
+    await pool.query(`
+      INSERT INTO audit_usage (email, audit_count, first_audit_at, last_audit_at)
+      VALUES ($1, 1, NOW(), NOW())
+      ON CONFLICT (email) DO UPDATE
+        SET audit_count = audit_usage.audit_count + 1,
+            last_audit_at = NOW()
+    `, [normalizedEmail]);
 
     res.json(parsed);
 
