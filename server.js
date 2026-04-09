@@ -7,7 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 async function ensureTable() {
   await pool.query(`
@@ -32,17 +35,22 @@ app.post('/audit', async (req, res) => {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Check usage
-  const usageResult = await pool.query(
-    'SELECT audit_count FROM audit_usage WHERE email = $1',
-    [normalizedEmail]
-  );
+  try {
+    // Check usage
+    const usageResult = await pool.query(
+      'SELECT audit_count FROM audit_usage WHERE email = $1',
+      [normalizedEmail]
+    );
 
-  if (usageResult.rows.length > 0 && usageResult.rows[0].audit_count >= 1) {
-    return res.status(403).json({
-      limitReached: true,
-      message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
-    });
+    if (usageResult.rows.length > 0 && usageResult.rows[0].audit_count >= 1) {
+      return res.status(403).json({
+        limitReached: true,
+        message: "You've used your free audit. Book a paid session at strategicflow.carrd.co"
+      });
+    }
+  } catch (dbErr) {
+    console.error('DB check error:', dbErr.message);
+    return res.status(500).json({ error: 'Something went wrong. Please try again.', detail: dbErr.message });
   }
 
   const prompt = `You are the Strategic Flow audit engine. Analyze this SaaS email using the exact Strategic Flow Method — the same used for Cato Networks, Revolut, Uber Rentals, Wizz Air, HeyGen, and Memrise.
@@ -114,7 +122,14 @@ Return ONLY valid JSON. No markdown fences, no explanation outside the JSON.
     });
 
     const raw = message.content.map(b => b.text || '').join('');
-    const clean = raw.replace(/```json|```/g, '').trim();
+
+    // Robustly extract the JSON object — find the outermost { ... }
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) {
+      throw new Error('No JSON object found in model response');
+    }
+    const clean = raw.slice(start, end + 1);
     const parsed = JSON.parse(clean);
 
     // Record usage — insert or increment
