@@ -165,6 +165,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
   // colors[0] → header / hero background  (was always used)
   // colors[1] → accent: h1 heading + CTA button background
   // colors[2] → page background:          replaces hardcoded #f4f4f7
+  // True last resort only — /generate guards should have populated colours before reaching here.
   const primaryColor  = colors[0]?.value || '#00d4c8';
   const accentColor   = colors[1]?.value || primaryColor;
   const bgColor       = colors[2]?.value || '#f4f4f7';
@@ -405,6 +406,40 @@ app.post('/generate', async (req, res) => {
 
     const prompt = getAuditPrompt({ tier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes });
     const result = await claudeJSON(prompt, 2500);
+
+    // Safety net: if brand DNA still has no colours after the earlier inference pass,
+    // make one final targeted attempt using the rebuilt subject + body (richer signal
+    // than the original). The #00d4c8 teal inside buildNewsletterHTML is a true
+    // last resort and should never appear in practice after this guard.
+    if (!effectiveBrandDNA?.colors?.length) {
+      try {
+        const colorHint = await claudeJSON(
+          `You are a brand colour specialist. Based on this email, suggest the most appropriate brand colour palette.
+Return ONLY valid JSON: {"primaryColor":"#XXXXXX","accentColor":"#XXXXXX","bgColor":"#XXXXXX"}
+Rules: never use #00d4c8, #3498db, or plain grey. Infer colours specific to the industry and tone evident in the content.
+
+Company: ${company || 'Unknown'}
+Subject: ${result.rebuilt_subject}
+Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
+
+        const hex6 = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null;
+        const p = hex6(colorHint?.primaryColor);
+        const a = hex6(colorHint?.accentColor);
+        const b = hex6(colorHint?.bgColor);
+        if (p) {
+          effectiveBrandDNA = {
+            ...(effectiveBrandDNA || {}),
+            source: 'rebuilt-content-fallback',
+            colors: [
+              { type: 'inferred:primary', value: p },
+              ...(a ? [{ type: 'inferred:accent', value: a }] : []),
+              ...(b ? [{ type: 'inferred:bg',     value: b }] : [])
+            ]
+          };
+          console.log(`[brand-fallback] colours inferred from rebuilt content: ${p}`);
+        }
+      } catch (fbErr) { console.error('[brand-fallback]', fbErr.message); }
+    }
 
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA);
 
