@@ -213,24 +213,28 @@ textarea{resize:vertical;line-height:1.7;}
   <!-- HEADER -->
   <div class="header">
     <div class="logo-badge"><span class="logo-dot"></span>Strategic Flow</div>
-    <h1>The Email Rebuild <span>Platform</span></h1>
-    <p class="subtitle">Outcome-first subject lines. Hook above fold. Ownership CTAs. Applied per tier with full brand DNA preservation.</p>
-    <a href="/guide.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      User Guide
-    </a>
+    <h1 style="line-height:1.15;">Rebuild My Newsletter<br><span style="color:var(--teal);">for Free</span></h1>
+    <p class="subtitle">Paste your existing newsletter. We'll rebuild it using proven direct-response frameworks — no payment required.</p>
+    <div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap;">
+      <a href="/guide.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        User Guide
+      </a>
+      <a href="#" onclick="showReturningUser();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Returning user →</a>
+    </div>
   </div>
 
-  <!-- EMAIL CHECK STATE -->
-  <div id="stateEmail" class="card">
-    <div class="section-label">Get Started</div>
+  <!-- EMAIL CHECK STATE (returning users / paid accounts) -->
+  <div id="stateEmail" class="card" hidden>
+    <div class="section-label">Returning User</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Enter the email linked to your paid account to access your full tier.</p>
     <div class="error-msg" id="errEmail"></div>
     <div class="field">
       <label>Your Email Address</label>
       <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email" />
     </div>
     <button class="btn btn-primary" onclick="checkEmail()">Continue →</button>
-    <p class="info-note" style="margin-top:16px;">Already activated? Enter your email to access your tier.</p>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="showOnly('stateForm')">← Back to free rebuild</button>
   </div>
 
   <!-- PRICING STATE -->
@@ -376,9 +380,10 @@ textarea{resize:vertical;line-height:1.7;}
   </div>
 
   <!-- AUDIT FORM STATE -->
-  <div id="stateForm" hidden>
+  <div id="stateForm">
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <!-- Logged-in user header (hidden for anon) -->
+      <div id="formLoggedInHeader" hidden style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="section-label" style="margin-bottom:0;">Your Newsletter</span>
           <span id="formTierBadge" class="tier-badge"></span>
@@ -387,89 +392,99 @@ textarea{resize:vertical;line-height:1.7;}
         <div style="display:flex;gap:8px;align-items:center;">
           <span id="usageLabel" style="font-size:10px;color:var(--muted);font-family:var(--mono);"></span>
           <button id="adminPanelBtn" class="btn btn-ghost btn-sm" hidden onclick="showAdmin()">Admin ⚡</button>
-          <button class="btn btn-ghost btn-sm" onclick="restart()">← Switch</button>
+          <button class="btn btn-ghost btn-sm" onclick="restart()">← Switch Account</button>
         </div>
       </div>
 
       <div class="error-msg" id="errForm"></div>
 
-      <div class="field-row">
-        <div class="field">
-          <label>Company Name</label>
-          <input type="text" id="fCompany" placeholder="Acme Corp" />
-        </div>
-        <div class="field">
-          <label>Your Name</label>
-          <input type="text" id="fName" placeholder="Jane Smith" />
-        </div>
-      </div>
-
-      <!-- Growth+: website URL + brand DNA extraction -->
-      <div id="brandDNARow" hidden>
-        <div class="extract-btn-row">
-          <div class="field">
-            <label>Website URL <span style="color:var(--teal);font-size:9px;">(Growth — extracts brand colors, logo, voice)</span></label>
-            <input type="url" id="fWebsite" placeholder="https://yourcompany.com" />
-          </div>
-          <button class="btn btn-secondary" onclick="runBrandDNA()" id="extractBtn" style="margin-bottom:16px;flex-shrink:0;padding:11px 16px;font-size:12px;">Extract DNA</button>
-        </div>
-        <div id="brandDNAResult" hidden></div>
-      </div>
-
+      <!-- Core fields (always visible) -->
       <div class="field">
-        <label>Newsletter Goal</label>
-        <select id="fGoal">
-          <option value="">Select primary goal…</option>
-          <option value="Drive trial signups">Drive trial signups</option>
-          <option value="Increase feature adoption">Increase feature adoption</option>
-          <option value="Retain churning users">Retain churning users</option>
-          <option value="Announce product update">Announce product update</option>
-          <option value="Reactivate dormant users">Reactivate dormant users</option>
-          <option value="Launch new feature">Launch new feature</option>
-          <option value="Drive event attendance">Drive event attendance</option>
-          <option value="Build brand awareness">Build brand awareness</option>
-          <option value="Upsell / upgrade users">Upsell / upgrade users</option>
-        </select>
-      </div>
-
-      <!-- High-Impact: email type selector -->
-      <div id="emailTypeRow" hidden>
-        <div class="field">
-          <label>Email Type <span style="color:var(--gold);font-size:9px;">(High-Impact — applies type-specific generation strategy)</span></label>
-          <select id="fEmailType">
-            <option value="">Auto-detect (recommended)</option>
-            <option value="product_update">Product Update</option>
-            <option value="retention_campaign">Retention Campaign</option>
-            <option value="promotional_offer">Promotional Offer</option>
-            <option value="onboarding">Onboarding</option>
-            <option value="reengagement">Re-engagement</option>
-            <option value="feature_launch">Feature Launch</option>
-            <option value="brand_announcement">Brand Announcement</option>
-          </select>
-        </div>
+        <label>Company / Brand Name <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px;">(optional)</span></label>
+        <input type="text" id="fCompany" placeholder="e.g. Acme Analytics" />
       </div>
 
       <div class="field">
         <label>Original Subject Line</label>
-        <input type="text" id="fSubject" placeholder="e.g. Product Update — June 2026" />
+        <input type="text" id="fSubject" placeholder="e.g. Big news — our new dashboard is live" />
       </div>
 
       <div class="field">
         <label>Original Email Body</label>
-        <textarea id="fBody" rows="10" placeholder="Paste your full email body here…"></textarea>
+        <textarea id="fBody" rows="11" placeholder="Paste your full email body here…"></textarea>
       </div>
 
-      <!-- Growth+: Roadmap teaser -->
-      <div id="roadmapRow" hidden>
-        <div class="field">
-          <label>Roadmap Teaser <span style="color:#a78bfa;font-size:9px;">(optional — upcoming features to tease at the bottom)</span></label>
-          <textarea id="fRoadmap" rows="3" placeholder="e.g. We're launching AI-powered scheduling next month, plus a new mobile redesign…"></textarea>
+      <!-- Advanced options toggle -->
+      <div style="margin-bottom:14px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAdvanced()" id="advancedToggle" style="font-size:11px;letter-spacing:0.05em;">
+          <svg id="advancedArrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform .2s;"><polyline points="9 18 15 12 9 6"/></svg>
+          Advanced options
+        </button>
+      </div>
+
+      <div id="advancedFields" hidden>
+        <div class="field-row">
+          <div class="field">
+            <label>Your Name</label>
+            <input type="text" id="fName" placeholder="Jane Smith" />
+          </div>
+          <div class="field">
+            <label>Newsletter Goal</label>
+            <select id="fGoal">
+              <option value="">Select primary goal…</option>
+              <option value="Drive trial signups">Drive trial signups</option>
+              <option value="Increase feature adoption">Increase feature adoption</option>
+              <option value="Retain churning users">Retain churning users</option>
+              <option value="Announce product update">Announce product update</option>
+              <option value="Reactivate dormant users">Reactivate dormant users</option>
+              <option value="Launch new feature">Launch new feature</option>
+              <option value="Drive event attendance">Drive event attendance</option>
+              <option value="Build brand awareness">Build brand awareness</option>
+              <option value="Upsell / upgrade users">Upsell / upgrade users</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Growth+: website URL + brand DNA extraction -->
+        <div id="brandDNARow" hidden>
+          <div class="extract-btn-row">
+            <div class="field">
+              <label>Website URL <span style="color:var(--teal);font-size:9px;">(Growth — extracts brand colors, logo, voice)</span></label>
+              <input type="url" id="fWebsite" placeholder="https://yourcompany.com" />
+            </div>
+            <button class="btn btn-secondary" onclick="runBrandDNA()" id="extractBtn" style="margin-bottom:16px;flex-shrink:0;padding:11px 16px;font-size:12px;">Extract DNA</button>
+          </div>
+          <div id="brandDNAResult" hidden></div>
+        </div>
+
+        <!-- High-Impact: email type selector -->
+        <div id="emailTypeRow" hidden>
+          <div class="field">
+            <label>Email Type <span style="color:var(--gold);font-size:9px;">(High-Impact — applies type-specific generation strategy)</span></label>
+            <select id="fEmailType">
+              <option value="">Auto-detect (recommended)</option>
+              <option value="product_update">Product Update</option>
+              <option value="retention_campaign">Retention Campaign</option>
+              <option value="promotional_offer">Promotional Offer</option>
+              <option value="onboarding">Onboarding</option>
+              <option value="reengagement">Re-engagement</option>
+              <option value="feature_launch">Feature Launch</option>
+              <option value="brand_announcement">Brand Announcement</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Growth+: Roadmap teaser -->
+        <div id="roadmapRow" hidden>
+          <div class="field">
+            <label>Roadmap Teaser <span style="color:#a78bfa;font-size:9px;">(optional — upcoming features to tease at the bottom)</span></label>
+            <textarea id="fRoadmap" rows="3" placeholder="e.g. We're launching AI-powered scheduling next month, plus a new mobile redesign…"></textarea>
+          </div>
         </div>
       </div>
 
-      <button class="btn btn-primary" onclick="submitGenerate()" id="generateBtn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        Rebuild with Strategic Flow
+      <button class="btn btn-primary" onclick="submitGenerate()" id="generateBtn" style="padding:16px 24px;font-size:15px;font-weight:700;letter-spacing:0.01em;">
+        &gt; Rebuild My Newsletter
       </button>
     </div>
   </div>
@@ -636,6 +651,38 @@ textarea{resize:vertical;line-height:1.7;}
 
   </div><!-- /stateResult -->
 
+  <!-- SOFT UPGRADE CARD (shown after results for anonymous / free-trial users) -->
+  <div id="softUpgradeCard" hidden class="card" style="margin-top:20px;border-color:rgba(0,212,200,0.25);background:linear-gradient(145deg,var(--surface),#0e1d35);">
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;">
+        <div class="section-label" style="margin-bottom:10px;">Want More Rebuilds?</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:18px;">This was your free rebuild. Enter your email to save this result and explore plans — or just start a new rebuild below.</p>
+        <div class="error-msg" id="errSoftUpgrade"></div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Your Email</label>
+          <input type="email" id="softUpgradeEmail" placeholder="you@company.com" autocomplete="email" />
+        </div>
+        <button class="btn btn-primary" onclick="softUpgrade()" style="margin-bottom:10px;">See Plans →</button>
+        <button class="btn btn-ghost" style="width:100%;font-size:12px;" onclick="restart()">← Rebuild another email (free)</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;padding-top:6px;">
+        <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">Plans from</div>
+        <a href="https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <span><strong style="color:var(--text);">Single</strong> — 1 rebuild</span><span style="color:var(--teal);font-weight:700;">$49</span>
+        </a>
+        <a href="https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+          <span><strong style="color:var(--text);">Lite</strong> — 4/mo</span><span style="color:var(--teal);font-weight:700;">$299/mo</span>
+        </a>
+        <a href="https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid rgba(139,92,246,0.35);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.6)'" onmouseout="this.style.borderColor='rgba(139,92,246,0.35)'">
+          <span><strong style="color:#a78bfa;">Growth</strong> — 8/mo</span><span style="color:#a78bfa;font-weight:700;">$499/mo</span>
+        </a>
+        <a href="https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid rgba(245,158,11,0.35);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,158,11,0.6)'" onmouseout="this.style.borderColor='rgba(245,158,11,0.35)'">
+          <span><strong style="color:var(--gold);">High-Impact</strong> — 12/mo</span><span style="color:var(--gold);font-weight:700;">$899/mo</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- ADMIN STATE -->
   <div id="stateAdmin" hidden>
     <div class="card">
@@ -687,9 +734,29 @@ let trialUsed = false;
 function show(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = false; }); }
 function hide(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; }); }
 function showOnly(id) {
-  ['stateEmail','statePricing','stateActivate','stateForm','stateLoading','stateResult','stateAdmin'].forEach(s => hide(s));
+  ['stateEmail','statePricing','stateActivate','stateForm','stateLoading','stateResult','stateAdmin','softUpgradeCard'].forEach(s => hide(s));
   show(id);
 }
+
+function getSessionEmail() {
+  let id = sessionStorage.getItem('sf_anon');
+  if (!id) {
+    const rand = Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+    id = `anon-${rand}@sf-session.com`;
+    sessionStorage.setItem('sf_anon', id);
+  }
+  return id;
+}
+
+function toggleAdvanced() {
+  const fields = document.getElementById('advancedFields');
+  const arrow  = document.getElementById('advancedArrow');
+  const open   = fields.hidden;
+  fields.hidden = !open;
+  arrow.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function showReturningUser() { showOnly('stateEmail'); }
 
 function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 
@@ -730,13 +797,20 @@ function showPricing() { showOnly('statePricing'); }
 function showActivate() { showOnly('stateActivate'); document.getElementById('activateEmail').value = currentEmail; }
 function showForm() { showOnly('stateForm'); }
 function showAdmin() { showOnly('stateAdmin'); loadAdmin(); }
-function restart() { showOnly('stateEmail'); resetState(); }
+function restart() {
+  resetState();
+  showOnly('stateForm');
+  document.getElementById('fSubject').value = '';
+  document.getElementById('fBody').value = '';
+  document.getElementById('fCompany').value = '';
+  sessionStorage.removeItem('sf_anon');
+}
 function resetState() {
   currentEmail=''; currentTier=''; currentIsAdmin=false; currentVip=false;
   currentCompany=''; currentOrigSubject=''; currentOrigBody='';
   currentResult=null; currentBrandDNA=null; currentVoiceProfile=null;
   downloadHtmlContent='';
-  hide('brandDNAResult','brandDNAPanel');
+  hide('brandDNAResult','brandDNAPanel','formLoggedInHeader');
 }
 
 async function activateAccount() {
@@ -756,6 +830,8 @@ async function activateAccount() {
 
 function setupForm(userData) {
   showOnly('stateForm');
+  show('formLoggedInHeader');
+
   const badgeEl = document.getElementById('formTierBadge');
   badgeEl.textContent = TIER_NAMES[currentTier] || currentTier;
   badgeEl.className = 'tier-badge ' + tierClass(currentTier);
@@ -779,11 +855,17 @@ function setupForm(userData) {
 
   if (currentCompany) document.getElementById('fCompany').value = currentCompany;
 
-  // Show/hide tier-specific fields
+  // Show/hide tier-specific fields (expand advanced options for Growth+)
   const isGrowth = ['growth','high_impact'].includes(currentTier) || currentIsAdmin;
   const isHI     = currentTier === 'high_impact' || currentIsAdmin;
-  if (isGrowth) { show('brandDNARow','roadmapRow'); } else { hide('brandDNARow','roadmapRow'); }
-  if (isHI)     { show('emailTypeRow'); } else { hide('emailTypeRow'); }
+  if (isGrowth) {
+    show('brandDNARow','roadmapRow','advancedFields');
+    document.getElementById('advancedArrow').style.transform = 'rotate(90deg)';
+    document.getElementById('advancedFields').hidden = false;
+  } else {
+    hide('brandDNARow','roadmapRow');
+  }
+  if (isHI) { show('emailTypeRow'); } else { hide('emailTypeRow'); }
 }
 
 // ─── BRAND DNA ─────────────────────────────────────────────────────────────────
@@ -833,7 +915,9 @@ async function submitGenerate() {
   currentOrigSubject = subject;
   currentOrigBody    = body;
 
-  const emailType   = document.getElementById('fEmailType')?.value || '';
+  if (!currentEmail) currentEmail = getSessionEmail();
+
+  const emailType    = document.getElementById('fEmailType')?.value || '';
   const roadmapNotes = document.getElementById('fRoadmap')?.value || '';
 
   showOnly('stateLoading');
@@ -841,8 +925,8 @@ async function submitGenerate() {
 
   try {
     const gen = await api('/generate', {
-      email: currentEmail, company, name: document.getElementById('fName').value.trim(),
-      goal: document.getElementById('fGoal').value, subject, body,
+      email: currentEmail, company, name: document.getElementById('fName')?.value.trim() || '',
+      goal: document.getElementById('fGoal')?.value || '', subject, body,
       emailType: emailType || null, roadmapNotes: roadmapNotes || null,
       brandDNA: currentBrandDNA, voiceProfile: currentVoiceProfile
     });
@@ -917,18 +1001,43 @@ function showResults(gen) {
     loadCohesionCheck();
   }
 
-  // Upgrade CTA
-  if (!currentIsAdmin && TIER_NEXT[t]) {
+  // Upgrade CTA (for paid-tier users approaching their limit)
+  if (!currentIsAdmin && TIER_NEXT[t] && t !== 'free_trial') {
     show('upgradeCTA');
     const next = TIER_NEXT[t];
-    if (t === 'free_trial') {
-      document.getElementById('upgradeCTAText').textContent = 'That was your one free rebuild. Upgrade to keep going — your email is already linked, activation takes seconds.';
-    } else {
-      document.getElementById('upgradeCTAText').textContent = `Upgrade to ${next.name} to unlock additional generation features.`;
-    }
+    document.getElementById('upgradeCTAText').textContent = `Upgrade to ${next.name} to unlock additional generation features.`;
     document.getElementById('upgradeCTALink').href = next.url;
-    document.getElementById('upgradeCTALink').textContent = t === 'free_trial' ? 'Choose a plan →' : `Upgrade to ${next.name} →`;
+    document.getElementById('upgradeCTALink').textContent = `Upgrade to ${next.name} →`;
   }
+
+  // Soft upgrade card: shown for anonymous / free-trial users (not admin, not paid tiers)
+  const isAnon = currentEmail.includes('@sf-session.com');
+  if (!currentIsAdmin && (t === 'free_trial' || isAnon)) {
+    show('softUpgradeCard');
+    document.getElementById('softUpgradeCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+async function softUpgrade() {
+  const email = document.getElementById('softUpgradeEmail').value.trim();
+  if (!email || !email.includes('@')) { setErr('errSoftUpgrade','Enter a valid email address.'); return; }
+  setErr('errSoftUpgrade','');
+  currentEmail = email;
+  try {
+    const data = await api('/check-email', { email });
+    if (data.status === 'admin') {
+      currentTier = 'high_impact'; currentIsAdmin = true; currentVip = true;
+      setupForm();
+    } else if (data.status === 'has_tier') {
+      currentTier = data.tier; currentVip = data.vip || false;
+      setupForm(data);
+    } else if (data.status === 'trial_used') {
+      showOnly('statePricing');
+      document.getElementById('trialUsedBanner').hidden = false;
+    } else {
+      showOnly('statePricing');
+    }
+  } catch(e) { setErr('errSoftUpgrade', e.message || 'Something went wrong.'); }
 }
 
 function renderBrandDNAInResult(dna, vp) {
