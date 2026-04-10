@@ -159,20 +159,18 @@ function isLightHex(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
-function buildNewsletterHTML(company, subject, body, brandDNA) {
+function getEmailColors(brandDNA) {
   const colors = brandDNA?.colors || [];
+  const primaryColor = colors[0]?.value || '#00d4c8';
+  const accentColor  = colors[1]?.value || primaryColor;
+  const bgColor      = colors[2]?.value || '#f4f4f7';
+  const primaryText  = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
+  const accentText   = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
+  return { primaryColor, accentColor, bgColor, primaryText, accentText };
+}
 
-  // colors[0] → header / hero background  (was always used)
-  // colors[1] → accent: h1 heading + CTA button background
-  // colors[2] → page background:          replaces hardcoded #f4f4f7
-  // True last resort only — /generate guards should have populated colours before reaching here.
-  const primaryColor  = colors[0]?.value || '#00d4c8';
-  const accentColor   = colors[1]?.value || primaryColor;
-  const bgColor       = colors[2]?.value || '#f4f4f7';
-
-  // Pick readable text colors for coloured backgrounds
-  const primaryText = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
-  const accentText  = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
+function buildNewsletterHTML(company, subject, body, brandDNA) {
+  const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
 
   const logo = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;" /><br>` : '';
@@ -470,6 +468,13 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA);
 
+    // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
+    // replaced by real brand colours — the frontend injects this as innerHTML directly.
+    const { accentColor: previewAccent, accentText: previewAccentText } = getEmailColors(effectiveBrandDNA);
+    const previewBody = (result.rebuilt_body || '')
+      .replace(/CTABGCOLOR/g, previewAccent)
+      .replace(/CTATEXTCOLOR/g, previewAccentText);
+
     // Persist to DB
     let newsletterId = null;
     try {
@@ -492,7 +497,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const brandDNASource = effectiveBrandDNA?.source || null;
-    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, tier, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
   } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
 });
 
