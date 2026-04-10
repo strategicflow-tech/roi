@@ -426,6 +426,12 @@ textarea{resize:vertical;line-height:1.7;}
         <textarea id="fBody" rows="11" placeholder="Paste your full email body here…"></textarea>
       </div>
 
+      <div class="field" style="margin-top:-6px;">
+        <label style="font-size:12px;color:var(--muted);">Or paste a link to your website or landing page</label>
+        <input type="url" id="fPageUrl" placeholder="https://yourcompany.com/landing-page" style="font-size:13px;" />
+        <span style="font-size:11px;color:var(--muted);margin-top:3px;">We'll read the page and build the newsletter from your core message. Use instead of, or alongside, the body above.</span>
+      </div>
+
       <div class="field">
         <label>Your Email</label>
         <input type="email" id="fEmail" placeholder="you@company.com" autocomplete="email" />
@@ -536,6 +542,10 @@ textarea{resize:vertical;line-height:1.7;}
           <button class="btn btn-secondary btn-sm" onclick="downloadHTML()">↓ Download HTML</button>
           <button class="btn btn-ghost btn-sm" onclick="restart()">← New Rebuild</button>
         </div>
+      </div>
+
+      <div id="resAnalyzedPageNote" hidden style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#166534;">
+        ✓ We analyzed your page and built the newsletter from your core message.
       </div>
 
       <div class="section-label">Rebuilt Subject</div>
@@ -806,6 +816,7 @@ function restart() {
   document.getElementById('fSubject').value = '';
   document.getElementById('fBody').value = '';
   document.getElementById('fCompany').value = '';
+  const fp = document.getElementById('fPageUrl'); if (fp) fp.value = '';
   const fe = document.getElementById('fEmail'); if (fe) fe.value = '';
 }
 function resetState() {
@@ -909,8 +920,10 @@ async function submitGenerate() {
   const company = document.getElementById('fCompany').value.trim();
   const subject = document.getElementById('fSubject').value.trim();
   const body    = document.getElementById('fBody').value.trim();
+  const pageUrl = (document.getElementById('fPageUrl')?.value || '').trim();
   const email   = document.getElementById('fEmail').value.trim();
-  if (!subject || !body) { setErr('errForm','Subject line and email body are required.'); return; }
+  if (!subject) { setErr('errForm','Subject line is required.'); return; }
+  if (!body && !pageUrl) { setErr('errForm','Paste your email body, or provide a link to your website or landing page.'); return; }
   if (!email || !email.includes('@')) { setErr('errForm','Enter a valid email address.'); return; }
   setErr('errForm','');
 
@@ -928,7 +941,8 @@ async function submitGenerate() {
   try {
     const gen = await api('/generate', {
       email: currentEmail, company, name: document.getElementById('fName')?.value.trim() || '',
-      goal: document.getElementById('fGoal')?.value || '', subject, body,
+      goal: document.getElementById('fGoal')?.value || '', subject, body: body || '',
+      pageUrl: pageUrl || null,
       emailType: emailType || null, roadmapNotes: roadmapNotes || null,
       brandDNA: currentBrandDNA, voiceProfile: currentVoiceProfile
     });
@@ -967,6 +981,13 @@ function showResults(gen) {
   }
   if (gen.emailType) document.getElementById('resTypeBadge').innerHTML = `<span class="tag tag-type">${gen.emailType.replace(/_/g,' ')}</span>`;
   if (currentVip && !currentIsAdmin) show('resVipBadge'); else hide('resVipBadge');
+
+  // Page URL analyzed note
+  const analyzedNote = document.getElementById('resAnalyzedPageNote');
+  if (analyzedNote) {
+    if (gen.analyzedPage) { analyzedNote.removeAttribute('hidden'); }
+    else { analyzedNote.setAttribute('hidden', ''); }
+  }
 
   // Core
   document.getElementById('resSubject').textContent = gen.rebuilt_subject || '';

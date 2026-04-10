@@ -176,7 +176,20 @@ function getEmailColors(brandDNA) {
   return { primaryColor, accentColor, bgColor, primaryText, accentText };
 }
 
-function buildNewsletterHTML(company, subject, body, brandDNA) {
+function extractAddressFromBody(originalBody) {
+  if (!originalBody) return null;
+  const lines = (originalBody || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const tail = lines.slice(-10);
+  return tail.find(l =>
+    /\d{5}(-\d{4})?/.test(l) ||
+    /(street|avenue|blvd|boulevard|drive|road|suite|st\.|rd\.)/i.test(l) ||
+    /p\.?o\.?\s*box/i.test(l) ||
+    /(unsubscribe|opt.?out|manage.*pref)/i.test(l)
+  ) || null;
+}
+
+function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
+  const { tier = 'free_trial', originalBody = '' } = options;
   const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
 
   const logoInHeader = brandDNA?.logo
@@ -282,9 +295,27 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
   <!-- FOOTER -->
   <tr><td style="background:${bgColor};padding:28px 40px;text-align:center;border-top:1px solid #e8e8e8;">
     ${footerLogo}
-    <p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 6px;">${company}</p>
+    ${(() => {
+      const isPaid = ['lite','growth','high_impact'].includes(tier);
+      if (!isPaid) {
+        // Free / single tiers: show Strategic Flow attribution
+        return `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 6px;">${company}</p>
     <p style="font-size:11px;color:#999999;margin:0 0 10px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
-    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>
+    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`;
+      }
+      // Paid tiers: client's own footer, no Strategic Flow mention
+      const website = brandDNA?.url || brandDNA?.website || '';
+      const websiteHtml = website
+        ? `<p style="font-size:11px;color:#999999;margin:0 0 4px;"><a href="${website}" style="color:#999999;text-decoration:none;">${website.replace(/^https?:\/\//,'')}</a></p>`
+        : '';
+      const address = extractAddressFromBody(originalBody);
+      const addressHtml = address
+        ? `<p style="font-size:11px;color:#bbbbbb;margin:0 0 6px;">${address}</p>`
+        : '';
+      return `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 4px;">${company}</p>
+    ${websiteHtml}${addressHtml}
+    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`;
+    })()}
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -508,12 +539,64 @@ app.post('/brand-dna', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+async function fetchPageContent(rawUrl) {
+  let url = rawUrl.trim();
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  const fetch = (await import('node-fetch')).default;
+  const resp = await fetch(url, {
+    timeout: 12000,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
+  });
+  if (!resp.ok) throw new Error(`Page returned ${resp.status}`);
+  const html = await resp.text();
+
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].replace(/\s+/g,' ').trim() : '';
+
+  const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)/i)
+    || html.match(/<meta[^>]*content=["']([^"']{20,})[^>]*name=["']description["']/i);
+  const meta = metaMatch ? metaMatch[1].trim() : '';
+
+  // Strip scripts, styles, nav, footer elements then pull plain text
+  const stripped = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/\s+/g,' ').trim()
+    .slice(0, 3500);
+
+  return { title, meta, text: stripped, url };
+}
+
 // ── GENERATE (main) ──
 app.post('/generate', async (req, res) => {
   try {
-    const { email, company, name, goal, subject, body, emailType, roadmapNotes, brandDNA, voiceProfile } = req.body;
+    let { email, company, name, goal, subject, body, emailType, roadmapNotes, brandDNA, voiceProfile, pageUrl } = req.body;
     const e = (email || '').toLowerCase().trim();
-    if (!e || !subject || !body) return res.status(400).json({ error: 'email, subject, body required' });
+    if (!e || !subject) return res.status(400).json({ error: 'email and subject are required' });
+
+    let analyzedPage = false;
+
+    // If a page URL was provided and body is absent/minimal, fetch the page and extract content
+    if (pageUrl && pageUrl.trim() && (!body || body.trim().length < 30)) {
+      try {
+        const page = await fetchPageContent(pageUrl);
+        body = [
+          page.title ? `Headline: ${page.title}` : '',
+          page.meta  ? `Summary: ${page.meta}` : '',
+          page.text
+        ].filter(Boolean).join('\n\n');
+        analyzedPage = true;
+        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars extracted`);
+      } catch (fetchErr) {
+        console.error('[pageUrl]', fetchErr.message);
+        return res.status(400).json({ error: `Could not load that URL: ${fetchErr.message}` });
+      }
+    }
+
+    if (!body || body.trim().length < 10) return res.status(400).json({ error: 'email, subject, body required' });
 
     const adminAccess = isAdmin(e);
     const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
@@ -553,7 +636,8 @@ app.post('/generate', async (req, res) => {
               .replace(/CTABGCOLOR/g, pa)
               .replace(/CTATEXTCOLOR/g, pat);
             const downloadHtml = buildNewsletterHTML(
-              n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA
+              n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
+              { tier: n.tier || 'free_trial', originalBody: n.original_body || '' }
             );
             return res.json({
               rebuilt_subject: n.rebuilt_subject,
@@ -633,7 +717,9 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // Clean up any stray markdown that Claude may have included
     result.rebuilt_body = stripMarkdown(result.rebuilt_body);
 
-    const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA);
+    const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
+      { tier, originalBody: body });
+
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
     // replaced by real brand colours — the frontend injects this as innerHTML directly.
@@ -672,7 +758,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const brandDNASource = effectiveBrandDNA?.source || null;
-    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, analyzedPage, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
   } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
 });
 
