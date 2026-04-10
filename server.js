@@ -75,6 +75,23 @@ async function setupDB() {
       updated_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Continuous learning table — never deleted, append-only
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rebuild_learning (
+      id               SERIAL PRIMARY KEY,
+      company          VARCHAR(255),
+      industry         VARCHAR(255),
+      audience_type    VARCHAR(255),
+      original_subject TEXT,
+      original_body    TEXT,
+      rebuilt_subject  TEXT,
+      rebuilt_body     TEXT,
+      what_changed     JSONB,
+      tier             VARCHAR(50),
+      created_at       TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_rl_industry ON rebuild_learning(industry);
+  `).catch(e => console.error('[DB] rebuild_learning:', e.message));
   // Add new columns to existing tables without breaking existing rows
   await pool.query(`
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS key_changes JSONB;
@@ -84,6 +101,47 @@ async function setupDB() {
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
+
+async function getIndustryExamples(industry) {
+  if (!industry) return [];
+  try {
+    const r = await pool.query(
+      `SELECT original_subject, rebuilt_subject, what_changed
+       FROM rebuild_learning
+       WHERE industry ILIKE $1
+       ORDER BY created_at DESC LIMIT 3`,
+      [industry.trim()]
+    );
+    return r.rows;
+  } catch (e) {
+    console.error('[learning-fetch]', e.message);
+    return [];
+  }
+}
+
+async function storeLearning({ company, industry, audienceType, origSubject, origBody, rebuiltSubject, rebuiltBody, whatChanged, tier }) {
+  try {
+    await pool.query(
+      `INSERT INTO rebuild_learning
+         (company, industry, audience_type, original_subject, original_body,
+          rebuilt_subject, rebuilt_body, what_changed, tier)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        company  || null,
+        industry || null,
+        audienceType || null,
+        origSubject ? String(origSubject).slice(0, 255) : null,
+        origBody    ? String(origBody).slice(0, 500) : null,
+        rebuiltSubject ? String(rebuiltSubject).slice(0, 255) : null,
+        rebuiltBody    ? String(rebuiltBody).replace(/<[^>]+>/g, ' ').replace(/\s+/g,' ').trim().slice(0, 500) : null,
+        whatChanged ? JSON.stringify(whatChanged) : null,
+        tier || null
+      ]
+    );
+  } catch (e) {
+    console.error('[learning-store]', e.message);
+  }
+}
 
 function currentMonthKey() {
   const d = new Date();
@@ -677,7 +735,10 @@ app.post('/generate', async (req, res) => {
       try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200)).type; } catch (_) {}
     }
 
-    const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes });
+    const industry = effectiveBrandDNA?.industry || null;
+    const priorExamples = await getIndustryExamples(industry);
+
+    const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples });
     const result = await claudeJSON(prompt, 2500);
 
     // Safety net: if brand DNA still has no colours after the earlier inference pass,
@@ -740,6 +801,19 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
           result.conversion_hook || null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db]', dbErr.message); }
+
+    // Fire-and-forget: store learning data for future context injection
+    storeLearning({
+      company: company || null,
+      industry,
+      audienceType: effectiveBrandDNA?.audience || null,
+      origSubject: subject,
+      origBody: body,
+      rebuiltSubject: result.rebuilt_subject,
+      rebuiltBody: result.rebuilt_body,
+      whatChanged: result.key_changes,
+      tier
+    }).catch(() => {});
 
     if (!adminAccess) await bumpCount(e);
     if (company && user) pool.query('UPDATE users SET company=$1 WHERE email=$2', [company, e]).catch(() => {});
@@ -835,6 +909,63 @@ app.get('/admin/stats', async (req, res) => {
       pool.query('SELECT email,company,tier,rebuilt_subject,created_at FROM newsletters ORDER BY created_at DESC LIMIT 10')
     ]);
     res.json({ tierCounts: tiers.rows, totalUsers: +totU.rows[0].count, totalNewsletters: +totN.rows[0].count, recentNewsletters: recent.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── ADMIN LEARNING INSIGHTS ──
+app.get('/admin/learning-insights', async (req, res) => {
+  if (!isAdmin(req.headers['x-admin-email'])) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const [industriesRes, lengthRes, recentRes, subjectsRes] = await Promise.all([
+      pool.query(`
+        SELECT industry, COUNT(*) AS count
+        FROM rebuild_learning
+        WHERE industry IS NOT NULL
+        GROUP BY industry
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      pool.query(`
+        SELECT
+          ROUND(AVG(LENGTH(original_body)))  AS avg_input_chars,
+          ROUND(AVG(LENGTH(rebuilt_body)))   AS avg_output_chars,
+          COUNT(*)                           AS total_rebuilds
+        FROM rebuild_learning
+      `),
+      pool.query(`
+        SELECT company, industry, original_subject, rebuilt_subject, what_changed, tier, created_at
+        FROM rebuild_learning
+        ORDER BY created_at DESC
+        LIMIT 10
+      `),
+      pool.query(`
+        SELECT rebuilt_subject
+        FROM rebuild_learning
+        WHERE rebuilt_subject IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 100
+      `)
+    ]);
+
+    // Tally first-word patterns from rebuilt subject lines
+    const firstWordCount = {};
+    for (const row of subjectsRes.rows) {
+      const word = (row.rebuilt_subject || '').split(/\s+/)[0]
+        .toLowerCase().replace(/[^a-z0-9'-]/g, '');
+      if (word.length > 1) firstWordCount[word] = (firstWordCount[word] || 0) + 1;
+    }
+    const topFirstWords = Object.entries(firstWordCount)
+      .sort((a, b) => b[1] - a[1]).slice(0, 12)
+      .map(([word, count]) => ({ word, count }));
+
+    const stats = lengthRes.rows[0];
+    res.json({
+      totalRebuilds:   parseInt(stats.total_rebuilds) || 0,
+      topIndustries:   industriesRes.rows,
+      avgBodyLength:   { inputChars: parseInt(stats.avg_input_chars) || 0, outputChars: parseInt(stats.avg_output_chars) || 0 },
+      topSubjectFirstWords: topFirstWords,
+      recentChanges:   recentRes.rows
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

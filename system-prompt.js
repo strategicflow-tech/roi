@@ -19,7 +19,7 @@ const EMAIL_TYPE_STRATEGIES = {
   brand_announcement:  'Connect brand change to reader benefit. "What this means for you" before "what we\'ve changed".'
 };
 
-function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes }) {
+function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples }) {
   let brandBlock = '';
   if (brandDNA && brandDNA.success && (tier === 'growth' || tier === 'high_impact')) {
     const colors = (brandDNA.colors || []).map(c => c.value).filter(Boolean).join(', ') || 'not extracted';
@@ -48,6 +48,17 @@ BRAND INSTRUCTION: You are improving this brand — not replacing it. Preserve t
     roadmapBlock = `\nROADMAP TEASER (client requested): The client wants to tease these upcoming features: "${roadmapNotes}"\nIf thematically appropriate, add a "What's Coming" teaser block at the bottom — build anticipation without over-promising. Keep it short (2-3 lines max).`;
   }
 
+  let examplesBlock = '';
+  if (priorExamples && priorExamples.length > 0) {
+    const lines = priorExamples.map((ex, i) => {
+      const changes = Array.isArray(ex.what_changed) && ex.what_changed.length > 0
+        ? ex.what_changed.slice(0, 2).join(' | ')
+        : '';
+      return `  ${i + 1}. Before: "${ex.original_subject}" → After: "${ex.rebuilt_subject}"${changes ? `\n     Key moves: ${changes}` : ''}`;
+    }).join('\n');
+    examplesBlock = `\nPRIOR SUCCESSFUL REBUILDS IN THIS INDUSTRY (benchmark only — do not copy these, they are for calibration):\n${lines}\nAim for the same quality bar or higher. Apply these same strategic moves to THIS email.\n`;
+  }
+
   return `You are the Strategic Flow rebuild engine. Apply ALL of the following rules without exception.
 
 THE STRATEGIC FLOW METHOD:
@@ -57,8 +68,7 @@ THE STRATEGIC FLOW METHOD:
 4. SOCIAL PROOF: One specific proof point — a number, a result, a scenario the reader places themselves in. No generic testimonials.
 5. OWNERSHIP CTA: "Claim my / Start my / See my [specific outcome]" — never "Book a demo / Try for free / Learn more / Click here."
 6. REMOVE: Clichés, passive voice, anything that could belong to any company in any industry.
-${brandBlock}${typeBlock}${roadmapBlock}
-
+${brandBlock}${typeBlock}${roadmapBlock}${examplesBlock}
 Company: ${company}
 Goal: ${goal || 'Increase conversion and reader action'}
 Original Subject: "${subject}"
