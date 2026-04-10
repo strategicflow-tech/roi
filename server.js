@@ -221,6 +221,89 @@ async function notify(subject, html) {
   catch (e) { console.error('[email]', e.message); }
 }
 
+// ─── CONTENT-BASED BRAND INFERENCE ──────────────────────────────────────────
+// Used when no website URL is provided and the caller passes no brandDNA.
+// Two strategies run in parallel:
+//   1. Guess the company homepage (slug.com) and run a full brand extraction.
+//   2. Ask Claude to synthesize a palette from the email subject + body.
+// URL-extracted colours win when ≥ 2 are found; Claude voice data always merges in.
+
+async function inferBrandFromContent(company, subject, body) {
+  const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const candidateUrl = slug ? `https://www.${slug}.com` : null;
+
+  const contentPrompt = `You are a brand analyst. Based on the email below, infer the brand's visual identity and communication style.
+
+Return ONLY valid JSON with these exact keys:
+- "primaryColor": the most distinctive brand hex colour (e.g. "#5E6AD2"). Choose based on industry and tone:
+    fintech/payments → deep purple or navy (#4B3FD8, #1A2B6B)
+    health/wellness → teal-green or sage (#27AE60, #2D9E8F)
+    e-commerce/DTC → bold orange or red (#E64A19, #D32F2F)
+    enterprise B2B → slate-navy (#2C3E50, #37474F)
+    consumer SaaS → vibrant purple or indigo (#7C3AED, #4F46E5)
+    creative/marketing tools → warm magenta or coral (#E91E63, #FF6F61)
+    HR/recruitment → warm amber (#F59E0B, #D97706)
+    dev tools/infra → deep teal or dark blue (#0F766E, #1D4ED8)
+- "accentColor": a complementary, typically brighter accent hex colour.
+- "bgColor": a fitting email wrapper background — very light tint of the primary or a warm off-white; never pure white or pure black.
+- "voiceProfile": 2–3 sentences on tone, rhythm, and audience communication style evident in this email.
+- "industry": one short label (e.g. "B2B SaaS – payments", "DTC e-commerce", "health & wellness").
+- "audience": one short description (e.g. "startup founders", "enterprise IT teams", "direct-to-consumer shoppers").
+
+STRICT RULE: Never return generic teal (#00d4c8), generic blue (#3498db), or plain grey (#808080, #999). Colours must feel specific to this brand's personality and sector.
+
+Company: ${company || 'Unknown'}
+Subject: ${subject}
+Email body:
+${(body || '').slice(0, 1400)}`;
+
+  const [urlResult, claudeResult] = await Promise.allSettled([
+    candidateUrl
+      ? extractBrandDNA(candidateUrl).catch(() => null)
+      : Promise.resolve(null),
+    claudeJSON(contentPrompt, 500).catch(() => null)
+  ]);
+
+  // Build a Claude-inferred brandDNA object from the content analysis
+  let inferred = null;
+  if (claudeResult.status === 'fulfilled' && claudeResult.value) {
+    const c = claudeResult.value;
+    const hex6 = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null;
+    const primary = hex6(c.primaryColor);
+    const accent  = hex6(c.accentColor);
+    const bg      = hex6(c.bgColor);
+    if (primary) {
+      inferred = {
+        success: true, source: 'content-inferred',
+        colors: [
+          { type: 'inferred:primary', value: primary },
+          ...(accent ? [{ type: 'inferred:accent', value: accent }] : []),
+          ...(bg     ? [{ type: 'inferred:bg',     value: bg     }] : [])
+        ],
+        voiceProfile: c.voiceProfile || null,
+        industry:     c.industry     || null,
+        audience:     c.audience     || null,
+        logo: null
+      };
+    }
+  }
+
+  // Prefer URL-extracted DNA when it found meaningful colours
+  const urlDNA = urlResult.status === 'fulfilled' ? urlResult.value : null;
+  if (urlDNA?.success && urlDNA.colors?.length >= 2) {
+    return {
+      ...urlDNA,
+      source: 'auto-url',
+      // Enrich with Claude's richer voice/industry analysis
+      voiceProfile: inferred?.voiceProfile || urlDNA.voiceProfile || null,
+      industry:     inferred?.industry     || urlDNA.industry     || null,
+      audience:     inferred?.audience     || urlDNA.audience     || null
+    };
+  }
+
+  return inferred; // may be null if both strategies failed
+}
+
 // ─── ROUTES ─────────────────────────────────────────────────────────────────
 
 app.get('/health', (_, res) => res.json({ ok: true, model: MODEL, ts: new Date().toISOString() }));
@@ -299,16 +382,31 @@ app.post('/generate', async (req, res) => {
       if (!lim.allowed) return res.status(403).json({ error: 'limit_reached', reason: lim.reason, used: lim.used, limit: lim.limit });
     }
 
+    // When no brandDNA was provided (user skipped the website URL field), infer
+    // brand signals automatically from the email content + a company URL guess.
+    let effectiveBrandDNA  = brandDNA  || null;
+    let effectiveVoice     = voiceProfile || null;
+    if (!effectiveBrandDNA) {
+      try {
+        const inferred = await inferBrandFromContent(company, subject, body);
+        if (inferred) {
+          effectiveBrandDNA = inferred;
+          if (inferred.voiceProfile && !effectiveVoice) effectiveVoice = inferred.voiceProfile;
+          console.log(`[brand-infer] source=${inferred.source} colors=${inferred.colors?.length}`);
+        }
+      } catch (inferErr) { console.error('[brand-infer]', inferErr.message); }
+    }
+
     // High-Impact: detect type if not provided
     let detectedType = emailType || null;
     if (tier === 'high_impact' && !detectedType) {
       try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200)).type; } catch (_) {}
     }
 
-    const prompt = getAuditPrompt({ tier, company: company || 'Your Company', goal, subject, body, brandDNA, voiceProfile, emailType: detectedType, roadmapNotes });
+    const prompt = getAuditPrompt({ tier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes });
     const result = await claudeJSON(prompt, 2500);
 
-    const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, brandDNA);
+    const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA);
 
     // Persist to DB
     let newsletterId = null;
@@ -316,7 +414,7 @@ app.post('/generate', async (req, res) => {
       const s = await pool.query(`
         INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id
-      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType, brandDNA ? JSON.stringify(brandDNA) : null]);
+      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType, effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db]', dbErr.message); }
 
@@ -331,7 +429,8 @@ app.post('/generate', async (req, res) => {
       notify(`⚡ VIP URGENT — ${company || e}`, `<p><b>VIP Submission</b><br>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
 
-    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, tier });
+    const brandDNASource = effectiveBrandDNA?.source || null;
+    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, tier, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
   } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
 });
 
