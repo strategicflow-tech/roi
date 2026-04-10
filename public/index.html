@@ -832,9 +832,7 @@ function setupForm(userData) {
   showOnly('stateForm');
   show('formLoggedInHeader');
 
-  const badgeEl = document.getElementById('formTierBadge');
-  badgeEl.textContent = TIER_NAMES[currentTier] || currentTier;
-  badgeEl.className = 'tier-badge ' + tierClass(currentTier);
+  hide('formTierBadge');
 
   if (currentVip || currentIsAdmin) show('formVipBadge'); else hide('formVipBadge');
 
@@ -957,7 +955,12 @@ function showResults(gen) {
 
   // Header
   const badgeEl = document.getElementById('resTierBadge');
-  badgeEl.innerHTML = `<span class="tier-badge ${tierClass(gen.tier)}">${TIER_NAMES[gen.tier] || gen.tier} Rebuild</span>`;
+  const tierLabel = TIER_NAMES[gen.tier];
+  if (tierLabel) {
+    badgeEl.innerHTML = `<span class="tier-badge ${tierClass(gen.tier)}">${tierLabel} Rebuild</span>`;
+  } else {
+    badgeEl.innerHTML = '';
+  }
   if (gen.emailType) document.getElementById('resTypeBadge').innerHTML = `<span class="tag tag-type">${gen.emailType.replace(/_/g,' ')}</span>`;
   if (currentVip && !currentIsAdmin) show('resVipBadge'); else hide('resVipBadge');
 
@@ -1179,7 +1182,7 @@ function renderUserList(users) {
   document.getElementById('adminUserList').innerHTML = users.length ? users.map(u => `
     <div class="user-row">
       <span class="user-email">${u.email}</span>
-      <span class="tier-badge ${tierClass(u.tier)}">${u.tier}</span>
+      <span class="tier-badge ${tierClass(u.tier)}">${TIER_NAMES[u.tier] || '—'}</span>
       ${u.vip ? '<span class="vip-badge">VIP</span>' : ''}
       <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">${u.newsletter_count} total</span>
       <select onchange="upgradeUser('${u.email}',this.value)" style="font-size:11px;padding:4px 8px;width:auto;background:var(--bg2);">
