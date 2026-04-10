@@ -75,7 +75,14 @@ SECTION STRUCTURE (use in this order):
 2. Body paragraph(s) — wrap in: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">
 3. Section divider — insert before and after the benefit cards using EXACTLY:
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-4. Benefit/feature cards — each benefit is a SEPARATE TABLE (not a row inside one table). Use a relevant emoji (not ✓) per benefit. Use EXACTLY this structure for each card:
+4. Benefit/feature cards — CONTENT RULES (read carefully before writing a single box):
+   - Scan the original email body for every distinct value proposition, feature, or benefit the sender mentions. Extract them exactly — do not invent or generalize.
+   - Create one box per distinct benefit found. Minimum 2 boxes, maximum 6. If the original email has 3 benefits → 3 boxes. If 5 → 5 boxes.
+   - Box title (4–7 words): rewrite the benefit in outcome language using the brand's voice and terminology. Never use the word "feature", "solution", or "tool" as the first word.
+   - Box description (1 sentence): explain the specific reader outcome this benefit produces. Use the same formality level and vocabulary as the brand's existing copy.
+   - Emoji: choose based on the specific benefit — e.g. 🚀 for speed/launch, 🔒 for security, 📊 for analytics, 💬 for communication, ⚡ for performance, 🎯 for targeting, 🌍 for scale/global, 💡 for insight/intelligence. Never use ✓, ★, or a generic bullet emoji.
+   - No two rebuilds should produce the same box content — the boxes are derived from THIS email's content, not from a template.
+   Each benefit is a SEPARATE TABLE (not a row inside one table). Use EXACTLY this structure for each card:
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit headline — 4 to 7 words]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One supporting sentence explaining the reader outcome]</span></td></tr></table></td></tr></table>
 5. Testimonial/quote — if the original email contained a quote or social proof statement, render it as:
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote text]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
