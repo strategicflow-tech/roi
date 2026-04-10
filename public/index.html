@@ -86,7 +86,10 @@ textarea{resize:vertical;line-height:1.7;}
 .plan-card.featured::before{content:'MOST POWERFUL';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#080f1e;font-size:9px;font-weight:800;letter-spacing:0.12em;padding:3px 10px;border-radius:10px;white-space:nowrap;font-family:var(--mono);}
 .plan-name{font-size:12px;font-weight:700;letter-spacing:0.08em;margin-bottom:6px;font-family:var(--mono);}
 .plan-price{font-size:22px;font-weight:800;margin-bottom:4px;}
-.plan-period{font-size:10px;color:var(--muted);margin-bottom:16px;font-family:var(--mono);}
+.plan-period{font-size:10px;color:var(--muted);margin-bottom:14px;font-family:var(--mono);}
+.plan-headline{font-size:13px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:10px;text-align:left;}
+.plan-desc{font-size:12px;color:var(--text2);line-height:1.75;text-align:left;margin-bottom:16px;}
+.plan-vip-box{background:linear-gradient(135deg,rgba(0,212,200,0.08),rgba(0,212,200,0.03));border:1px solid rgba(0,212,200,0.25);border-radius:8px;padding:12px;margin-top:10px;font-size:11px;color:var(--teal);line-height:1.7;}
 .plan-features{text-align:left;margin-bottom:18px;}
 .plan-features li{font-size:11px;color:var(--text2);padding:4px 0;display:flex;gap:7px;align-items:flex-start;line-height:1.4;}
 .plan-features li::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0;margin-top:1px;}
@@ -205,6 +208,9 @@ textarea{resize:vertical;line-height:1.7;}
   .pricing-grid{grid-template-columns:1fr 1fr;}
   .panel-row,.before-after,.field-row,.admin-stats{grid-template-columns:1fr;}
 }
+@media(max-width:420px){
+  .pricing-grid{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
@@ -258,12 +264,13 @@ textarea{resize:vertical;line-height:1.7;}
           <div class="plan-name" style="color:#94a3b8;">SINGLE</div>
           <div class="plan-price">$49</div>
           <div class="plan-period">one-time</div>
+          <div class="plan-headline">One newsletter, rebuilt once.</div>
+          <p class="plan-desc">You have one email that isn't converting. Paste it in, we rebuild it using the Strategic Flow Method — outcome-first subject, hook above fold, ownership CTA. You download the HTML and send it. Done.</p>
           <ul class="plan-features">
             <li>1 newsletter rebuild</li>
             <li>Strategic Flow Method</li>
-            <li>Basic brand colors</li>
+            <li>Brand colors inferred automatically</li>
             <li>Download HTML</li>
-            <li>Owner notification</li>
           </ul>
           <a href="https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04" target="_blank" class="plan-btn plan-btn-outline">Get Single →</a>
         </div>
@@ -273,12 +280,14 @@ textarea{resize:vertical;line-height:1.7;}
           <div class="plan-name" style="color:var(--teal);">LITE</div>
           <div class="plan-price">$299</div>
           <div class="plan-period">per month</div>
+          <div class="plan-headline">Four newsletters a month, rebuilt professionally.</div>
+          <p class="plan-desc">Every week, paste your newsletter draft. We rebuild it, give you 3 alternative subject lines to A/B test, score the conversion potential before and after, and show you exactly what we changed and why. You also get a human review request — send any rebuild to our team and get written feedback within 48 hours.</p>
           <ul class="plan-features">
             <li>4 newsletters/month</li>
-            <li>A/B subject lines (3)</li>
-            <li>Conversion score</li>
-            <li>Before/After view</li>
-            <li>Human review request</li>
+            <li>3 A/B subject line variants</li>
+            <li>Conversion score (before &amp; after)</li>
+            <li>Before/After comparison</li>
+            <li>Human review request (48h)</li>
           </ul>
           <a href="https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01" target="_blank" class="plan-btn plan-btn-teal">Get Lite →</a>
         </div>
@@ -288,12 +297,14 @@ textarea{resize:vertical;line-height:1.7;}
           <div class="plan-name" style="color:#a78bfa;">GROWTH</div>
           <div class="plan-price">$499</div>
           <div class="plan-period">per month</div>
+          <div class="plan-headline">Your brand voice, preserved at scale.</div>
+          <p class="plan-desc">We extract your brand DNA — colors, tone, audience language — from your website before every rebuild. Every newsletter sounds like you, not like a template. Includes a 3-email content calendar after each rebuild so you're never staring at a blank page. Eight newsletters per month.</p>
           <ul class="plan-features">
             <li>8 newsletters/month</li>
-            <li>Deep brand DNA</li>
-            <li>Voice preservation</li>
-            <li>Audience segments</li>
-            <li>Content calendar</li>
+            <li>Brand DNA extraction from your site</li>
+            <li>Voice &amp; tone preservation</li>
+            <li>Audience segment analysis</li>
+            <li>3-email content calendar</li>
             <li>Roadmap teaser block</li>
           </ul>
           <a href="https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02" target="_blank" class="plan-btn plan-btn-teal">Get Growth →</a>
@@ -304,13 +315,16 @@ textarea{resize:vertical;line-height:1.7;}
           <div class="plan-name" style="color:var(--gold);">HIGH-IMPACT</div>
           <div class="plan-price">$899</div>
           <div class="plan-period">per month</div>
-          <ul class="plan-features">
-            <li class="hi">Unlimited newsletters</li>
+          <div class="plan-headline" style="color:var(--gold);">Unlimited rebuilds. Full-funnel thinking. Direct access.</div>
+          <p class="plan-desc">Unlimited newsletters rebuilt per month. Every email is checked for full-funnel cohesion — does this email fit your sequence, your audience segment, your conversion goal? Includes monthly conversion audit of your entire email program.</p>
+          <div class="plan-vip-box">⚡ <strong>VIP Access &amp; Strategy</strong><br>Dedicated Slack channel with direct async access to the Strategic Flow team. Urgent copy hotfix before a launch? Skip the queue — fast turnaround guaranteed. For founders and marketing leads who treat email as a revenue channel, not a checkbox.</div>
+          <ul class="plan-features" style="margin-top:16px;">
+            <li class="hi">Unlimited newsletters/month</li>
             <li class="hi">Full-funnel cohesion check</li>
-            <li class="hi">Email type detection</li>
-            <li class="hi">VIP priority flag</li>
+            <li class="hi">Email type &amp; audience detection</li>
             <li class="hi">Monthly conversion audit</li>
-            <li class="hi">Prompt webhook access</li>
+            <li class="hi">VIP Slack channel access</li>
+            <li class="hi">Priority turnaround</li>
           </ul>
           <a href="https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03" target="_blank" class="plan-btn plan-btn-gold">Get High-Impact →</a>
         </div>
