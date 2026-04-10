@@ -420,7 +420,9 @@ app.post('/generate', async (req, res) => {
     const adminAccess = isAdmin(e);
     const user = await getUser(e);
     const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
-    const tier = adminAccess ? 'high_impact' : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
+    // Owner panel can request a specific tier to test different prompt depths
+    const ownerTierOverride = adminAccess && req.body.ownerTier && ALLOWED_TIERS.has(req.body.ownerTier) ? req.body.ownerTier : null;
+    const tier = adminAccess ? (ownerTierOverride || 'high_impact') : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
     if (!tier) return res.status(403).json({ error: 'no_tier' });
     // free_trial generates at single-tier quality
     const promptTier = tier === 'free_trial' ? 'single' : tier;
@@ -624,6 +626,18 @@ app.post('/admin/upgrade', async (req, res) => {
     `, [e, tier, tier === 'high_impact']);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── OWNER PANEL ──
+const OWNER_PASSWORD = 'SFowner2026AAI24!';
+
+app.get('/owner', (req, res) => {
+  res.sendFile('owner.html', { root: 'public' });
+});
+
+app.post('/owner-auth', (req, res) => {
+  if (req.body.password === OWNER_PASSWORD) return res.json({ ok: true });
+  res.status(403).json({ ok: false });
 });
 
 // ── UPDATE SYSTEM PROMPT (webhook, protected) ──
