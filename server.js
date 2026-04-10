@@ -322,7 +322,7 @@ function extractAddressFromBody(originalBody) {
 }
 
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
-  const { tier = 'free_trial', originalBody = '' } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app' } = options;
   const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
 
   const logoInHeader = brandDNA?.logo
@@ -367,7 +367,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     for (const [patterns, kw] of keywordMap) {
       if (patterns.some(p => ind.includes(p))) { keywords = kw; break; }
     }
-    return `https://source.unsplash.com/620x300/?${encodeURIComponent(keywords)}`;
+    return `https://picsum.photos/620/300?random=${Date.now()}`;
   };
   const heroSrc = buildHeroSrc(company, brandDNA);
   const heroRow = `<tr>
@@ -391,7 +391,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   if (isHtmlBody) {
     bodyContent = rawBody
       .replace(/CTABGCOLOR/g, accentColor)
-      .replace(/CTATEXTCOLOR/g, accentText);
+      .replace(/CTATEXTCOLOR/g, accentText)
+      .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
   } else {
     // Legacy plain-text path — split, detect CTA, format paragraphs
     const lines = rawBody.split('\n').map(l => l.trim()).filter(Boolean);
@@ -403,7 +404,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
       .replace(/\n/g, '<br>');
     const ctaBlock = ctaText
-      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${accentColor}" style="background:${accentColor};border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:${accentColor};color:${accentText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
+      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${accentColor}" style="background:${accentColor};border-radius:4px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${accentColor};color:${accentText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
       : '';
     bodyContent = `<p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
@@ -760,7 +761,8 @@ app.post('/generate', async (req, res) => {
               .replace(/CTATEXTCOLOR/g, pat);
             const downloadHtml = buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
-              { tier: n.tier || 'free_trial', originalBody: n.original_body || '' }
+              { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
+                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app' }
             );
             return res.json({
               rebuilt_subject: n.rebuilt_subject,
@@ -868,8 +870,9 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // Clean up any stray markdown that Claude may have included
     result.rebuilt_body = stripMarkdown(result.rebuilt_body);
 
+    const ctaHref = effectiveBrandDNA?.url || (pageUrl && pageUrl.trim()) || 'https://strategic-flow-audit.replit.app';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body });
+      { tier, originalBody: body, ctaHref });
 
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
