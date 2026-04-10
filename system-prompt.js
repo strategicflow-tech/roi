@@ -75,9 +75,9 @@ OUTPUT FORMAT FOR rebuilt_body — MANDATORY RULES (no exceptions):
   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">
     <tr><td style="padding:8px 0;vertical-align:top;width:28px;font-size:18px;color:#555;">✓</td><td style="padding:8px 0;font-size:16px;color:#333;line-height:1.6;">[benefit text]</td></tr>
   </table>
-- CTA button: output as a table-based button using EXACTLY this structure (do not write plain text for the button):
-  <table cellpadding="0" cellspacing="0" style="margin:28px 0 8px;"><tr><td style="background:CTABGCOLOR;border-radius:7px;padding:14px 28px;text-align:center;"><a href="#" style="font-size:15px;font-weight:700;color:CTATEXTCOLOR;text-decoration:none;white-space:nowrap;">[CTA text]</a></td></tr></table>
-  Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server will replace them with brand colors.
+- CTA button: output as a table-based button using EXACTLY this structure — this makes it render correctly in Gmail AND Outlook (do not write plain text for the button, do not use <button> tags):
+  <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text]</a></td></tr></table>
+  Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server will replace them with brand colors. The bgcolor attribute AND the inline background style must both use CTABGCOLOR.
 - P.S. line (if included): output as <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555;">[P.S. text]</p>
 - Never output the text "CTABGCOLOR" or "CTATEXTCOLOR" as visible content — they are style value placeholders only.
 

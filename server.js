@@ -199,11 +199,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
       .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
       .replace(/\n/g, '<br>');
     const ctaBlock = ctaText
-      ? `<table cellpadding="0" cellspacing="0" style="margin:28px 0 0;">
-           <tr><td style="background:${accentColor};border-radius:7px;padding:14px 28px;text-align:center;">
-             <a href="#" style="font-size:15px;font-weight:700;color:${accentText};text-decoration:none;white-space:nowrap;">${ctaText}</a>
-           </td></tr>
-         </table>`
+      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${accentColor}" style="background:${accentColor};border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:${accentColor};color:${accentText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
       : '';
     bodyContent = `<p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
