@@ -252,11 +252,58 @@ function isLightHex(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 160;
 }
 
+// ── COLOR HELPERS ────────────────────────────────────────────────────────────
+
+function hexToHSL(hex) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let hue = 0, sat = 0;
+  const lit = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    sat = lit > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: hue = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: hue = ((b - r) / d + 2) / 6; break;
+      case b: hue = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return { h: hue * 360, s: sat * 100, l: lit * 100 };
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toH = x => Math.round(x * 255).toString(16).padStart(2, '0');
+  return `#${toH(f(0))}${toH(f(8))}${toH(f(4))}`;
+}
+
+// Clamp extracted colors so they're never too saturated or too dark for header/CTA use.
+function adjustColorIfNeeded(hex) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return hex;
+  try {
+    const { h, s, l } = hexToHSL(hex);
+    if (s > 80 || l < 30) {
+      return hslToHex(h, Math.min(s, 70), Math.max(l, 35));
+    }
+  } catch (_) { /* leave unchanged on any parse error */ }
+  return hex;
+}
+
 function getEmailColors(brandDNA) {
   const colors = brandDNA?.colors || [];
-  const primaryColor = colors[0]?.value || '#00d4c8';
-  const accentColor  = colors[1]?.value || primaryColor;
-  const bgColor      = colors[2]?.value || '#f4f4f7';
+  const rawPrimary = colors[0]?.value || '#00d4c8';
+  const rawAccent  = colors[1]?.value || rawPrimary;
+  const primaryColor = adjustColorIfNeeded(rawPrimary);
+  const accentColor  = adjustColorIfNeeded(rawAccent);
+  // Background is ALWAYS neutral — never use an extracted color as page/wrapper background.
+  const bgColor      = '#f4f4f7';
   const primaryText  = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
   const accentText   = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
   return { primaryColor, accentColor, bgColor, primaryText, accentText };
@@ -326,7 +373,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     return `https://source.unsplash.com/600x300/?${encodeURIComponent(keywords)}&sig=${seed}`;
   };
   const heroSrc = buildHeroSrc(company, brandDNA);
-  const heroRow = `<tr><td style="padding:0;line-height:0;font-size:0;"><img src="${heroSrc}" alt="${company}" width="600" height="300" style="width:100%;max-width:600px;height:300px;object-fit:cover;display:block;border:0;" /></td></tr>`;
+  const heroRow = `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="600" height="300" style="display:block;width:100%;max-width:600px;height:300px;object-fit:cover;border:0;" /></td></tr>`;
 
   // Footer logo (small, centered)
   const footerLogo = brandDNA?.logo
@@ -379,29 +426,15 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     ${bodyContent}
   </td></tr>
   <!-- FOOTER -->
-  <tr><td style="background:${bgColor};padding:28px 40px;text-align:center;border-top:1px solid #e8e8e8;">
+  <tr><td style="background:#f4f4f7;padding:28px 40px;text-align:center;border-top:1px solid #e8e8e8;">
     ${footerLogo}
-    ${(() => {
-      const isPaid = ['lite','growth','high_impact'].includes(tier);
-      if (!isPaid) {
-        // Free / single tiers: show Strategic Flow attribution
-        return `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 6px;">${company}</p>
-    <p style="font-size:11px;color:#999999;margin:0 0 10px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
-    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`;
-      }
-      // Paid tiers: client's own footer, no Strategic Flow mention
-      const website = brandDNA?.url || brandDNA?.website || '';
-      const websiteHtml = website
-        ? `<p style="font-size:11px;color:#999999;margin:0 0 4px;"><a href="${website}" style="color:#999999;text-decoration:none;">${website.replace(/^https?:\/\//,'')}</a></p>`
-        : '';
-      const address = extractAddressFromBody(originalBody);
-      const addressHtml = address
-        ? `<p style="font-size:11px;color:#bbbbbb;margin:0 0 6px;">${address}</p>`
-        : '';
-      return `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 4px;">${company}</p>
-    ${websiteHtml}${addressHtml}
-    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`;
-    })()}
+    ${['lite','growth','high_impact'].includes(tier)
+      // Paid tiers: client branding only — no Strategic Flow mention, no scraped content
+      ? `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 8px;">${company}</p>
+    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`
+      // Free / single tiers: Strategic Flow attribution only
+      : `<p style="font-size:11px;color:#999999;margin:0 0 8px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; strategic-flow-audit.replit.app</p>
+    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`}
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
