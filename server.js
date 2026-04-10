@@ -9,7 +9,8 @@ const { Resend } = require('resend');
 const {
   TIER_CONFIGS, getAuditPrompt, getABSubjectsPrompt, getConversionScorePrompt,
   getAudienceSegmentsPrompt, getContentCalendarPrompt, getCohesionCheckPrompt,
-  getEmailTypePrompt, getVoiceAnalysisPrompt
+  getEmailTypePrompt, getVoiceAnalysisPrompt,
+  getEmailScorePrompt, getMicroImprovementsPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
 
@@ -96,6 +97,9 @@ async function setupDB() {
   await pool.query(`
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS key_changes JSONB;
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS conversion_hook TEXT;
+    ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS original_score JSONB;
+    ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS rebuild_path VARCHAR(20);
+    ALTER TABLE rebuild_learning ADD COLUMN IF NOT EXISTS rebuild_path VARCHAR(20);
   `).catch(e => console.error('[DB] alter:', e.message));
   console.log('[DB] All tables ready');
 }
@@ -119,13 +123,13 @@ async function getIndustryExamples(industry) {
   }
 }
 
-async function storeLearning({ company, industry, audienceType, origSubject, origBody, rebuiltSubject, rebuiltBody, whatChanged, tier }) {
+async function storeLearning({ company, industry, audienceType, origSubject, origBody, rebuiltSubject, rebuiltBody, whatChanged, tier, rebuildPath }) {
   try {
     await pool.query(
       `INSERT INTO rebuild_learning
          (company, industry, audience_type, original_subject, original_body,
-          rebuilt_subject, rebuilt_body, what_changed, tier)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          rebuilt_subject, rebuilt_body, what_changed, tier, rebuild_path)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         company  || null,
         industry || null,
@@ -135,7 +139,8 @@ async function storeLearning({ company, industry, audienceType, origSubject, ori
         rebuiltSubject ? String(rebuiltSubject).slice(0, 255) : null,
         rebuiltBody    ? String(rebuiltBody).replace(/<[^>]+>/g, ' ').replace(/\s+/g,' ').trim().slice(0, 500) : null,
         whatChanged ? JSON.stringify(whatChanged) : null,
-        tier || null
+        tier || null,
+        rebuildPath || null
       ]
     );
   } catch (e) {
@@ -738,8 +743,33 @@ app.post('/generate', async (req, res) => {
     const industry = effectiveBrandDNA?.industry || null;
     const priorExamples = await getIndustryExamples(industry);
 
-    const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples });
-    const result = await claudeJSON(prompt, 2500);
+    // ── SCORING: score the original email before choosing rebuild path ──
+    let originalScore = null;
+    let rebuildPath = 'rebuilt'; // default: full rebuild
+    try {
+      const raw = await claudeJSON(getEmailScorePrompt(subject, body), 350);
+      const total = (raw.subject_score || 0) + (raw.hook_score || 0) +
+                    (raw.structure_score || 0) + (raw.cta_score || 0) + (raw.voice_score || 0);
+      originalScore = { ...raw, total, percentage: Math.round(total / 10 * 100) };
+      rebuildPath = total >= 7 ? 'preserved' : 'rebuilt';
+      console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath}`);
+    } catch (scoreErr) {
+      console.error('[score]', scoreErr.message);
+    }
+
+    // ── PROMPT DISPATCH: micro-improvements for strong emails, full rebuild otherwise ──
+    let result;
+    if (rebuildPath === 'preserved') {
+      const microPrompt = getMicroImprovementsPrompt({
+        company: company || 'Your Company', goal, subject, body,
+        brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice,
+        score: originalScore, priorExamples
+      });
+      result = await claudeJSON(microPrompt, 2500);
+    } else {
+      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples });
+      result = await claudeJSON(prompt, 2500);
+    }
 
     // Safety net: if brand DNA still has no colours after the earlier inference pass,
     // make one final targeted attempt using the rebuilt subject + body (richer signal
@@ -793,12 +823,14 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     let newsletterId = null;
     try {
       const s = await pool.query(`
-        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id
+        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id
       `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType,
           effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
           result.key_changes ? JSON.stringify(result.key_changes) : null,
-          result.conversion_hook || null]);
+          result.conversion_hook || null,
+          originalScore ? JSON.stringify(originalScore) : null,
+          rebuildPath]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db]', dbErr.message); }
 
@@ -812,7 +844,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       rebuiltSubject: result.rebuilt_subject,
       rebuiltBody: result.rebuilt_body,
       whatChanged: result.key_changes,
-      tier
+      tier,
+      rebuildPath
     }).catch(() => {});
 
     if (!adminAccess) await bumpCount(e);
@@ -832,7 +865,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const brandDNASource = effectiveBrandDNA?.source || null;
-    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, analyzedPage, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
   } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
 });
 

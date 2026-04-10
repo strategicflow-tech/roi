@@ -193,6 +193,96 @@ Return ONLY valid JSON:
 {"type":"string","confidence":"high|medium|low","reasoning":"string"}`;
 }
 
+function getEmailScorePrompt(subject, body) {
+  return `Score this email on 5 criteria. Each criterion is worth 0, 1, or 2 points (10 points total).
+
+SCORING RUBRIC:
+1. subject_score — Curiosity + urgency + specificity
+   0 = Generic filing label ("Newsletter", "Product Update", "Check this out")
+   1 = Relevant but vague ("Our new feature is live", "Big news this week")
+   2 = Specific outcome or strong curiosity gap ("Your approval rate just changed", "Why 40% of demos fail before hello")
+
+2. hook_score — Pain point or specific outcome in the first 1-2 lines
+   0 = Greeting, company name intro, or context-setting ("Hi, we're excited to share...")
+   1 = Mildly engaging but soft ("Running a business is hard. We get it.")
+   2 = Consequence, pattern interrupt, or specific scenario that earns the read immediately
+
+3. structure_score — Logical flow, scannable, no wall of text
+   0 = Dense unbroken paragraphs, no hierarchy, hard to skim
+   1 = Some breaks but still awkward flow or inconsistent pacing
+   2 = Clear flow, natural reading path, easy to scan key points
+
+4. cta_score — Ownership language, single focused action
+   0 = Passive or vague ("Book a demo", "Learn more", "Click here", "Check it out")
+   1 = Somewhat active but generic ("Get started", "Try it now", "Sign up")
+   2 = Ownership language with specific outcome ("Claim my free audit", "Start my 14-day trial", "See my dashboard")
+
+5. voice_score — Consistent tone throughout, no corporate filler
+   0 = Mixed tone, heavy clichés ("excited to announce", "game-changer", "seamless", "powerful solution")
+   1 = Mostly consistent but some filler words or awkward phrasing
+   2 = Clear, distinct voice throughout; every sentence sounds intentional
+
+Subject: "${subject}"
+Body:
+${body.slice(0, 800)}
+
+Return ONLY valid JSON (no markdown, no code fences):
+{"subject_score":0,"hook_score":0,"structure_score":0,"cta_score":0,"voice_score":0,"subject_note":"one sentence on why","hook_note":"one sentence on why","structure_note":"one sentence on why","cta_note":"one sentence on why","voice_note":"one sentence on why"}`;
+}
+
+function getMicroImprovementsPrompt({ company, goal, subject, body, brandDNA, voiceProfile, score, priorExamples }) {
+  let brandBlock = '';
+  if (brandDNA && brandDNA.success) {
+    const voice = voiceProfile || {};
+    brandBlock = `\nBRAND VOICE: ${voice.brandTone || 'professional'} · Formality: ${voice.formality || 'professional'} · CTA verbs they use: ${(voice.ctaVerbs || []).join(', ') || 'their own'} · Words to preserve: ${(voice.avoidReplacing || []).join(', ') || 'their own'}\n`;
+  }
+
+  let examplesBlock = '';
+  if (priorExamples && priorExamples.length > 0) {
+    const lines = priorExamples.map((ex, i) => {
+      const changes = Array.isArray(ex.what_changed) && ex.what_changed.length > 0
+        ? ex.what_changed.slice(0, 2).join(' | ') : '';
+      return `  ${i + 1}. Before: "${ex.original_subject}" → After: "${ex.rebuilt_subject}"${changes ? `\n     Key moves: ${changes}` : ''}`;
+    }).join('\n');
+    examplesBlock = `\nPRIOR SUCCESSFUL REFINEMENTS IN THIS INDUSTRY:\n${lines}\n`;
+  }
+
+  const fixes = [];
+  if (score) {
+    if (score.subject_score < 2) fixes.push('→ SUBJECT: Add a specific outcome or curiosity gap while keeping the same topic — do not change the subject drastically');
+    if (score.hook_score   < 2) fixes.push('→ HOOK: Rewrite the first 1-2 lines to open with a consequence, question, or scenario — remove any greeting or preamble');
+    if (score.cta_score    < 2) fixes.push('→ CTA: Replace passive verb (Book/Learn/Click/Try) with ownership language (Claim my / Start my / See my [specific outcome])');
+    if (score.voice_score  < 2) fixes.push('→ VOICE: Remove clichés ("excited to announce", "game-changer", "seamless", "powerful") — replace with plain outcome language');
+  }
+  fixes.push('→ MARKDOWN: Convert any **bold** or *italic* markdown to <strong> and <em> HTML tags');
+
+  return `You are the Strategic Flow refinement engine. This email scored well overall — preserve its structure and content. Apply ONLY the targeted fixes listed below. Do NOT rebuild from scratch.
+
+WHAT TO PRESERVE (do not change these):
+- Overall content sequence and number of sections
+- Core message and product information
+- Any statistics, quotes, or social proof already present
+- The brand's existing terminology
+${brandBlock}
+TARGETED FIXES TO APPLY (ONLY these):
+${fixes.join('\n')}
+${examplesBlock}
+Company: ${company}
+Goal: ${goal || 'Sharpen conversion without disrupting brand'}
+Original Subject: "${subject}"
+Original Body:
+${body}
+
+OUTPUT FORMAT — identical to full rebuild (the email still renders through the same HTML template):
+- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only.
+- NEVER use markdown syntax. Use <strong> for emphasis, <em> for italics.
+- CTA button must use this exact structure: <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;">[CTA text]</a></td></tr></table>
+- In key_changes: list ONLY the specific micro-fixes made, not a full rebuild explanation.
+
+Return ONLY valid JSON:
+{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [specific fix made] — [why it sharpens conversion]"],"removed_elements":[],"conversion_hook":"string (the opening line and why it works now)"}`;
+}
+
 function getVoiceAnalysisPrompt(websiteCopy) {
   return `Analyze brand voice and communication DNA from this website copy.
 
@@ -213,5 +303,7 @@ module.exports = {
   getContentCalendarPrompt,
   getCohesionCheckPrompt,
   getEmailTypePrompt,
-  getVoiceAnalysisPrompt
+  getVoiceAnalysisPrompt,
+  getEmailScorePrompt,
+  getMicroImprovementsPrompt
 };

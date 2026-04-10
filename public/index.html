@@ -564,6 +564,12 @@ textarea{resize:vertical;line-height:1.7;}
       </div>
     </div>
 
+    <!-- Score Breakdown Card — always shown after rebuild -->
+    <div class="card" id="scoreCard" hidden>
+      <div class="section-label">Original Email Score</div>
+      <div id="scoreBreakdownContent"></div>
+    </div>
+
     <!-- Before / After — shown for ALL tiers -->
     <div class="card" id="baCard">
       <div class="section-label">Before / After Comparison</div>
@@ -989,6 +995,21 @@ function showResults(gen) {
     else { analyzedNote.setAttribute('hidden', ''); }
   }
 
+  // Preserved path message (above the rebuilt subject)
+  let preservedNote = document.getElementById('resPreservedNote');
+  if (!preservedNote) {
+    preservedNote = document.createElement('div');
+    preservedNote.id = 'resPreservedNote';
+    preservedNote.style.cssText = 'background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#1e40af;';
+    document.getElementById('resAnalyzedPageNote').after(preservedNote);
+  }
+  if (gen.rebuildPath === 'preserved') {
+    preservedNote.textContent = '✓ Strong email detected. We preserved your brand layout and applied targeted improvements only.';
+    preservedNote.removeAttribute('hidden');
+  } else {
+    preservedNote.setAttribute('hidden', '');
+  }
+
   // Core
   document.getElementById('resSubject').textContent = gen.rebuilt_subject || '';
   document.getElementById('resBody').innerHTML = gen.previewBody || gen.rebuilt_body || '';
@@ -1001,6 +1022,58 @@ function showResults(gen) {
   document.getElementById('baNewSubject').textContent = gen.rebuilt_subject;
   const baNewBodyPlain = (gen.rebuilt_body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   document.getElementById('baNewBody').textContent = baNewBodyPlain.slice(0, 300) + (baNewBodyPlain.length > 300 ? '…' : '');
+
+  // ── SCORE BREAKDOWN ──────────────────────────────────────────────────────
+  const sc = gen.originalScore;
+  const scoreCard = document.getElementById('scoreCard');
+  if (sc && scoreCard) {
+    const criteria = [
+      { label: 'Subject Line', key: 'subject_score', note: 'subject_note', icon: '📬' },
+      { label: 'Hook',         key: 'hook_score',     note: 'hook_note',    icon: '🎣' },
+      { label: 'Structure',    key: 'structure_score',note: 'structure_note',icon: '🏗️' },
+      { label: 'CTA',          key: 'cta_score',      note: 'cta_note',     icon: '🎯' },
+      { label: 'Brand Voice',  key: 'voice_score',    note: 'voice_note',   icon: '🎨' }
+    ];
+    const pct  = sc.percentage || 0;
+    const barColor = pct >= 70 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+    const numColor = (n) => n === 2 ? '#16a34a' : n === 1 ? '#d97706' : '#dc2626';
+
+    const rows = criteria.map(c => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:17px;width:22px;flex-shrink:0;line-height:1.4;">${c.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text);">${c.label}</span>
+            <span style="font-size:13px;font-weight:700;color:${numColor(sc[c.key])};">${sc[c.key] ?? '?'}/2</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;">${sc[c.note] || ''}</div>
+        </div>
+      </div>`).join('');
+
+    const freeTierNudge = (gen.tier === 'free_trial') ? `
+      <div style="margin-top:14px;padding:11px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534;">
+        Want A/B subject lines and full brand DNA applied? <a href="#pricing" style="color:#059669;font-weight:700;text-decoration:underline;" onclick="event.preventDefault();document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})">See paid plans →</a>
+      </div>` : '';
+
+    document.getElementById('scoreBreakdownContent').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;padding:14px 0 18px;">
+        <div style="text-align:center;min-width:68px;">
+          <div style="font-size:34px;font-weight:800;color:${barColor};line-height:1;">${sc.total ?? '?'}<span style="font-size:18px;font-weight:600;">/10</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">${gen.rebuildPath === 'preserved' ? 'Score: Strong ✓' : 'Score: Needs work'}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="background:var(--bg2);border-radius:6px;height:10px;overflow:hidden;">
+            <div style="background:${barColor};height:100%;width:${pct}%;border-radius:6px;"></div>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:5px;">${pct}% conversion readiness · ${gen.rebuildPath === 'preserved' ? 'Micro-improvements applied' : 'Full rebuild applied'}</div>
+        </div>
+      </div>
+      ${rows}
+      ${freeTierNudge}`;
+    scoreCard.removeAttribute('hidden');
+  } else if (scoreCard) {
+    scoreCard.setAttribute('hidden', '');
+  }
 
   // Tier panels
   hide('panelLite','panelGrowth','panelHighImpact','upgradeCTA','brandDNAPanel');
