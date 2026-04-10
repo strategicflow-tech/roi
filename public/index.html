@@ -542,26 +542,26 @@ textarea{resize:vertical;line-height:1.7;}
       </div>
     </div>
 
-    <!-- Lite+: Before/After + Scores -->
-    <div id="panelLite" hidden>
-      <div class="section-divider">Lite Features</div>
-
-      <!-- Before / After comparison -->
-      <div class="card">
-        <div class="section-label">Before / After Comparison</div>
-        <div class="before-after">
-          <div class="ba-box">
-            <div class="ba-label">Original</div>
-            <div class="ba-subject" id="baOrigSubject"></div>
-            <div class="ba-body" id="baOrigBody"></div>
-          </div>
-          <div class="ba-box" style="border-color:rgba(0,212,200,0.3);">
-            <div class="ba-label" style="color:var(--teal);">Rebuilt by Strategic Flow</div>
-            <div class="ba-subject" id="baNewSubject" style="color:var(--teal);"></div>
-            <div class="ba-body" id="baNewBody"></div>
-          </div>
+    <!-- Before / After — shown for ALL tiers -->
+    <div class="card" id="baCard">
+      <div class="section-label">Before / After Comparison</div>
+      <div class="before-after">
+        <div class="ba-box">
+          <div class="ba-label">Original</div>
+          <div class="ba-subject" id="baOrigSubject"></div>
+          <div class="ba-body" id="baOrigBody"></div>
+        </div>
+        <div class="ba-box" style="border-color:rgba(0,212,200,0.3);">
+          <div class="ba-label" style="color:var(--teal);">Rebuilt by Strategic Flow</div>
+          <div class="ba-subject" id="baNewSubject" style="color:var(--teal);"></div>
+          <div class="ba-body" id="baNewBody"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Lite+: Scores + A/B + Human Review -->
+    <div id="panelLite" hidden>
+      <div class="section-divider">Lite Features</div>
 
       <!-- Conversion Score -->
       <div class="card">
@@ -962,6 +962,13 @@ function showResults(gen) {
   document.getElementById('resChanges').innerHTML = (gen.key_changes || []).map(c => `<div class="change-item">${c}</div>`).join('');
   document.getElementById('resHook').textContent = gen.conversion_hook || '';
 
+  // Before/After — always shown for all tiers
+  document.getElementById('baOrigSubject').textContent = currentOrigSubject;
+  document.getElementById('baOrigBody').textContent = currentOrigBody.slice(0, 300) + (currentOrigBody.length > 300 ? '…' : '');
+  document.getElementById('baNewSubject').textContent = gen.rebuilt_subject;
+  const baNewBodyPlain = (gen.rebuilt_body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  document.getElementById('baNewBody').textContent = baNewBodyPlain.slice(0, 300) + (baNewBodyPlain.length > 300 ? '…' : '');
+
   // Tier panels
   hide('panelLite','panelGrowth','panelHighImpact','upgradeCTA','brandDNAPanel');
 
@@ -972,11 +979,6 @@ function showResults(gen) {
 
   if (isLite || currentIsAdmin) {
     show('panelLite');
-    document.getElementById('baOrigSubject').textContent = currentOrigSubject;
-    document.getElementById('baOrigBody').textContent = currentOrigBody.slice(0, 300) + (currentOrigBody.length > 300 ? '…' : '');
-    document.getElementById('baNewSubject').textContent = gen.rebuilt_subject;
-    const baNewBodyPlain = (gen.rebuilt_body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    document.getElementById('baNewBody').textContent = baNewBodyPlain.slice(0, 300) + (baNewBodyPlain.length > 300 ? '…' : '');
     loadConversionScore();
     loadABSubjects();
   }

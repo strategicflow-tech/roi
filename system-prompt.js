@@ -87,7 +87,7 @@ SECTION STRUCTURE (use in this order):
 PLACEHOLDER RULES: Never output the strings CTABGCOLOR or CTATEXTCOLOR as visible text — they are CSS value placeholders only. They must only appear inside style attribute values or bgcolor attributes.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["string","string","string"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {

@@ -65,6 +65,8 @@ async function setupDB() {
       audience_segments JSONB,
       content_calendar  JSONB,
       cohesion_check    JSONB,
+      key_changes       JSONB,
+      conversion_hook   TEXT,
       created_at        TIMESTAMP DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS system_config (
@@ -73,6 +75,11 @@ async function setupDB() {
       updated_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Add new columns to existing tables without breaking existing rows
+  await pool.query(`
+    ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS key_changes JSONB;
+    ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS conversion_hook TEXT;
+  `).catch(e => console.error('[DB] alter:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -247,6 +254,59 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
 async function notify(subject, html) {
   try { await resend.emails.send({ from: SENDER, to: OWNER_EMAIL, subject, html }); }
   catch (e) { console.error('[email]', e.message); }
+}
+
+// Convert any stray markdown that Claude may have left in rebuilt_body to valid HTML
+function stripMarkdown(text) {
+  if (!text) return text;
+  return text
+    .replace(/\*\*(.+?)\*\*/gs, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/gs, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+// Send the rebuilt newsletter to the user's email as an HTML attachment
+async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChanges, convHook, downloadHtml) {
+  const APP_URL = 'https://strategic-flow-audit.replit.app';
+  const changesHtml = (keyChanges || []).map(c => `<li style="margin-bottom:6px;">${c}</li>`).join('');
+  const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#222;">
+  <div style="background:#0a1628;padding:24px 32px;border-radius:8px 8px 0 0;">
+    <p style="color:#00d4c8;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 6px;">Strategic Flow</p>
+    <h2 style="color:#ffffff;margin:0;font-size:22px;">Your rebuilt newsletter is ready</h2>
+  </div>
+  <div style="background:#f9f9f9;padding:28px 32px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+    <p style="color:#444;line-height:1.7;">Here's what we rebuilt for <strong>${company || 'your company'}</strong>:</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:12px;color:#888;width:110px;">Original</td><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:14px;color:#222;">${origSubject}</td></tr>
+      <tr><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:12px;color:#00a09a;width:110px;">Rebuilt</td><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:14px;font-weight:700;color:#007a75;">${rebuiltSubject}</td></tr>
+    </table>
+    ${changesHtml ? `<p style="color:#444;font-weight:600;margin-bottom:8px;">What changed &amp; why:</p><ul style="color:#444;line-height:1.8;margin:0 0 20px;padding-left:20px;">${changesHtml}</ul>` : ''}
+    ${convHook ? `<p style="background:#fffbe6;border-left:3px solid #f0c040;padding:10px 14px;font-size:13px;color:#555;font-style:italic;margin:0 0 20px;">${convHook}</p>` : ''}
+    <p style="color:#444;line-height:1.7;">The full rebuilt newsletter HTML is attached — paste it directly into your email platform (Mailchimp, ConvertKit, ActiveCampaign, etc.).</p>
+    <table cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
+      <tr><td align="center" bgcolor="#00d4c8" style="background:#00d4c8;border-radius:4px;">
+        <a href="${APP_URL}" style="display:inline-block;color:#0a1628;font-weight:700;text-decoration:none;padding:12px 28px;font-size:14px;">Rebuild another newsletter →</a>
+      </td></tr>
+    </table>
+    <p style="font-size:11px;color:#aaa;margin-top:28px;border-top:1px solid #e0e0e0;padding-top:16px;">Strategic Flow · <a href="${APP_URL}" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+  </div>
+</div>`;
+  try {
+    await resend.emails.send({
+      from: SENDER,
+      to,
+      subject: 'Your rebuilt newsletter is ready — Strategic Flow',
+      html,
+      attachments: [{
+        filename: `${(company || 'newsletter').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-rebuilt.html`,
+        content: Buffer.from(downloadHtml).toString('base64')
+      }]
+    });
+    console.log(`[email] Result delivered to ${to}`);
+  } catch (e) {
+    console.error('[email] Failed to deliver result to user:', e.message);
+  }
 }
 
 // ─── CONTENT-BASED BRAND INFERENCE ──────────────────────────────────────────
@@ -462,9 +522,11 @@ app.post('/generate', async (req, res) => {
               rebuilt_body:    n.rebuilt_body,
               previewBody,
               downloadHtml,
-              tier:      n.tier || 'free_trial',
-              emailType: n.email_type || null,
-              cached:    true
+              tier:            n.tier || 'free_trial',
+              emailType:       n.email_type || null,
+              key_changes:     n.key_changes || [],
+              conversion_hook: n.conversion_hook || '',
+              cached:          true
             });
           }
         }
@@ -530,6 +592,9 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       } catch (fbErr) { console.error('[brand-fallback]', fbErr.message); }
     }
 
+    // Clean up any stray markdown that Claude may have included
+    result.rebuilt_body = stripMarkdown(result.rebuilt_body);
+
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA);
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
@@ -543,16 +608,24 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     let newsletterId = null;
     try {
       const s = await pool.query(`
-        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id
-      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType, effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null]);
+        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id
+      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType,
+          effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
+          result.key_changes ? JSON.stringify(result.key_changes) : null,
+          result.conversion_hook || null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db]', dbErr.message); }
 
     if (!adminAccess) await bumpCount(e);
     if (company && user) pool.query('UPDATE users SET company=$1 WHERE email=$2', [company, e]).catch(() => {});
 
-    // Notifications
+    // Send result to user (fire-and-forget; never blocks the response)
+    if (!adminAccess && e && !e.includes('@sf-session.com')) {
+      sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml).catch(() => {});
+    }
+
+    // Owner notifications
     if (tier === 'single') {
       notify(`📨 Single Rebuild — ${company || e}`, `<p>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
