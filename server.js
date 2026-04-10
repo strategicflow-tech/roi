@@ -367,13 +367,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     for (const [patterns, kw] of keywordMap) {
       if (patterns.some(p => ind.includes(p))) { keywords = kw; break; }
     }
-    // Unique seed per rebuild so each downloaded HTML embeds a fresh Unsplash URL.
-    // Email clients that haven't cached this exact URL will fetch a new random image.
-    const seed = Date.now();
-    return `https://source.unsplash.com/600x300/?${encodeURIComponent(keywords)}&sig=${seed}`;
+    return `https://source.unsplash.com/620x300/?${encodeURIComponent(keywords)}`;
   };
   const heroSrc = buildHeroSrc(company, brandDNA);
-  const heroRow = `<tr><td style="padding:0;font-size:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="600" height="300" style="display:block;width:100%;max-width:600px;height:300px;object-fit:cover;border:0;" /></td></tr>`;
+  const heroRow = `<tr>
+  <td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;border-collapse:collapse;">
+    <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+  </td>
+</tr>`;
 
   // Footer logo (small, centered)
   const footerLogo = brandDNA?.logo
