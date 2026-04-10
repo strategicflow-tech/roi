@@ -91,8 +91,8 @@ function checkLimit(user) {
   const { tier, newsletter_count, newsletter_count_month, newsletter_month_key } = user;
   const cfg = TIER_CONFIGS[tier];
   if (!cfg) return { allowed: false, reason: 'no_tier' };
-  if (tier === 'single') {
-    return newsletter_count < 1 ? { allowed: true } : { allowed: false, reason: 'single_used' };
+  if (tier === 'free_trial' || tier === 'single') {
+    return newsletter_count < 1 ? { allowed: true } : { allowed: false, reason: tier === 'free_trial' ? 'trial_used' : 'single_used' };
   }
   const mk = currentMonthKey();
   const used = newsletter_month_key === mk ? newsletter_count_month : 0;
@@ -323,8 +323,25 @@ app.post('/check-email', async (req, res) => {
       return res.json({ status: 'admin', tier: 'high_impact', isAdmin: true, name: TIER_CONFIGS.high_impact.name });
     }
 
-    const user = await getUser(email);
-    if (!user || user.tier === 'free') return res.json({ status: 'new_user' });
+    let user = await getUser(email);
+
+    // Auto-enrol new visitors on a free trial so they can rebuild immediately.
+    if (!user || user.tier === 'free') {
+      await pool.query(`
+        INSERT INTO users (email, tier) VALUES ($1, 'free_trial')
+        ON CONFLICT (email) DO UPDATE SET tier = 'free_trial', last_used_at = NOW()
+        WHERE users.tier = 'free'
+      `, [email]);
+      user = await getUser(email);
+    }
+
+    // Free trial: one rebuild allowed, then redirect to pricing.
+    if (user.tier === 'free_trial') {
+      if (user.newsletter_count >= 1) {
+        return res.json({ status: 'trial_used' });
+      }
+      return res.json({ status: 'free_trial', tier: 'free_trial', used: user.newsletter_count, limit: 1, tierName: 'Free Trial' });
+    }
 
     const lim = checkLimit(user);
     return res.json({
@@ -375,8 +392,11 @@ app.post('/generate', async (req, res) => {
 
     const adminAccess = isAdmin(e);
     const user = await getUser(e);
-    const tier = adminAccess ? 'high_impact' : (user?.tier && user.tier !== 'free' ? user.tier : null);
+    const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
+    const tier = adminAccess ? 'high_impact' : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
     if (!tier) return res.status(403).json({ error: 'no_tier' });
+    // free_trial generates at single-tier quality
+    const promptTier = tier === 'free_trial' ? 'single' : tier;
 
     if (!adminAccess) {
       const lim = checkLimit(user);
@@ -404,7 +424,7 @@ app.post('/generate', async (req, res) => {
       try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200)).type; } catch (_) {}
     }
 
-    const prompt = getAuditPrompt({ tier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes });
+    const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes });
     const result = await claudeJSON(prompt, 2500);
 
     // Safety net: if brand DNA still has no colours after the earlier inference pass,

@@ -71,6 +71,7 @@ textarea{resize:vertical;line-height:1.7;}
 
 /* TIER BADGE */
 .tier-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-family:var(--mono);}
+.tier-free{background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.3);}
 .tier-single{background:rgba(100,116,139,0.15);color:#94a3b8;border:1px solid rgba(100,116,139,0.3);}
 .tier-lite{background:var(--teal-dim);color:var(--teal);border:1px solid rgba(0,212,200,0.3);}
 .tier-growth{background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.3);}
@@ -234,6 +235,14 @@ textarea{resize:vertical;line-height:1.7;}
 
   <!-- PRICING STATE -->
   <div id="statePricing" hidden>
+    <!-- Shown only when the free trial has already been used -->
+    <div id="trialUsedBanner" hidden style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px;">
+      <span style="font-size:20px;flex-shrink:0;">✓</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#4ade80;margin-bottom:4px;">Your free rebuild is done</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6;">You have already used your one free rebuild. Pick a plan below to continue — your email is already linked, so activation takes seconds.</div>
+      </div>
+    </div>
     <div class="card">
       <div class="section-label">Choose Your Tier</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:24px;">Each tier generates a fundamentally different, richer newsletter experience.</p>
@@ -670,9 +679,10 @@ let currentCompany = '', currentOrigSubject = '', currentOrigBody = '';
 let currentResult = null, currentBrandDNA = null, currentVoiceProfile = null;
 let downloadHtmlContent = '';
 
-const TIER_ORDER = ['single','lite','growth','high_impact'];
-const TIER_NEXT = { single: { name:'Lite', url:'https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01' }, lite: { name:'Growth', url:'https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02' }, growth: { name:'High-Impact', url:'https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03' } };
-const TIER_NAMES = { single:'Single Rebuild', lite:'Lite', growth:'Growth', high_impact:'High-Impact' };
+const TIER_ORDER = ['free_trial','single','lite','growth','high_impact'];
+const TIER_NEXT = { free_trial: { name:'Lite', url:'https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01' }, single: { name:'Lite', url:'https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01' }, lite: { name:'Growth', url:'https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02' }, growth: { name:'High-Impact', url:'https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03' } };
+const TIER_NAMES = { free_trial:'Free Trial', single:'Single Rebuild', lite:'Lite', growth:'Growth', high_impact:'High-Impact' };
+let trialUsed = false;
 
 function show(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = false; }); }
 function hide(...ids) { ids.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; }); }
@@ -683,7 +693,7 @@ function showOnly(id) {
 
 function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 
-function tierClass(tier) { return { single:'tier-single', lite:'tier-lite', growth:'tier-growth', high_impact:'tier-high_impact' }[tier] || 'tier-single'; }
+function tierClass(tier) { return { free_trial:'tier-free', single:'tier-single', lite:'tier-lite', growth:'tier-growth', high_impact:'tier-high_impact' }[tier] || 'tier-single'; }
 
 // ─── FLOW ──────────────────────────────────────────────────────────────────────
 async function checkEmail() {
@@ -700,6 +710,16 @@ async function checkEmail() {
       currentTier = data.tier; currentIsAdmin = false; currentVip = data.vip || false;
       currentCompany = data.company || '';
       setupForm(data);
+    } else if (data.status === 'free_trial') {
+      currentTier = 'free_trial'; currentIsAdmin = false; currentVip = false;
+      trialUsed = false;
+      setupForm(data);
+    } else if (data.status === 'trial_used') {
+      trialUsed = true;
+      showOnly('statePricing');
+      // Show a banner explaining the trial is spent
+      const banner = document.getElementById('trialUsedBanner');
+      if (banner) banner.hidden = false;
     } else {
       showOnly('statePricing');
     }
@@ -747,7 +767,9 @@ function setupForm(userData) {
     document.getElementById('usageLabel').textContent = 'Admin — unlimited access';
   } else {
     hide('adminPanelBtn');
-    if (userData && userData.used !== undefined) {
+    if (currentTier === 'free_trial') {
+      document.getElementById('usageLabel').textContent = '1 free rebuild — no payment needed';
+    } else if (userData && userData.used !== undefined) {
       const lbl = userData.monthly
         ? `${userData.used} / ${userData.limit === Infinity ? '∞' : userData.limit} this month`
         : `${userData.used} / ${userData.limit} total`;
@@ -898,9 +920,13 @@ function showResults(gen) {
   if (!currentIsAdmin && TIER_NEXT[t]) {
     show('upgradeCTA');
     const next = TIER_NEXT[t];
-    document.getElementById('upgradeCTAText').textContent = `Upgrade to ${next.name} to unlock additional generation features.`;
+    if (t === 'free_trial') {
+      document.getElementById('upgradeCTAText').textContent = 'That was your one free rebuild. Upgrade to keep going — your email is already linked, activation takes seconds.';
+    } else {
+      document.getElementById('upgradeCTAText').textContent = `Upgrade to ${next.name} to unlock additional generation features.`;
+    }
     document.getElementById('upgradeCTALink').href = next.url;
-    document.getElementById('upgradeCTALink').textContent = `Upgrade to ${next.name} →`;
+    document.getElementById('upgradeCTALink').textContent = t === 'free_trial' ? 'Choose a plan →' : `Upgrade to ${next.name} →`;
   }
 }
 
