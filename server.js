@@ -328,46 +328,38 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const logoInHeader = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>` : '';
 
-  // Hero image: always use Unsplash with industry-specific keywords.
-  // The logo (if any) is already shown in the header — logos are not banner images and
-  // look broken at 600px wide. Each rebuild gets a unique URL via a per-call seed so
-  // different HTML downloads embed different Unsplash images.
+  // Hero image: stable, industry-matched Unsplash photos via direct photo ID.
+  // Each entry is a manually verified photo that is relevant and loads reliably.
   const buildHeroSrc = (comp, dna) => {
     const ind = (dna?.industry || '').toLowerCase();
-    const keywordMap = [
-      // More-specific patterns first to avoid false matches on generic words like "learning"
-      [['machine learning', 'artificial intelligence', 'deep learning',
-        'ai research', 'ai safety', 'ai startup', 'ai company', 'ai platform',
-        'ai-powered', 'generative ai', 'large language'],               'technology,innovation,future'],
-      [['saas', 'software as a service'],                                'software,productivity,workspace'],
-      [['fintech', 'payments', 'payment processing'],                    'finance,fintech,money'],
-      [['finance', 'banking', 'investment', 'wealth'],                   'finance,business,investment'],
-      [['healthcare', 'medical device', 'clinical'],                     'healthcare,medical,hospital'],
-      [['health', 'wellness', 'mental health'],                          'health,wellness,lifestyle'],
-      [['fitness', 'sport', 'gym', 'workout'],                          'fitness,sport,exercise'],
-      [['edtech', 'education technology', 'online learning', 'e-learning'], 'education,learning,books'],
-      [['education', 'school', 'university', 'training'],               'education,campus,books'],
-      [['ecommerce', 'e-commerce', 'dtc', 'direct-to-consumer'],        'ecommerce,shopping,product'],
-      [['retail', 'consumer goods', 'fashion'],                         'retail,shopping,store'],
-      [['marketing', 'advertising', 'seo', 'growth marketing'],         'marketing,advertising,digital'],
-      [['design', 'creative', 'branding', 'agency'],                    'design,creative,art'],
-      [['real estate', 'property', 'realty', 'proptech'],               'architecture,building,interior'],
-      [['travel', 'tourism', 'hospitality', 'hotel'],                   'travel,adventure,landscape'],
-      [['food', 'restaurant', 'beverage', 'culinary', 'foodtech'],      'food,restaurant,cuisine'],
-      [['security', 'cybersecurity', 'infosec'],                        'security,technology,data'],
-      [['hr', 'human resources', 'recruitment', 'talent'],              'people,team,office'],
-      [['logistics', 'supply chain', 'shipping', 'freight'],            'logistics,shipping,warehouse'],
-      [['consulting', 'advisory', 'professional services'],             'business,meeting,professional'],
-      [['legal', 'law', 'compliance'],                                   'law,office,professional'],
-      [['insurance', 'insurtech'],                                       'insurance,protection,business'],
-      [['startup', 'venture', 'seed stage'],                            'startup,innovation,office'],
-      [['b2b'],                                                          'business,office,professional'],
+    const industryPhotoMap = [
+      [['language learning', 'language education', 'memrise', 'duolingo', 'linguist'], 'photo-1543269865-cbf427effbad'],
+      [['machine learning', 'artificial intelligence', 'deep learning', 'ai research',
+        'ai startup', 'ai platform', 'ai-powered', 'generative ai', 'large language'],  'photo-1518770660439-4636190af475'],
+      [['edtech', 'education technology', 'online learning', 'e-learning'],             'photo-1503676260728-1c00da094a0b'],
+      [['education', 'school', 'university', 'training', 'learning'],                  'photo-1503676260728-1c00da094a0b'],
+      [['saas', 'software as a service', 'productivity', 'workflow', 'project management'], 'photo-1484480974693-6ca0a78fb36b'],
+      [['fintech', 'payments', 'payment processing', 'banking', 'investment', 'wealth', 'finance'], 'photo-1611974789855-9c2a0a7236a3'],
+      [['healthcare', 'medical', 'clinical', 'health', 'wellness', 'mental health'],   'photo-1576091160399-112ba8d25d1d'],
+      [['fitness', 'sport', 'gym', 'workout'],                                          'photo-1517836357463-d25dfeac3438'],
+      [['ecommerce', 'e-commerce', 'dtc', 'direct-to-consumer', 'retail', 'fashion'],  'photo-1472851294608-062f824d29cc'],
+      [['marketing', 'advertising', 'seo', 'growth marketing', 'digital marketing'],   'photo-1533750516457-a7f992034fec'],
+      [['design', 'creative', 'branding', 'agency'],                                   'photo-1561070791-2526d30994b5'],
+      [['real estate', 'property', 'realty', 'proptech'],                              'photo-1560518883-ce09059eeffa'],
+      [['travel', 'tourism', 'hospitality', 'hotel'],                                  'photo-1488646953014-85cb44e25828'],
+      [['food', 'restaurant', 'beverage', 'culinary', 'foodtech'],                     'photo-1414235077428-338989a2e8c0'],
+      [['security', 'cybersecurity', 'infosec'],                                       'photo-1550751827-4bd374c3f58b'],
+      [['hr', 'human resources', 'recruitment', 'talent'],                             'photo-1521737604893-d14cc237f11d'],
+      [['logistics', 'supply chain', 'shipping', 'freight'],                           'photo-1586528116311-ad8dd3c8310d'],
+      [['consulting', 'advisory', 'professional services', 'legal', 'law'],            'photo-1450101499163-c8848c66ca85'],
+      [['startup', 'venture'],                                                          'photo-1519389950473-47ba0277781c'],
+      [['b2b', 'enterprise', 'software'],                                              'photo-1460925895917-afdab827c52f'],
     ];
-    let keywords = 'technology,business';
-    for (const [patterns, kw] of keywordMap) {
-      if (patterns.some(p => ind.includes(p))) { keywords = kw; break; }
+    let photoId = 'photo-1460925895917-afdab827c52f'; // default: clean workspace
+    for (const [patterns, id] of industryPhotoMap) {
+      if (patterns.some(p => ind.includes(p))) { photoId = id; break; }
     }
-    return `https://picsum.photos/620/300?random=${Date.now()}`;
+    return `https://images.unsplash.com/${photoId}?w=620&h=300&fit=crop`;
   };
   const heroSrc = buildHeroSrc(company, brandDNA);
   const heroRow = `<tr>

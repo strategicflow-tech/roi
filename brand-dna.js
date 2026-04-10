@@ -146,18 +146,56 @@ function isNeutral(hex) {
 // ─── LOGO EXTRACTION ────────────────────────────────────────────────────────
 
 function extractLogo(html, baseUrl) {
+  // Derive the apex domain of the company site so we can verify image ownership.
+  let companyApex = '';
+  try {
+    const parts = new URL(baseUrl).hostname.split('.');
+    companyApex = parts.slice(-2).join('.');          // e.g. "memrise.com"
+  } catch {}
+
+  // Known CDN / media / social aggregator domains whose images are never a company logo.
+  const thirdPartyPatterns = [
+    'condenast', 'hearst', 'meredith', 'wordpress.com', 'wp.com',
+    'cloudfront.net', 'akamaized.net', 'fastly.net', 'imgix.net',
+    'cloudinary.com', 'unsplash.com', 'pexels.com', 'gettyimages',
+    'shutterstock', 'istockphoto', 'squarespace-cdn', 'wixstatic',
+    'shopify.com/s/files', 'fbcdn.net', 'twimg.com',
+  ];
+
+  const isCompanyOwned = (imageUrl) => {
+    if (!imageUrl) return false;
+    try {
+      const hostname = new URL(imageUrl).hostname;
+      // Reject any known third-party / CDN domain
+      if (thirdPartyPatterns.some(p => imageUrl.includes(p))) return false;
+      // Must share the apex domain with the company site
+      return companyApex && hostname.includes(companyApex);
+    } catch { return false; }
+  };
+
+  // og:image — only use if it belongs to the company's own domain
   const og = html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
            || html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-  if (og && og[1]) return resolveUrl(og[1], baseUrl);
+  if (og && og[1]) {
+    const resolved = resolveUrl(og[1], baseUrl);
+    if (isCompanyOwned(resolved)) return resolved;
+  }
 
+  // twitter:image — same ownership check
   const tw = html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
            || html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
-  if (tw && tw[1]) return resolveUrl(tw[1], baseUrl);
+  if (tw && tw[1]) {
+    const resolved = resolveUrl(tw[1], baseUrl);
+    if (isCompanyOwned(resolved)) return resolved;
+  }
 
+  // <img> tags whose class/alt/id/src path contains "logo" or "brand"
   const logoSrc = html.match(/<img[^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i)
+                || html.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
                 || html.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
   if (logoSrc && logoSrc[1]) return resolveUrl(logoSrc[1], baseUrl);
 
+  // Nothing reliable found — return null so only company name text is shown
   return null;
 }
 
