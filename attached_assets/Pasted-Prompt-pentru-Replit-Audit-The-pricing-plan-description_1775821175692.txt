@@ -1,0 +1,54 @@
+Prompt pentru Replit Audit:
+
+```
+The pricing plan descriptions are not showing. Fix this completely.
+
+For each plan card, add the full description BETWEEN the price and the feature list. It must be visible, not collapsed, not hidden behind a toggle.
+
+Here is the exact content and structure for each card:
+
+---
+
+SINGLE — $49
+Add below the price:
+<p style="font-size:14px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;">
+You have one email that isn't converting. Paste it in — we rebuild it using the Strategic Flow Method. Outcome-first subject line, hook above fold, ownership CTA. Download the HTML and send it. One rebuild, done right.
+</p>
+
+---
+
+LITE — $299/month
+Add below the price:
+<p style="font-size:14px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;">
+Four newsletters a month, rebuilt professionally. Each one gets 3 alternative subject lines to A/B test, a conversion score before and after, and a full breakdown of what changed and why. Plus a human review option — send any rebuild to our team and get written feedback within 48 hours.
+</p>
+
+---
+
+GROWTH — $499/month
+Add below the price:
+<p style="font-size:14px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;">
+We extract your brand DNA — colors, tone, voice, audience language — from your website before every rebuild. Every newsletter sounds like you, not a template. Includes a 3-email content calendar after each rebuild. Eight newsletters per month.
+</p>
+
+---
+
+HIGH-IMPACT — $899/month
+Add below the price, inside a teal-bordered highlight box:
+<div style="border:1px solid #00d4c8;border-radius:8px;padding:14px;margin:12px 0 16px;background:rgba(0,212,200,0.05);">
+<p style="font-size:14px;color:#a0aec0;line-height:1.6;margin:0 0 10px;">
+Unlimited rebuilds per month. Every email checked for full-funnel cohesion — does it fit your sequence, your audience, your conversion goal? Includes a monthly audit of your entire email program.
+</p>
+<p style="font-size:14px;color:#00d4c8;line-height:1.6;margin:0;">
+⚡ VIP Access: You get a dedicated Slack channel with direct async access to the Strategic Flow team. Urgent copy hotfix before a launch? Skip the queue — fast turnaround guaranteed. This is the plan for founders and marketing leads who treat email as a revenue channel, not a checkbox.
+</p>
+</div>
+
+---
+
+IMPORTANT:
+- Do not hide these behind any toggle, accordion, or "read more" button
+- They must be visible immediately when the pricing section loads
+- Check that the pricing section actually renders in the DOM — if it is built with JavaScript, make sure the descriptions are injected at the same time as the plan cards
+- After fixing, scroll to the pricing section and confirm all 4 descriptions are visible before marking as done
+```
