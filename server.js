@@ -198,6 +198,16 @@ async function bumpCount(email) {
   `, [email.toLowerCase().trim(), mk]);
 }
 
+function sanitizeForJSON(str) {
+  return (str || '')
+    .replace(/[\u2018\u2019]/g, "'")   // curly single quotes → straight
+    .replace(/[\u201C\u201D]/g, '"')   // curly double quotes → straight
+    .replace(/\u2014/g, '-')           // em dash → hyphen
+    .replace(/\u2013/g, '-')           // en dash → hyphen
+    .replace(/\u2026/g, '...')         // ellipsis → triple dot
+    .replace(/[^\x00-\x7F]/g, '');    // strip any remaining non-ASCII
+}
+
 async function claudeJSON(prompt, maxTokens = 2000) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -209,7 +219,20 @@ async function claudeJSON(prompt, maxTokens = 2000) {
       raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
       const start = raw.indexOf('{'), end = raw.lastIndexOf('}');
       if (start !== -1 && end > start) raw = raw.slice(start, end + 1);
-      return JSON.parse(raw);
+      try {
+        return JSON.parse(raw);
+      } catch (parseErr) {
+        // Sanitize any special characters Claude may have included, then retry parse
+        const sanitized = sanitizeForJSON(raw);
+        try {
+          return JSON.parse(sanitized);
+        } catch {
+          // Last resort: extract the largest {...} block that parses
+          const match = sanitized.match(/\{[\s\S]*\}/);
+          if (match) return JSON.parse(match[0]);
+          throw parseErr;
+        }
+      }
     } catch (err) {
       if (attempt === 1) throw err;
       await new Promise(r => setTimeout(r, 400));
@@ -470,7 +493,9 @@ Return ONLY valid JSON with these exact keys:
 - "industry": one short label (e.g. "B2B SaaS – payments", "DTC e-commerce", "health & wellness").
 - "audience": one short description (e.g. "startup founders", "enterprise IT teams", "direct-to-consumer shoppers").
 
-STRICT RULE: Never return generic teal (#00d4c8), generic blue (#3498db), or plain grey (#808080, #999). Colours must feel specific to this brand's personality and sector.
+STRICT RULES:
+- Never return generic teal (#00d4c8), generic blue (#3498db), or plain grey (#808080, #999). Colours must feel specific to this brand's personality and sector.
+- Return ONLY valid JSON. Use only standard ASCII characters. No curly quotes, no em dashes, no ellipsis, no special unicode. Use straight quotes and hyphens only.
 
 Company: ${company || 'Unknown'}
 Subject: ${subject}
@@ -621,14 +646,15 @@ async function fetchPageContent(rawUrl) {
   const meta = metaMatch ? metaMatch[1].trim() : '';
 
   // Strip scripts, styles, nav, footer elements then pull plain text
-  const stripped = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
-    .replace(/\s+/g,' ').trim()
-    .slice(0, 3500);
+  const stripped = sanitizeForJSON(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .replace(/\s+/g,' ').trim()
+  ).slice(0, 2000);
 
   return { title, meta, text: stripped, url };
 }
