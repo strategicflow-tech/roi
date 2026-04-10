@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — User Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080f1e;
+  --bg2:     #0d1628;
+  --surface: #111e34;
+  --border:  #1c2e4a;
+  --teal:    #00d4c8;
+  --gold:    #f59e0b;
+  --text:    #eef1f7;
+  --text2:   #c4cedf;
+  --muted:   #7a8ba8;
+  --font:    'Inter', sans-serif;
+  --mono:    'DM Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+.page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 60px 28px 100px;
+}
+
+/* ── HEADER ── */
+.header {
+  text-align: center;
+  margin-bottom: 56px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--border);
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,212,200,0.08);
+  border: 1px solid rgba(0,212,200,0.22);
+  border-radius: 100px;
+  padding: 7px 18px;
+  margin-bottom: 22px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-family: var(--mono);
+}
+.badge-dot {
+  width: 6px; height: 6px;
+  background: var(--teal);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+h1 {
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+h1 span { color: var(--teal); }
+.subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ── SECTIONS ── */
+.section {
+  margin-bottom: 48px;
+}
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-family: var(--mono);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--teal);
+  margin: 24px 0 8px;
+}
+p {
+  font-size: 14px;
+  color: var(--text2);
+  margin-bottom: 14px;
+}
+
+/* ── TABLE ── */
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 20px 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead {
+  background: var(--surface);
+}
+th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 12px 16px;
+  color: var(--text2);
+  border-bottom: 1px solid rgba(28,46,74,0.6);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+td:first-child { color: var(--text); font-weight: 600; }
+td strong { color: var(--teal); font-weight: 600; }
+
+/* ── STEPS ── */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+.steps li {
+  counter-increment: step;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 14px;
+  color: var(--text2);
+  padding: 12px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  line-height: 1.6;
+}
+.steps li::before {
+  content: counter(step);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: var(--teal);
+  color: #080f1e;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  margin-top: 1px;
+}
+.steps li strong { color: var(--text); }
+
+/* ── FIELD TABLE ── */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.field-row-guide {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+}
+.field-name {
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+.field-desc { color: var(--text2); line-height: 1.6; }
+.tier-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.tag-growth { background: rgba(139,92,246,0.15); color: #a78bfa; }
+.tag-hi     { background: rgba(245,158,11,0.12); color: var(--gold); }
+
+/* ── CALLOUT ── */
+.callout {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.7;
+}
+.callout.gold { border-left-color: var(--gold); }
+.callout strong { color: var(--text); }
+
+/* ── TIPS ── */
+.tips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+.tip {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.65;
+}
+.tip-icon {
+  flex-shrink: 0;
+  font-size: 15px;
+  margin-top: 1px;
+}
+.tip strong { color: var(--text); }
+
+/* ── OUTPUT GRID ── */
+.output-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.output-item {
+  padding: 14px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.output-item .label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 5px;
+}
+.output-item .label.gold-label { color: var(--gold); }
+.output-item p { color: var(--text2); margin: 0; font-size: 13px; }
+
+/* ── DIVIDER ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+/* ── FOOTER ── */
+.footer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+  margin-top: 60px;
+}
+.footer a { color: var(--teal); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge"><span class="badge-dot"></span> User Guide</div>
+    <h1>How to Use <span>Strategic Flow</span></h1>
+    <p class="subtitle">A step-by-step walkthrough from first visit to downloaded HTML — every field, every output, every tier.</p>
+  </div>
+
+
+  <!-- SECTION 1: Getting Started -->
+  <div class="section">
+    <div class="section-label">Step 1</div>
+    <h2>Getting Started</h2>
+    <p>Go to <strong style="color:var(--teal)">strategic-flow-audit.replit.app</strong>. You see a single email input in the center of the screen. Enter your email address and press <strong style="color:var(--text)">Continue</strong>.</p>
+    <div class="callout">
+      <strong>Returning user?</strong> You go straight to the rebuild form with your usage counter already showing.<br>
+      <strong>First time?</strong> You are taken to the pricing table to choose a plan.
+    </div>
+  </div>
+
+
+  <!-- SECTION 2: Plans -->
+  <div class="section">
+    <div class="section-label">Step 2 — First Time Only</div>
+    <h2>Choosing a Plan and Activating</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Plan</th>
+            <th>Price</th>
+            <th>Monthly Rebuilds</th>
+            <th>Key Extras</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Single</td>
+            <td>$49 one-time</td>
+            <td>1 total</td>
+            <td>Rebuilt email + downloadable HTML</td>
+          </tr>
+          <tr>
+            <td>Lite</td>
+            <td>$299 / month</td>
+            <td>4</td>
+            <td>A/B subjects, conversion scores, before/after panel, human review</td>
+          </tr>
+          <tr>
+            <td>Growth</td>
+            <td>$499 / month</td>
+            <td>8</td>
+            <td>Brand DNA extraction, audience segments, 3-email content calendar</td>
+          </tr>
+          <tr>
+            <td><strong>High-Impact</strong></td>
+            <td>$899 / month</td>
+            <td>Unlimited</td>
+            <td>Full-funnel cohesion check, email type detection, VIP priority support</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Click the button under your chosen plan. You are taken to Stripe to pay. After payment, come back to the site and click <strong style="color:var(--text)">Already purchased? Activate here</strong>. Enter the same email you used at checkout, select your tier, and click Activate. You are taken directly to the rebuild form.</p>
+  </div>
+
+
+  <!-- SECTION 3: The Form -->
+  <div class="section">
+    <div class="section-label">Step 3</div>
+    <h2>The Rebuild Form — Every Field Explained</h2>
+    <p>Your tier badge and usage counter appear at the top of the form. Fields visible to you depend on your tier.</p>
+
+    <div class="fields">
+      <div class="field-row-guide">
+        <div class="field-name">Company Name</div>
+        <div class="field-desc">The company whose email you are rebuilding. Used to personalize the output and to auto-detect brand colors when no website URL is provided.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Your Name</div>
+        <div class="field-desc">Optional. Used to personalize the audit where relevant.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Website URL</div>
+        <div class="field-desc">
+          <span class="tier-tag tag-growth">Growth +</span><br>
+          Your company's homepage (e.g. https://yourcompany.com). Enter this before clicking Extract DNA. Leaving it blank is fine — the system still infers brand signals automatically from the email content.
+        </div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Newsletter Goal</div>
+        <div class="field-desc">Pick the one thing this email is trying to accomplish. This is the most important structural input — "Drive trial signups" and "Reactivate dormant users" produce very different rebuilds even from identical copy.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Email Type</div>
+        <div class="field-desc">
+          <span class="tier-tag tag-hi">High-Impact</span><br>
+          Tell the system what kind of email this is (product update, retention campaign, onboarding, etc.) or leave it on Auto-detect. The system reads the content and decides automatically.
+        </div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Original Subject Line</div>
+        <div class="field-desc">Paste the exact subject line, word for word. Do not clean it up — the system needs to see what is actually weak.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Original Email Body</div>
+        <div class="field-desc">Paste the full body. Include greetings, CTAs, footers, everything. The more the system sees, the more precisely it diagnoses what is not working.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Roadmap Teaser</div>
+        <div class="field-desc">
+          <span class="tier-tag tag-growth">Growth +</span><br>
+          Optional. If you want the rebuilt email to hint at something coming soon, describe it here. Example: "We're launching AI-powered scheduling next month."
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SECTION 4: Brand DNA -->
+  <div class="section">
+    <div class="section-label">Step 4 — Growth and High-Impact</div>
+    <h2>Extracting Brand DNA</h2>
+    <p>Brand DNA extraction is a separate step that runs before the rebuild. It pulls your actual brand signals from your website so the rebuild sounds like you — and the HTML output uses your real colors.</p>
+    <ol class="steps">
+      <li>Type your website URL into the <strong>Website URL</strong> field.</li>
+      <li>Click <strong>Extract DNA</strong>. The button changes to "Extracting…" while it works.</li>
+      <li>Wait 15–25 seconds. A panel appears below the URL field when it finishes.</li>
+      <li>Review what was found — then proceed to fill in the rest of the form.</li>
+    </ol>
+    <p>The panel shows:</p>
+    <div class="fields">
+      <div class="field-row-guide">
+        <div class="field-name">Colors</div>
+        <div class="field-desc">Small color swatches pulled from your actual CSS stylesheets. These become the header, heading, CTA button, and background colors in the downloaded HTML.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Industry</div>
+        <div class="field-desc">What sector the system detected from your site content.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Audience</div>
+        <div class="field-desc">The target customer profile inferred from your homepage copy.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Formality</div>
+        <div class="field-desc">How formal or casual your brand sounds, on a scale from "conversational" to "executive."</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">Brand Tone</div>
+        <div class="field-desc">A short description of your voice — feeds directly into how Claude writes the rebuilt email.</div>
+      </div>
+      <div class="field-row-guide">
+        <div class="field-name">CTA Verbs</div>
+        <div class="field-desc">The action words your brand naturally uses on-site (e.g. "Explore," "Get started," "See how"). The rebuild uses these instead of generic CTAs.</div>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Skipping the URL field entirely is fine.</strong> The system will auto-guess your company homepage from the name you typed, and if that does not resolve, it reads the email subject and body to infer appropriate colors and tone. You never get a blank or generic-looking output — the fallback runs silently in the background.
+    </div>
+  </div>
+
+
+  <!-- SECTION 5: Generating -->
+  <div class="section">
+    <div class="section-label">Step 5</div>
+    <h2>Running the Rebuild</h2>
+    <p>Once the form is filled, click <strong style="color:var(--text)">Rebuild with Strategic Flow</strong>. The screen switches to a loading view showing four steps animating in sequence:</p>
+    <ol class="steps">
+      <li><strong>Analyzing email structure</strong> — reads the original subject and body.</li>
+      <li><strong>Applying Strategic Flow Method</strong> — maps weaknesses to the rebuild framework.</li>
+      <li><strong>Generating rebuild</strong> — writes the new subject, body, and audit notes.</li>
+      <li><strong>Running tier features</strong> — fires parallel calls for scores, segments, calendar, cohesion (depending on tier).</li>
+    </ol>
+    <div class="callout">
+      <strong>Single and Lite:</strong> typically 20–40 seconds.<br>
+      <strong>Growth and High-Impact:</strong> typically 45–70 seconds — additional analysis runs in parallel.
+    </div>
+  </div>
+
+
+  <!-- SECTION 6: Outputs -->
+  <div class="section">
+    <div class="section-label">Step 6</div>
+    <h2>Understanding the Output</h2>
+    <p>Results appear in panels based on your tier. Every tier receives the core rebuild. Higher tiers see additional panels below it.</p>
+
+    <h3>Every Tier</h3>
+    <div class="output-grid">
+      <div class="output-item">
+        <div class="label">Rebuilt Subject Line</div>
+        <p>Displayed prominently at the top. Usually shorter, more specific, and outcome-driven compared to your original.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Rebuilt Body</div>
+        <p>The full rewritten email. Generic greetings are stripped, a hook leads the copy, social proof is structured in, and the CTA is rewritten to be ownership-focused.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">What Changed and Why</div>
+        <p>A bullet-by-bullet breakdown of every structural decision. This is the audit — it explains the Strategic Flow reasoning behind each change. Read this carefully; it teaches you the framework.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Conversion Hook</div>
+        <p>A one-sentence explanation of the psychological mechanism the rebuilt email uses and why it drives action.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Download HTML</div>
+        <p>A fully formatted, brand-colored HTML email file ready to upload into Mailchimp, Klaviyo, HubSpot, or any platform that accepts HTML. Table-based layout, inline styles — no cleanup needed.</p>
+      </div>
+    </div>
+
+    <h3>Lite Tier — Additional Panels</h3>
+    <div class="output-grid">
+      <div class="output-item">
+        <div class="label">Before / After Comparison</div>
+        <p>Your original subject and body side-by-side with the rebuilt version in a split panel. Good for sharing with a team or presenting to a client.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Conversion Score</div>
+        <p>A score out of 10 for both the original and the rebuilt email, with a short explanation of what is holding the original back and what makes the rebuild stronger.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">A/B Subject Lines</div>
+        <p>Three additional subject line variants you can split-test, each built around a different psychological angle.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Request Human Review</div>
+        <p>One-click — sends the rebuilt email to the Strategic Flow team for an expert human pass. No form to fill out. Check your registered inbox for the response.</p>
+      </div>
+    </div>
+
+    <h3>Growth Tier — Additional Panels</h3>
+    <div class="output-grid">
+      <div class="output-item">
+        <div class="label">Brand DNA Applied</div>
+        <p>Confirms which brand signals were used in the rebuild — colors, tone, and voice profile.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Audience Segments</div>
+        <p>Two or three distinct reader segments identified from the email content, with notes on how to tailor follow-up messaging for each group.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Content Calendar — 3 Follow-Up Emails</div>
+        <p>A suggested sequence of three follow-up emails to send after this one, with subject lines and core angles for each.</p>
+      </div>
+    </div>
+
+    <h3>High-Impact Tier — Additional Panel</h3>
+    <div class="output-grid">
+      <div class="output-item">
+        <div class="label gold-label">Full-Funnel Cohesion Check</div>
+        <p>A score out of 10 assessing whether the email's promise, CTA, and implied landing page experience are aligned. Flags specific gaps between what the email says and what the reader expects after they click. A score below 7 almost always means the CTA is promising something the landing page does not deliver — that gap is where conversion dies.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- SECTION 7: Recommended Workflow -->
+  <div class="section">
+    <div class="section-label">Best Practice</div>
+    <h2>Recommended Workflow</h2>
+
+    <h3>With a website URL (Growth / High-Impact)</h3>
+    <ol class="steps">
+      <li>Enter your email → form loads.</li>
+      <li>Fill in <strong>Company Name</strong>, <strong>Your Name</strong>, and <strong>Goal</strong>.</li>
+      <li>Paste the website URL and click <strong>Extract DNA</strong>. Wait for it to finish before continuing.</li>
+      <li>Paste your <strong>Subject Line</strong> and <strong>Body</strong>.</li>
+      <li>Set <strong>Email Type</strong> if you know it, or leave Auto-detect.</li>
+      <li>Click <strong>Rebuild with Strategic Flow</strong>.</li>
+      <li>Read <em>What Changed and Why</em> carefully — this is the learning, not just the output.</li>
+      <li>Download the HTML, or copy the rebuilt subject and body into your email platform.</li>
+    </ol>
+
+    <h3>Without a website URL (Single / Lite, or when skipping DNA)</h3>
+    <ol class="steps">
+      <li>Enter your email → form loads.</li>
+      <li>Fill in <strong>Company Name</strong> and <strong>Goal</strong>.</li>
+      <li>Paste your <strong>Subject Line</strong> and <strong>Body</strong>. That is all that is required.</li>
+      <li>Click <strong>Rebuild with Strategic Flow</strong>.</li>
+      <li>Brand colors are inferred automatically from the company name and email content — the HTML download is never blank or generic.</li>
+    </ol>
+  </div>
+
+
+  <!-- SECTION 8: Tips -->
+  <div class="section">
+    <div class="section-label">Tips and Gotchas</div>
+    <h2>Things Worth Knowing</h2>
+    <div class="tips">
+      <div class="tip">
+        <div class="tip-icon">📋</div>
+        <div><strong>Paste the real email, not a draft.</strong> The system identifies weaknesses in what you have actually sent. A rough draft will produce a rebuild that addresses imaginary problems.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🎯</div>
+        <div><strong>The Goal dropdown matters more than it seems.</strong> "Drive trial signups" and "Reactivate dormant users" produce structurally different rebuilds from identical copy. Pick the one closest to the actual intent of the email.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🧬</div>
+        <div><strong>Extract DNA before you generate, not after.</strong> The brand colors and voice profile feed into the audit prompt itself — they affect the words Claude chooses, not just the HTML template colors. Running DNA after the rebuild gains you nothing for that session.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">📧</div>
+        <div><strong>The HTML download is email-client-ready.</strong> It uses table-based layout and inline styles. Upload it directly to Mailchimp, Klaviyo, HubSpot, or any platform that accepts HTML uploads. No cleanup or coding required.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🔄</div>
+        <div><strong>Usage resets on the 1st of each month</strong> for Lite, Growth, and High-Impact plans. Single Rebuild is a one-time lifetime credit — it does not reset.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🌐</div>
+        <div><strong>If the website URL fails,</strong> the DNA panel will say so. Just close it and proceed — content-based inference kicks in automatically and the rebuild still runs with appropriate brand colors. Nothing is blocked.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">👤</div>
+        <div><strong>Human Review (Lite+)</strong> is a one-click send — you do not fill out a form. Once sent, check the inbox you registered with. The review comes back there.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">⚡</div>
+        <div><strong>The Cohesion Score (High-Impact)</strong> is the most actionable output for teams running full campaign sequences. A score below 7 means the email's promise and the post-click experience are misaligned — that is almost always where conversion is being lost.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <hr class="divider">
+
+  <div class="footer">
+    Strategic Flow &copy; 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-audit.replit.app">strategic-flow-audit.replit.app</a> &nbsp;·&nbsp; <a href="https://strategicflow.carrd.co/#terms">Terms</a>
+  </div>
+
+</div>
+</body>
+</html>
