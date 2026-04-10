@@ -851,8 +851,10 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     if (!adminAccess) await bumpCount(e);
     if (company && user) pool.query('UPDATE users SET company=$1 WHERE email=$2', [company, e]).catch(() => {});
 
-    // Send result to user (fire-and-forget; never blocks the response)
-    if (!adminAccess && e && !e.includes('@sf-session.com')) {
+    // Send result to user (fire-and-forget; never blocks the response).
+    // Admin bypass emails still receive the result — except the internal test account (proton.me).
+    const shouldEmailResult = e && !e.includes('@sf-session.com') && (!adminAccess || e === OWNER_EMAIL);
+    if (shouldEmailResult) {
       sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml).catch(() => {});
     }
 

@@ -442,6 +442,10 @@ td strong { color: var(--teal); font-weight: 600; }
         <div class="field-desc">Paste the full body. Include greetings, CTAs, footers, everything. The more the system sees, the more precisely it diagnoses what is not working.</div>
       </div>
       <div class="field-row-guide">
+        <div class="field-name">Landing Page URL</div>
+        <div class="field-desc">Optional. Instead of pasting a body, you can paste the URL of any webpage — a product page, blog post, pricing page, campaign landing page. The system fetches the page server-side, strips navigation and scripts, and uses the extracted text as the email body. You can also provide both: paste a body <em>and</em> a URL to give the rebuild more context.</div>
+      </div>
+      <div class="field-row-guide">
         <div class="field-name">Roadmap Teaser</div>
         <div class="field-desc">
           <span class="tier-tag tag-growth">Growth +</span><br>
@@ -502,14 +506,18 @@ td strong { color: var(--teal); font-weight: 600; }
     <h2>Running the Rebuild</h2>
     <p>Once the form is filled, click <strong style="color:var(--text)">Rebuild with Strategic Flow</strong>. The screen switches to a loading view showing four steps animating in sequence:</p>
     <ol class="steps">
-      <li><strong>Analyzing email structure</strong> — reads the original subject and body.</li>
-      <li><strong>Applying Strategic Flow Method</strong> — maps weaknesses to the rebuild framework.</li>
+      <li><strong>Analyzing email structure</strong> — reads the original subject and body (or fetches the landing page URL if provided).</li>
+      <li><strong>Scoring original email</strong> — rates it 0–10 across five criteria before writing a single word of the rebuild. This score determines which rebuild path runs.</li>
+      <li><strong>Applying Strategic Flow Method</strong> — maps weaknesses to the rebuild framework, or applies targeted micro-improvements if the email scores highly.</li>
       <li><strong>Generating rebuild</strong> — writes the new subject, body, and audit notes.</li>
       <li><strong>Running tier features</strong> — fires parallel calls for scores, segments, calendar, cohesion (depending on tier).</li>
     </ol>
     <div class="callout">
       <strong>Single and Lite:</strong> typically 20–40 seconds.<br>
       <strong>Growth and High-Impact:</strong> typically 45–70 seconds — additional analysis runs in parallel.
+    </div>
+    <div class="callout gold">
+      <strong>Two rebuild paths:</strong> If your original email scores 70% or higher (7/10+), the system takes a <em>preserved</em> path — it keeps your structure and applies only targeted fixes (subject sharpening, CTA verb, hook, cliché removal). A banner at the top of results confirms this. Below 70%, the full Strategic Flow rebuild runs.
     </div>
   </div>
 
@@ -523,16 +531,20 @@ td strong { color: var(--teal); font-weight: 600; }
     <h3>Every Tier</h3>
     <div class="output-grid">
       <div class="output-item">
+        <div class="label">Email Score Breakdown</div>
+        <p>Shown above the rebuilt email. Your original email is rated 0–10 across five criteria: Subject Line, Hook, Structure, Call to Action, and Brand Voice. Each criterion shows its score out of 2, a one-sentence note explaining the rating, and a color-coded indicator (green = strong, amber = adequate, red = weak). The overall percentage bar tells you at a glance where your email stood before the rebuild — and on the preserved path, which specific items were targeted for improvement.</p>
+      </div>
+      <div class="output-item">
         <div class="label">Rebuilt Subject Line</div>
-        <p>Displayed prominently at the top. Usually shorter, more specific, and outcome-driven compared to your original.</p>
+        <p>Displayed prominently at the top. Usually shorter, more specific, and outcome-driven compared to your original. On the preserved path, the subject is only changed if it scored 0 or 1 out of 2.</p>
       </div>
       <div class="output-item">
         <div class="label">Rebuilt Body</div>
-        <p>The full rewritten email. Generic greetings are stripped, a hook leads the copy, social proof is structured in, and the CTA is rewritten to be ownership-focused.</p>
+        <p>The full rewritten email. On the full-rebuild path: generic greetings are stripped, a hook leads the copy, social proof is structured in, and the CTA is rewritten to be ownership-focused. On the preserved path: only the weakest elements identified in the score are adjusted — the overall structure and sequence remain intact.</p>
       </div>
       <div class="output-item">
         <div class="label">What Changed and Why</div>
-        <p>A bullet-by-bullet breakdown of every structural decision. This is the audit — it explains the Strategic Flow reasoning behind each change. Read this carefully; it teaches you the framework.</p>
+        <p>A bullet-by-bullet breakdown of every structural decision. This is the audit — it explains the Strategic Flow reasoning behind each change. On the preserved path, the list is shorter and more surgical. Read this carefully; it teaches you the framework.</p>
       </div>
       <div class="output-item">
         <div class="label">Conversion Hook</div>
@@ -540,7 +552,7 @@ td strong { color: var(--teal); font-weight: 600; }
       </div>
       <div class="output-item">
         <div class="label">Download HTML</div>
-        <p>A fully formatted, brand-colored HTML email file ready to upload into Mailchimp, Klaviyo, HubSpot, or any platform that accepts HTML. Table-based layout, inline styles — no cleanup needed.</p>
+        <p>A fully formatted, brand-colored HTML email file ready to upload into Mailchimp, Klaviyo, HubSpot, or any platform that accepts HTML. Table-based layout, inline styles — no cleanup needed. The HTML includes dynamic feature boxes drawn from the actual benefits mentioned in the email body — not generic placeholders. <strong>Footer:</strong> on free and Single tier the footer shows Strategic Flow branding. On Lite, Growth, and High-Impact the footer uses your company name, website URL, and address extracted from the original email — Strategic Flow branding does not appear.</p>
       </div>
     </div>
 
@@ -654,6 +666,18 @@ td strong { color: var(--teal); font-weight: 600; }
       <div class="tip">
         <div class="tip-icon">⚡</div>
         <div><strong>The Cohesion Score (High-Impact)</strong> is the most actionable output for teams running full campaign sequences. A score below 7 means the email's promise and the post-click experience are misaligned — that is almost always where conversion is being lost.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">📊</div>
+        <div><strong>Read the score breakdown before reading the rebuild.</strong> The five-criterion scorecard tells you exactly what the system found weak. If you disagree with a rating, you can reframe the goal or body and rebuild again — the score changes the rebuild path, so input quality directly determines what kind of output you get.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🔗</div>
+        <div><strong>The landing page URL field is useful when you don't have the email body yet.</strong> You can point it at your product page or a blog post and let the system draft a campaign from that content. Useful for planning email campaigns around new content before the actual email is written.</div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">🏠</div>
+        <div><strong>The HTML footer respects your brand.</strong> Lite, Growth, and High-Impact users get their own company name, website, and address in the email footer — the downloaded HTML has no Strategic Flow branding whatsoever. Free and Single tier users see Strategic Flow in the footer instead.</div>
       </div>
     </div>
   </div>
