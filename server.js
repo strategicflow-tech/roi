@@ -172,8 +172,22 @@ function getEmailColors(brandDNA) {
 function buildNewsletterHTML(company, subject, body, brandDNA) {
   const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
 
-  const logo = brandDNA?.logo
-    ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;" /><br>` : '';
+  const logoInHeader = brandDNA?.logo
+    ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>` : '';
+
+  // Hero image: og:image from brandDNA (usually 1200×630 social preview), or an Unsplash
+  // keyword image derived from the detected industry. Shown at full email width (620px).
+  const industrySlug = (brandDNA?.industry || 'technology,business')
+    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 3).join(',');
+  const heroSrc = brandDNA?.logo
+    ? brandDNA.logo
+    : `https://source.unsplash.com/600x300/?${encodeURIComponent(industrySlug)}`;
+  const heroRow = `<tr><td style="padding:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="620" style="width:100%;max-width:620px;height:auto;display:block;" /></td></tr>`;
+
+  // Footer logo (small, centered)
+  const footerLogo = brandDNA?.logo
+    ? `<img src="${brandDNA.logo}" alt="${company}" style="max-height:32px;display:block;margin:0 auto 10px;" />`
+    : '';
 
   // If Claude returned structured HTML (new format), inject it directly after substituting
   // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
@@ -208,16 +222,24 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
 <body style="margin:0;padding:0;background:${bgColor};font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
-<table width="620" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+  <!-- HEADER -->
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
-    ${logo}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
+    ${logoInHeader}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
   </td></tr>
+  <!-- HERO IMAGE -->
+  ${heroRow}
+  <!-- BODY -->
   <tr><td style="padding:40px;">
     <h1 style="font-size:22px;color:${accentColor};margin:0 0 24px;line-height:1.35;">${subject}</h1>
     ${bodyContent}
   </td></tr>
-  <tr><td style="background:${bgColor};padding:18px 40px;text-align:center;border-top:1px solid rgba(0,0,0,0.08);">
-    <p style="font-size:11px;color:#999;margin:0;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
+  <!-- FOOTER -->
+  <tr><td style="background:${bgColor};padding:28px 40px;text-align:center;border-top:1px solid #e8e8e8;">
+    ${footerLogo}
+    <p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 6px;">${company}</p>
+    <p style="font-size:11px;color:#999999;margin:0 0 10px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
+    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>
   </td></tr>
 </table></td></tr></table></body></html>`;
 }

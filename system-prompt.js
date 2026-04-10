@@ -66,20 +66,25 @@ Original Body:
 ${body}
 
 OUTPUT FORMAT FOR rebuilt_body — MANDATORY RULES (no exceptions):
-- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags.
+- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. No div-based layouts — all structure must be table-based for Gmail and Outlook compatibility.
 - NEVER use markdown syntax. No **bold**, no *italic*, no [Button: text], no bullet dashes.
 - Use <strong> for emphasis, <em> for italics.
-- Opening hook: wrap in <p style="font-size:17px;color:#222;line-height:1.7;font-weight:600;margin:0 0 20px;">
-- Body paragraphs: wrap in <p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">
-- Benefit/feature list: output as an HTML table. Each benefit is its own <tr>. Use this exact pattern:
-  <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">
-    <tr><td style="padding:8px 0;vertical-align:top;width:28px;font-size:18px;color:#555;">✓</td><td style="padding:8px 0;font-size:16px;color:#333;line-height:1.6;">[benefit text]</td></tr>
-  </table>
-- CTA button: output as a table-based button using EXACTLY this structure — this makes it render correctly in Gmail AND Outlook (do not write plain text for the button, do not use <button> tags):
-  <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text]</a></td></tr></table>
-  Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server will replace them with brand colors. The bgcolor attribute AND the inline background style must both use CTABGCOLOR.
-- P.S. line (if included): output as <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555;">[P.S. text]</p>
-- Never output the text "CTABGCOLOR" or "CTATEXTCOLOR" as visible content — they are style value placeholders only.
+
+SECTION STRUCTURE (use in this order):
+1. Opening hook — wrap in: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">
+2. Body paragraph(s) — wrap in: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">
+3. Section divider — insert before and after the benefit cards using EXACTLY:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+4. Benefit/feature cards — each benefit is a SEPARATE TABLE (not a row inside one table). Use a relevant emoji (not ✓) per benefit. Use EXACTLY this structure for each card:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit headline — 4 to 7 words]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One supporting sentence explaining the reader outcome]</span></td></tr></table></td></tr></table>
+5. Testimonial/quote — if the original email contained a quote or social proof statement, render it as:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote text]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
+6. CTA button — use EXACTLY this structure (no plain text buttons, no <button> tags):
+   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — ownership language: Claim my / Start my / See my]</a></td></tr></table>
+   Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server replaces them with real brand colors. Both the bgcolor attribute and the inline background style must use CTABGCOLOR.
+7. P.S. line (if included): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
+
+PLACEHOLDER RULES: Never output the strings CTABGCOLOR or CTATEXTCOLOR as visible text — they are CSS value placeholders only. They must only appear inside style attribute values or bgcolor attributes.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["string","string","string"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works)"}`;
