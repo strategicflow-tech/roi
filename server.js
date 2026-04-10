@@ -418,8 +418,18 @@ app.post('/generate', async (req, res) => {
     if (!e || !subject || !body) return res.status(400).json({ error: 'email, subject, body required' });
 
     const adminAccess = isAdmin(e);
-    const user = await getUser(e);
     const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
+
+    // Auto-enrol new visitors as free_trial; existing users keep their current tier.
+    if (!adminAccess) {
+      await pool.query(
+        `INSERT INTO users (email, tier) VALUES ($1, 'free_trial') ON CONFLICT (email) DO NOTHING`,
+        [e]
+      ).catch(() => {});
+    }
+
+    let user = await getUser(e);
+
     // Owner panel can request a specific tier to test different prompt depths
     const ownerTierOverride = adminAccess && req.body.ownerTier && ALLOWED_TIERS.has(req.body.ownerTier) ? req.body.ownerTier : null;
     const tier = adminAccess ? (ownerTierOverride || 'high_impact') : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
@@ -429,7 +439,37 @@ app.post('/generate', async (req, res) => {
 
     if (!adminAccess) {
       const lim = checkLimit(user);
-      if (!lim.allowed) return res.status(403).json({ error: 'limit_reached', reason: lim.reason, used: lim.used, limit: lim.limit });
+      if (!lim.allowed) {
+        // Free-trial users who already used their rebuild: return cached last result
+        // instead of a hard block, so they see value and are prompted to upgrade.
+        if (lim.reason === 'trial_used') {
+          const cached = await pool.query(
+            'SELECT * FROM newsletters WHERE email = $1 ORDER BY created_at DESC LIMIT 1',
+            [e]
+          );
+          if (cached.rows.length > 0) {
+            const n = cached.rows[0];
+            const cachedDNA = n.brand_dna || null;
+            const { accentColor: pa, accentText: pat } = getEmailColors(cachedDNA);
+            const previewBody = (n.rebuilt_body || '')
+              .replace(/CTABGCOLOR/g, pa)
+              .replace(/CTATEXTCOLOR/g, pat);
+            const downloadHtml = buildNewsletterHTML(
+              n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA
+            );
+            return res.json({
+              rebuilt_subject: n.rebuilt_subject,
+              rebuilt_body:    n.rebuilt_body,
+              previewBody,
+              downloadHtml,
+              tier:      n.tier || 'free_trial',
+              emailType: n.email_type || null,
+              cached:    true
+            });
+          }
+        }
+        return res.status(403).json({ error: 'limit_reached', reason: lim.reason, used: lim.used, limit: lim.limit });
+      }
     }
 
     // When no brandDNA was provided (user skipped the website URL field), infer
