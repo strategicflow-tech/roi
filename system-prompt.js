@@ -65,6 +65,22 @@ Original Subject: "${subject}"
 Original Body:
 ${body}
 
+OUTPUT FORMAT FOR rebuilt_body — MANDATORY RULES (no exceptions):
+- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags.
+- NEVER use markdown syntax. No **bold**, no *italic*, no [Button: text], no bullet dashes.
+- Use <strong> for emphasis, <em> for italics.
+- Opening hook: wrap in <p style="font-size:17px;color:#222;line-height:1.7;font-weight:600;margin:0 0 20px;">
+- Body paragraphs: wrap in <p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">
+- Benefit/feature list: output as an HTML table. Each benefit is its own <tr>. Use this exact pattern:
+  <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">
+    <tr><td style="padding:8px 0;vertical-align:top;width:28px;font-size:18px;color:#555;">✓</td><td style="padding:8px 0;font-size:16px;color:#333;line-height:1.6;">[benefit text]</td></tr>
+  </table>
+- CTA button: output as a table-based button using EXACTLY this structure (do not write plain text for the button):
+  <table cellpadding="0" cellspacing="0" style="margin:28px 0 8px;"><tr><td style="background:CTABGCOLOR;border-radius:7px;padding:14px 28px;text-align:center;"><a href="#" style="font-size:15px;font-weight:700;color:CTATEXTCOLOR;text-decoration:none;white-space:nowrap;">[CTA text]</a></td></tr></table>
+  Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server will replace them with brand colors.
+- P.S. line (if included): output as <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555;">[P.S. text]</p>
+- Never output the text "CTABGCOLOR" or "CTATEXTCOLOR" as visible content — they are style value placeholders only.
+
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["string","string","string"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works)"}`;
 }

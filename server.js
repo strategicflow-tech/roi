@@ -177,24 +177,36 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
   const logo = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;" /><br>` : '';
 
-  // Separate the CTA (last short line) from the body so it can be rendered as a button.
-  // "Short" = under 80 chars and no trailing period (it's a call-to-action, not a sentence).
-  const lines = (body || '').split('\n').map(l => l.trim()).filter(Boolean);
-  const lastLine = lines[lines.length - 1] || '';
-  const looksLikeCTA = lastLine.length > 0 && lastLine.length < 80 && !lastLine.endsWith('.');
-  const ctaText       = looksLikeCTA ? lastLine : '';
-  const bodyLines     = looksLikeCTA ? lines.slice(0, -1) : lines;
-  const formattedBody = bodyLines.join('\n')
-    .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
-    .replace(/\n/g, '<br>');
+  // If Claude returned structured HTML (new format), inject it directly after substituting
+  // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
+  // Otherwise fall back to the legacy newline-based formatter.
+  const rawBody = (body || '').trim();
+  const isHtmlBody = rawBody.startsWith('<');
 
-  const ctaBlock = ctaText
-    ? `<table cellpadding="0" cellspacing="0" style="margin:28px 0 0;">
-         <tr><td style="background:${accentColor};border-radius:7px;padding:14px 28px;text-align:center;">
-           <a href="#" style="font-size:15px;font-weight:700;color:${accentText};text-decoration:none;white-space:nowrap;">${ctaText}</a>
-         </td></tr>
-       </table>`
-    : '';
+  let bodyContent;
+  if (isHtmlBody) {
+    bodyContent = rawBody
+      .replace(/CTABGCOLOR/g, accentColor)
+      .replace(/CTATEXTCOLOR/g, accentText);
+  } else {
+    // Legacy plain-text path — split, detect CTA, format paragraphs
+    const lines = rawBody.split('\n').map(l => l.trim()).filter(Boolean);
+    const lastLine = lines[lines.length - 1] || '';
+    const looksLikeCTA = lastLine.length > 0 && lastLine.length < 80 && !lastLine.endsWith('.');
+    const ctaText   = looksLikeCTA ? lastLine : '';
+    const bodyLines = looksLikeCTA ? lines.slice(0, -1) : lines;
+    const formattedBody = bodyLines.join('\n')
+      .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
+      .replace(/\n/g, '<br>');
+    const ctaBlock = ctaText
+      ? `<table cellpadding="0" cellspacing="0" style="margin:28px 0 0;">
+           <tr><td style="background:${accentColor};border-radius:7px;padding:14px 28px;text-align:center;">
+             <a href="#" style="font-size:15px;font-weight:700;color:${accentText};text-decoration:none;white-space:nowrap;">${ctaText}</a>
+           </td></tr>
+         </table>`
+      : '';
+    bodyContent = `<p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -208,8 +220,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
   </td></tr>
   <tr><td style="padding:40px;">
     <h1 style="font-size:22px;color:${accentColor};margin:0 0 24px;line-height:1.35;">${subject}</h1>
-    <p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>
-    ${ctaBlock}
+    ${bodyContent}
   </td></tr>
   <tr><td style="background:${bgColor};padding:18px 40px;text-align:center;border-top:1px solid rgba(0,0,0,0.08);">
     <p style="font-size:11px;color:#999;margin:0;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; © ${new Date().getFullYear()} ${company}</p>
