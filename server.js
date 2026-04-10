@@ -182,14 +182,52 @@ function buildNewsletterHTML(company, subject, body, brandDNA) {
   const logoInHeader = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>` : '';
 
-  // Hero image: og:image from brandDNA (usually 1200×630 social preview), or an Unsplash
-  // keyword image derived from the detected industry. Shown at full email width (620px).
-  const industrySlug = (brandDNA?.industry || 'technology,business')
-    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').trim().split(/\s+/).slice(0, 3).join(',');
-  const heroSrc = brandDNA?.logo
-    ? brandDNA.logo
-    : `https://source.unsplash.com/600x300/?${encodeURIComponent(industrySlug)}`;
-  const heroRow = `<tr><td style="padding:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="620" style="width:100%;max-width:620px;height:auto;display:block;" /></td></tr>`;
+  // Hero image: always use Unsplash with industry-specific keywords.
+  // The logo (if any) is already shown in the header — logos are not banner images and
+  // look broken at 600px wide. Each rebuild gets a unique URL via a per-call seed so
+  // different HTML downloads embed different Unsplash images.
+  const buildHeroSrc = (comp, dna) => {
+    const ind = (dna?.industry || '').toLowerCase();
+    const keywordMap = [
+      // More-specific patterns first to avoid false matches on generic words like "learning"
+      [['machine learning', 'artificial intelligence', 'deep learning',
+        'ai research', 'ai safety', 'ai startup', 'ai company', 'ai platform',
+        'ai-powered', 'generative ai', 'large language'],               'technology,innovation,future'],
+      [['saas', 'software as a service'],                                'software,productivity,workspace'],
+      [['fintech', 'payments', 'payment processing'],                    'finance,fintech,money'],
+      [['finance', 'banking', 'investment', 'wealth'],                   'finance,business,investment'],
+      [['healthcare', 'medical device', 'clinical'],                     'healthcare,medical,hospital'],
+      [['health', 'wellness', 'mental health'],                          'health,wellness,lifestyle'],
+      [['fitness', 'sport', 'gym', 'workout'],                          'fitness,sport,exercise'],
+      [['edtech', 'education technology', 'online learning', 'e-learning'], 'education,learning,books'],
+      [['education', 'school', 'university', 'training'],               'education,campus,books'],
+      [['ecommerce', 'e-commerce', 'dtc', 'direct-to-consumer'],        'ecommerce,shopping,product'],
+      [['retail', 'consumer goods', 'fashion'],                         'retail,shopping,store'],
+      [['marketing', 'advertising', 'seo', 'growth marketing'],         'marketing,advertising,digital'],
+      [['design', 'creative', 'branding', 'agency'],                    'design,creative,art'],
+      [['real estate', 'property', 'realty', 'proptech'],               'architecture,building,interior'],
+      [['travel', 'tourism', 'hospitality', 'hotel'],                   'travel,adventure,landscape'],
+      [['food', 'restaurant', 'beverage', 'culinary', 'foodtech'],      'food,restaurant,cuisine'],
+      [['security', 'cybersecurity', 'infosec'],                        'security,technology,data'],
+      [['hr', 'human resources', 'recruitment', 'talent'],              'people,team,office'],
+      [['logistics', 'supply chain', 'shipping', 'freight'],            'logistics,shipping,warehouse'],
+      [['consulting', 'advisory', 'professional services'],             'business,meeting,professional'],
+      [['legal', 'law', 'compliance'],                                   'law,office,professional'],
+      [['insurance', 'insurtech'],                                       'insurance,protection,business'],
+      [['startup', 'venture', 'seed stage'],                            'startup,innovation,office'],
+      [['b2b'],                                                          'business,office,professional'],
+    ];
+    let keywords = 'technology,business';
+    for (const [patterns, kw] of keywordMap) {
+      if (patterns.some(p => ind.includes(p))) { keywords = kw; break; }
+    }
+    // Unique seed per rebuild so each downloaded HTML embeds a fresh Unsplash URL.
+    // Email clients that haven't cached this exact URL will fetch a new random image.
+    const seed = Date.now();
+    return `https://source.unsplash.com/600x300/?${encodeURIComponent(keywords)}&sig=${seed}`;
+  };
+  const heroSrc = buildHeroSrc(company, brandDNA);
+  const heroRow = `<tr><td style="padding:0;line-height:0;font-size:0;"><img src="${heroSrc}" alt="${company}" width="600" height="300" style="width:100%;max-width:600px;height:300px;object-fit:cover;display:block;border:0;" /></td></tr>`;
 
   // Footer logo (small, centered)
   const footerLogo = brandDNA?.logo
