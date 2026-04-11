@@ -298,8 +298,8 @@ function extractPrimaryCTA(html, baseUrl) {
     if (resolved && resolved.startsWith('http')) return resolved;
   }
 
-  // 2. Anchor whose visible text matches common signup/start patterns
-  const signupRe = /<a\b[^>]*href=["']([^"'#][^"']+)["'][^>]*>\s*(?:<[^>]+>)?\s*(Get started|Start free|Sign up free|Try free|Start for free|Get started free|Start building|Try it free)\b/i;
+  // 2. Anchor whose visible text matches common signup/start/try/learn patterns
+  const signupRe = /<a\b[^>]*href=["']([^"'#][^"']+)["'][^>]*>\s*(?:<[^>]+>)?\s*(Get started|Start free|Sign up free|Try free|Start for free|Get started free|Start building|Try it free|Sign up|Try|Learn more|Get Started)\b/i;
   const m2 = html.match(signupRe);
   if (m2) {
     const resolved = resolveUrl(m2[1], baseUrl);

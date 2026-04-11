@@ -600,7 +600,8 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
       attachments: [{
         filename: `${(company || 'newsletter').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-rebuilt.html`,
         content: Buffer.from(downloadHtml).toString('base64')
-      }]
+      }],
+      headers: { 'X-Entity-Ref-ID': 'no-tracking' }
     });
     console.log(`[email] Result delivered to ${to}`);
   } catch (e) {
@@ -1011,7 +1012,10 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     const heroKeyword = (result.heroKeyword || '').trim();
     // CTA href priority: specific action URL from page → user-provided landing URL → homepage → app URL
-    const ctaHref = effectiveBrandDNA?.primaryCtaUrl || (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
+    const ctaHref = effectiveBrandDNA?.primaryCtaUrl
+      || effectiveBrandDNA?.url
+      || (pageUrl && pageUrl.trim())
+      || '#';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword });
 
