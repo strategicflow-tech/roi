@@ -391,6 +391,24 @@ function adaptBodyForDarkTheme(html) {
     .replace(/height:1px;background:#e0e0e0/g,      'height:1px;background:#2a2a2a');
 }
 
+// Strip Resend click-tracking wrappers from HTML links after generation.
+// Resend may still wrap hrefs server-side despite clickTracking:false — this is a
+// post-generation safety net so the downloaded HTML always has clean, original URLs.
+function stripResendTracking(html) {
+  if (!html) return html;
+  return html.replace(
+    /https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL[^"'\s]*/g,
+    (match) => {
+      try {
+        const decoded = decodeURIComponent(match);
+        // Find the first non-Resend URL embedded inside the wrapper
+        const urlMatch = decoded.match(/https?:\/\/(?!(?:[a-z0-9-]+\.)?resend)[^\s"']+/);
+        return urlMatch ? urlMatch[0] : match;
+      } catch (_) { return match; }
+    }
+  );
+}
+
 // Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
 // Matches the exact table structure emitted by the SECTION STRUCTURE section 4 prompt.
 function stripEmojiBoxTables(html) {
@@ -941,11 +959,11 @@ app.post('/generate', async (req, res) => {
             const previewBody = (n.rebuilt_body || '')
               .replace(/CTABGCOLOR/g, pa)
               .replace(/CTATEXTCOLOR/g, pat);
-            const downloadHtml = buildNewsletterHTML(
+            const downloadHtml = stripResendTracking(buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
               { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
                 ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app' }
-            );
+            ));
             return res.json({
               rebuilt_subject: n.rebuilt_subject,
               rebuilt_body:    n.rebuilt_body,
@@ -1133,9 +1151,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       || effectiveBrandDNA?.url
       || (pageUrl && pageUrl.trim())
       || '#';
-    const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' });
-
+    const downloadHtml = stripResendTracking(buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
+      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' }));
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
     // replaced by real brand colours — the frontend injects this as innerHTML directly.
