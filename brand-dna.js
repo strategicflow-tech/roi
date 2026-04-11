@@ -29,8 +29,10 @@ async function extractBrandDNA(websiteUrl) {
 
     const colors = extractColors(html, externalCss);
     const logoSvg = !logo ? extractLogoSvg(html) : null;
+    const theme = detectTheme(html, externalCss);
+    const primaryCtaUrl = extractPrimaryCTA(html, url);
 
-    return { success: true, url, colors, logo, logoSvg, textContent: textContent.slice(0, 2500), ctaVerbs, industry, audience, meta };
+    return { success: true, url, colors, logo, logoSvg, theme, primaryCtaUrl, textContent: textContent.slice(0, 2500), ctaVerbs, industry, audience, meta };
   } catch (err) {
     return { success: false, error: err.message, url: websiteUrl };
   }
@@ -232,6 +234,84 @@ function cleanSvgForEmail(svg) {
   // Reject oversized SVGs — they are likely decorative, not a logo mark
   if (cleaned.length > 10000) return null;
   return cleaned;
+}
+
+// ─── THEME DETECTION ────────────────────────────────────────────────────────
+// Determines if the page uses a dark or light color scheme by examining
+// body/html background-color in CSS, color-scheme declarations, and HTML attributes.
+
+function detectTheme(html, externalCss = '') {
+  const cssSource = externalCss + '\n' + html;
+
+  // 1. Explicit color-scheme declarations
+  if (/color-scheme\s*:\s*['"]?dark['"]?/i.test(cssSource)) return 'dark';
+  if (/data-theme=["']dark["']/i.test(html)) return 'dark';
+  if (/class=["'][^"']*\bdark\b[^"']*["']/i.test(html.slice(0, 500))) return 'dark';
+
+  // 2. Look for body/html/main background-color in CSS
+  const bgPatterns = [
+    /body\s*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8})/i,
+    /html\s*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8})/i,
+    /:root\s*\{[^}]*--(?:bg|background|surface|base)(?:-color)?[^:]*:\s*(#[0-9a-fA-F]{3,8})/i,
+  ];
+  for (const re of bgPatterns) {
+    const m = cssSource.match(re);
+    if (m) {
+      let hex = m[1];
+      // Expand 3-digit hex to 6-digit
+      if (hex.length === 4) hex = '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3];
+      if (hex.length === 7) {
+        const r = parseInt(hex.slice(1,3), 16);
+        const g = parseInt(hex.slice(3,5), 16);
+        const b = parseInt(hex.slice(5,7), 16);
+        const lum = (r * 299 + g * 587 + b * 114) / 1000;
+        // #444444 has lum = 68. Anything darker → dark theme
+        if (lum < 68) return 'dark';
+        return 'light';
+      }
+    }
+  }
+
+  // 3. Check meta theme-color (often dark on dark-themed sites)
+  const tm = html.match(/name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{6})["']/i)
+           || html.match(/content=["'](#[0-9a-fA-F]{6})["'][^>]+name=["']theme-color["']/i);
+  if (tm) {
+    const r = parseInt(tm[1].slice(1,3), 16);
+    const g = parseInt(tm[1].slice(3,5), 16);
+    const b = parseInt(tm[1].slice(5,7), 16);
+    if ((r * 299 + g * 587 + b * 114) / 1000 < 68) return 'dark';
+  }
+
+  return 'light'; // default
+}
+
+// ─── PRIMARY CTA EXTRACTION ──────────────────────────────────────────────────
+// Finds the most prominent action URL on the page — used as the newsletter CTA href.
+
+function extractPrimaryCTA(html, baseUrl) {
+  // 1. <a> with class/id strongly signalling a primary CTA button
+  const ctaClassRe = /<a\b[^>]*(?:class|id)=["'][^"']*(?:cta|btn-primary|button--primary|hero-cta|primary-btn|signup|get-started)[^"']*["'][^>]*href=["']([^"'#][^"']+)["']/i;
+  const ctaClassRe2 = /<a\b[^>]*href=["']([^"'#][^"']+)["'][^>]*(?:class|id)=["'][^"']*(?:cta|btn-primary|button--primary|hero-cta|primary-btn|signup|get-started)[^"']*["']/i;
+  const m1 = html.match(ctaClassRe) || html.match(ctaClassRe2);
+  if (m1) {
+    const resolved = resolveUrl(m1[1], baseUrl);
+    if (resolved && resolved.startsWith('http')) return resolved;
+  }
+
+  // 2. Anchor whose visible text matches common signup/start patterns
+  const signupRe = /<a\b[^>]*href=["']([^"'#][^"']+)["'][^>]*>\s*(?:<[^>]+>)?\s*(Get started|Start free|Sign up free|Try free|Start for free|Get started free|Start building|Try it free)\b/i;
+  const m2 = html.match(signupRe);
+  if (m2) {
+    const resolved = resolveUrl(m2[1], baseUrl);
+    if (resolved && resolved.startsWith('http')) return resolved;
+  }
+
+  // 3. og:url — clean canonical URL of the page
+  const ogUrl = html.match(/property=["']og:url["'][^>]+content=["']([^"']+)["']/i)
+              || html.match(/content=["']([^"']+)["'][^>]+property=["']og:url["']/i);
+  if (ogUrl && ogUrl[1] && ogUrl[1].startsWith('http')) return ogUrl[1];
+
+  return null;
 }
 
 function resolveUrl(url, base) {

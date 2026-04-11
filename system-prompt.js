@@ -20,6 +20,19 @@ const EMAIL_TYPE_STRATEGIES = {
 };
 
 function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples }) {
+  // Theme block — tells Claude which colors to use in the HTML body for dark-theme brands
+  let themeBlock = '';
+  if (brandDNA?.theme === 'dark') {
+    themeBlock = `\nTHEME: This brand uses a DARK color scheme. Use these values in your rebuilt_body HTML (not the light defaults):
+- Paragraph text: color:#e0e0e0 (not #333333)
+- Opening hook: color:#f0f0f0 (not #222222)
+- Card backgrounds: background:#1e1e1e (not #f5f5f5)
+- Card titles: color:#ffffff (not #1a1a1a)
+- Card descriptions: color:#aaaaaa (not #555555)
+- Section dividers: style="height:1px;background:#2a2a2a;..." (not #e0e0e0)
+- P.S. text: color:#aaaaaa (not #555555)\n`;
+  }
+
   let brandBlock = '';
   if (brandDNA && brandDNA.success && (tier === 'growth' || tier === 'high_impact')) {
     const colors = (brandDNA.colors || []).map(c => c.value).filter(Boolean).join(', ') || 'not extracted';
@@ -88,14 +101,37 @@ RULES YOU CANNOT BREAK:
    - DO NOT normalize everything to generic SaaS marketing voice
 
 5. You are a precision editor, not a template filler. Read the original. Improve the original. Do not replace it with something generic.
-${brandBlock}${typeBlock}${roadmapBlock}${examplesBlock}
+${brandBlock}${typeBlock}${themeBlock}${roadmapBlock}${examplesBlock}
 Company: ${company}
 Goal: ${goal || 'Increase conversion and reader action'}
 Original Subject: "${subject}"
 Original Body:
 ${body}
 
-WHAT TO IMPROVE (apply to the content you extracted above):
+CONTENT STYLE ANALYSIS — do this before writing a single word:
+
+Step A — Detect the original's FORMAT and match it exactly:
+- Uses emoji feature boxes? → use emoji feature boxes (same count)
+- Uses long-form paragraphs (3+ sentences)? → keep long-form, no forced short bullets
+- Uses numbered steps? → preserve numbered steps, same count
+- Uses bullet lists? → preserve bullets, do not convert to emoji cards
+- How many distinct sections? → match that count
+- Short email (under 150 words)? → keep it short. Long email? → keep it long. NEVER shorten.
+
+Step B — Extract ALL specific facts before writing:
+- Every named feature, product, integration, or technology mentioned
+- Every number, price, percentage, timeframe, or limit (e.g. "$100 per test", "60 minutes", "99.9% uptime")
+- Every step in any step-by-step process
+- The exact CTA intent (what action is the email asking the reader to take?)
+
+ABSOLUTE CONTENT RULES:
+- NEVER remove numerical facts — if original says "$100 per test" or "SOC 2 Type II" or "6 steps" → those appear in the rebuild
+- NEVER shorten a long email into a short one
+- NEVER add emoji boxes to a brand that uses paragraph-based copy
+- NEVER force step-by-step content into unrelated emoji cards
+- ALL key ideas from the original must survive — if original has 6 benefits, rebuild has 6 benefits
+
+WHAT TO IMPROVE (apply ONLY to the content you extracted):
 - Lead every paragraph with the OUTCOME, not the feature. "[Feature] means you [gain X / stop Y]."
 - Opening hook: remove any greeting or preamble. First sentence must earn the read — a consequence, question, or scenario specific to this company's audience.
 - Remove clichés: "excited to announce", "game-changer", "seamless", "powerful", "innovative" — replace with plain outcome language.

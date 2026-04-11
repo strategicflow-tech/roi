@@ -305,15 +305,41 @@ function adjustColorIfNeeded(hex) {
 
 function getEmailColors(brandDNA) {
   const colors = brandDNA?.colors || [];
-  const rawPrimary = colors[0]?.value || '#00d4c8';
+  const theme = brandDNA?.theme || 'light';
+  const isDark = theme === 'dark';
+
+  const rawPrimary = colors[0]?.value || (isDark ? '#00d4c8' : '#00d4c8');
   const rawAccent  = colors[1]?.value || rawPrimary;
   const primaryColor = adjustColorIfNeeded(rawPrimary);
   const accentColor  = adjustColorIfNeeded(rawAccent);
-  // Background is ALWAYS neutral — never use an extracted color as page/wrapper background.
-  const bgColor      = '#f4f4f7';
+
+  // Theme-aware backgrounds and text
+  const bgColor      = isDark ? '#0a0a0a' : '#f4f4f7';
+  const containerBg  = isDark ? '#111111' : '#ffffff';
+  const textColor    = isDark ? '#ffffff' : '#1a1a1a';
+  const mutedText    = isDark ? '#aaaaaa' : '#555555';
+  const cardBg       = isDark ? '#1e1e1e' : '#f5f5f5';
+  const dividerColor = isDark ? '#2a2a2a' : '#e0e0e0';
+
   const primaryText  = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
   const accentText   = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
-  return { primaryColor, accentColor, bgColor, primaryText, accentText };
+  return { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark };
+}
+
+// Post-process Claude-generated body HTML to flip hardcoded light-mode colors when the brand uses a dark theme.
+function adaptBodyForDarkTheme(html) {
+  return html
+    .replace(/color:\s*#222222/g,          'color:#f0f0f0')
+    .replace(/color:\s*#333333/g,          'color:#e0e0e0')
+    .replace(/color:\s*#333\b/g,           'color:#e0e0e0')
+    .replace(/color:\s*#1a1a1a/g,          'color:#ffffff')
+    .replace(/color:\s*#555555/g,          'color:#aaaaaa')
+    .replace(/color:\s*#555\b/g,           'color:#aaaaaa')
+    .replace(/color:\s*#777777/g,          'color:#888888')
+    .replace(/background:\s*#f5f5f5/g,     'background:#1e1e1e')
+    .replace(/background-color:\s*#f5f5f5/g, 'background-color:#1e1e1e')
+    .replace(/background:\s*#ffffff/g,     'background:#111111')
+    .replace(/height:1px;background:#e0e0e0/g, 'height:1px;background:#2a2a2a');
 }
 
 function extractAddressFromBody(originalBody) {
@@ -329,8 +355,8 @@ function extractAddressFromBody(originalBody) {
 }
 
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app' } = options;
-  const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '' } = options;
+  const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
 
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
@@ -433,10 +459,12 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
   let bodyContent;
   if (isHtmlBody) {
-    bodyContent = rawBody
+    let processed = rawBody
       .replace(/CTABGCOLOR/g, accentColor)
       .replace(/CTATEXTCOLOR/g, accentText)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
+    if (isDark) processed = adaptBodyForDarkTheme(processed);
+    bodyContent = processed;
   } else {
     // Legacy plain-text path — split, detect CTA, format paragraphs
     const lines = rawBody.split('\n').map(l => l.trim()).filter(Boolean);
@@ -445,13 +473,18 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     const ctaText   = looksLikeCTA ? lastLine : '';
     const bodyLines = looksLikeCTA ? lines.slice(0, -1) : lines;
     const formattedBody = bodyLines.join('\n')
-      .replace(/\n\n/g, `</p><p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">`)
+      .replace(/\n\n/g, `</p><p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">`)
       .replace(/\n/g, '<br>');
     const ctaBlock = ctaText
       ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${accentColor}" style="background:${accentColor};border-radius:4px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${accentColor};color:${accentText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
       : '';
-    bodyContent = `<p style="font-size:16px;color:#333;line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
+    bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
+
+  const footerBg     = isDark ? '#111111' : '#f4f4f7';
+  const footerBorder = isDark ? '#2a2a2a' : '#e8e8e8';
+  const footerText   = isDark ? '#888888' : '#999999';
+  const footerMuted  = isDark ? '#666666' : '#bbbbbb';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -459,7 +492,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <body style="margin:0;padding:0;background:${bgColor};font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
-<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+<table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
   <!-- HEADER -->
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
     ${logoInHeader}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
@@ -467,20 +500,18 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   <!-- HERO IMAGE -->
   ${heroRow}
   <!-- BODY -->
-  <tr><td style="padding:40px;">
+  <tr><td style="background:${containerBg};padding:40px;">
     <h1 style="font-size:22px;color:${accentColor};margin:0 0 24px;line-height:1.35;">${subject}</h1>
     ${bodyContent}
   </td></tr>
   <!-- FOOTER -->
-  <tr><td style="background:#f4f4f7;padding:28px 40px;text-align:center;border-top:1px solid #e8e8e8;">
+  <tr><td style="background:${footerBg};padding:28px 40px;text-align:center;border-top:1px solid ${footerBorder};">
     ${footerLogo}
     ${['lite','growth','high_impact'].includes(tier)
-      // Paid tiers: client branding only — no Strategic Flow mention, no scraped content
-      ? `<p style="font-size:12px;font-weight:600;color:#555555;margin:0 0 8px;">${company}</p>
-    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`
-      // Free / single tiers: Strategic Flow attribution only
-      : `<p style="font-size:11px;color:#999999;margin:0 0 8px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; strategic-flow-audit.replit.app</p>
-    <p style="font-size:11px;color:#bbbbbb;margin:0;"><a href="#" style="color:#bbbbbb;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#bbbbbb;text-decoration:underline;">Manage preferences</a></p>`}
+      ? `<p style="font-size:12px;font-weight:600;color:${mutedText};margin:0 0 8px;">${company}</p>
+    <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
+      : `<p style="font-size:11px;color:${footerText};margin:0 0 8px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; strategic-flow-audit.replit.app</p>
+    <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`}
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -925,7 +956,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const heroKeyword = (result.heroKeyword || '').trim();
-    const ctaHref = effectiveBrandDNA?.url || (pageUrl && pageUrl.trim()) || 'https://strategic-flow-audit.replit.app';
+    // CTA href priority: specific action URL from page → user-provided landing URL → homepage → app URL
+    const ctaHref = effectiveBrandDNA?.primaryCtaUrl || (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword });
 
