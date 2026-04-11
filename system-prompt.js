@@ -19,7 +19,7 @@ const EMAIL_TYPE_STRATEGIES = {
   brand_announcement:  'Connect brand change to reader benefit. "What this means for you" before "what we\'ve changed".'
 };
 
-function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples }) {
+function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples, analysis }) {
   // Theme block — tells Claude which colors to use in the HTML body for dark-theme brands
   let themeBlock = '';
   if (brandDNA?.theme === 'dark') {
@@ -72,7 +72,28 @@ BRAND INSTRUCTION: You are improving this brand — not replacing it. Preserve t
     examplesBlock = `\nPRIOR SUCCESSFUL REBUILDS IN THIS INDUSTRY (benchmark only — do not copy these, they are for calibration):\n${lines}\nAim for the same quality bar or higher. Apply these same strategic moves to THIS email.\n`;
   }
 
-  return `You are rebuilding a newsletter for ${company}.
+  let analysisBlock = '';
+  if (analysis && Array.isArray(analysis.weaknesses) && analysis.weaknesses.length > 0) {
+    analysisBlock = `
+
+━━━ STRATEGIC ANALYSIS — READ THIS FIRST ━━━
+A diagnostic pass on the original email found these SPECIFIC weaknesses before you started writing.
+Your rebuilt newsletter must visibly fix EVERY weakness listed below.
+If you do not address a weakness, this rebuild fails its purpose.
+
+WEAKNESSES FOUND IN THE ORIGINAL:
+${analysis.weaknesses.map(w => `- ${w}`).join('\n')}
+
+WHAT MUST CHANGE IN YOUR REBUILD:
+${analysis.directives.map(d => `- ${d}`).join('\n')}
+
+CLOSED-LOOP RULE: After you finish writing, re-read the first sentence of your rebuilt body.
+If it does not punch immediately (question, pain point, or surprising fact), rewrite it before outputting.
+Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysis.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+  }
+
+  return `You are rebuilding a newsletter for ${company}.${analysisBlock}
 
 Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
 
@@ -321,8 +342,78 @@ Subject: "${subject}"
 Body:
 ${body.slice(0, 800)}
 
+After scoring, produce:
+- weaknesses[]: For every criterion that scored 0 or 1, write ONE specific sentence describing the exact problem found in THIS email (not generic descriptions — quote or reference the actual text).
+- directives[]: For every weakness, write ONE concrete instruction for the rebuild (what must change and how).
+
 Return ONLY valid JSON (no markdown, no code fences):
-{"subject_score":0,"hook_score":0,"structure_score":0,"cta_score":0,"voice_score":0,"subject_note":"one sentence on why","hook_note":"one sentence on why","structure_note":"one sentence on why","cta_note":"one sentence on why","voice_note":"one sentence on why"}`;
+{"subject_score":0,"hook_score":0,"structure_score":0,"cta_score":0,"voice_score":0,"subject_note":"one sentence on why","hook_note":"one sentence on why","structure_note":"one sentence on why","cta_note":"one sentence on why","voice_note":"one sentence on why","weaknesses":["specific problem found in this email"],"directives":["exact instruction for the rebuild"]}`;
+}
+
+function getWeaknessVerifyPrompt(weaknesses, rebuiltSubject, rebuiltBody) {
+  return `You are a quality-control reviewer. A newsletter was rebuilt to fix specific weaknesses.
+Check whether each weakness was actually addressed in the rebuilt version.
+
+WEAKNESSES THAT NEEDED FIXING:
+${weaknesses.map((w, i) => `${i + 1}. ${w}`).join('\n')}
+
+REBUILT SUBJECT: "${rebuiltSubject}"
+REBUILT BODY (first 800 chars):
+${(rebuiltBody || '').slice(0, 800)}
+
+For each weakness, judge: was it fixed? (yes/no)
+- "yes" = the rebuilt version clearly addresses this weakness
+- "no" = the rebuilt version still has this problem or ignored it
+
+Also, for any unaddressed weakness, specify which section needs a patch:
+- "subject" = the subject line needs rewriting
+- "hook" = the opening paragraph (first 1-2 sentences) needs rewriting
+- "cta" = the CTA button text needs rewriting
+- "body" = a body paragraph needs improvement (describe which)
+
+Return ONLY valid JSON:
+{"all_addressed":true|false,"results":[{"weakness":"string","addressed":true|false,"section":"subject|hook|cta|body|none","reason":"one sentence"}],"unaddressed_count":0}`;
+}
+
+function getSectionPatchPrompt(section, weakness, directive, originalSubject, rebuiltSubject, rebuiltBody) {
+  if (section === 'subject') {
+    return `Rewrite ONLY the subject line of this email to fix this weakness:
+WEAKNESS: ${weakness}
+DIRECTIVE: ${directive}
+Original subject: "${originalSubject}"
+Current rebuilt subject: "${rebuiltSubject}"
+Email body context (first 400 chars): ${(rebuiltBody || '').slice(0, 400)}
+
+Return ONLY valid JSON: {"patched_subject":"string"}`;
+  }
+  if (section === 'hook') {
+    return `Rewrite ONLY the opening hook (first 1-2 sentences) of this email to fix this weakness:
+WEAKNESS: ${weakness}
+DIRECTIVE: ${directive}
+Current rebuilt body starts with: ${(rebuiltBody || '').slice(0, 300)}
+
+Rules:
+- Output ONLY the replacement opening paragraph as HTML: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[new hook]</p>
+- Maximum 2 sentences. Must punch immediately — a pain point, surprising fact, or provocative question.
+- Do NOT repeat what comes after it in the body.
+
+Return ONLY valid JSON: {"patched_hook":"<p ...>[new hook]</p>"}`;
+  }
+  if (section === 'cta') {
+    return `Rewrite ONLY the CTA button text to fix this weakness:
+WEAKNESS: ${weakness}
+DIRECTIVE: ${directive}
+Email subject for context: "${rebuiltSubject}"
+Email body context (last 400 chars): ${(rebuiltBody || '').slice(-400)}
+
+Rules:
+- Output ONLY the new CTA button text (3-6 words, ownership language, specific outcome)
+- Match the email's intent exactly — do not change the destination action
+- Use ownership verbs: "Start", "Claim", "Get", "See", "Launch", "Unlock"
+
+Return ONLY valid JSON: {"patched_cta_text":"string"}`;
+  }
+  return null;
 }
 
 function getMicroImprovementsPrompt({ company, goal, subject, body, brandDNA, voiceProfile, score, priorExamples }) {
@@ -410,5 +501,7 @@ module.exports = {
   getEmailTypePrompt,
   getVoiceAnalysisPrompt,
   getEmailScorePrompt,
-  getMicroImprovementsPrompt
+  getMicroImprovementsPrompt,
+  getWeaknessVerifyPrompt,
+  getSectionPatchPrompt
 };

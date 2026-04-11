@@ -10,7 +10,8 @@ const {
   TIER_CONFIGS, getAuditPrompt, getABSubjectsPrompt, getConversionScorePrompt,
   getAudienceSegmentsPrompt, getContentCalendarPrompt, getCohesionCheckPrompt,
   getEmailTypePrompt, getVoiceAnalysisPrompt,
-  getEmailScorePrompt, getMicroImprovementsPrompt
+  getEmailScorePrompt, getMicroImprovementsPrompt,
+  getWeaknessVerifyPrompt, getSectionPatchPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
 
@@ -986,17 +987,23 @@ app.post('/generate', async (req, res) => {
     const industry = effectiveBrandDNA?.industry || null;
     const priorExamples = await getIndustryExamples(industry);
 
-    // ── SCORING: score the original email before choosing rebuild path ──
+    // ── SCORING + ANALYSIS: score the original email AND extract specific weaknesses ──
     let originalScore = null;
     let rebuildPath = 'rebuilt'; // default: full rebuild
+    let analysis = { weaknesses: [], directives: [] };
     try {
-      const raw = await claudeJSON(getEmailScorePrompt(subject, body), 350);
+      const raw = await claudeJSON(getEmailScorePrompt(subject, body), 900);
       if (raw) {
         const total = (raw.subject_score || 0) + (raw.hook_score || 0) +
                       (raw.structure_score || 0) + (raw.cta_score || 0) + (raw.voice_score || 0);
         originalScore = { ...raw, total, percentage: Math.round(total / 10 * 100) };
         rebuildPath = total >= 7 ? 'preserved' : 'rebuilt';
-        console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath}`);
+        // Extract weakness analysis produced by the scoring call
+        analysis = {
+          weaknesses: Array.isArray(raw.weaknesses) ? raw.weaknesses : [],
+          directives: Array.isArray(raw.directives) ? raw.directives : []
+        };
+        console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath} | weaknesses: ${analysis.weaknesses.length}`);
       } else {
         console.warn('[score] null response from Claude — using default rebuild path');
       }
@@ -1014,7 +1021,8 @@ app.post('/generate', async (req, res) => {
       });
       result = await claudeJSON(microPrompt, 2500);
     } else {
-      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples });
+      // Pass the strategic analysis into the rebuild prompt — closed loop
+      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis });
       result = await claudeJSON(prompt, 2500);
     }
 
@@ -1023,6 +1031,53 @@ app.post('/generate', async (req, res) => {
     if (!result || !safeVal(result.rebuilt_subject) || !safeVal(result.rebuilt_body)) {
       console.error('[generate] Claude response missing rebuilt_subject or rebuilt_body', result);
       return res.status(500).json({ error: 'Generation failed. Please try again.' });
+    }
+
+    // ── VERIFY + PATCH: check each weakness was addressed; fix any that weren't ──
+    // Only runs for full rebuilds with identified weaknesses (not micro-improvement path).
+    if (rebuildPath === 'rebuilt' && analysis.weaknesses.length > 0) {
+      try {
+        const verify = await claudeJSON(
+          getWeaknessVerifyPrompt(analysis.weaknesses, result.rebuilt_subject, result.rebuilt_body), 600
+        );
+        const unaddressed = (verify?.results || []).filter(r => !r.addressed);
+        if (unaddressed.length > 0) {
+          console.log(`[verify] ${unaddressed.length} weakness(es) unaddressed — patching`);
+          for (const item of unaddressed) {
+            const { section } = item;
+            // Find corresponding directive for this weakness
+            const idx = analysis.weaknesses.indexOf(item.weakness);
+            const directive = idx >= 0 ? (analysis.directives[idx] || item.weakness) : item.weakness;
+            const patchPrompt = getSectionPatchPrompt(section, item.weakness, directive, subject, result.rebuilt_subject, result.rebuilt_body);
+            if (!patchPrompt) continue;
+            try {
+              const patch = await claudeJSON(patchPrompt, 300);
+              if (!patch) continue;
+              if (section === 'subject' && patch.patched_subject) {
+                result.rebuilt_subject = patch.patched_subject;
+                console.log(`[patch] subject rewritten`);
+              } else if (section === 'hook' && patch.patched_hook) {
+                // Replace the first <p ...> block in rebuilt_body with the new hook
+                result.rebuilt_body = result.rebuilt_body.replace(/<p[^>]*>[\s\S]*?<\/p>/, patch.patched_hook);
+                console.log(`[patch] hook replaced`);
+              } else if (section === 'cta' && patch.patched_cta_text) {
+                // Replace CTA link text inside the button — text between last > and </a>
+                result.rebuilt_body = result.rebuilt_body.replace(
+                  /(<a[^>]*?>)([^<]{2,60})(<\/a>)/,
+                  (_, open, _old, close) => `${open}${patch.patched_cta_text}${close}`
+                );
+                console.log(`[patch] CTA text replaced: ${patch.patched_cta_text}`);
+              }
+            } catch (patchErr) {
+              console.error(`[patch] ${section} failed:`, patchErr.message);
+            }
+          }
+        } else {
+          console.log(`[verify] all ${analysis.weaknesses.length} weakness(es) addressed`);
+        }
+      } catch (verifyErr) {
+        console.error('[verify] skipped:', verifyErr.message);
+      }
     }
 
     // Safety net: if brand DNA still has no colours after the earlier inference pass,
