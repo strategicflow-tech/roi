@@ -423,22 +423,52 @@ function parseEmailHtmlContent(html) {
     .trim()
     .slice(0, 5000);
 
-  // ── DARK / LIGHT THEME: scan outer 3000 chars for background hex values ──
-  const outerHtml = html.slice(0, 3000);
-  const bgValues = [];
+  // ── DARK / LIGHT THEME ──
+  // Helper: return true when a color string (hex or named) resolves to a dark luminance.
+  const isColorDark = (color) => {
+    if (!color) return false;
+    const c = color.trim().toLowerCase().replace(/\s/g, '');
+    if (c === 'black' || c === '#000' || c === '#000000') return true;
+    if (c === 'white' || c === '#fff' || c === '#ffffff') return false;
+    // Expand 3-char hex
+    const hex6 = c.match(/^#([0-9a-f]{6})$/i)?.[1]
+              || (() => { const h3 = c.match(/^#([0-9a-f]{3})$/i)?.[1]; return h3 ? h3[0]+h3[0]+h3[1]+h3[1]+h3[2]+h3[2] : null; })();
+    if (hex6) {
+      try { return hexToHSL('#' + hex6).l < 30; } catch { return false; }
+    }
+    // rgb(r,g,b)
+    const rgbM = c.match(/^rgba?\((\d+),(\d+),(\d+)/);
+    if (rgbM) {
+      const lum = (parseInt(rgbM[1])*299 + parseInt(rgbM[2])*587 + parseInt(rgbM[3])*114) / 1000;
+      return lum < 80;
+    }
+    return false;
+  };
+
   let m;
-  const bgInlineRe = /background(?:-color)?\s*[:=]\s*(#[0-9a-fA-F]{3,8})/gi;
-  const bgAttrRe = /bgcolor\s*=\s*["']?(#[0-9a-fA-F]{3,8})["']?/gi;
+  const bgValues = [];
+
+  // 1. Scan <body> tag specifically for bgcolor and inline style background
+  const bodyTagM = html.match(/<body\b([^>]{0,600})>/i);
+  if (bodyTagM) {
+    const bAttrs = bodyTagM[1];
+    const bgcolorM = bAttrs.match(/bgcolor\s*=\s*["']?([^"'\s>]+)["']?/i);
+    if (bgcolorM) bgValues.push(bgcolorM[1]);
+    const styleM = bAttrs.match(/style\s*=\s*["']([^"']{0,300})["']/i);
+    if (styleM) {
+      const inlineBg = styleM[1].match(/background(?:-color)?\s*:\s*([^;}"]+)/i);
+      if (inlineBg) bgValues.push(inlineBg[1].trim());
+    }
+  }
+
+  // 2. Scan opening 5000 chars for CSS/inline background hex and named colors
+  const outerHtml = html.slice(0, 5000);
+  const bgInlineRe = /background(?:-color)?\s*[:=]\s*(#[0-9a-fA-F]{3,8}|black|(?:rgb\(\d+,\s*\d+,\s*\d+\)))/gi;
+  const bgAttrRe   = /bgcolor\s*=\s*["']?(#[0-9a-fA-F]{3,8}|black)["']?/gi;
   while ((m = bgInlineRe.exec(outerHtml)) !== null) bgValues.push(m[1]);
-  while ((m = bgAttrRe.exec(outerHtml)) !== null) bgValues.push(m[1]);
-  const isDark = bgValues.some(hex => {
-    try {
-      const full = hex.length === 4
-        ? '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3]
-        : hex;
-      return hexToHSL(full).l < 25;
-    } catch { return false; }
-  });
+  while ((m = bgAttrRe.exec(outerHtml))   !== null) bgValues.push(m[1]);
+
+  const isDark = bgValues.some(isColorDark);
 
   // ── BRAND COLORS: all saturated hex codes, de-duped ──
   const allHex = new Set();
@@ -1306,12 +1336,49 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     const heroKeyword = (result.heroKeyword || '').trim();
 
-    // BUG 3 — CTA href: never fall back to '#'. Construct a likely URL from company name as last resort.
-    const companySlug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // CTA href — curated brand list as last resort; never fabricate from slug
+    const KNOWN_BRANDS = {
+      'anthropic':          'https://www.anthropic.com',
+      'claude':             'https://claude.ai',
+      'anthropic (claude)': 'https://claude.ai',
+      'openai':             'https://openai.com',
+      'chatgpt':            'https://chatgpt.com',
+      'google':             'https://google.com',
+      'microsoft':          'https://microsoft.com',
+      'apple':              'https://apple.com',
+      'meta':               'https://meta.com',
+      'amazon':             'https://amazon.com',
+      'aws':                'https://aws.amazon.com',
+      'notion':             'https://notion.so',
+      'figma':              'https://figma.com',
+      'stripe':             'https://stripe.com',
+      'linear':             'https://linear.app',
+      'lovable':            'https://lovable.dev',
+      'vercel':             'https://vercel.com',
+      'supabase':           'https://supabase.com',
+      'github':             'https://github.com',
+      'netlify':            'https://netlify.com',
+      'hubspot':            'https://hubspot.com',
+      'salesforce':         'https://salesforce.com',
+      'shopify':            'https://shopify.com',
+      'webflow':            'https://webflow.com',
+      'framer':             'https://framer.com',
+      'airtable':           'https://airtable.com',
+      'slack':              'https://slack.com',
+      'zoom':               'https://zoom.us',
+      'loom':               'https://loom.com',
+      'intercom':           'https://intercom.com',
+      'mailchimp':          'https://mailchimp.com',
+      'sendgrid':           'https://sendgrid.com',
+    };
+    const normalizedCompany = (company || '').toLowerCase().trim();
+    const knownUrl = Object.entries(KNOWN_BRANDS)
+      .find(([key]) => normalizedCompany.includes(key))?.[1] || null;
     const ctaHref = effectiveBrandDNA?.primaryCtaUrl
       || effectiveBrandDNA?.url
       || (pageUrl && pageUrl.trim())
-      || (companySlug ? `https://www.${companySlug}.com` : 'https://strategic-flow-audit.replit.app');
+      || knownUrl
+      || 'https://strategic-flow-audit.replit.app';
 
     const downloadHtml = stripResendTracking(buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' }));
