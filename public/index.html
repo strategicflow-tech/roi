@@ -172,6 +172,7 @@ textarea{resize:vertical;line-height:1.7;}
 /* MISC */
 .error-msg{background:var(--red-dim);border:1px solid rgba(232,69,90,0.3);color:#ff8a95;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;display:none;}
 .error-msg.active{display:block;}
+.error-msg.warn{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.35);color:#fbbf24;}
 .success-msg{background:var(--teal-dim);border:1px solid rgba(0,212,200,0.3);color:var(--teal);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;}
 .info-note{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;font-family:var(--mono);}
 .info-note a{color:var(--teal);text-decoration:none;}
@@ -797,7 +798,7 @@ function toggleAdvanced() {
 
 function showReturningUser() { showOnly('stateEmail'); }
 
-function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.classList.remove('warn'); el.style.display = msg ? 'block' : 'none'; }
 
 function tierClass(tier) { return { free_trial:'tier-free', single:'tier-single', lite:'tier-lite', growth:'tier-growth', high_impact:'tier-high_impact' }[tier] || 'tier-single'; }
 
@@ -1069,12 +1070,23 @@ async function submitGenerate() {
       brandDNA: uploadedHtmlBrandDNA || currentBrandDNA, voiceProfile: currentVoiceProfile
     });
 
+    // Server-side footer-only rejection (200 response with error flag)
+    if (gen.error === 'footer_only') {
+      showOnly('stateForm');
+      const errEl = document.getElementById('errForm');
+      errEl.textContent = '📋 Looks like you copied the footer only. Scroll up in your email and copy the main content — subject, body text, and key sections.';
+      errEl.classList.add('active', 'warn');
+      return;
+    }
+
     currentResult = gen;
     downloadHtmlContent = gen.downloadHtml || '';
     showResults(gen);
 
   } catch (e) {
     showOnly('stateForm');
+    const errEl = document.getElementById('errForm');
+    errEl.classList.remove('warn');
     setErr('errForm', e.message || 'Generation failed. Please try again.');
   }
 }

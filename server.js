@@ -984,6 +984,21 @@ async function fetchPageContent(rawUrl) {
   return { title, meta, text: stripped, url };
 }
 
+// ── FOOTER-ONLY DETECTION (server-side guard) ──
+function isFooterOnlyContent(text) {
+  if (!text) return false;
+  const signals = [
+    /unsubscribe/gi, /opt.?out/gi, /548 market/gi,
+    /this email was sent to/gi, /youtube icon/gi, /x icon/gi,
+    /PBC,?\s*\d+/gi, /san francisco/gi, /privacy policy/gi,
+    /all rights reserved/gi, /\bPO Box\b/gi,
+    /you('re| are) receiving this/gi, /manage (your )?preferences/gi
+  ];
+  const len  = text.trim().length;
+  const hits = signals.filter(p => { p.lastIndex = 0; return p.test(text); }).length;
+  return len < 500 && hits >= 2;
+}
+
 // ── PARSE HTML UPLOAD ──
 // Accepts raw HTML from an uploaded email file and extracts brand DNA signals.
 // Returns colors, logo, dark/light theme, emoji presence, CTA URL, text content.
@@ -1015,6 +1030,17 @@ app.post('/generate', async (req, res) => {
     goal         = sanitizeInput(goal);
     roadmapNotes = sanitizeInput(roadmapNotes);
 
+    // Server-side footer-only guard (mirrors client-side check — catches API/bypass cases)
+    if (isFooterOnlyContent(body)) {
+      console.log(`[generate] footer-only body rejected for ${e}`);
+      return res.json({
+        success: false,
+        error: 'footer_only',
+        message: 'It looks like you copied only the email footer. Please copy the main email content — the subject, body text, and key sections — not the unsubscribe footer at the bottom.'
+      });
+    }
+
+    console.log('STEP 1: Input validated');
     let analyzedPage = false;
 
     // If a page URL was provided and body is absent/minimal, fetch the page and extract content
@@ -1109,6 +1135,7 @@ app.post('/generate', async (req, res) => {
         }
       } catch (inferErr) { console.error('[brand-infer]', inferErr.message); }
     }
+    console.log('STEP 2: Brand DNA extracted');
 
     // High-Impact: detect type if not provided
     let detectedType = emailType || null;
@@ -1158,6 +1185,7 @@ app.post('/generate', async (req, res) => {
       result = await claudeJSON(prompt, 2500);
     }
 
+    console.log('STEP 3: Claude generation complete');
     // Guard: Claude must have returned a parseable object with the two critical fields.
     // If either is missing, surface a clean error rather than rendering "undefined" everywhere.
     if (!result || !safeVal(result.rebuilt_subject) || !safeVal(result.rebuilt_body)) {
@@ -1287,6 +1315,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     const downloadHtml = stripResendTracking(buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' }));
+    console.log('STEP 4: HTML built');
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
     // replaced by real brand colours — the frontend injects this as innerHTML directly.
@@ -1304,6 +1333,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
     res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
 
@@ -1320,6 +1350,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
           rebuildPath]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db save]', dbErr.message); }
+    console.log('STEP 5: DB save attempted');
 
     // Learning data
     storeLearning({
@@ -1340,6 +1371,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml)
         .catch(mailErr => console.error('[email-send]', mailErr.message));
     }
+    console.log('STEP 6: Email send attempted');
 
     // Owner notifications
     if (tier === 'single') {
