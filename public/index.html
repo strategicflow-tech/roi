@@ -1007,6 +1007,28 @@ function updateHtmlTip() {
   tip.style.display = (body && !uploadedHtmlBrandDNA && !pageUrl) ? 'block' : 'none';
 }
 
+// ─── INPUT VALIDATION HELPERS ─────────────────────────────────────────────────
+function isFooterOnlyContent(text) {
+  const footerSignals = [
+    /unsubscribe/gi,
+    /opt.?out/gi,
+    /548 market/gi,
+    /this email was sent to/gi,
+    /youtube icon/gi,
+    /x icon/gi,
+    /PBC,?\s*\d+/gi,
+    /san francisco/gi,
+    /privacy policy/gi,
+    /all rights reserved/gi,
+    /\bPO Box\b/gi,
+    /you('re| are) receiving this/gi,
+    /manage (your )?preferences/gi
+  ];
+  const bodyLength = text.trim().length;
+  const footerHits = footerSignals.filter(p => { p.lastIndex = 0; return p.test(text); }).length;
+  return bodyLength < 500 && footerHits >= 2;
+}
+
 // ─── GENERATE ─────────────────────────────────────────────────────────────────
 async function submitGenerate() {
   const company = document.getElementById('fCompany').value.trim();
@@ -1016,6 +1038,14 @@ async function submitGenerate() {
   const email   = document.getElementById('fEmail').value.trim();
   if (!subject) { setErr('errForm','Subject line is required.'); return; }
   if (!body && !pageUrl) { setErr('errForm','Paste your email body, or provide a link to your website or landing page.'); return; }
+  if (body && isFooterOnlyContent(body)) {
+    setErr('errForm','It looks like you copied only the email footer. Please copy the main email content — the subject, body text, and any key sections — not the unsubscribe footer at the bottom.');
+    return;
+  }
+  if (body && body.length < 100 && !pageUrl) {
+    setErr('errForm','Please add more content — at least a few sentences from your newsletter.');
+    return;
+  }
   if (!email || !email.includes('@')) { setErr('errForm','Enter a valid email address.'); return; }
   setErr('errForm','');
 
