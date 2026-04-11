@@ -212,36 +212,61 @@ function sanitizeForJSON(str) {
     .replace(/\u2014/g, '-')           // em dash → hyphen
     .replace(/\u2013/g, '-')           // en dash → hyphen
     .replace(/\u2026/g, '...')         // ellipsis → triple dot
-    .replace(/[^\x00-\x7F]/g, '');    // strip any remaining non-ASCII
+    .replace(/\u00A0/g, ' ')           // non-breaking space → regular space
+    .replace(/[^\x00-\x7F]/g, ' ');   // ALL remaining non-ASCII → space (not empty)
 }
+
+// Sanitize human-supplied text fields before embedding in any Claude prompt.
+// Applies the same normalisation and hard-caps length so special characters in
+// subject lines, email bodies, etc. never corrupt the JSON response.
+function sanitizeInput(str, maxLen = 8000) {
+  return sanitizeForJSON(str || '').slice(0, maxLen);
+}
+
+// 4-layer fallback JSON parser — NEVER throws; returns safe defaults on total failure.
+const JSON_SAFE_DEFAULTS = {
+  industry: 'technology', tone: 'professional', colors: [], brandTone: 'professional',
+  formality: 'formal', audience: 'B2B', heroKeyword: 'technology workspace',
+  ctaUrl: '', isDarkTheme: false
+};
+function safeParseJSON(raw) {
+  // Layer 1: direct parse
+  try { return JSON.parse(raw); } catch (_) {}
+  // Layer 2: extract outermost {...} block first, then parse
+  try {
+    const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+    if (s !== -1 && e > s) return JSON.parse(raw.slice(s, e + 1));
+  } catch (_) {}
+  // Layer 3: strip markdown fences + sanitize special chars, then parse
+  try {
+    const clean = sanitizeForJSON(raw.replace(/```json|```/gi, '').trim());
+    const s = clean.indexOf('{'), e = clean.lastIndexOf('}');
+    if (s !== -1 && e > s) return JSON.parse(clean.slice(s, e + 1));
+    return JSON.parse(clean);
+  } catch (_) {}
+  // Layer 4: return safe defaults — never crash
+  console.warn('[safeParseJSON] all layers failed, returning defaults. Raw (first 200):', (raw || '').slice(0, 200));
+  return { ...JSON_SAFE_DEFAULTS };
+}
+
+const JSON_SYSTEM_INSTRUCTION = 'Return ONLY valid JSON. Use straight ASCII quotes only — no curly quotes (\u201C\u201D\u2018\u2019), no em dashes (\u2014), no en dashes (\u2013), no ellipsis characters (\u2026), no non-breaking spaces, no other Unicode. No markdown fences. No text before or after the JSON object.';
 
 async function claudeJSON(prompt, maxTokens = 2000) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const msg = await claude.messages.create({
         model: MODEL, max_tokens: maxTokens,
+        system: JSON_SYSTEM_INSTRUCTION,
         messages: [{ role: 'user', content: prompt }]
       });
-      let raw = msg.content[0].text.trim();
-      raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
-      const start = raw.indexOf('{'), end = raw.lastIndexOf('}');
-      if (start !== -1 && end > start) raw = raw.slice(start, end + 1);
-      try {
-        return JSON.parse(raw);
-      } catch (parseErr) {
-        // Sanitize any special characters Claude may have included, then retry parse
-        const sanitized = sanitizeForJSON(raw);
-        try {
-          return JSON.parse(sanitized);
-        } catch {
-          // Last resort: extract the largest {...} block that parses
-          const match = sanitized.match(/\{[\s\S]*\}/);
-          if (match) return JSON.parse(match[0]);
-          throw parseErr;
-        }
-      }
+      const raw = msg.content[0].text.trim();
+      return safeParseJSON(raw);
     } catch (err) {
-      if (attempt === 1) throw err;
+      if (attempt === 1) {
+        // Last resort: return safe defaults instead of crashing the request
+        console.error('[claudeJSON] both attempts failed:', err.message);
+        return { ...JSON_SAFE_DEFAULTS };
+      }
       await new Promise(r => setTimeout(r, 400));
     }
   }
@@ -776,6 +801,15 @@ app.post('/generate', async (req, res) => {
     const e = (email || '').toLowerCase().trim();
     if (!e || !subject) return res.status(400).json({ error: 'email and subject are required' });
 
+    // Sanitize all human-supplied text inputs BEFORE any Claude prompt is built.
+    // This converts special Unicode (curly quotes, em dashes, etc.) into plain ASCII
+    // equivalents so they never corrupt Claude's JSON response.
+    subject      = sanitizeInput(subject);
+    body         = sanitizeInput(body, 12000);
+    company      = sanitizeInput(company);
+    goal         = sanitizeInput(goal);
+    roadmapNotes = sanitizeInput(roadmapNotes);
+
     let analyzedPage = false;
 
     // If a page URL was provided and body is absent/minimal, fetch the page and extract content
@@ -1024,7 +1058,10 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 // ── A/B SUBJECTS (Lite+) ──
 app.post('/ab-subjects', async (req, res) => {
   try {
-    const { email, company, subject, body } = req.body;
+    const { email } = req.body;
+    const company = sanitizeInput(req.body.company);
+    const subject = sanitizeInput(req.body.subject);
+    const body    = sanitizeInput(req.body.body, 12000);
     const u = await getUser((email || '').toLowerCase());
     if (!isAdmin(email) && !['lite','growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Lite+ required' });
     res.json(await claudeJSON(getABSubjectsPrompt(company, subject, body), 1000));
@@ -1034,7 +1071,11 @@ app.post('/ab-subjects', async (req, res) => {
 // ── CONVERSION SCORE (Lite+) ──
 app.post('/conversion-score', async (req, res) => {
   try {
-    const { email, originalSubject, originalBody, rebuiltSubject, rebuiltBody } = req.body;
+    const { email } = req.body;
+    const originalSubject = sanitizeInput(req.body.originalSubject);
+    const originalBody    = sanitizeInput(req.body.originalBody, 12000);
+    const rebuiltSubject  = sanitizeInput(req.body.rebuiltSubject);
+    const rebuiltBody     = sanitizeInput(req.body.rebuiltBody, 12000);
     const u = await getUser((email || '').toLowerCase());
     if (!isAdmin(email) && !['lite','growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Lite+ required' });
     res.json(await claudeJSON(getConversionScorePrompt(originalSubject, originalBody, rebuiltSubject, rebuiltBody), 1000));
@@ -1044,7 +1085,10 @@ app.post('/conversion-score', async (req, res) => {
 // ── AUDIENCE SEGMENTS (Growth+) ──
 app.post('/audience-segments', async (req, res) => {
   try {
-    const { email, company, subject, body } = req.body;
+    const { email } = req.body;
+    const company = sanitizeInput(req.body.company);
+    const subject = sanitizeInput(req.body.subject);
+    const body    = sanitizeInput(req.body.body, 12000);
     const u = await getUser((email || '').toLowerCase());
     if (!isAdmin(email) && !['growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Growth+ required' });
     res.json(await claudeJSON(getAudienceSegmentsPrompt(company, subject, body), 900));
@@ -1054,7 +1098,10 @@ app.post('/audience-segments', async (req, res) => {
 // ── CONTENT CALENDAR (Growth+) ──
 app.post('/content-calendar', async (req, res) => {
   try {
-    const { email, company, subject, body } = req.body;
+    const { email } = req.body;
+    const company = sanitizeInput(req.body.company);
+    const subject = sanitizeInput(req.body.subject);
+    const body    = sanitizeInput(req.body.body, 12000);
     const u = await getUser((email || '').toLowerCase());
     if (!isAdmin(email) && !['growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Growth+ required' });
     res.json(await claudeJSON(getContentCalendarPrompt(company, subject, body), 900));
@@ -1064,7 +1111,9 @@ app.post('/content-calendar', async (req, res) => {
 // ── COHESION CHECK (High-Impact) ──
 app.post('/cohesion-check', async (req, res) => {
   try {
-    const { email, subject, body } = req.body;
+    const { email } = req.body;
+    const subject = sanitizeInput(req.body.subject);
+    const body    = sanitizeInput(req.body.body, 12000);
     const u = await getUser((email || '').toLowerCase());
     if (!isAdmin(email) && u?.tier !== 'high_impact') return res.status(403).json({ error: 'High-Impact required' });
     res.json(await claudeJSON(getCohesionCheckPrompt(subject, body), 900));
