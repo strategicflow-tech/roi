@@ -1259,12 +1259,32 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       }
     }
 
+    // BUG 2 — Dark theme detection from plain text body when no URL/HTML was provided.
+    // Runs only when effectiveBrandDNA has no theme signal yet.
+    if (effectiveBrandDNA && !effectiveBrandDNA.theme && body) {
+      const textDarkSignals = [
+        /#[01][0-9a-fA-F]{5}/gi,
+        /background.{0,20}#1[0-9a-fA-F]{5}/gi,
+        /color.{0,20}white/gi,
+        /dark.{0,10}theme/gi,
+        /background.{0,20}black/gi
+      ];
+      const darkHits = textDarkSignals.filter(p => { p.lastIndex = 0; return p.test(body); }).length;
+      if (darkHits >= 1) {
+        effectiveBrandDNA = { ...effectiveBrandDNA, theme: 'dark' };
+        console.log(`[dark-detect] text body dark signals: ${darkHits} → theme set to dark`);
+      }
+    }
+
     const heroKeyword = (result.heroKeyword || '').trim();
-    // CTA href priority: specific action URL from page → user-provided landing URL → homepage → app URL
+
+    // BUG 3 — CTA href: never fall back to '#'. Construct a likely URL from company name as last resort.
+    const companySlug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const ctaHref = effectiveBrandDNA?.primaryCtaUrl
       || effectiveBrandDNA?.url
       || (pageUrl && pageUrl.trim())
-      || '#';
+      || (companySlug ? `https://www.${companySlug}.com` : 'https://strategic-flow-audit.replit.app');
+
     const downloadHtml = stripResendTracking(buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' }));
 
@@ -1277,9 +1297,17 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     // Prefer email type returned by Claude in the generation JSON; fall back to separately detected type
     const finalEmailType = result.emailType || detectedType;
+    const brandDNASource = effectiveBrandDNA?.source || null;
+
+    // BUG 1 — Send the success response IMMEDIATELY after HTML is built.
+    // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
+    // blocks so they can never cause "Generation failed" even if they error out.
+    let newsletterId = null;
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+
+    // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
 
     // Persist to DB
-    let newsletterId = null;
     try {
       const s = await pool.query(`
         INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path)
@@ -1291,30 +1319,26 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
           originalScore ? JSON.stringify(originalScore) : null,
           rebuildPath]);
       newsletterId = s.rows[0].id;
-    } catch (dbErr) { console.error('[db]', dbErr.message); }
+    } catch (dbErr) { console.error('[db save]', dbErr.message); }
 
-    // Fire-and-forget: store learning data for future context injection
+    // Learning data
     storeLearning({
-      company: company || null,
-      industry,
+      company: company || null, industry,
       audienceType: effectiveBrandDNA?.audience || null,
-      origSubject: subject,
-      origBody: body,
-      rebuiltSubject: result.rebuilt_subject,
-      rebuiltBody: result.rebuilt_body,
-      whatChanged: result.key_changes,
-      tier,
-      rebuildPath
-    }).catch(() => {});
+      origSubject: subject, origBody: body,
+      rebuiltSubject: result.rebuilt_subject, rebuiltBody: result.rebuilt_body,
+      whatChanged: result.key_changes, tier, rebuildPath
+    }).catch(e2 => console.error('[learning]', e2.message));
 
-    if (!adminAccess) await bumpCount(e);
-    if (company && user) pool.query('UPDATE users SET company=$1 WHERE email=$2', [company, e]).catch(() => {});
+    // Bump usage counter
+    try { if (!adminAccess) await bumpCount(e); } catch (bcErr) { console.error('[bumpCount]', bcErr.message); }
+    pool.query('UPDATE users SET company=$1 WHERE email=$2', [company, e]).catch(() => {});
 
-    // Send result to user (fire-and-forget; never blocks the response).
-    // Admin bypass emails still receive the result — except the internal test account (proton.me).
+    // Email delivery
     const shouldEmailResult = e && !e.includes('@sf-session.com') && (!adminAccess || e === OWNER_EMAIL);
     if (shouldEmailResult) {
-      sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml).catch(() => {});
+      sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml)
+        .catch(mailErr => console.error('[email-send]', mailErr.message));
     }
 
     // Owner notifications
@@ -1324,10 +1348,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     if (tier === 'high_impact' && user?.vip && !adminAccess) {
       notify(`⚡ VIP URGENT — ${company || e}`, `<p><b>VIP Submission</b><br>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
-
-    const brandDNASource = effectiveBrandDNA?.source || null;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
-  } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error('[generate]', err); if (!res.headersSent) res.status(500).json({ error: err.message }); }
 });
 
 // ── A/B SUBJECTS (Lite+) ──
