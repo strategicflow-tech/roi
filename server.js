@@ -408,7 +408,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
 
   // Header content: show logo OR company name — never both.
-  // logoInHeader is non-empty when a verified logo is available.
+  // brandDNA.logo has already been verified (HEAD request) in the route handler before this
+  // function is called — if the URL was broken, logo was set to null upstream.
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
       const svgConstrained = brandDNA.logoSvg
@@ -417,14 +418,15 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       return `<div style="text-align:center;line-height:1;">${svgConstrained}</div>`;
     }
     if (brandDNA?.logo) {
+      // URL already verified valid by verifyImageUrl() in the route handler
       return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
     }
     return '';
   })();
-  // Show company name text only when no logo is available
+  // Show company name text only when no verified logo is available
   const headerContent = logoInHeader
     ? logoInHeader
-    : `<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>`;
+    : `<span style="font-size:20px;font-weight:700;color:${primaryText};">${company}</span>`;
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
   const buildHeroSrc = (comp, dna, heroKeyword) => {
@@ -624,6 +626,7 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
         filename: `${(company || 'newsletter').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-rebuilt.html`,
         content: Buffer.from(downloadHtml).toString('base64')
       }],
+      clickTracking: false,
       headers: { 'X-Entity-Ref-ID': 'no-tracking' }
     });
     console.log(`[email] Result delivered to ${to}`);
