@@ -334,7 +334,7 @@ function adjustColorIfNeeded(hex) {
 function getEmailColors(brandDNA) {
   const colors = brandDNA?.colors || [];
   const theme = brandDNA?.theme || 'light';
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark' || brandDNA?.isDarkTheme === true;
 
   const rawPrimary = colors[0]?.value || (isDark ? '#00d4c8' : '#00d4c8');
   const rawAccent  = colors[1]?.value || rawPrimary;
@@ -642,9 +642,13 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
 //   2. Ask Claude to synthesize a palette from the email subject + body.
 // URL-extracted colours win when ≥ 2 are found; Claude voice data always merges in.
 
-async function inferBrandFromContent(company, subject, body) {
+async function inferBrandFromContent(company, subject, body, pageUrl) {
   const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const candidateUrl = slug ? `https://www.${slug}.com` : null;
+  let candidateUrl = null;
+  if (pageUrl) {
+    try { candidateUrl = new URL(pageUrl).origin; } catch (_) {}
+  }
+  if (!candidateUrl && slug) candidateUrl = `https://www.${slug}.com`;
 
   const contentPrompt = `You are a brand analyst. Based on the email below, infer the brand's visual identity and communication style.
 
@@ -941,7 +945,7 @@ app.post('/generate', async (req, res) => {
     let effectiveVoice     = voiceProfile || null;
     if (!effectiveBrandDNA) {
       try {
-        const inferred = await inferBrandFromContent(company, subject, body);
+        const inferred = await inferBrandFromContent(company, subject, body, pageUrl);
         if (inferred) {
           effectiveBrandDNA = inferred;
           if (inferred.voiceProfile && !effectiveVoice) effectiveVoice = inferred.voiceProfile;
@@ -1039,9 +1043,9 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // company name text is shown in the header (never a broken <img> src).
     if (effectiveBrandDNA?.logo) {
       const logoOk = await verifyImageUrl(effectiveBrandDNA.logo);
+      console.log('Logo URL:', effectiveBrandDNA.logo, '| Valid:', logoOk);
       if (!logoOk) {
         effectiveBrandDNA = { ...effectiveBrandDNA, logo: null };
-        console.log('[logo] URL verification failed — falling back to company name text');
       }
     }
 
