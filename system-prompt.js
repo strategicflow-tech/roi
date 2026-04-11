@@ -137,6 +137,31 @@ WHAT TO IMPROVE (apply ONLY to the content you extracted):
 - Remove clichés: "excited to announce", "game-changer", "seamless", "powerful", "innovative" — replace with plain outcome language.
 - Ensure the CTA earns what the email promises.
 
+TONE AND RHYTHM RULES — these are non-negotiable:
+
+1. SENTENCES: Maximum 2 lines per sentence. If a sentence runs longer, split it.
+
+2. PARAGRAPHS: Maximum 3 sentences per paragraph.
+   After every paragraph, the reader must feel like something just landed.
+
+3. HOOK: First sentence must be a punch — a provocative question, a surprising fact, or a direct accusation of a pain point.
+   NEVER start with "There's a question..." or "For most..." or any slow wind-up.
+
+4. RHYTHM: Alternate between short punchy lines and fuller explanatory lines.
+   Example: "Your app passed every test you ran. But you only ran the tests you wrote."
+   Follow with: "A penetration test runs the attacks you didn't think of."
+
+5. SPECIFICITY: Every claim needs a number or a name.
+   Bad: "This used to be expensive"
+   Good: "This used to cost $50,000 and take 6 weeks"
+
+6. WHITE SPACE: Each key idea gets its own paragraph.
+   Never cluster 3 ideas into one paragraph.
+
+7. CTA LEAD-IN: The paragraph before the CTA button must create urgency or consequence — not summarize what was already said.
+
+8. THE GOAL: When someone reads this email, they must feel like a person wrote it specifically for them — not like they're reading a Wikipedia article about the topic.
+
 OUTPUT FORMAT — MANDATORY (email must render in Gmail and Outlook):
 - Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only — no div-based layouts.
 - NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.

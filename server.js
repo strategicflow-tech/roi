@@ -345,7 +345,11 @@ function getEmailColors(brandDNA) {
   const rawPrimary = brandColors[0] || '#00d4c8';
   const rawAccent  = brandColors[1] || rawPrimary;
   const primaryColor = adjustColorIfNeeded(rawPrimary);
-  const accentColor  = adjustColorIfNeeded(rawAccent);
+  // When dark theme: if accent lightness < 40% it'll be invisible — replace with teal fallback
+  let accentColor = adjustColorIfNeeded(rawAccent);
+  if (isDark) {
+    try { if (hexToHSL(accentColor).l < 40) accentColor = '#00d4c8'; } catch (_) {}
+  }
 
   // Theme-aware backgrounds and text
   const bgColor      = isDark ? '#0a0a0a' : '#f4f4f7';
@@ -357,7 +361,12 @@ function getEmailColors(brandDNA) {
 
   const primaryText  = isLightHex(primaryColor) ? '#1a1a2e' : '#ffffff';
   const accentText   = isLightHex(accentColor)  ? '#1a1a2e' : '#ffffff';
-  return { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark };
+
+  // Header bar: dark themes always use near-black bg with white text (legible regardless of brand primary)
+  const headerBg   = isDark ? '#0d0d0d' : primaryColor;
+  const headerText = isDark ? '#ffffff' : primaryText;
+
+  return { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark, headerBg, headerText };
 }
 
 // Post-process Claude-generated body HTML to flip hardcoded light-mode colors when the brand uses a dark theme.
@@ -416,7 +425,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '' } = options;
-  const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
+  const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark, headerBg, headerText } = getEmailColors(brandDNA);
 
   // Header content: show logo OR company name — never both.
   // brandDNA.logo has already been verified (HEAD request) in the route handler before this
@@ -437,7 +446,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Show company name text only when no verified logo is available
   const headerContent = logoInHeader
     ? logoInHeader
-    : `<span style="font-size:20px;font-weight:700;color:${primaryText};">${company}</span>`;
+    : `<span style="font-size:20px;font-weight:700;color:${headerText};">${company}</span>`;
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
   const buildHeroSrc = (comp, dna, heroKeyword) => {
@@ -564,7 +573,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
   <!-- HEADER -->
-  <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
+  <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
     ${headerContent}
   </td></tr>
   <!-- HERO IMAGE -->
