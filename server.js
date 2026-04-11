@@ -218,10 +218,19 @@ function sanitizeForJSON(str) {
 }
 
 // Sanitize human-supplied text fields before embedding in any Claude prompt.
-// Applies the same normalisation and hard-caps length so special characters in
-// subject lines, email bodies, etc. never corrupt the JSON response.
+// Strips Yahoo Mail forwarding artifacts and image-description placeholders,
+// then normalises special characters and caps length.
 function sanitizeInput(str, maxLen = 8000) {
-  return sanitizeForJSON(str || '').slice(0, maxLen);
+  let s = str || '';
+  // ── Yahoo Mail / webmail forwarding artifacts ──
+  s = s.replace(/^Image of .+$/gim, '');        // "Image of Claude", "Image of rocket"
+  s = s.replace(/^\S.*\s+icon$/gim, '');        // "YouTube icon", "X icon", "star icon"
+  s = s.replace(/^-{3,}.*$/gm, '');             // "-------- Forwarded Message --------"
+  s = s.replace(/^On .+wrote:$/gm, '');         // "On Mon Apr 11 2026 user@x.com wrote:"
+  s = s.replace(/^>+\s*/gm, '');                // quoted reply lines starting with ">"
+  s = s.replace(/\n{3,}/g, '\n\n');             // collapse excessive blank lines
+  // ── ASCII normalisation (curly quotes, dashes, non-ASCII) ──
+  return sanitizeForJSON(s).slice(0, maxLen);
 }
 
 // 4-layer JSON parser — returns null on total failure (never returns a partial/default object).
