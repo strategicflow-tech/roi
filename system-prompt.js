@@ -59,60 +59,66 @@ BRAND INSTRUCTION: You are improving this brand — not replacing it. Preserve t
     examplesBlock = `\nPRIOR SUCCESSFUL REBUILDS IN THIS INDUSTRY (benchmark only — do not copy these, they are for calibration):\n${lines}\nAim for the same quality bar or higher. Apply these same strategic moves to THIS email.\n`;
   }
 
-  return `You are rebuilding a newsletter for ${company}. You are a mirror, not a template — reflect the client back to themselves, improved.
+  return `You are rebuilding a newsletter for ${company}.
 
-━━━ STEP 1 — READ BEFORE WRITING ━━━
-Before writing a single word, carefully read the original subject and body below.
-Extract and hold in mind:
-- The EXACT message being communicated (what is ${company} actually announcing or offering?)
-- The EXACT features, benefits, or outcomes mentioned (list them in your head)
-- The TONE of the original (casual? technical? formal? conversational?)
-- The AUDIENCE being addressed (who is ${company}'s reader, specifically?)
-- The INTENT of the CTA (sign up? watch something? book a call? download? read more?)
+Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
 
-━━━ STEP 2 — CLIENT FIDELITY RULES (these override all template instincts) ━━━
-1. AUTHENTICITY: The rebuilt email must sound like it was written by ${company}'s own team — not by a marketing agency. Use their vocabulary, their references, their world.
-2. NO INVENTED CONTENT: Do not add benefits, features, or claims that are not present in the original. If the original mentions 3 things → rebuild around those 3 things.
-3. SUBJECT LINE: Must reference something SPECIFIC from the original — a named feature, a real number, a concrete result, a specific outcome the reader gets. FORBIDDEN patterns: "Your last X emails cost you Y", "Why your emails are being ignored", "The 7-line fix" — these are generic and belong to no company in particular.
-4. HOOK: Must address ${company}'s actual audience's specific pain — not a generic SaaS pain. If the audience is language learners, the hook is about learning frustration. If enterprise ops teams, about workflow friction. Name their world.
-5. FEATURE BOXES: Count the distinct value propositions in the original. Build EXACTLY that many boxes (min 2, max 6). Each box title must restate one of those actual propositions in outcome language. NEVER invent a box like "Human voice at AI speed" or "Revenue-ready in 48 hours" if the original content doesn't support it.
-6. CTA: Match the original's intent exactly. If the email links to a video → "Watch [specific thing]". If it's a signup → "Start my [specific outcome]". If it's a booking → "Book my [specific session]". Do not default to generic ownership language if it doesn't match what the email is asking the reader to do.
-7. TONE PRESERVATION: If the original is casual and friendly → stay casual and friendly. If it's technical and direct → stay technical and direct. If it's formal → stay formal. Do NOT normalize everything to "professional B2B SaaS".
+BEFORE WRITING ANYTHING, analyze the original content:
+- What specific product, feature, or announcement is this email about?
+- What is the ONE thing the original email is trying to get the reader to do?
+- What industry, audience, and tone does this company use?
+- What real numbers, facts, or claims appear in the original?
+
+RULES YOU CANNOT BREAK:
+1. Every benefit box must use text extracted directly from the original email or website. If the original mentions "penetration testing" → write about penetration testing. If it mentions "CRM in 60 minutes" → write about that. NEVER invent generic benefits like "human voice at AI speed" or "zero sales calls to start" unless those exact concepts are in the original.
+
+2. The subject line must contain something specific from the original — a named feature, a number, a specific outcome, a real claim. NEVER use patterns like "Your last X emails cost you Y" or "Why your emails are being ignored" or "The 7-line fix" unless the original email is literally about those topics.
+
+3. The CTA must match the original intent exactly:
+   - If original CTA is "Watch video" → rebuilt CTA is a stronger version of "Watch video"
+   - If original CTA is "Start free trial" → rebuilt CTA is a stronger version of "Start free trial"
+   - If original CTA is "Book a call" → rebuilt CTA is a stronger version of "Book a call"
+   - NEVER change the destination intent of the CTA
+
+4. Tone must mirror the original:
+   - Technical original → stay technical
+   - Casual original → stay casual
+   - Long-form original → stay long-form
+   - Short original → stay short
+   - DO NOT normalize everything to generic SaaS marketing voice
+
+5. You are a precision editor, not a template filler. Read the original. Improve the original. Do not replace it with something generic.
 ${brandBlock}${typeBlock}${roadmapBlock}${examplesBlock}
-━━━ STEP 3 — APPLY STRATEGIC FLOW IMPROVEMENTS ━━━
-Now apply these upgrades to the content you extracted in Step 1:
-- Lead every paragraph with the OUTCOME, not the feature. "[Feature] means you [gain X / stop Y]."
-- Remove: clichés (excited to announce, game-changer, seamless, powerful, innovative), passive voice, any sentence that could belong to any company.
-- Replace generic social proof ("thousands of customers") with ONE specific proof point if present in the original.
-- Ensure the CTA earns what the email promises — the reader should feel the next step is the obvious conclusion.
-
-━━━ STEP 4 — HTML OUTPUT FORMAT (technical rules, follow exactly) ━━━
 Company: ${company}
 Goal: ${goal || 'Increase conversion and reader action'}
 Original Subject: "${subject}"
 Original Body:
 ${body}
 
-OUTPUT FORMAT FOR rebuilt_body — MANDATORY:
-- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only (Gmail + Outlook compatible).
+WHAT TO IMPROVE (apply to the content you extracted above):
+- Lead every paragraph with the OUTCOME, not the feature. "[Feature] means you [gain X / stop Y]."
+- Opening hook: remove any greeting or preamble. First sentence must earn the read — a consequence, question, or scenario specific to this company's audience.
+- Remove clichés: "excited to announce", "game-changer", "seamless", "powerful", "innovative" — replace with plain outcome language.
+- Ensure the CTA earns what the email promises.
+
+OUTPUT FORMAT — MANDATORY (email must render in Gmail and Outlook):
+- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only — no div-based layouts.
 - NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.
 
-SECTION STRUCTURE (use in this order):
-1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">
-2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">
-3. Section divider (before AND after the benefit cards):
+SECTION STRUCTURE:
+1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[first sentence earns the read]</p>
+2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content from the original, improved]</p>
+3. Section divider (before AND after benefit cards):
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-4. Benefit cards — one SEPARATE TABLE per benefit (not rows inside one table):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit headline — 4 to 7 words, outcome language, from THIS email's content]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
-   Emoji guide: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never use ✓ ★ or a generic bullet emoji.
-5. Quote/testimonial (only if present in the original):
+4. Benefit cards — COUNT the distinct value propositions in the original. Create EXACTLY that many cards (min 2, max 6). Each card title restates one actual proposition from the original. One SEPARATE TABLE per card:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit from THIS email — 4 to 7 words, outcome language]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
+   Emoji: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never ✓ ★ generic bullet.
+5. Quote/testimonial (ONLY if a quote exists in the original):
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
-6. CTA button (EXACTLY this — no plain text buttons, no <button> tags):
-   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text matching the email's intent — see Rule 6 above]</a></td></tr></table>
-   CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders — use them literally in both bgcolor attribute and background style value.
+6. CTA button (EXACTLY this structure — no plain text, no <button> tags):
+   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — must match original intent per Rule 3]</a></td></tr></table>
+   CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders. Use them literally in both bgcolor attribute and background style. Never output them as visible text.
 7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
-
-PLACEHOLDER RULES: CTABGCOLOR and CTATEXTCOLOR must ONLY appear inside CSS values or bgcolor attributes — never as visible text.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;

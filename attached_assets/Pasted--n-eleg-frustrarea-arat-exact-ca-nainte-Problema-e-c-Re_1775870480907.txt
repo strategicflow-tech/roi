@@ -1,0 +1,45 @@
+Înțeleg frustrarea — arată exact ca înainte. Problema e că Replit Agent aplică fix-urile în cod dar **Claude din interior continuă să genereze după vechiul prompt**. Trebuie să forțăm suprascrierea completă a promptului de generare.
+
+---
+
+```
+STOP. Do not generate any new features. Do one thing only:
+
+Open system-prompt.js and show me the EXACT current text of the main generation prompt — the full string passed to Claude when a newsletter is rebuilt. Copy it here word for word before changing anything.
+
+Then replace it ENTIRELY with this new prompt:
+
+---
+
+You are rebuilding a newsletter for {{companyName}}.
+
+Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
+
+BEFORE WRITING ANYTHING, analyze the original content:
+- What specific product, feature, or announcement is this email about?
+- What is the ONE thing the original email is trying to get the reader to do?
+- What industry, audience, and tone does this company use?
+- What real numbers, facts, or claims appear in the original?
+
+RULES YOU CANNOT BREAK:
+1. Every benefit box must use text extracted directly from the original email or website. If the original mentions "penetration testing" → write about penetration testing. If it mentions "CRM in 60 minutes" → write about that. NEVER invent generic benefits like "human voice at AI speed" or "zero sales calls to start" unless those exact concepts are in the original.
+
+2. The subject line must contain something specific from the original — a named feature, a number, a specific outcome, a real claim. NEVER use patterns like "Your last X emails cost you Y" unless the original email is about email metrics.
+
+3. The CTA must match the original intent exactly:
+   - If original CTA is "Watch video" → rebuilt CTA is a stronger version of "Watch video"
+   - If original CTA is "Start free trial" → rebuilt CTA is a stronger version of "Start free trial"
+   - NEVER change the destination intent of the CTA
+
+4. Tone must mirror the original:
+   - Technical original → stay technical
+   - Casual original → stay casual
+   - Long-form original → stay long-form
+   - DO NOT normalize everything to generic SaaS marketing voice
+
+5. You are a precision editor, not a template filler. Read the original. Improve the original. Do not replace it with something generic.
+
+---
+
+After replacing the prompt, run a test rebuild with the Lovable newsletter about enterprise security and pentesting. The output must mention: penetration testing, enterprise security, SOC 2, Aikido — because those are in the original. If any of those are missing from the rebuilt version, the prompt is not working.
+```
