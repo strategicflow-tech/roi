@@ -176,27 +176,31 @@ function extractLogo(html, baseUrl) {
     } catch { return false; }
   };
 
-  // og:image — only use if it belongs to the company's own domain
-  const og = html.match(/property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-           || html.match(/content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-  if (og && og[1]) {
-    const resolved = resolveUrl(og[1], baseUrl);
-    if (isCompanyOwned(resolved)) return resolved;
+  // Paths that indicate this is an OG/social-preview image, not an actual logo
+  const isOGImagePath = (url) =>
+    /opengraph|og[-_]image|og[-_]preview|social[-_]preview|social[-_]card|twitter[-_]card|open-graph/i.test(url);
+
+  // 1. Search specifically inside <header> and <nav> elements for logo <img> tags
+  const headerNavMatch = html.match(/<(?:header|nav)\b[^>]*>([\s\S]{0,8000}?)<\/(?:header|nav)>/i);
+  if (headerNavMatch) {
+    const scope = headerNavMatch[1];
+    const inNav = scope.match(/<img[^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i)
+               || scope.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
+               || scope.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
+    if (inNav && inNav[1]) {
+      const resolved = resolveUrl(inNav[1], baseUrl);
+      if (!isOGImagePath(resolved)) return resolved;
+    }
   }
 
-  // twitter:image — same ownership check
-  const tw = html.match(/name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
-           || html.match(/content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
-  if (tw && tw[1]) {
-    const resolved = resolveUrl(tw[1], baseUrl);
-    if (isCompanyOwned(resolved)) return resolved;
-  }
-
-  // <img> tags whose class/alt/id/src path contains "logo" or "brand"
+  // 2. Global <img> with logo in class/alt/id/src — skip OG-style image paths
   const logoSrc = html.match(/<img[^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i)
-                || html.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
-                || html.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
-  if (logoSrc && logoSrc[1]) return resolveUrl(logoSrc[1], baseUrl);
+               || html.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
+               || html.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
+  if (logoSrc && logoSrc[1]) {
+    const resolved = resolveUrl(logoSrc[1], baseUrl);
+    if (!isOGImagePath(resolved)) return resolved;
+  }
 
   // Nothing reliable found — return null so only company name text is shown
   return null;

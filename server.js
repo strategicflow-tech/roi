@@ -336,8 +336,14 @@ function getEmailColors(brandDNA) {
   const theme = brandDNA?.theme || 'light';
   const isDark = theme === 'dark' || brandDNA?.isDarkTheme === true;
 
-  const rawPrimary = colors[0]?.value || (isDark ? '#00d4c8' : '#00d4c8');
-  const rawAccent  = colors[1]?.value || rawPrimary;
+  // Filter out gray/neutral colors (saturation < 15%) — these are never useful brand colors
+  const isNeutral = (hex) => {
+    if (!hex || !hex.startsWith('#') || hex.length < 7) return true;
+    try { return hexToHSL(hex).s < 15; } catch { return true; }
+  };
+  const brandColors = (colors || []).map(c => c?.value).filter(v => v && !isNeutral(v));
+  const rawPrimary = brandColors[0] || '#00d4c8';
+  const rawAccent  = brandColors[1] || rawPrimary;
   const primaryColor = adjustColorIfNeeded(rawPrimary);
   const accentColor  = adjustColorIfNeeded(rawAccent);
 
@@ -357,17 +363,22 @@ function getEmailColors(brandDNA) {
 // Post-process Claude-generated body HTML to flip hardcoded light-mode colors when the brand uses a dark theme.
 function adaptBodyForDarkTheme(html) {
   return html
-    .replace(/color:\s*#222222/g,          'color:#f0f0f0')
-    .replace(/color:\s*#333333/g,          'color:#e0e0e0')
-    .replace(/color:\s*#333\b/g,           'color:#e0e0e0')
-    .replace(/color:\s*#1a1a1a/g,          'color:#ffffff')
-    .replace(/color:\s*#555555/g,          'color:#aaaaaa')
-    .replace(/color:\s*#555\b/g,           'color:#aaaaaa')
-    .replace(/color:\s*#777777/g,          'color:#888888')
-    .replace(/background:\s*#f5f5f5/g,     'background:#1e1e1e')
-    .replace(/background-color:\s*#f5f5f5/g, 'background-color:#1e1e1e')
-    .replace(/background:\s*#ffffff/g,     'background:#111111')
-    .replace(/height:1px;background:#e0e0e0/g, 'height:1px;background:#2a2a2a');
+    .replace(/color:\s*#222222/g,                   'color:#f0f0f0')
+    .replace(/color:\s*#333333/g,                   'color:#e0e0e0')
+    .replace(/color:\s*#333\b/g,                    'color:#e0e0e0')
+    .replace(/color:\s*#1a1a1a/g,                   'color:#ffffff')
+    .replace(/color:\s*#555555/g,                   'color:#aaaaaa')
+    .replace(/color:\s*#555\b/g,                    'color:#aaaaaa')
+    .replace(/color:\s*#777777/g,                   'color:#888888')
+    .replace(/background:\s*#f5f5f5/g,              'background:#1e1e1e')
+    .replace(/background-color:\s*#f5f5f5/g,        'background-color:#1e1e1e')
+    .replace(/background:\s*#ffffff/gi,             'background:#111111')
+    .replace(/background:\s*#fff\b/gi,              'background:#111111')
+    .replace(/background:\s*white\b/gi,             'background:#111111')
+    .replace(/background-color:\s*#ffffff/gi,       'background-color:#111111')
+    .replace(/background-color:\s*#fff\b/gi,        'background-color:#111111')
+    .replace(/bgcolor=["']#?(?:ffffff|fff|white)["']/gi, 'bgcolor="#111111"')
+    .replace(/height:1px;background:#e0e0e0/g,      'height:1px;background:#2a2a2a');
 }
 
 // Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
@@ -627,7 +638,10 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
         content: Buffer.from(downloadHtml).toString('base64')
       }],
       clickTracking: false,
-      headers: { 'X-Entity-Ref-ID': 'no-tracking' }
+      headers: {
+        'X-Entity-Ref-ID': 'no-tracking',
+        'X-PM-Message-Stream': 'outbound'
+      }
     });
     console.log(`[email] Result delivered to ${to}`);
   } catch (e) {
