@@ -325,8 +325,20 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app' } = options;
   const { primaryColor, accentColor, bgColor, primaryText, accentText } = getEmailColors(brandDNA);
 
-  const logoInHeader = brandDNA?.logo
-    ? `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:48px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>` : '';
+  const logoInHeader = (() => {
+    if (brandDNA?.logoSvg) {
+      // Inline SVG logo — wrap in a fixed-height container and strip any existing width/height attributes
+      // so the SVG scales to fit the 40px height naturally via viewBox
+      const svgConstrained = brandDNA.logoSvg
+        .replace(/\s(width|height)=["'][^"']*["']/gi, '')
+        .replace('<svg', '<svg height="40" style="display:inline-block;vertical-align:middle;"');
+      return `<div style="margin-bottom:10px;text-align:center;line-height:1;">${svgConstrained}</div><br>`;
+    }
+    if (brandDNA?.logo) {
+      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>`;
+    }
+    return '';
+  })();
 
   // Hero image: stable, industry-matched Unsplash photos via direct photo ID.
   // Each entry is a manually verified photo that is relevant and loads reliably.

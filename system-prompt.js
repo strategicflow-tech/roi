@@ -258,37 +258,45 @@ function getMicroImprovementsPrompt({ company, goal, subject, body, brandDNA, vo
     examplesBlock = `\nPRIOR SUCCESSFUL REFINEMENTS IN THIS INDUSTRY:\n${lines}\n`;
   }
 
-  const fixes = [];
-  if (score) {
-    if (score.subject_score < 2) fixes.push('→ SUBJECT: Add a specific outcome or curiosity gap while keeping the same topic — do not change the subject drastically');
-    if (score.hook_score   < 2) fixes.push('→ HOOK: Rewrite the first 1-2 lines to open with a consequence, question, or scenario — remove any greeting or preamble');
-    if (score.cta_score    < 2) fixes.push('→ CTA: Replace passive verb (Book/Learn/Click/Try) with ownership language (Claim my / Start my / See my [specific outcome])');
-    if (score.voice_score  < 2) fixes.push('→ VOICE: Remove clichés ("excited to announce", "game-changer", "seamless", "powerful") — replace with plain outcome language');
-  }
-  fixes.push('→ MARKDOWN: Convert any **bold** or *italic* markdown to <strong> and <em> HTML tags');
+  return `You are applying 4 surgical improvements to a high-scoring email for ${company}. The email is strong — your job is to sharpen, not restructure.
 
-  return `You are the Strategic Flow refinement engine. This email scored well overall — preserve its structure and content. Apply ONLY the targeted fixes listed below. Do NOT rebuild from scratch.
+━━━ YOUR MANDATE — READ CAREFULLY ━━━
+This email scored well. That means:
+- Do NOT rebuild from scratch
+- Do NOT add feature boxes, dividers, or sections that are not in the original
+- Do NOT change the paragraph count or content sequence
+- Do NOT introduce a new design structure
+- MATCH the original's structural complexity exactly: if it has 3 paragraphs → output 3 paragraphs; if it has a bulleted list → keep the list; if it has a quote → keep the quote
 
-WHAT TO PRESERVE (do not change these):
-- Overall content sequence and number of sections
-- Core message and product information
-- Any statistics, quotes, or social proof already present
-- The brand's existing terminology
-${brandBlock}
-TARGETED FIXES TO APPLY (ONLY these):
-${fixes.join('\n')}
-${examplesBlock}
+━━━ 4 SURGICAL CHANGES TO APPLY ━━━
+Apply ALL four of these, no more:
+
+1. SUBJECT: Sharpen to reference something specific from the content — a named feature, a real number, a concrete outcome. Keep the same topic. Do not change it drastically.
+2. HOOK: Rewrite the first 1-2 sentences ONLY. Remove any greeting or preamble. Open with a consequence, question, or specific scenario that earns the read immediately.
+3. CTA: If the CTA uses passive language (Book a demo / Learn more / Click here / Try for free) → rewrite to match the email's specific intent using the brand's voice. If the CTA is already specific and intent-matched → leave it as-is.
+4. MARKDOWN + FILLER: Convert any **bold** or *italic* markdown to <strong>/<em> HTML tags. Remove clichés: "excited to announce", "game-changer", "seamless", "powerful solution", "innovative" — replace with plain outcome language.
+
+BONUS (apply if missing): Add a brief P.S. line at the end that reinforces the main call-to-action.
+${brandBlock}${examplesBlock}
+━━━ STRUCTURE RULES — NO EXCEPTIONS ━━━
+- If the original has paragraphs only → output paragraphs only (no cards, no dividers)
+- If the original has a benefit list → preserve it as a list (not as cards)
+- If the original has a quote → preserve the quote block
+- Only add an HTML card structure if the original clearly had 2+ distinct named benefit sections
+
 Company: ${company}
 Goal: ${goal || 'Sharpen conversion without disrupting brand'}
 Original Subject: "${subject}"
 Original Body:
 ${body}
 
-OUTPUT FORMAT — identical to full rebuild (the email still renders through the same HTML template):
+OUTPUT FORMAT:
 - Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only.
 - NEVER use markdown syntax. Use <strong> for emphasis, <em> for italics.
-- CTA button must use this exact structure: <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;">[CTA text]</a></td></tr></table>
-- In key_changes: list ONLY the specific micro-fixes made, not a full rebuild explanation.
+- For paragraphs: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[text]</p>
+- For CTA button (if present): <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;">[CTA text]</a></td></tr></table>
+- CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders — use them literally, never as visible text.
+- In key_changes: list ONLY the 4 specific fixes made.
 
 Return ONLY valid JSON:
 {"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [specific fix made] — [why it sharpens conversion]"],"removed_elements":[],"conversion_hook":"string (the opening line and why it works now)"}`;

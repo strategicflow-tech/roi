@@ -1004,7 +1004,8 @@ function showResults(gen) {
     document.getElementById('resAnalyzedPageNote').after(preservedNote);
   }
   if (gen.rebuildPath === 'preserved') {
-    preservedNote.textContent = '✓ Strong email detected. We preserved your brand layout and applied targeted improvements only.';
+    const scorePct = gen.originalScore?.percentage || 0;
+    preservedNote.textContent = `✓ Your email scored ${scorePct}%. We made targeted improvements — your brand layout is preserved.`;
     preservedNote.removeAttribute('hidden');
   } else {
     preservedNote.setAttribute('hidden', '');

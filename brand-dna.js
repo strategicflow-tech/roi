@@ -28,8 +28,9 @@ async function extractBrandDNA(websiteUrl) {
     ]);
 
     const colors = extractColors(html, externalCss);
+    const logoSvg = !logo ? extractLogoSvg(html) : null;
 
-    return { success: true, url, colors, logo, textContent: textContent.slice(0, 2500), ctaVerbs, industry, audience, meta };
+    return { success: true, url, colors, logo, logoSvg, textContent: textContent.slice(0, 2500), ctaVerbs, industry, audience, meta };
   } catch (err) {
     return { success: false, error: err.message, url: websiteUrl };
   }
@@ -197,6 +198,40 @@ function extractLogo(html, baseUrl) {
 
   // Nothing reliable found — return null so only company name text is shown
   return null;
+}
+
+function extractLogoSvg(html) {
+  // Only needed when no raster/URL logo was found.
+  // Looks for inline SVG logos inside header/nav elements.
+
+  // Limit search scope to the top of the page (header/nav area)
+  const navAreaMatch = html.match(/<(?:header|nav)\b[^>]*>([\s\S]{0,6000}?)<\/(?:header|nav)>/i);
+  const searchArea = navAreaMatch ? navAreaMatch[1] : html.slice(0, 6000);
+
+  // 1. SVG with role="img" in header/nav — strong signal it's a logo
+  const svgRole = searchArea.match(/<svg\b[^>]*\brole=["']img["'][^>]*>[\s\S]*?<\/svg>/i);
+  if (svgRole) return cleanSvgForEmail(svgRole[0]);
+
+  // 2. SVG with aria-label in header/nav — also a strong signal
+  const svgAria = searchArea.match(/<svg\b[^>]*\baria-label=["'][^"']+["'][^>]*>[\s\S]*?<\/svg>/i);
+  if (svgAria) return cleanSvgForEmail(svgAria[0]);
+
+  // 3. SVG inside an anchor or container whose class/id contains "logo" or "brand"
+  const logoSvg = html.match(/(?:class|id)=["'][^"']*(?:logo|brand)[^"']*["'][^>]*>[\s\S]{0,300}?(<svg\b[\s\S]*?<\/svg>)/i);
+  if (logoSvg) return cleanSvgForEmail(logoSvg[1]);
+
+  return null;
+}
+
+function cleanSvgForEmail(svg) {
+  if (!svg) return null;
+  let cleaned = svg
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .trim();
+  // Reject oversized SVGs — they are likely decorative, not a logo mark
+  if (cleaned.length > 10000) return null;
+  return cleaned;
 }
 
 function resolveUrl(url, base) {
