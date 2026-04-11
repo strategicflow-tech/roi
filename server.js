@@ -409,6 +409,94 @@ function stripResendTracking(html) {
   );
 }
 
+// Parse a raw HTML email to extract brand DNA signals for the rebuild pipeline.
+// Used by the /parse-html endpoint when users upload their original email HTML file.
+function parseEmailHtmlContent(html) {
+  if (!html || html.length < 20) return { success: false, error: 'Empty or too-short HTML' };
+
+  // ── PLAIN TEXT (populate body field + scoring) ──
+  const textContent = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 5000);
+
+  // ── DARK / LIGHT THEME: scan outer 3000 chars for background hex values ──
+  const outerHtml = html.slice(0, 3000);
+  const bgValues = [];
+  let m;
+  const bgInlineRe = /background(?:-color)?\s*[:=]\s*(#[0-9a-fA-F]{3,8})/gi;
+  const bgAttrRe = /bgcolor\s*=\s*["']?(#[0-9a-fA-F]{3,8})["']?/gi;
+  while ((m = bgInlineRe.exec(outerHtml)) !== null) bgValues.push(m[1]);
+  while ((m = bgAttrRe.exec(outerHtml)) !== null) bgValues.push(m[1]);
+  const isDark = bgValues.some(hex => {
+    try {
+      const full = hex.length === 4
+        ? '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3]
+        : hex;
+      return hexToHSL(full).l < 25;
+    } catch { return false; }
+  });
+
+  // ── BRAND COLORS: all saturated hex codes, de-duped ──
+  const allHex = new Set();
+  const hexRe = /#([0-9a-fA-F]{6})\b/g;
+  while ((m = hexRe.exec(html)) !== null) allHex.add('#' + m[1].toUpperCase());
+  const brandColors = [...allHex]
+    .filter(hex => {
+      try { const { s, l } = hexToHSL(hex); return s >= 12 && l >= 10 && l <= 90; }
+      catch { return false; }
+    })
+    .slice(0, 6)
+    .map(value => ({ value, type: 'html-extracted' }));
+
+  // ── LOGO: img with "logo" or "brand" in attributes, not an OG/social image ──
+  let logo = null;
+  const logoImgRe = /<img([^>]+)>/gi;
+  while ((m = logoImgRe.exec(html)) !== null) {
+    const attrs = m[1];
+    if (/logo|brand|header/i.test(attrs) && !/opengraph|og[-_]|social[-_]|twitter/i.test(attrs)) {
+      const srcM = attrs.match(/src=["']([^"']+)["']/i);
+      if (srcM && srcM[1] && !srcM[1].startsWith('data:')) { logo = srcM[1]; break; }
+    }
+  }
+
+  // ── EMOJI PRESENCE → contentStyle hint ──
+  const hasEmoji = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(textContent);
+
+  // ── CTA URL: first real non-tracking link ──
+  let primaryCtaUrl = null;
+  const linkRe = /href=["']([^"']+)["']/gi;
+  while ((m = linkRe.exec(html)) !== null) {
+    const href = m[1];
+    if (!href || href.startsWith('#') || href.startsWith('mailto:')) continue;
+    if (/unsubscribe|privacy|manage|preferences|view.*browser|tracking|resend-click/i.test(href)) continue;
+    if (href.startsWith('http')) { primaryCtaUrl = href; break; }
+  }
+
+  // ── FONT FAMILY ──
+  const fontM = html.match(/font-family\s*:\s*([^;,"'}{]+)/i);
+  const fontFamily = fontM ? fontM[1].trim().split(',')[0].replace(/['"]/g, '').trim() : null;
+
+  return {
+    success: true,
+    source: 'html-upload',
+    theme: isDark ? 'dark' : 'light',
+    isDark,
+    isDarkTheme: isDark,
+    colors: brandColors,
+    logo,
+    hasEmoji,
+    contentStyle: hasEmoji ? 'boxes' : 'longform',
+    primaryCtaUrl,
+    url: primaryCtaUrl,
+    fontFamily,
+    textContent
+  };
+}
+
 // Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
 // Matches the exact table structure emitted by the SECTION STRUCTURE section 4 prompt.
 function stripEmojiBoxTables(html) {
@@ -884,6 +972,21 @@ async function fetchPageContent(rawUrl) {
 
   return { title, meta, text: stripped, url };
 }
+
+// ── PARSE HTML UPLOAD ──
+// Accepts raw HTML from an uploaded email file and extracts brand DNA signals.
+// Returns colors, logo, dark/light theme, emoji presence, CTA URL, text content.
+app.post('/parse-html', async (req, res) => {
+  try {
+    const { htmlContent } = req.body;
+    if (!htmlContent || typeof htmlContent !== 'string' || htmlContent.length < 20)
+      return res.status(400).json({ error: 'htmlContent is required' });
+    res.json(parseEmailHtmlContent(htmlContent));
+  } catch (e) {
+    console.error('[parse-html]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ── GENERATE (main) ──
 app.post('/generate', async (req, res) => {
