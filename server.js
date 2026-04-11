@@ -223,31 +223,35 @@ function sanitizeInput(str, maxLen = 8000) {
   return sanitizeForJSON(str || '').slice(0, maxLen);
 }
 
-// 4-layer fallback JSON parser — NEVER throws; returns safe defaults on total failure.
-const JSON_SAFE_DEFAULTS = {
-  industry: 'technology', tone: 'professional', colors: [], brandTone: 'professional',
-  formality: 'formal', audience: 'B2B', heroKeyword: 'technology workspace',
-  ctaUrl: '', isDarkTheme: false
-};
+// 4-layer JSON parser — returns null on total failure (never returns a partial/default object).
+// Callers must check for null and surface a user-facing error rather than rendering undefined fields.
 function safeParseJSON(raw) {
+  if (!raw) return null;
   // Layer 1: direct parse
   try { return JSON.parse(raw); } catch (_) {}
-  // Layer 2: extract outermost {...} block first, then parse
+  // Layer 2: extract outermost {...} block, then parse
   try {
     const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
     if (s !== -1 && e > s) return JSON.parse(raw.slice(s, e + 1));
   } catch (_) {}
-  // Layer 3: strip markdown fences + sanitize special chars, then parse
+  // Layer 3: strip markdown fences + normalize special chars, then parse
   try {
     const clean = sanitizeForJSON(raw.replace(/```json|```/gi, '').trim());
     const s = clean.indexOf('{'), e = clean.lastIndexOf('}');
     if (s !== -1 && e > s) return JSON.parse(clean.slice(s, e + 1));
     return JSON.parse(clean);
   } catch (_) {}
-  // Layer 4: return safe defaults — never crash
-  console.warn('[safeParseJSON] all layers failed, returning defaults. Raw (first 200):', (raw || '').slice(0, 200));
-  return { ...JSON_SAFE_DEFAULTS };
+  // Layer 4: all attempts failed — return null so callers can show a clean error
+  console.warn('[safeParseJSON] all layers failed. Raw (first 300):', (raw || '').slice(0, 300));
+  return null;
 }
+
+// Guard that converts any value to a safe string for HTML injection.
+// Returns '' for null, undefined, 'undefined', 'null', or NaN values.
+const safeVal = (val) => {
+  if (val === null || val === undefined || val === 'undefined' || val === 'null' || (typeof val === 'number' && isNaN(val))) return '';
+  return String(val).trim();
+};
 
 const JSON_SYSTEM_INSTRUCTION = 'Return ONLY valid JSON. Use straight ASCII quotes only — no curly quotes (\u201C\u201D\u2018\u2019), no em dashes (\u2014), no en dashes (\u2013), no ellipsis characters (\u2026), no non-breaking spaces, no other Unicode. No markdown fences. No text before or after the JSON object.';
 
@@ -263,9 +267,8 @@ async function claudeJSON(prompt, maxTokens = 2000) {
       return safeParseJSON(raw);
     } catch (err) {
       if (attempt === 1) {
-        // Last resort: return safe defaults instead of crashing the request
         console.error('[claudeJSON] both attempts failed:', err.message);
-        return { ...JSON_SAFE_DEFAULTS };
+        return null; // callers must check for null and surface a user-facing error
       }
       await new Promise(r => setTimeout(r, 400));
     }
@@ -380,23 +383,28 @@ function extractAddressFromBody(originalBody) {
 }
 
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
+  // Guard all critical inputs — never render the string "undefined" or "null" in output HTML
+  company = safeVal(company) || 'Your Company';
+  subject = safeVal(subject);
+  body    = safeVal(body);
+  // Abort immediately if either critical field is blank — caller should have already validated
+  if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '' } = options;
   const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
 
-  // Header slot: shows EITHER logo/SVG OR text name — never both.
-  // When no verified image is available the company name is shown in caps with tracking.
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
+      // Inline SVG logo — wrap in a fixed-height container and strip any existing width/height attributes
+      // so the SVG scales to fit the 40px height naturally via viewBox
       const svgConstrained = brandDNA.logoSvg
         .replace(/\s(width|height)=["'][^"']*["']/gi, '')
         .replace('<svg', '<svg height="40" style="display:inline-block;vertical-align:middle;"');
-      return `<div style="text-align:center;line-height:1;">${svgConstrained}</div>`;
+      return `<div style="margin-bottom:10px;text-align:center;line-height:1;">${svgConstrained}</div><br>`;
     }
     if (brandDNA?.logo) {
-      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
+      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>`;
     }
-    // Text fallback — spaced caps, always readable on any primary colour
-    return `<span style="font-size:20px;font-weight:700;letter-spacing:3px;color:${primaryText};">${company.toUpperCase()}</span>`;
+    return '';
   })();
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
@@ -521,7 +529,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
   <!-- HEADER -->
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
-    ${logoInHeader}
+    ${logoInHeader}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
   </td></tr>
   <!-- HERO IMAGE -->
   ${heroRow}
@@ -607,15 +615,9 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
 //   2. Ask Claude to synthesize a palette from the email subject + body.
 // URL-extracted colours win when ≥ 2 are found; Claude voice data always merges in.
 
-async function inferBrandFromContent(company, subject, body, pageUrl = null) {
+async function inferBrandFromContent(company, subject, body) {
   const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  // Prefer the origin of the page URL the user provided — it's the actual brand site.
-  // Fall back to guessing https://www.slug.com only when no page URL is available.
-  let candidateUrl = slug ? `https://www.${slug}.com` : null;
-  if (pageUrl) {
-    try { candidateUrl = new URL(pageUrl.trim()).origin; } catch (_) {}
-  }
+  const candidateUrl = slug ? `https://www.${slug}.com` : null;
 
   const contentPrompt = `You are a brand analyst. Based on the email below, infer the brand's visual identity and communication style.
 
@@ -903,7 +905,7 @@ app.post('/generate', async (req, res) => {
     let effectiveVoice     = voiceProfile || null;
     if (!effectiveBrandDNA) {
       try {
-        const inferred = await inferBrandFromContent(company, subject, body, pageUrl);
+        const inferred = await inferBrandFromContent(company, subject, body);
         if (inferred) {
           effectiveBrandDNA = inferred;
           if (inferred.voiceProfile && !effectiveVoice) effectiveVoice = inferred.voiceProfile;
@@ -915,7 +917,7 @@ app.post('/generate', async (req, res) => {
     // High-Impact: detect type if not provided
     let detectedType = emailType || null;
     if (tier === 'high_impact' && !detectedType) {
-      try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200)).type; } catch (_) {}
+      try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200))?.type || null; } catch (_) {}
     }
 
     const industry = effectiveBrandDNA?.industry || null;
@@ -926,11 +928,15 @@ app.post('/generate', async (req, res) => {
     let rebuildPath = 'rebuilt'; // default: full rebuild
     try {
       const raw = await claudeJSON(getEmailScorePrompt(subject, body), 350);
-      const total = (raw.subject_score || 0) + (raw.hook_score || 0) +
-                    (raw.structure_score || 0) + (raw.cta_score || 0) + (raw.voice_score || 0);
-      originalScore = { ...raw, total, percentage: Math.round(total / 10 * 100) };
-      rebuildPath = total >= 7 ? 'preserved' : 'rebuilt';
-      console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath}`);
+      if (raw) {
+        const total = (raw.subject_score || 0) + (raw.hook_score || 0) +
+                      (raw.structure_score || 0) + (raw.cta_score || 0) + (raw.voice_score || 0);
+        originalScore = { ...raw, total, percentage: Math.round(total / 10 * 100) };
+        rebuildPath = total >= 7 ? 'preserved' : 'rebuilt';
+        console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath}`);
+      } else {
+        console.warn('[score] null response from Claude — using default rebuild path');
+      }
     } catch (scoreErr) {
       console.error('[score]', scoreErr.message);
     }
@@ -947,6 +953,13 @@ app.post('/generate', async (req, res) => {
     } else {
       const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples });
       result = await claudeJSON(prompt, 2500);
+    }
+
+    // Guard: Claude must have returned a parseable object with the two critical fields.
+    // If either is missing, surface a clean error rather than rendering "undefined" everywhere.
+    if (!result || !safeVal(result.rebuilt_subject) || !safeVal(result.rebuilt_body)) {
+      console.error('[generate] Claude response missing rebuilt_subject or rebuilt_body', result);
+      return res.status(500).json({ error: 'Generation failed. Please try again.' });
     }
 
     // Safety net: if brand DNA still has no colours after the earlier inference pass,
@@ -997,9 +1010,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const heroKeyword = (result.heroKeyword || '').trim();
-    // CTA priority: the article/page URL the email was ABOUT beats any homepage CTA button.
-    // If the user explicitly provided a page URL, that IS the destination.
-    const ctaHref = (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.primaryCtaUrl || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
+    // CTA href priority: specific action URL from page → user-provided landing URL → homepage → app URL
+    const ctaHref = effectiveBrandDNA?.primaryCtaUrl || (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword });
 
