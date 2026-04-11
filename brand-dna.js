@@ -180,27 +180,53 @@ function extractLogo(html, baseUrl) {
   const isOGImagePath = (url) =>
     /opengraph|og[-_]image|og[-_]preview|social[-_]preview|social[-_]card|twitter[-_]card|open-graph/i.test(url);
 
+  // Social auth / third-party provider logos — never a company's own logo
+  // e.g. "Sign in with Google" button images
+  const SOCIAL_PROVIDER_RE = /\b(google|facebook|apple|github|microsoft|twitter|linkedin|slack|discord|oauth|sign[-_]?in|sso|openid)\b/i;
+
+  // Returns true when the full <img> tag (attributes string) references a social-auth icon
+  const isSocialProviderImg = (imgAttrs) => {
+    const altM = imgAttrs.match(/\balt=["']([^"']*)["']/i);
+    const classM = imgAttrs.match(/\bclass=["']([^"']*)["']/i);
+    const idM   = imgAttrs.match(/\bid=["']([^"']*)["']/i);
+    const srcM  = imgAttrs.match(/\bsrc=["']([^"']*)["']/i);
+    const filename = srcM ? (srcM[1].split('/').pop().replace(/\?.*$/, '')) : '';
+    return SOCIAL_PROVIDER_RE.test(altM?.[1] || '')
+        || SOCIAL_PROVIDER_RE.test(classM?.[1] || '')
+        || SOCIAL_PROVIDER_RE.test(idM?.[1] || '')
+        || SOCIAL_PROVIDER_RE.test(filename);
+  };
+
+  // Find first valid logo img in a chunk of HTML.
+  // Returns the resolved URL or null.
+  const findLogoInScope = (scopeHtml) => {
+    const imgRe = /<img([^>]+)>/gi;
+    let m;
+    while ((m = imgRe.exec(scopeHtml)) !== null) {
+      const attrs = m[1];
+      const hasLogoSignal =
+        /(?:class|alt|id)=["'][^"']*logo[^"']*["']/i.test(attrs)
+        || /src=["'][^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg)["']/i.test(attrs);
+      if (!hasLogoSignal) continue;
+      if (isSocialProviderImg(attrs)) continue;
+      const srcM = attrs.match(/\bsrc=["']([^"']+)["']/i);
+      if (!srcM) continue;
+      const resolved = resolveUrl(srcM[1], baseUrl);
+      if (!isOGImagePath(resolved)) return resolved;
+    }
+    return null;
+  };
+
   // 1. Search specifically inside <header> and <nav> elements for logo <img> tags
   const headerNavMatch = html.match(/<(?:header|nav)\b[^>]*>([\s\S]{0,8000}?)<\/(?:header|nav)>/i);
   if (headerNavMatch) {
-    const scope = headerNavMatch[1];
-    const inNav = scope.match(/<img[^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i)
-               || scope.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
-               || scope.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
-    if (inNav && inNav[1]) {
-      const resolved = resolveUrl(inNav[1], baseUrl);
-      if (!isOGImagePath(resolved)) return resolved;
-    }
+    const found = findLogoInScope(headerNavMatch[1]);
+    if (found) return found;
   }
 
-  // 2. Global <img> with logo in class/alt/id/src — skip OG-style image paths
-  const logoSrc = html.match(/<img[^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)["']/i)
-               || html.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|alt|id)=["'][^"']*logo[^"']*["']/i)
-               || html.match(/<img[^>]+src=["']([^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg))["']/i);
-  if (logoSrc && logoSrc[1]) {
-    const resolved = resolveUrl(logoSrc[1], baseUrl);
-    if (!isOGImagePath(resolved)) return resolved;
-  }
+  // 2. Global scan — same rules, entire document
+  const found = findLogoInScope(html);
+  if (found) return found;
 
   // Nothing reliable found — return null so only company name text is shown
   return null;

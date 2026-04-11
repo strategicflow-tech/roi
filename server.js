@@ -453,11 +453,22 @@ function parseEmailHtmlContent(html) {
     .map(value => ({ value, type: 'html-extracted' }));
 
   // ── LOGO: img with "logo" or "brand" in attributes, not an OG/social image ──
+  // Social auth provider images (Google, Apple, GitHub, etc.) are never a company logo.
+  const SOCIAL_AUTH_RE = /\b(google|facebook|apple|github|microsoft|twitter|linkedin|slack|discord|oauth|sign[-_]?in|sso|openid)\b/i;
+  const isSocialImg = (attrs) => {
+    const altV  = (attrs.match(/\balt=["']([^"']*)["']/i)   || [])[1] || '';
+    const clsV  = (attrs.match(/\bclass=["']([^"']*)["']/i) || [])[1] || '';
+    const idV   = (attrs.match(/\bid=["']([^"']*)["']/i)    || [])[1] || '';
+    const srcV  = (attrs.match(/\bsrc=["']([^"']*)["']/i)   || [])[1] || '';
+    const fname = srcV.split('/').pop().replace(/\?.*$/, '');
+    return SOCIAL_AUTH_RE.test(altV) || SOCIAL_AUTH_RE.test(clsV) || SOCIAL_AUTH_RE.test(idV) || SOCIAL_AUTH_RE.test(fname);
+  };
   let logo = null;
   const logoImgRe = /<img([^>]+)>/gi;
   while ((m = logoImgRe.exec(html)) !== null) {
     const attrs = m[1];
     if (/logo|brand|header/i.test(attrs) && !/opengraph|og[-_]|social[-_]|twitter/i.test(attrs)) {
+      if (isSocialImg(attrs)) continue;
       const srcM = attrs.match(/src=["']([^"']+)["']/i);
       if (srcM && srcM[1] && !srcM[1].startsWith('data:')) { logo = srcM[1]; break; }
     }
