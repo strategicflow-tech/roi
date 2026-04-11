@@ -59,52 +59,63 @@ BRAND INSTRUCTION: You are improving this brand — not replacing it. Preserve t
     examplesBlock = `\nPRIOR SUCCESSFUL REBUILDS IN THIS INDUSTRY (benchmark only — do not copy these, they are for calibration):\n${lines}\nAim for the same quality bar or higher. Apply these same strategic moves to THIS email.\n`;
   }
 
-  return `You are the Strategic Flow rebuild engine. Apply ALL of the following rules without exception.
+  return `You are rebuilding a newsletter for ${company}. You are a mirror, not a template — reflect the client back to themselves, improved.
 
-THE STRATEGIC FLOW METHOD:
-1. SUBJECT LINE: Specific outcome or curiosity gap. Never a filing label ("Product Update", "Newsletter #12"). Reader name placeholder {First} optional.
-2. HOOK (first line of body): Consequence, question, or pattern interrupt — NOT a greeting, NOT context-setting. Earn the read in 15 words.
-3. OUTCOME-FIRST BODY: Every feature → reader outcome. "[Feature X] means you [stop suffering Y / gain Z]." Remove meaningless adjectives (amazing, powerful, seamless, excited to announce).
-4. SOCIAL PROOF: One specific proof point — a number, a result, a scenario the reader places themselves in. No generic testimonials.
-5. OWNERSHIP CTA: "Claim my / Start my / See my [specific outcome]" — never "Book a demo / Try for free / Learn more / Click here."
-6. REMOVE: Clichés, passive voice, anything that could belong to any company in any industry.
+━━━ STEP 1 — READ BEFORE WRITING ━━━
+Before writing a single word, carefully read the original subject and body below.
+Extract and hold in mind:
+- The EXACT message being communicated (what is ${company} actually announcing or offering?)
+- The EXACT features, benefits, or outcomes mentioned (list them in your head)
+- The TONE of the original (casual? technical? formal? conversational?)
+- The AUDIENCE being addressed (who is ${company}'s reader, specifically?)
+- The INTENT of the CTA (sign up? watch something? book a call? download? read more?)
+
+━━━ STEP 2 — CLIENT FIDELITY RULES (these override all template instincts) ━━━
+1. AUTHENTICITY: The rebuilt email must sound like it was written by ${company}'s own team — not by a marketing agency. Use their vocabulary, their references, their world.
+2. NO INVENTED CONTENT: Do not add benefits, features, or claims that are not present in the original. If the original mentions 3 things → rebuild around those 3 things.
+3. SUBJECT LINE: Must reference something SPECIFIC from the original — a named feature, a real number, a concrete result, a specific outcome the reader gets. FORBIDDEN patterns: "Your last X emails cost you Y", "Why your emails are being ignored", "The 7-line fix" — these are generic and belong to no company in particular.
+4. HOOK: Must address ${company}'s actual audience's specific pain — not a generic SaaS pain. If the audience is language learners, the hook is about learning frustration. If enterprise ops teams, about workflow friction. Name their world.
+5. FEATURE BOXES: Count the distinct value propositions in the original. Build EXACTLY that many boxes (min 2, max 6). Each box title must restate one of those actual propositions in outcome language. NEVER invent a box like "Human voice at AI speed" or "Revenue-ready in 48 hours" if the original content doesn't support it.
+6. CTA: Match the original's intent exactly. If the email links to a video → "Watch [specific thing]". If it's a signup → "Start my [specific outcome]". If it's a booking → "Book my [specific session]". Do not default to generic ownership language if it doesn't match what the email is asking the reader to do.
+7. TONE PRESERVATION: If the original is casual and friendly → stay casual and friendly. If it's technical and direct → stay technical and direct. If it's formal → stay formal. Do NOT normalize everything to "professional B2B SaaS".
 ${brandBlock}${typeBlock}${roadmapBlock}${examplesBlock}
+━━━ STEP 3 — APPLY STRATEGIC FLOW IMPROVEMENTS ━━━
+Now apply these upgrades to the content you extracted in Step 1:
+- Lead every paragraph with the OUTCOME, not the feature. "[Feature] means you [gain X / stop Y]."
+- Remove: clichés (excited to announce, game-changer, seamless, powerful, innovative), passive voice, any sentence that could belong to any company.
+- Replace generic social proof ("thousands of customers") with ONE specific proof point if present in the original.
+- Ensure the CTA earns what the email promises — the reader should feel the next step is the obvious conclusion.
+
+━━━ STEP 4 — HTML OUTPUT FORMAT (technical rules, follow exactly) ━━━
 Company: ${company}
 Goal: ${goal || 'Increase conversion and reader action'}
 Original Subject: "${subject}"
 Original Body:
 ${body}
 
-OUTPUT FORMAT FOR rebuilt_body — MANDATORY RULES (no exceptions):
-- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. No div-based layouts — all structure must be table-based for Gmail and Outlook compatibility.
-- NEVER use markdown syntax. No **bold**, no *italic*, no [Button: text], no bullet dashes.
-- Use <strong> for emphasis, <em> for italics.
+OUTPUT FORMAT FOR rebuilt_body — MANDATORY:
+- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only (Gmail + Outlook compatible).
+- NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.
 
 SECTION STRUCTURE (use in this order):
-1. Opening hook — wrap in: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">
-2. Body paragraph(s) — wrap in: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">
-3. Section divider — insert before and after the benefit cards using EXACTLY:
+1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">
+2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">
+3. Section divider (before AND after the benefit cards):
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-4. Benefit/feature cards — CONTENT RULES (read carefully before writing a single box):
-   - Scan the original email body for every distinct value proposition, feature, or benefit the sender mentions. Extract them exactly — do not invent or generalize.
-   - Create one box per distinct benefit found. Minimum 2 boxes, maximum 6. If the original email has 3 benefits → 3 boxes. If 5 → 5 boxes.
-   - Box title (4–7 words): rewrite the benefit in outcome language using the brand's voice and terminology. Never use the word "feature", "solution", or "tool" as the first word.
-   - Box description (1 sentence): explain the specific reader outcome this benefit produces. Use the same formality level and vocabulary as the brand's existing copy.
-   - Emoji: choose based on the specific benefit — e.g. 🚀 for speed/launch, 🔒 for security, 📊 for analytics, 💬 for communication, ⚡ for performance, 🎯 for targeting, 🌍 for scale/global, 💡 for insight/intelligence. Never use ✓, ★, or a generic bullet emoji.
-   - No two rebuilds should produce the same box content — the boxes are derived from THIS email's content, not from a template.
-   Each benefit is a SEPARATE TABLE (not a row inside one table). Use EXACTLY this structure for each card:
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit headline — 4 to 7 words]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One supporting sentence explaining the reader outcome]</span></td></tr></table></td></tr></table>
-5. Testimonial/quote — if the original email contained a quote or social proof statement, render it as:
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote text]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
-6. CTA button — use EXACTLY this structure (no plain text buttons, no <button> tags):
-   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — ownership language: Claim my / Start my / See my]</a></td></tr></table>
-   Use the literal placeholders CTABGCOLOR and CTATEXTCOLOR — the server replaces them with real brand colors. Both the bgcolor attribute and the inline background style must use CTABGCOLOR.
-7. P.S. line (if included): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
+4. Benefit cards — one SEPARATE TABLE per benefit (not rows inside one table):
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit headline — 4 to 7 words, outcome language, from THIS email's content]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
+   Emoji guide: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never use ✓ ★ or a generic bullet emoji.
+5. Quote/testimonial (only if present in the original):
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
+6. CTA button (EXACTLY this — no plain text buttons, no <button> tags):
+   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text matching the email's intent — see Rule 6 above]</a></td></tr></table>
+   CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders — use them literally in both bgcolor attribute and background style value.
+7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
 
-PLACEHOLDER RULES: Never output the strings CTABGCOLOR or CTATEXTCOLOR as visible text — they are CSS value placeholders only. They must only appear inside style attribute values or bgcolor attributes.
+PLACEHOLDER RULES: CTABGCOLOR and CTATEXTCOLOR must ONLY appear inside CSS values or bgcolor attributes — never as visible text.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
