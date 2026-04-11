@@ -1326,9 +1326,11 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       }
     }
 
-    // BUG 2 — Dark theme detection from plain text body when no URL/HTML was provided.
-    // Runs only when effectiveBrandDNA has no theme signal yet.
-    if (effectiveBrandDNA && !effectiveBrandDNA.theme && body) {
+    // Dark theme detection from plain text body signals.
+    // Condition: theme is not already confirmed dark — overrides the default 'light' set by inferBrandFromContent.
+    // Previously used !effectiveBrandDNA.theme which was always false because inferBrandFromContent
+    // always sets theme:'light' as default — that was a dead branch. Fixed to !== 'dark'.
+    if (effectiveBrandDNA && effectiveBrandDNA.theme !== 'dark' && body) {
       const textDarkSignals = [
         /#[01][0-9a-fA-F]{5}/gi,
         /background.{0,20}#1[0-9a-fA-F]{5}/gi,
@@ -1389,8 +1391,11 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       || knownUrl
       || 'https://strategic-flow-audit.replit.app';
 
-    const downloadHtml = stripResendTracking(buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' }));
+    // Build HTML first, then strip any Resend tracking links before returning to frontend,
+    // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
+    let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
+      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' });
+    downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
