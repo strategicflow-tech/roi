@@ -477,6 +477,11 @@ function parseEmailHtmlContent(html) {
   while ((m = bgInlineRe.exec(outerHtml)) !== null) bgValues.push(m[1]);
   while ((m = bgAttrRe.exec(outerHtml))   !== null) bgValues.push(m[1]);
 
+  // 3. Specifically match CSS block rules targeting the body selector,
+  //    e.g. body { background-color: #1a1a1a } — missed by inline/attr scanners above.
+  const cssBodyBg = html.match(/body[^{]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i)?.[1];
+  if (cssBodyBg) bgValues.push(cssBodyBg);
+
   const isDark = bgValues.some(isColorDark);
 
   // ── BRAND COLORS: all saturated hex codes, de-duped ──
@@ -817,6 +822,23 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
 
 // ─── CONTENT-BASED BRAND INFERENCE ──────────────────────────────────────────
 // Used when no website URL is provided and the caller passes no brandDNA.
+// Detects dark-theme emails from plain-text body keyword patterns.
+// Must run BEFORE inferBrandFromContent so Claude's default light bgColor cannot override it.
+function detectDarkFromEmailBody(body) {
+  if (!body) return false;
+  const darkKeywords = [
+    'background-color: #1', 'background-color: #0',
+    'background: #1', 'background: #0',
+    'bgcolor="#1', 'bgcolor="#0',
+    'background-color: black', 'background: black',
+    '#1a1a1a', '#0a0a0a', '#111111', '#222222',
+    '#1e1e1e', '#0d0d0d', '#131313', '#191919',
+    '#2c2c2c', '#1c1c1c'
+  ];
+  const bodyLower = body.toLowerCase();
+  return darkKeywords.some(k => bodyLower.includes(k.toLowerCase()));
+}
+
 // Two strategies run in parallel:
 //   1. Guess the company homepage (slug.com) and run a full brand extraction.
 //   2. Ask Claude to synthesize a palette from the email subject + body.
@@ -1164,6 +1186,11 @@ app.post('/generate', async (req, res) => {
     // brand signals automatically from the email content + a company URL guess.
     let effectiveBrandDNA  = brandDNA  || null;
     let effectiveVoice     = voiceProfile || null;
+
+    // Detect dark theme from body keywords BEFORE inference so Claude's default
+    // light bgColor response cannot override it later.
+    const forceDark = detectDarkFromEmailBody(body);
+
     if (!effectiveBrandDNA) {
       try {
         const inferred = await inferBrandFromContent(company, subject, body, pageUrl);
@@ -1174,6 +1201,14 @@ app.post('/generate', async (req, res) => {
         }
       } catch (inferErr) { console.error('[brand-infer]', inferErr.message); }
     }
+
+    // Apply forceDark AFTER inference — body keyword match wins over Claude's inferred bgColor
+    if (forceDark) {
+      effectiveBrandDNA = effectiveBrandDNA || {};
+      effectiveBrandDNA = { ...effectiveBrandDNA, theme: 'dark' };
+      console.log('[dark-detect] body keyword match → theme forced dark');
+    }
+
     console.log('STEP 2: Brand DNA extracted');
 
     // High-Impact: detect type if not provided
