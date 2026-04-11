@@ -120,8 +120,10 @@ SECTION STRUCTURE:
    CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders. Use them literally in both bgcolor attribute and background style. Never output them as visible text.
 7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
 
+HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
+
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
@@ -304,8 +306,10 @@ OUTPUT FORMAT:
 - CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders — use them literally, never as visible text.
 - In key_changes: list ONLY the 4 specific fixes made.
 
+HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding". Specific to the email topic.
+
 Return ONLY valid JSON:
-{"rebuilt_subject":"string","rebuilt_body":"string","key_changes":["→ [specific fix made] — [why it sharpens conversion]"],"removed_elements":[],"conversion_hook":"string (the opening line and why it works now)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","key_changes":["→ [specific fix made] — [why it sharpens conversion]"],"removed_elements":[],"conversion_hook":"string (the opening line and why it works now)"}`;
 }
 
 function getVoiceAnalysisPrompt(websiteCopy) {

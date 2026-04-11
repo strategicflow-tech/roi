@@ -198,6 +198,13 @@ async function bumpCount(email) {
   `, [email.toLowerCase().trim(), mk]);
 }
 
+async function verifyImageUrl(url) {
+  try {
+    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+    return res.ok;
+  } catch { return false; }
+}
+
 function sanitizeForJSON(str) {
   return (str || '')
     .replace(/[\u2018\u2019]/g, "'")   // curly single quotes → straight
@@ -340,10 +347,32 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     return '';
   })();
 
-  // Hero image: stable, industry-matched Unsplash photos via direct photo ID.
-  // Each entry is a manually verified photo that is relevant and loads reliably.
-  const buildHeroSrc = (comp, dna) => {
+  // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
+  const buildHeroSrc = (comp, dna, heroKeyword) => {
     const ind = (dna?.industry || '').toLowerCase();
+    const kw  = (heroKeyword || '').toLowerCase();
+
+    // Topic-level keyword map — checked first, higher priority than industry
+    const topicPhotoMap = {
+      'cybersecurity':        'photo-1550751827-4bd374c3f58b',
+      'security':             'photo-1550751827-4bd374c3f58b',
+      'penetration testing':  'photo-1550751827-4bd374c3f58b',
+      'pentesting':           'photo-1550751827-4bd374c3f58b',
+      'language learning':    'photo-1543269865-cbf427effbad',
+      'crm':                  'photo-1460925895917-afdab827c52f',
+      'dashboard':            'photo-1460925895917-afdab827c52f',
+      'startup':              'photo-1559136555-9303baea8ebd',
+      'funding':              'photo-1559136555-9303baea8ebd',
+      'ai':                   'photo-1677442135703-1787eea5ce01',
+      'artificial intelligence': 'photo-1677442135703-1787eea5ce01',
+      'machine learning':     'photo-1677442135703-1787eea5ce01',
+      'coding':               'photo-1518770660439-4636190af475',
+      'developer':            'photo-1518770660439-4636190af475',
+      'programming':          'photo-1518770660439-4636190af475',
+      'marketing':            'photo-1533750516457-a7f992034fec',
+    };
+
+    // Industry fallback map
     const industryPhotoMap = [
       [['language learning', 'language education', 'memrise', 'duolingo', 'linguist'], 'photo-1543269865-cbf427effbad'],
       [['machine learning', 'artificial intelligence', 'deep learning', 'ai research',
@@ -367,13 +396,24 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       [['startup', 'venture'],                                                          'photo-1519389950473-47ba0277781c'],
       [['b2b', 'enterprise', 'software'],                                              'photo-1460925895917-afdab827c52f'],
     ];
+
+    // 1. Try heroKeyword match first (topic-level)
+    if (kw) {
+      for (const [topicKey, topicId] of Object.entries(topicPhotoMap)) {
+        if (kw.includes(topicKey) || topicKey.includes(kw)) {
+          return `https://images.unsplash.com/${topicId}?w=620&h=300&fit=crop`;
+        }
+      }
+    }
+
+    // 2. Fall back to industry match
     let photoId = 'photo-1460925895917-afdab827c52f'; // default: clean workspace
     for (const [patterns, id] of industryPhotoMap) {
       if (patterns.some(p => ind.includes(p))) { photoId = id; break; }
     }
     return `https://images.unsplash.com/${photoId}?w=620&h=300&fit=crop`;
   };
-  const heroSrc = buildHeroSrc(company, brandDNA);
+  const heroSrc = buildHeroSrc(company, brandDNA, options.heroKeyword);
   const heroRow = `<tr>
   <td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;border-collapse:collapse;">
     <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
@@ -874,9 +914,20 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // Clean up any stray markdown that Claude may have included
     result.rebuilt_body = stripMarkdown(result.rebuilt_body);
 
+    // Verify logo URL — if it returns a non-200 or times out, strip it so only
+    // company name text is shown in the header (never a broken <img> src).
+    if (effectiveBrandDNA?.logo) {
+      const logoOk = await verifyImageUrl(effectiveBrandDNA.logo);
+      if (!logoOk) {
+        effectiveBrandDNA = { ...effectiveBrandDNA, logo: null };
+        console.log('[logo] URL verification failed — falling back to company name text');
+      }
+    }
+
+    const heroKeyword = (result.heroKeyword || '').trim();
     const ctaHref = effectiveBrandDNA?.url || (pageUrl && pageUrl.trim()) || 'https://strategic-flow-audit.replit.app';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body, ctaHref });
+      { tier, originalBody: body, ctaHref, heroKeyword });
 
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
