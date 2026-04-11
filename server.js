@@ -383,19 +383,20 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '' } = options;
   const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
 
+  // Header slot: shows EITHER logo/SVG OR text name — never both.
+  // When no verified image is available the company name is shown in caps with tracking.
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
-      // Inline SVG logo — wrap in a fixed-height container and strip any existing width/height attributes
-      // so the SVG scales to fit the 40px height naturally via viewBox
       const svgConstrained = brandDNA.logoSvg
         .replace(/\s(width|height)=["'][^"']*["']/gi, '')
         .replace('<svg', '<svg height="40" style="display:inline-block;vertical-align:middle;"');
-      return `<div style="margin-bottom:10px;text-align:center;line-height:1;">${svgConstrained}</div><br>`;
+      return `<div style="text-align:center;line-height:1;">${svgConstrained}</div>`;
     }
     if (brandDNA?.logo) {
-      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>`;
+      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
     }
-    return '';
+    // Text fallback — spaced caps, always readable on any primary colour
+    return `<span style="font-size:20px;font-weight:700;letter-spacing:3px;color:${primaryText};">${company.toUpperCase()}</span>`;
   })();
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
@@ -520,7 +521,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
   <!-- HEADER -->
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
-    ${logoInHeader}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
+    ${logoInHeader}
   </td></tr>
   <!-- HERO IMAGE -->
   ${heroRow}
@@ -606,9 +607,15 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
 //   2. Ask Claude to synthesize a palette from the email subject + body.
 // URL-extracted colours win when ≥ 2 are found; Claude voice data always merges in.
 
-async function inferBrandFromContent(company, subject, body) {
+async function inferBrandFromContent(company, subject, body, pageUrl = null) {
   const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const candidateUrl = slug ? `https://www.${slug}.com` : null;
+
+  // Prefer the origin of the page URL the user provided — it's the actual brand site.
+  // Fall back to guessing https://www.slug.com only when no page URL is available.
+  let candidateUrl = slug ? `https://www.${slug}.com` : null;
+  if (pageUrl) {
+    try { candidateUrl = new URL(pageUrl.trim()).origin; } catch (_) {}
+  }
 
   const contentPrompt = `You are a brand analyst. Based on the email below, infer the brand's visual identity and communication style.
 
@@ -896,7 +903,7 @@ app.post('/generate', async (req, res) => {
     let effectiveVoice     = voiceProfile || null;
     if (!effectiveBrandDNA) {
       try {
-        const inferred = await inferBrandFromContent(company, subject, body);
+        const inferred = await inferBrandFromContent(company, subject, body, pageUrl);
         if (inferred) {
           effectiveBrandDNA = inferred;
           if (inferred.voiceProfile && !effectiveVoice) effectiveVoice = inferred.voiceProfile;
@@ -990,8 +997,9 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const heroKeyword = (result.heroKeyword || '').trim();
-    // CTA href priority: specific action URL from page → user-provided landing URL → homepage → app URL
-    const ctaHref = effectiveBrandDNA?.primaryCtaUrl || (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
+    // CTA priority: the article/page URL the email was ABOUT beats any homepage CTA button.
+    // If the user explicitly provided a page URL, that IS the destination.
+    const ctaHref = (pageUrl && pageUrl.trim()) || effectiveBrandDNA?.primaryCtaUrl || effectiveBrandDNA?.url || 'https://strategic-flow-audit.replit.app';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword });
 

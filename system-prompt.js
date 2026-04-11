@@ -141,25 +141,43 @@ OUTPUT FORMAT — MANDATORY (email must render in Gmail and Outlook):
 - Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only — no div-based layouts.
 - NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.
 
-SECTION STRUCTURE:
-1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[first sentence earns the read]</p>
-2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content from the original, improved]</p>
-3. Section divider (before AND after benefit cards):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-4. Benefit cards — COUNT the distinct value propositions in the original. Create EXACTLY that many cards (min 2, max 6). Each card title restates one actual proposition from the original. One SEPARATE TABLE per card:
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit from THIS email — 4 to 7 words, outcome language]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
-   Emoji: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never ✓ ★ generic bullet.
-5. Quote/testimonial (ONLY if a quote exists in the original):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
-6. CTA button (EXACTLY this structure — no plain text, no <button> tags):
-   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — must match original intent per Rule 3]</a></td></tr></table>
-   CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders. Use them literally in both bgcolor attribute and background style. Never output them as visible text.
-7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
+STEP C — CHOOSE your content structure based on what you found in Step A:
 
-HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
+--- IF contentStyle = "longform" (original is blog post, article, long paragraphs, no feature boxes) ---
+Use ONLY clean paragraphs and bold headers. NO emoji boxes. NO dividers between sections.
+1. Opening hook: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[hook]</p>
+2. Body paragraphs: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content]</p>
+   Use <strong style="color:#1a1a1a;">[Section heading]</strong> at the start of a paragraph to separate topics — NOT separate cards.
+3. Quote/testimonial ONLY if one exists in the original:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">- [Attribution]</p></td></tr></table>
+4. CTA button (required):
+   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text]</a></td></tr></table>
+5. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S.]</p>
+
+--- IF contentStyle = "boxes" (original uses emoji feature blocks, icon cards, or visual feature list) ---
+1. Opening hook: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[hook]</p>
+2. Body paragraph(s): <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content]</p>
+3. Section divider: <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+4. Feature cards — COUNT the distinct props in the original, create EXACTLY that many (min 2, max 6). One table per card:
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit — 4-7 words, outcome language]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: specific reader outcome]</span></td></tr></table></td></tr></table>
+   Emoji guide: 🚀 speed/launch - 🔒 security - 📊 analytics - 💬 communication - ⚡ performance - 🎯 targeting - 🌍 scale - 💡 insight - 🧠 intelligence - 🔄 workflow - 💰 revenue - 🎓 learning
+5. Section divider (same as step 3)
+6. Quote/testimonial ONLY if one exists in original (same structure as longform step 3)
+7. CTA button (same structure as longform step 4)
+8. P.S. line (optional, same as longform step 5)
+
+--- IF contentStyle = "steps" (original is a numbered/step-by-step guide or how-to) ---
+1. Opening hook: <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[hook]</p>
+2. Intro paragraph(s): <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[intro]</p>
+3. Numbered steps (preserve EXACT count from original):
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><strong style="font-size:15px;color:#1a1a1a;">[N]. [Step name]</strong><p style="font-size:14px;color:#555555;line-height:1.6;margin:6px 0 0;">[What the reader does and why it matters]</p></td></tr></table>
+4. CTA button (same structure as longform step 4)
+5. P.S. line (optional, same as longform step 5)
+
+HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2-3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". Be specific to the email topic, not the industry.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string","contentStyle":"longform|boxes|steps","heroKeyword":"2-3 word English phrase","key_changes":["string","string","string"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
