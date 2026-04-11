@@ -1,0 +1,89 @@
+Toate problemele rămase într-un singur prompt final:
+
+```
+Fix all remaining issues in both strategic-flow-audit.replit.app and strategic-flow-pro.replit.app:
+
+---
+
+ISSUE 1 — CTA LINK (already discussed, adding here for completeness):
+const ctaHref = brandDNA?.primaryCTAUrl || brandDNA?.websiteUrl || pageUrl || '#';
+Disable Resend click tracking: clickTracking: false in resend.emails.send() config.
+
+---
+
+ISSUE 2 — EMOJI BOXES ADDED EVEN WHEN ORIGINAL HAS NONE:
+In system-prompt.js, Claude must detect content style before choosing box format.
+Add to generation prompt:
+"Analyze the original content structure:
+- If original is a blog post, article, or long-form announcement → use clean paragraphs with bold <strong> headers. NO emoji boxes.
+- If original is a feature list, product update, or bullet-point email → use emoji feature boxes.
+- If original has numbered steps → render as numbered list, not boxes.
+Return contentStyle: 'longform' | 'boxes' | 'steps' in JSON response."
+
+In buildNewsletterHTML():
+if (claudeResponse.contentStyle === 'longform') → skip emoji box loop entirely, render paragraphs only
+if (claudeResponse.contentStyle === 'steps') → render numbered <ol> list, no emoji
+if (claudeResponse.contentStyle === 'boxes') → render emoji boxes as currently
+
+---
+
+ISSUE 3 — DARK/LIGHT THEME NOT APPLIED:
+In buildNewsletterHTML(), replace ALL hardcoded colors with theme variables:
+
+const isDark = brandDNA?.isDarkTheme === true;
+const outerBg = isDark ? '#0a0a0a' : '#f4f4f7';
+const innerBg = isDark ? '#111111' : '#ffffff';
+const headerBg = isDark ? 'rgba(0,0,0,0.3)' : '#fafafa';
+const textMain = isDark ? '#ffffff' : '#1a1a1a';
+const textMuted = isDark ? '#aaaaaa' : '#555555';
+const boxBg = isDark ? '#1e1e1e' : '#f5f5f5';
+const boxText = isDark ? '#cccccc' : '#555555';
+const divider = isDark ? '#2a2a2a' : '#e0e0e0';
+const footerBg = isDark ? '#0a0a0a' : '#f4f4f7';
+
+Apply these to EVERY color value in the HTML string.
+Never hardcode #f4f4f7 or #ffffff as universal values.
+
+---
+
+ISSUE 4 — LOGO BROKEN IMAGE:
+Before inserting ANY logo img tag, verify URL is valid:
+
+async function buildLogoHTML(logoUrl, companyName, isDark) {
+  const fallback = `<span style="font-size:20px;font-weight:700;color:${isDark ? '#ffffff' : '#1a1a1a'};">${companyName}</span>`;
+  if (!logoUrl) return fallback;
+  try {
+    const res = await fetch(logoUrl, {method:'HEAD', signal:AbortSignal.timeout(2000)});
+    if (res.ok) return `<img src="${logoUrl}" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
+  } catch(e) {}
+  return fallback;
+}
+
+Use buildLogoHTML() in BOTH header and footer. Never insert a broken img tag.
+
+---
+
+ISSUE 5 — EMAIL TYPE BADGE IS WRONG:
+Add to Claude generation prompt:
+"Detect the correct email type:
+- New feature or product announcement → 'Product Announcement'
+- Re-engagement → 'Retention Campaign'
+- New user onboarding → 'Onboarding'
+- Promotion or discount → 'Promotional'
+- Blog post or article → 'Newsletter'
+- Security or compliance update → 'Security Update'
+Return as emailType in JSON."
+
+Use claudeResponse.emailType for the badge label. Never hardcode 'Retention Campaign'.
+
+---
+
+APPLY TO BOTH APPS:
+These fixes must be implemented in both strategic-flow-audit.replit.app AND strategic-flow-pro.replit.app.
+After implementing, test each app with:
+1. https://lovable.dev/blog/announcing-pentesting → expect dark theme, no emoji boxes, correct CTA
+2. https://memrise.com → expect light theme, correct logo, relevant hero image
+3. Plain text email body (no URL) → expect correct content style detection
+
+All 3 tests must pass in both apps before marking done.
+```

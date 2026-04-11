@@ -370,6 +370,21 @@ function adaptBodyForDarkTheme(html) {
     .replace(/height:1px;background:#e0e0e0/g, 'height:1px;background:#2a2a2a');
 }
 
+// Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
+// Matches the exact table structure emitted by the SECTION STRUCTURE section 4 prompt.
+function stripEmojiBoxTables(html) {
+  // Remove tables whose first cell is exactly 40px wide (the emoji column)
+  // These are the single-card tables: <table ...><tr><td ...width:40px...>
+  return html.replace(
+    /<table[^>]*cellpadding="0"[^>]*>\s*<tr>\s*<td[^>]*>\s*<table[^>]*>\s*<tr>\s*<td[^>]*width:\s*40px[^>]*>[\s\S]*?<\/table>\s*<\/td>\s*<\/tr>\s*<\/table>/gi,
+    ''
+  ).replace(
+    // Also remove section dividers left orphaned (height:1px;background:#...)
+    /<table[^>]*>\s*<tr>\s*<td[^>]*height:1px;background[^>]*>&nbsp;<\/td>\s*<\/tr>\s*<\/table>/gi,
+    ''
+  ).trim();
+}
+
 function extractAddressFromBody(originalBody) {
   if (!originalBody) return null;
   const lines = (originalBody || '').split('\n').map(l => l.trim()).filter(Boolean);
@@ -389,23 +404,27 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   body    = safeVal(body);
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '' } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '' } = options;
   const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark } = getEmailColors(brandDNA);
 
+  // Header content: show logo OR company name — never both.
+  // logoInHeader is non-empty when a verified logo is available.
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
-      // Inline SVG logo — wrap in a fixed-height container and strip any existing width/height attributes
-      // so the SVG scales to fit the 40px height naturally via viewBox
       const svgConstrained = brandDNA.logoSvg
         .replace(/\s(width|height)=["'][^"']*["']/gi, '')
         .replace('<svg', '<svg height="40" style="display:inline-block;vertical-align:middle;"');
-      return `<div style="margin-bottom:10px;text-align:center;line-height:1;">${svgConstrained}</div><br>`;
+      return `<div style="text-align:center;line-height:1;">${svgConstrained}</div>`;
     }
     if (brandDNA?.logo) {
-      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" /><br>`;
+      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
     }
     return '';
   })();
+  // Show company name text only when no logo is available
+  const headerContent = logoInHeader
+    ? logoInHeader
+    : `<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>`;
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
   const buildHeroSrc = (comp, dna, heroKeyword) => {
@@ -497,6 +516,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       .replace(/CTABGCOLOR/g, accentColor)
       .replace(/CTATEXTCOLOR/g, accentText)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
+    // For longform or steps content, strip any emoji box tables Claude may have added despite instructions
+    if (contentStyle === 'longform' || contentStyle === 'steps') {
+      processed = stripEmojiBoxTables(processed);
+    }
     if (isDark) processed = adaptBodyForDarkTheme(processed);
     bodyContent = processed;
   } else {
@@ -529,7 +552,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
   <!-- HEADER -->
   <tr><td style="background:${primaryColor};padding:28px 40px;text-align:center;">
-    ${logoInHeader}<span style="font-size:22px;font-weight:700;color:${primaryText};">${company}</span>
+    ${headerContent}
   </td></tr>
   <!-- HERO IMAGE -->
   ${heroRow}
@@ -663,8 +686,17 @@ ${(body || '').slice(0, 1400)}`;
     const accent  = hex6(c.accentColor);
     const bg      = hex6(c.bgColor);
     if (primary) {
+      // Derive theme from bgColor: if it's a dark hex (luminance < 68) mark as dark
+      let inferredTheme = 'light';
+      if (bg) {
+        try {
+          const r = parseInt(bg.slice(1,3), 16), g = parseInt(bg.slice(3,5), 16), b2 = parseInt(bg.slice(5,7), 16);
+          if ((r * 299 + g * 587 + b2 * 114) / 1000 < 68) inferredTheme = 'dark';
+        } catch (_) {}
+      }
       inferred = {
         success: true, source: 'content-inferred',
+        theme: inferredTheme,
         colors: [
           { type: 'inferred:primary', value: primary },
           ...(accent ? [{ type: 'inferred:accent', value: accent }] : []),
@@ -1017,7 +1049,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       || (pageUrl && pageUrl.trim())
       || '#';
     const downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body, ctaHref, heroKeyword });
+      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' });
 
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
@@ -1027,13 +1059,16 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       .replace(/CTABGCOLOR/g, previewAccent)
       .replace(/CTATEXTCOLOR/g, previewAccentText);
 
+    // Prefer email type returned by Claude in the generation JSON; fall back to separately detected type
+    const finalEmailType = result.emailType || detectedType;
+
     // Persist to DB
     let newsletterId = null;
     try {
       const s = await pool.query(`
         INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id
-      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, detectedType,
+      `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, finalEmailType,
           effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
           result.key_changes ? JSON.stringify(result.key_changes) : null,
           result.conversion_hook || null,
@@ -1075,7 +1110,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     }
 
     const brandDNASource = effectiveBrandDNA?.source || null;
-    res.json({ ...result, newsletterId, emailType: detectedType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
   } catch (err) { console.error('[generate]', err); res.status(500).json({ error: err.message }); }
 });
 
