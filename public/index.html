@@ -115,7 +115,8 @@ textarea{resize:vertical;line-height:1.7;}
 /* ─── RESULT PANELS ─────────────────────────────────── */
 .result-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
 .result-subject{font-size:18px;font-weight:700;color:var(--teal);margin-bottom:8px;line-height:1.4;}
-.result-body{font-size:14px;color:#ffffff;line-height:1.8;padding:20px;background:#0d1b2a;border-radius:10px;border:1px solid rgba(255,255,255,0.1);}
+.result-body{font-size:14px;color:#e0e0e0;line-height:1.8;padding:20px;background:#1e2433;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
+.result-body strong:first-of-type,.result-body b:first-of-type{color:#00d4c8;}
 .changes-list{margin-top:16px;}
 .change-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(28,46,74,0.5);font-size:13px;color:var(--text2);align-items:flex-start;}
 .change-item::before{content:'→';color:var(--teal);flex-shrink:0;font-weight:700;margin-top:1px;}
@@ -188,11 +189,12 @@ textarea{resize:vertical;line-height:1.7;}
 .extract-btn-row .field{flex:1;margin-bottom:0;}
 .brand-logo{max-height:40px;border-radius:6px;margin-bottom:10px;}
 .before-after{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
-.ba-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.ba-box{background:#1e2433;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:20px;}
 .ba-label{font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px;}
 .ba-subject{font-size:13px;font-weight:600;margin-bottom:8px;}
-.ba-body{font-size:11px;color:var(--muted);line-height:1.65;max-height:140px;overflow:hidden;position:relative;}
-.ba-body::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--bg2));}
+.ba-body{font-size:11px;color:#e0e0e0;line-height:1.65;max-height:140px;overflow:hidden;position:relative;}
+.ba-body::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#1e2433);}
+.ba-body strong:first-of-type,.ba-body b:first-of-type{color:#00d4c8;}
 
 /* FOOTER */
 .footer{text-align:center;padding:48px 20px 0;border-top:1px solid var(--border);margin-top:60px;}
