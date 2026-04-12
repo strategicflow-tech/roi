@@ -1474,7 +1474,8 @@ async function handleGenerate(req, res) {
             const downloadHtml = stripResendTracking(buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
               { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
-                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app' }
+                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app',
+                heroImageUrl: req.body._ogImage || null }
             ));
             return res.json({
               rebuilt_subject: n.rebuilt_subject,
