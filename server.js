@@ -613,38 +613,84 @@ function parseEmailHtmlContent(html) {
 // Strips HTML first so tags don't interfere with CTA/deal matching.
 function detectPromotionalGrid(text) {
   if (!text) return false;
+  const stripped = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
-  const stripped = text.replace(/<[^>]+>/g, ' ');
+  const ctaCount = (stripped.match(
+    /\b(order now|shop now|buy now|get now|claim now|view deal|see offer|explore more|learn more)\b/gi
+  ) || []).length;
 
-  const ctaCount = (stripped.match(/\b(order now|shop now|buy now)\b/gi) || []).length;
-  const dealCount = (stripped.match(/buy.{1,5}get|free item|€\d+|£\d+|\$\d+|free delivery|€0/gi) || []).length;
+  const dealCount = (stripped.match(
+    /buy.{1,10}get|free item|free delivery|€\d+|£\d+|\$\d+|\d+%\s*off|bogo|2for1|complimentary/gi
+  ) || []).length;
 
-  return ctaCount >= 2 || dealCount >= 2;
+  const productCount = (stripped.match(
+    /\b(order|shop|buy|view|explore)\s+now\b/gi
+  ) || []).length;
+
+  return ctaCount >= 3 || dealCount >= 2 || productCount >= 3;
+}
+
+function getUnsplashForItem(name) {
+  const keywords = {
+    'pizza':      'photo-1513104890138-7c749659a591',
+    'burger':     'photo-1568901346375-23c9450c58cd',
+    'sushi':      'photo-1579871494447-9811cf80d66c',
+    'noodle':     'photo-1569718212165-3a8278d5f624',
+    'starbucks':  'photo-1495474472287-4d71bcdd2085',
+    'coffee':     'photo-1495474472287-4d71bcdd2085',
+    'mcdonald':   'photo-1568901346375-23c9450c58cd',
+    'restaurant': 'photo-1414235077428-338989a2e8c0',
+    'food':       'photo-1504674900247-0877df9cc836',
+    'default':    'photo-1414235077428-338989a2e8c0'
+  };
+
+  const nameLower = name.toLowerCase();
+  const match = Object.entries(keywords).find(([key]) => nameLower.includes(key));
+  const photoId = match ? match[1] : keywords.default;
+  return `https://images.unsplash.com/${photoId}?w=280&h=200&fit=crop`;
 }
 
 // Extract product/restaurant cards from the original body text.
-// Strips HTML first, then splits at each "Order now" — each preceding chunk = one card.
+// Works on raw HTML or plain text — strips tags, normalises whitespace,
+// then splits at any CTA variant. Compatible with food delivery, e-commerce,
+// SaaS deals, travel, and any multi-product promotional email.
 function extractPromotionalItems(text) {
   if (!text) return [];
 
-  const stripped = text.replace(/<[^>]+>/g, ' ')
-    .replace(/[ \t]+/g, ' ')   // collapse horizontal whitespace only — preserve \n
-    .trim();
+  const stripped = text
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s{3,}/g, '\n')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 1)
+    .join('\n');
 
   const items = [];
-  const chunks = stripped.split(/order now/gi);
-
-  const DEAL_LINE = /buy.{1,10}get.{1,10}free|free item|€\d|£\d|\$\d|free delivery|€0|\d+%\s*off/i;
+  const ctaPattern = /order now|shop now|buy now|get now|view deal/gi;
+  const chunks = stripped.split(ctaPattern);
 
   chunks.slice(0, -1).forEach(chunk => {
-    const lines = chunk.trim().split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 2);
-    // Name = last line that is NOT a deal/price line
-    const nameLines = lines.filter(l => !DEAL_LINE.test(l));
-    const name = nameLines[nameLines.length - 1]?.trim();
-    const dealMatch = chunk.match(/buy.{1,10}get.{1,10}free|free item[^€]*€?\d*|€0 delivery/gi);
-    const deal = dealMatch ? dealMatch[dealMatch.length - 1] : '€0 Delivery Fee';
-    if (name && name.length > 2 && name.length < 60) {
-      items.push({ name, deal });
+    const lines = chunk.split('\n').filter(l => l.trim().length > 2);
+
+    const name = lines.filter(l =>
+      l.length > 2 &&
+      l.length < 80 &&
+      !l.match(/^\d+$/) &&
+      !l.match(/^(buy|free|€|£|\$|order|shop)/i)
+    ).pop()?.trim();
+
+    const dealLine = lines.find(l =>
+      l.match(/buy.{1,10}get|free item|free delivery|€\d+|£\d+|\$\d+|\d+%\s*off|€0/i)
+    );
+
+    if (name && name.length > 2) {
+      items.push({
+        name,
+        deal: dealLine?.trim() || '',
+        image: getUnsplashForItem(name)
+      });
     }
   });
 
@@ -857,12 +903,13 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       `<span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;margin:3px 4px;white-space:nowrap;">${deal}</span>`
     ).join('');
 
-    // Build individual card cell
+    // Build individual card cell — includes Unsplash photo when item.image is present
     const buildCard = item => `<td width="50%" valign="top" style="padding:8px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:${cardBg};border-radius:8px;overflow:hidden;border:1px solid ${dividerColor};">
-          <tr><td style="padding:16px;">
+          ${item.image ? `<tr><td style="padding:0;line-height:0;"><img src="${item.image}" width="100%" height="140" alt="${item.name}" style="display:block;width:100%;height:140px;object-fit:cover;border-radius:8px 8px 0 0;" /></td></tr>` : ''}
+          <tr><td style="padding:14px 16px 16px;">
             <div style="margin-bottom:8px;">
-              <span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;">${item.deal}</span>
+              ${item.deal ? `<span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;">${item.deal}</span>` : ''}
               ${item.extraDeal ? `<span style="display:inline-block;background:${accentColor};color:${accentText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;margin-left:4px;white-space:nowrap;">${item.extraDeal}</span>` : ''}
             </div>
             <div style="font-size:13px;font-weight:700;color:${textColor};margin-bottom:12px;line-height:1.35;">${item.name}</div>
