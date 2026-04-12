@@ -452,7 +452,7 @@ function adaptBodyForDarkTheme(html) {
 function stripResendTracking(html) {
   if (!html) return html;
   return html.replace(
-    /https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL[^"'\s]*/g,
+    /https?:\/\/(?:[a-z0-9-]+\.)?resend-clicks\.com\/CL[^"'\s]*/gi,
     (match) => {
       try {
         const decoded = decodeURIComponent(match);
