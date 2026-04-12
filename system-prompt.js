@@ -286,7 +286,43 @@ CONTENT FORMAT DECISION — set contentStyle based on the original:
 
 SECTION STRUCTURE:
 1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[first sentence earns the read]</p>
+
+1b. STAT HIGHLIGHT ROW — MANDATORY when the article contains 3 or more distinct numbers/statistics:
+   Insert this IMMEDIATELY after the opening hook, before any body text. Use CTABGCOLOR as the number color (server-replaced placeholder — use it literally):
+   <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:8px;margin:0 0 24px;">
+   <tr>
+     <td style="width:33%;text-align:center;padding:18px 8px;">
+       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content — e.g. 65%]</p>
+       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
+     </td>
+     <td style="width:33%;text-align:center;padding:18px 8px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;">
+       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content]</p>
+       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
+     </td>
+     <td style="width:33%;text-align:center;padding:18px 8px;">
+       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content]</p>
+       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
+     </td>
+   </tr>
+   </table>
+   RULE: Numbers make emails scannable — readers must understand the value in 10 seconds. ONLY use real numbers from the source. Skip this block entirely if the source has fewer than 3 distinct numbers.
+
 2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content from the original, improved]</p>
+
+   VISUAL RHYTHM RULE — MANDATORY for all contentStyles including longform:
+   After EVERY 2-3 consecutive paragraphs, insert ONE visual break. Never allow 4+ paragraphs in a row.
+   Choose the most appropriate break based on context:
+   a) Section label (for articles with distinct findings/steps/points — preferred when article has 3+ sections):
+      <p style="font-size:11px;font-weight:700;color:CTABGCOLOR;text-transform:uppercase;letter-spacing:1.5px;margin:28px 0 6px 0;">Finding 01</p>
+      Use sequential labels matching the content type:
+      — Research/data articles: "Finding 01", "Finding 02", "Finding 03"
+      — How-to articles: "Step 01", "Step 02", "Step 03"
+      — Listicles/opinions: "Key Point 01", "Key Point 02"
+      — General sections: "Section 01", "Section 02"
+   b) Horizontal divider (lightweight visual break when no new section starts):
+      <table cellpadding="0" cellspacing="0" style="width:100%;margin:24px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+   c) Stat callout or quote block (when a striking number or quote appears at this point in the content)
+
 3. Section divider (before AND after benefit cards — only include if using boxes or steps):
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
 4. Benefit cards — ONLY when contentStyle is "boxes". SKIP ENTIRELY for "longform" and "steps". COUNT the distinct value propositions in the original. Create EXACTLY that many cards (min 2, max 6). Each card title restates one actual proposition from the original. One SEPARATE TABLE per card:
