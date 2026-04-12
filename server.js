@@ -38,14 +38,27 @@ setInterval(() => {
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static('public'));
 
-app.get('/debug/server.js', (req, res) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.sendFile(require('path').resolve('server.js'));
+const fs = require('fs');
+const path = require('path');
+
+app.get('/debug/server', (req, res) => {
+  try {
+    const content = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(content);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
 });
 
-app.get('/debug/system-prompt.js', (req, res) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.sendFile(require('path').resolve('system-prompt.js'));
+app.get('/debug/prompt', (req, res) => {
+  try {
+    const content = fs.readFileSync(path.join(__dirname, 'system-prompt.js'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(content);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
 });
 
 // ─── DATABASE SETUP ─────────────────────────────────────────────────────────
