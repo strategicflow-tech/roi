@@ -38,6 +38,16 @@ setInterval(() => {
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static('public'));
 
+app.get('/debug/server.js', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.sendFile('/home/runner/strategic-flow-audit/server.js');
+});
+
+app.get('/debug/system-prompt.js', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.sendFile('/home/runner/strategic-flow-audit/system-prompt.js');
+});
+
 // ─── DATABASE SETUP ─────────────────────────────────────────────────────────
 
 async function setupDB() {
