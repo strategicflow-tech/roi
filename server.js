@@ -423,17 +423,27 @@ function stripResendTracking(html) {
 // Result is stored in brandDNA.detectedStructure and passed into getAuditPrompt
 // so Claude mirrors the original structure instead of falling back to a generic template.
 function detectStructure(html) {
-  if (!html) return null;
-  return {
-    hasStatCards:    /font-size:\s*2[4-9]px|font-size:\s*3/.test(html) && /\d+%/.test(html),
-    hasEmojiBoxes:   /font-size:24px[\s\S]{0,50}line-height:1\.2/.test(html),
-    hasFeatureRows:  /<table[\s\S]{0,200}width:48px/.test(html),
-    hasScreenshots:  /background:#f5f5f5[\s\S]{0,100}border-radius:8px/.test(html),
-    isSerif:         /Georgia|serif/.test(html),
-    hasNumberedSteps:/(<ol\b|<li\b[\s\S]{0,20}\d+\.)/.test(html),
-    columnCount:     (html.match(/width:33%/g) || []).length > 0 ? 3 : 1,
-    noEmoji:         !/[\u{1F300}-\u{1F9FF}]|[\\u{2600}-\u{26FF}]/u.test(html)
+  const safe = {
+    hasStatCards: false, hasEmojiBoxes: false, hasFeatureRows: false,
+    hasScreenshots: false, isSerif: false, hasNumberedSteps: false,
+    columnCount: 1, noEmoji: true
   };
+  if (!html || typeof html !== 'string') return safe;
+  try {
+    return {
+      hasStatCards:    /font-size:\s*2[4-9]px|font-size:\s*3/.test(html) && /\d+%/.test(html),
+      hasEmojiBoxes:   /font-size:24px[\s\S]{0,50}line-height:1\.2/.test(html),
+      hasFeatureRows:  /<table[\s\S]{0,200}width:48px/.test(html),
+      hasScreenshots:  /background:#f5f5f5[\s\S]{0,100}border-radius:8px/.test(html),
+      isSerif:         /Georgia|serif/.test(html),
+      hasNumberedSteps:/(<ol\b|<li\b[\s\S]{0,20}\d+\.)/.test(html),
+      columnCount:     (html.match(/width:33%/g) || []).length > 0 ? 3 : 1,
+      noEmoji:         !/\p{Emoji_Presentation}/u.test(html)
+    };
+  } catch (e) {
+    console.error('[detectStructure] error:', e.message);
+    return safe;
+  }
 }
 
 // Used by the /parse-html endpoint when users upload their original email HTML file.
