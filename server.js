@@ -365,9 +365,15 @@ function getEmailColors(brandDNA) {
   const rawAccent  = brandColors[1] || rawPrimary;
   const primaryColor = adjustColorIfNeeded(rawPrimary);
   // When dark theme: if accent lightness < 40% it'll be invisible — replace with teal fallback
+  // When light theme: if accent lightness > 65% it'll be too pale on white — darken to 40%
   let accentColor = adjustColorIfNeeded(rawAccent);
   if (isDark) {
     try { if (hexToHSL(accentColor).l < 40) accentColor = '#00d4c8'; } catch (_) {}
+  } else {
+    try {
+      const { h, s, l } = hexToHSL(accentColor);
+      if (l > 65) accentColor = hslToHex(h, s, 40);
+    } catch (_) {}
   }
 
   // Theme-aware backgrounds and text
@@ -1729,9 +1735,11 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     const normalizedCompany = (company || '').toLowerCase().trim();
     const knownUrl = Object.entries(KNOWN_BRANDS)
       .find(([key]) => normalizedCompany.includes(key))?.[1] || null;
+    // Priority: explicit primaryCtaUrl → source page URL (article/landing page) → brand url → known brand → fallback
+    // knownBrands fallback is only used when NO source URL was provided by the user
     const ctaHref = effectiveBrandDNA?.primaryCtaUrl
-      || effectiveBrandDNA?.url
       || (pageUrl && pageUrl.trim())
+      || effectiveBrandDNA?.url
       || knownUrl
       || 'https://strategic-flow-audit.replit.app';
 
