@@ -119,6 +119,7 @@ textarea{resize:vertical;line-height:1.7;}
 .result-body strong:first-of-type,.result-body b:first-of-type{color:#00d4c8;}
 #resBody p,#resBody span,#resBody strong,#resBody b,#resBody em,#resBody li,#resBody td,#resBody div{color:inherit !important;}
 #resBody{color:#e0e0e0 !important;background-color:#1a2035 !important;}
+#resBody *[style*="background:#fff"],#resBody *[style*="background:#FFF"],#resBody *[style*="background:#ffffff"],#resBody *[style*="background:#FFFFFF"],#resBody *[style*="background:#f5f5f5"],#resBody *[style*="background:#F5F5F5"],#resBody *[style*="background:#fafafa"],#resBody *[style*="background:#eeeeee"],#resBody *[style*="background:#e8e8e8"],#resBody *[style*="background-color:#fff"],#resBody *[style*="background-color:#ffffff"],#resBody *[style*="background-color:#f5f5f5"],#resBody *[style*="background-color:#fafafa"],#resBody *[style*="background-color:#eeeeee"]{background:#1e2433 !important;background-color:#1e2433 !important;color:#e0e0e0 !important;}
 .changes-list{margin-top:16px;}
 .change-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(28,46,74,0.5);font-size:13px;color:var(--text2);align-items:flex-start;}
 .change-item::before{content:'→';color:var(--teal);flex-shrink:0;font-weight:700;margin-top:1px;}
@@ -1168,6 +1169,24 @@ function showResults(gen) {
   // Core
   document.getElementById('resSubject').textContent = gen.rebuilt_subject || '';
   document.getElementById('resBody').innerHTML = gen.previewBody || gen.rebuilt_body || '';
+  // Override any remaining light inline backgrounds that CSS attribute selectors miss
+  (function fixPreviewBg() {
+    document.querySelectorAll('#resBody *').forEach(el => {
+      const s = el.getAttribute('style') || '';
+      if (!s.includes('background')) return;
+      const m = s.match(/background(?:-color)?:\s*(#[0-9a-fA-F]{3,6})/i);
+      if (!m) return;
+      const hex = m[1].replace('#', '');
+      const r = parseInt(hex.length === 3 ? hex[0]+hex[0] : hex.slice(0,2), 16);
+      const g = parseInt(hex.length === 3 ? hex[1]+hex[1] : hex.slice(2,4), 16);
+      const b = parseInt(hex.length === 3 ? hex[2]+hex[2] : hex.slice(4,6), 16);
+      if ((r*299 + g*587 + b*114) / 1000 > 180) {
+        el.style.setProperty('background', '#1e2433', 'important');
+        el.style.setProperty('background-color', '#1e2433', 'important');
+        el.style.setProperty('color', '#e0e0e0', 'important');
+      }
+    });
+  })();
   document.getElementById('resChanges').innerHTML = (gen.key_changes || []).map(c => `<div class="change-item">${c}</div>`).join('');
   document.getElementById('resHook').textContent = gen.conversion_hook || '';
 
