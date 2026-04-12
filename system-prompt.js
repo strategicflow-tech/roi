@@ -499,6 +499,30 @@ Return ONLY valid JSON:
 {"formality":"formal|professional|casual|conversational","audience":"B2B|B2C|both","techDepth":"technical|semi-technical|non-technical","industry":"string","brandTone":"string (2-3 words)","ctaVerbs":["string"],"avoidReplacing":["their core terminology to preserve"]}`;
 }
 
+// Minimal prompt used for promotional-grid emails.
+// Claude is called ONLY to improve the subject line and write a 1-2 sentence
+// hero paragraph. All restaurant names and deals must come from the extracted
+// data — Claude MUST NOT invent any offer, time, discount, or name not listed.
+function getPromoGridSubjectHeroPrompt({ company, subject, body, deals }) {
+  const dealsList = deals.length > 0 ? deals.join(' | ') : 'deals from partner restaurants';
+  return `You are improving the subject line and hero paragraph for a promotional email from ${company}.
+
+ABSOLUTE RULE — FACTS ONLY:
+Use ONLY these exact offers: ${dealsList}
+Do NOT invent any percentages, times, expiry dates, or offers not in that list.
+Do NOT add "ends tonight", "limited time", "hurry", or any urgency not stated above.
+
+Original subject: "${subject}"
+Content summary: "${(body || '').slice(0, 400)}"
+
+Task:
+1. Rewrite the subject line to be compelling and outcome-focused (max 60 chars)
+2. Write exactly 1-2 sentences as a hero paragraph that references ONLY the offers listed above
+
+Return ONLY valid JSON (no markdown, no code fences):
+{"rebuilt_subject":"string","hero_paragraph":"string (1-2 sentences, HTML-safe, factually exact)"}`;
+}
+
 module.exports = {
   TIER_CONFIGS,
   EMAIL_TYPE_STRATEGIES,
@@ -513,5 +537,6 @@ module.exports = {
   getEmailScorePrompt,
   getMicroImprovementsPrompt,
   getWeaknessVerifyPrompt,
-  getSectionPatchPrompt
+  getSectionPatchPrompt,
+  getPromoGridSubjectHeroPrompt
 };

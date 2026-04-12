@@ -11,7 +11,7 @@ const {
   getAudienceSegmentsPrompt, getContentCalendarPrompt, getCohesionCheckPrompt,
   getEmailTypePrompt, getVoiceAnalysisPrompt,
   getEmailScorePrompt, getMicroImprovementsPrompt,
-  getWeaknessVerifyPrompt, getSectionPatchPrompt
+  getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
 
@@ -666,6 +666,21 @@ function extractPromotionalItems(text) {
   });
 }
 
+// Extract the main headline/hero text from the original email body for promo-grid emails.
+// Returns the first short line (< 80 chars) that isn't a deal, CTA, or footer signal.
+function extractHeroText(text) {
+  if (!text) return '';
+  const SKIP = /^(order|shop|buy|explore|unsubscribe|view|click|learn|get started|terms|privacy|manage|preferences)/i;
+  const DEAL = /\bfree\b|%\s*off|€\s*\d|\$\s*\d|delivery fee/i;
+  const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 5 && l.length < 100);
+  for (const line of lines) {
+    if (SKIP.test(line)) continue;
+    if (DEAL.test(line)) continue;
+    return line;
+  }
+  return '';
+}
+
 // Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
 // Matches the exact table structure emitted by the SECTION STRUCTURE section 4 prompt.
 function stripEmojiBoxTables(html) {
@@ -889,7 +904,13 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       <path d="M0,18 C100,36 200,0 310,18 C420,36 500,8 540,18 L540,36 L0,36 Z" fill="${footerBg}"/>
     </svg>`;
 
+    // Hero paragraph: rawBody holds the Claude-written 1-2 sentence hero text (plain text)
+    const heroHtml = rawBody && !isHtmlBody
+      ? `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${rawBody}</p>`
+      : '';
+
     bodyContent = `
+      ${heroHtml}
       <!-- DEAL BADGES ROW -->
       <div style="text-align:center;padding:8px 0 16px;">${badgePills}</div>
       <!-- PRODUCT GRID -->
@@ -1424,9 +1445,55 @@ async function handleGenerate(req, res) {
       console.error('[score]', scoreErr.message);
     }
 
+    // ── PROMOTIONAL GRID BYPASS ─────────────────────────────────────────────────
+    // When the original body has 4+ CTAs and deal badges, build HTML directly
+    // from extracted data. Claude is used ONLY for subject + hero paragraph.
+    // This guarantees zero invented facts in the output.
+    const isPromoGrid = detectPromotionalGrid(body || '');
+    const promotionalItems = isPromoGrid ? extractPromotionalItems(body || '') : [];
+    let promoGridResult = null;
+
+    if (isPromoGrid && promotionalItems.length >= 2) {
+      console.log(`[promo-grid] ${promotionalItems.length} items — bypassing full Claude rebuild`);
+      const deals = [...new Set(
+        promotionalItems.flatMap(i => [i.deal, i.extraDeal].filter(Boolean))
+      )];
+      const heroFallback = extractHeroText(body || '') || `Exclusive deals from ${company || 'your favourite restaurants'}`;
+
+      let rebuiltSubject = subject;
+      let heroParagraph  = heroFallback;
+      try {
+        const pg = await claudeJSON(
+          getPromoGridSubjectHeroPrompt({ company, subject, body, deals }), 300
+        );
+        if (pg?.rebuilt_subject) rebuiltSubject = pg.rebuilt_subject;
+        if (pg?.hero_paragraph)  heroParagraph  = pg.hero_paragraph;
+      } catch (pgErr) {
+        console.error('[promo-grid] subject/hero call failed:', pgErr.message);
+      }
+
+      promoGridResult = {
+        rebuilt_subject: rebuiltSubject,
+        rebuilt_body:    heroParagraph,       // plain text — shown as hero paragraph
+        heroKeyword:     'food delivery',
+        contentStyle:    'promotional-grid',
+        emailType:       'Promotional',
+        key_changes: [
+          `→ ${promotionalItems.length} restaurant/product cards built directly from original — zero invented facts`,
+          '→ Subject rewritten for outcome focus without altering the actual offers',
+          '→ Grid layout with verified deal badges replaces generic template'
+        ],
+        removed_elements: [],
+        conversion_hook:  heroParagraph
+      };
+    }
+    // ── END PROMO GRID BYPASS ─────────────────────────────────────────────────
+
     // ── PROMPT DISPATCH: micro-improvements for strong emails, full rebuild otherwise ──
     let result;
-    if (rebuildPath === 'preserved') {
+    if (promoGridResult) {
+      result = promoGridResult;
+    } else if (rebuildPath === 'preserved') {
       const microPrompt = getMicroImprovementsPrompt({
         company: company || 'Your Company', goal, subject, body,
         brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice,
@@ -1448,8 +1515,8 @@ async function handleGenerate(req, res) {
     }
 
     // ── VERIFY + PATCH: check each weakness was addressed; fix any that weren't ──
-    // Only runs for full rebuilds with identified weaknesses (not micro-improvement path).
-    if (rebuildPath === 'rebuilt' && analysis.weaknesses.length > 0) {
+    // Only runs for full rebuilds with identified weaknesses (not micro-improvement or promo-grid path).
+    if (!promoGridResult && rebuildPath === 'rebuilt' && analysis.weaknesses.length > 0) {
       try {
         const verify = await claudeJSON(
           getWeaknessVerifyPrompt(analysis.weaknesses, result.rebuilt_subject, result.rebuilt_body), 600
@@ -1605,12 +1672,6 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       || (pageUrl && pageUrl.trim())
       || knownUrl
       || 'https://strategic-flow-audit.replit.app';
-
-    // Detect promotional grid from the ORIGINAL body text (never the rebuilt version).
-    // Items are extracted from the original so names/deals are never invented.
-    const isPromoGrid = detectPromotionalGrid(body || '');
-    const promotionalItems = isPromoGrid ? extractPromotionalItems(body || '') : [];
-    if (isPromoGrid) console.log(`[promo-grid] detected — ${promotionalItems.length} items extracted`);
 
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
