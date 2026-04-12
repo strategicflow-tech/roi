@@ -715,8 +715,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   let bodyContent;
   if (isHtmlBody) {
     let processed = rawBody
-      .replace(/CTABGCOLOR/g, accentColor)
-      .replace(/CTATEXTCOLOR/g, accentText)
+      .replace(/CTABGCOLOR/g, primaryColor)
+      .replace(/CTATEXTCOLOR/g, primaryText)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
     // For longform or steps content, strip any emoji box tables Claude may have added despite instructions
     if (contentStyle === 'longform' || contentStyle === 'steps') {
@@ -735,7 +735,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       .replace(/\n\n/g, `</p><p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">`)
       .replace(/\n/g, '<br>');
     const ctaBlock = ctaText
-      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${accentColor}" style="background:${accentColor};border-radius:4px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${accentColor};color:${accentText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
+      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:4px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
       : '';
     bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
@@ -1174,7 +1174,7 @@ app.post('/generate', async (req, res) => {
           if (cached.rows.length > 0) {
             const n = cached.rows[0];
             const cachedDNA = n.brand_dna || null;
-            const { accentColor: pa, accentText: pat } = getEmailColors(cachedDNA);
+            const { primaryColor: pa, primaryText: pat } = getEmailColors(cachedDNA);
             const previewBody = (n.rebuilt_body || '')
               .replace(/CTABGCOLOR/g, pa)
               .replace(/CTATEXTCOLOR/g, pat);
@@ -1453,7 +1453,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
     // replaced by real brand colours — the frontend injects this as innerHTML directly.
-    const { accentColor: previewAccent, accentText: previewAccentText } = getEmailColors(effectiveBrandDNA);
+    const { primaryColor: previewAccent, primaryText: previewAccentText } = getEmailColors(effectiveBrandDNA);
     const previewBody = (result.rebuilt_body || '')
       .replace(/CTABGCOLOR/g, previewAccent)
       .replace(/CTATEXTCOLOR/g, previewAccentText);
