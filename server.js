@@ -40,12 +40,12 @@ app.use(express.static('public'));
 
 app.get('/debug/server.js', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
-  res.sendFile('/home/runner/strategic-flow-audit/server.js');
+  res.sendFile(require('path').resolve('server.js'));
 });
 
 app.get('/debug/system-prompt.js', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
-  res.sendFile('/home/runner/strategic-flow-audit/system-prompt.js');
+  res.sendFile(require('path').resolve('system-prompt.js'));
 });
 
 // ─── DATABASE SETUP ─────────────────────────────────────────────────────────
