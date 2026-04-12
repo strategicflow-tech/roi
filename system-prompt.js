@@ -221,12 +221,20 @@ Original Subject: "${subject}"
 Original Body:
 ${body}
 
-DATA TABLES RULE: If the Original Body above contains a section starting with "DATA TABLES FROM ORIGINAL ARTICLE:", you MUST rebuild ALL tables found there as email-safe HTML tables in the newsletter.
+DATA TABLES RULE:
+PART A — If the Original Body above contains a section starting with "DATA TABLES FROM ORIGINAL ARTICLE:", you MUST rebuild ALL tables found there as email-safe HTML tables in the newsletter.
 - Extract exact values — never approximate or invent table data.
 - Place each table immediately after the paragraph that references its data.
 - Use the format specified in SECTION STRUCTURE item 8 below.
 - If multiple tables are present, rebuild each one as a separate <table> block with a header label.
 - This is MANDATORY — a newsletter missing data tables that were present in the source FAILS this rebuild.
+
+PART B — Even when no "DATA TABLES FROM ORIGINAL ARTICLE" section is present: if the article text contains 3 or more distinct data points that share the same unit or category (percentages by region, wallet adoption by age group, device breakdown by price range, conversion rates by payment method), you MUST reconstruct them as an email-safe HTML table using the exact values stated in the text.
+- Only use numbers and labels that appear explicitly in the source text — never invent rows or percentages.
+- A table reconstructed from text must still follow the format in SECTION STRUCTURE item 8 (border-collapse:collapse, inline styles only).
+- IMPORTANT: The STAT HIGHLIGHT ROW (3 big numbers) does NOT replace a data table. They serve different purposes. Stat row = 3 headline metrics. Data table = structured comparison across categories or segments. Include BOTH when the article has data that fits each format.
+- Example trigger: article mentions "65% mobile for sub-$50", "61% shoppers use wallets", "50% of 18-29 year olds use wallets for sub-$25 purchases", "30% global POS volume" → build a table: Metric | Value with each row being one of these data points.
+- Place the data table after the section of text that introduces the data.
 
 CONTENT STYLE ANALYSIS — do this before writing a single word:
 
@@ -287,7 +295,7 @@ OUTPUT FORMAT — MANDATORY (email must render in Gmail and Outlook):
 - NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.
 
 CONTENT FORMAT DECISION — set contentStyle based on the original:
-- Original is a blog post, article, long-form narrative, or announcement written in paragraphs → contentStyle: "longform". Use ONLY <p> tags and <strong> headers. ABSOLUTELY NO emoji boxes or benefit cards.
+- Original is a blog post, article, long-form narrative, or announcement written in paragraphs → contentStyle: "longform". Use ONLY <p> tags and <strong> headers. ABSOLUTELY NO emoji boxes or benefit cards. EXCEPTION: data tables (border-collapse:collapse format from item 8) ARE allowed and required whenever the article contains structured numeric data across categories — this applies to longform too.
 - Original is a feature list, product update email, or uses bullet-point structure → contentStyle: "boxes". Use the emoji benefit card format.
 - Original has numbered steps or a how-to sequence → contentStyle: "steps". Use <ol><li> structure. No emoji cards.
 

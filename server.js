@@ -1379,7 +1379,7 @@ async function fetchPageContent(rawUrl) {
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
       .replace(/\s+/g,' ').trim()
-  ).slice(0, 2000);
+  ).slice(0, 3500);
 
   const tables = extractTables(html);
 
