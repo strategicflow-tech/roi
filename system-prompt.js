@@ -19,6 +19,88 @@ const EMAIL_TYPE_STRATEGIES = {
   brand_announcement:  'Connect brand change to reader benefit. "What this means for you" before "what we\'ve changed".'
 };
 
+// Returns a goal-specific strategy block that visibly changes hook, CTA, tone, and structure.
+// Called from both getAuditPrompt and getMicroImprovementsPrompt.
+function getGoalBlock(goal) {
+  const g = (goal || '').toLowerCase().trim();
+
+  const strategies = {
+    'drive trial signups': `NEWSLETTER GOAL: Drive trial signups
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: focus on what the reader is missing RIGHT NOW without the product. Make the gap feel real.
+- CTA text: "Start my free trial" or "Try it free today" — never a generic "Learn more".
+- Urgency: reference the trial period limit or exclusive feature access window.
+- Tone: confident, slightly urgent. Not pushy — aspirational.`,
+
+    'increase feature adoption': `NEWSLETTER GOAL: Increase feature adoption
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: "Most users don't know this exists." Surface the hidden value gap.
+- CTA text: "Try this feature now" or "See it in action".
+- Structure: before/after using the feature. Show the concrete outcome.
+- Tone: insider tip, not a product announcement.`,
+
+    'retain churning users': `NEWSLETTER GOAL: Retain churning users
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: acknowledge they haven't been active — be direct, not manipulative.
+- CTA text: "Come back and see what's new" or "Here's what changed".
+- Tone: warm, not salesy. No fake urgency. Show genuine new value since they left.
+- Structure: what's new → what they're missing → easy path back.`,
+
+    'announce product update': `NEWSLETTER GOAL: Announce product update
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: the specific new capability + who benefits most. No vague "exciting news".
+- CTA text: "See what's new" or "Try the update".
+- Structure: what changed → why it matters → how to use it. Three clear beats.
+- Tone: clear and direct. Lead with the change, not the backstory.`,
+
+    'reactivate dormant users': `NEWSLETTER GOAL: Reactivate dormant users
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: direct acknowledgment of their absence. "We noticed you haven't been in a while."
+- CTA text: "Pick up where you left off".
+- Offer: if any incentive is available in the original, surface it prominently.
+- Tone: honest and human. No performance. Just a genuine invitation back.`,
+
+    'launch new feature': `NEWSLETTER GOAL: Launch new feature
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: the problem this feature solves — not the feature name.
+- CTA text: "Be the first to try it" or "Try [feature name] now".
+- Structure: problem → solution → proof (stat, quote, or concrete outcome).
+- Tone: excitement without hype. Let the benefit do the work.`,
+
+    'drive event attendance': `NEWSLETTER GOAL: Drive event attendance
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: what they'll miss if they don't come. FOMO-driven, specific.
+- CTA text: "Save my seat" or "Register now".
+- Urgency: include the event date and limited spots signal if present in original.
+- Tone: energetic, specific. Date and format front and center.`,
+
+    'build brand awareness': `NEWSLETTER GOAL: Build brand awareness
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: a surprising insight or contrarian take that earns the read.
+- CTA text: "Learn more" or "Read the full story".
+- Tone: thought leadership — not promotional. Inform and provoke, don't sell.
+- Structure: insight → implication → point of view.`,
+
+    'upsell / upgrade users': `NEWSLETTER GOAL: Upsell / upgrade users
+Apply these strategies — they must visibly shape the hook, CTA text, and tone:
+- Hook: what their current plan specifically cannot do — make the gap tangible.
+- CTA text: "Upgrade now" or "Unlock this feature".
+- Show: the specific capability they're missing + the concrete benefit after upgrading.
+- Tone: aspirational, not pressuring. The upgrade should feel like gaining, not losing.`,
+  };
+
+  // Exact match first, then partial match, then generic fallback
+  if (strategies[g]) return strategies[g];
+  const partial = Object.keys(strategies).find(k => g.includes(k) || k.includes(g));
+  if (partial) return strategies[partial];
+
+  return `NEWSLETTER GOAL: ${goal || 'Increase conversion and reader action'}
+This goal must shape the hook, CTA text, and tone of the rebuilt email.
+- Hook: make the opening line directly relevant to this goal.
+- CTA: match the CTA text to the action this goal requires.
+- Tone: calibrate urgency and warmth to what this goal demands.`;
+}
+
 function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples, analysis }) {
   // Theme block — tells Claude which colors to use in the HTML body for dark-theme brands
   let themeBlock = '';
@@ -134,7 +216,7 @@ RULES YOU CANNOT BREAK:
 5. You are a precision editor, not a template filler. Read the original. Improve the original. Do not replace it with something generic.
 ${brandBlock}${typeBlock}${themeBlock}${roadmapBlock}${examplesBlock}
 Company: ${company}
-Goal: ${goal || 'Increase conversion and reader action'}
+${getGoalBlock(goal)}
 Original Subject: "${subject}"
 Original Body:
 ${body}
@@ -486,7 +568,7 @@ ${brandBlock}${examplesBlock}
 - Only add an HTML card structure if the original clearly had 2+ distinct named benefit sections
 
 Company: ${company}
-Goal: ${goal || 'Sharpen conversion without disrupting brand'}
+${getGoalBlock(goal)}
 Original Subject: "${subject}"
 Original Body:
 ${body}
