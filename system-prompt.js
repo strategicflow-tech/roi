@@ -20,6 +20,40 @@ const EMAIL_TYPE_STRATEGIES = {
 };
 
 function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples, analysis }) {
+  // Structure mirror block — built from detectedStructure when an HTML file was uploaded.
+  // Tells Claude exactly which layout elements the original used so it mirrors them instead
+  // of defaulting to a generic template. Empty for plain-text input (no HTML uploaded).
+  let structureBlock = '';
+  const ds = brandDNA?.detectedStructure;
+  if (ds) {
+    const rules = [];
+    if (ds.hasStatCards)
+      rules.push('- Include STAT CARDS with large numbers/percentages — the original uses a data-forward layout');
+    if (ds.hasEmojiBoxes)
+      rules.push('- Include EMOJI FEATURE BOXES — the original uses icon-led benefit cards');
+    if (ds.noEmoji && !ds.hasEmojiBoxes)
+      rules.push('- NO EMOJI BOXES — the original does not use emoji. Use styled HTML boxes or paragraphs only');
+    if (ds.hasFeatureRows)
+      rules.push('- Include FEATURE ROWS with icon columns (48px icon cell + text cell) — mirror this layout exactly');
+    if (ds.hasScreenshots)
+      rules.push('- Include SCREENSHOT MOCKUP blocks — render as styled boxes with background:#f5f5f5;border-radius:8px');
+    if (ds.isSerif)
+      rules.push('- Use SERIF FONT — specify font-family:Georgia,serif in all body text styles');
+    if (ds.hasNumberedSteps)
+      rules.push('- Preserve NUMBERED STEPS — use <ol><li> structure with the same step count as the original');
+    if (ds.columnCount === 3)
+      rules.push('- Use 3-COLUMN LAYOUT — the original uses 33%-width columns; match this');
+    if (rules.length > 0) {
+      structureBlock = `
+
+━━━ STRUCTURAL MIRROR — NON-NEGOTIABLE ━━━
+The original HTML has been analyzed. Your rebuilt_body MUST replicate these structural patterns:
+${rules.join('\n')}
+Do not substitute any detected structure with a generic alternative. These rules override every default template preference.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+    }
+  }
+
   // Theme block — tells Claude which colors to use in the HTML body for dark-theme brands
   let themeBlock = '';
   if (brandDNA?.theme === 'dark') {
@@ -93,7 +127,7 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
   }
 
-  return `You are rebuilding a newsletter for ${company}.${analysisBlock}
+  return `You are rebuilding a newsletter for ${company}.${analysisBlock}${structureBlock}
 
 Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
 

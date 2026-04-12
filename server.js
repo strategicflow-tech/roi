@@ -419,6 +419,23 @@ function stripResendTracking(html) {
 }
 
 // Parse a raw HTML email to extract brand DNA signals for the rebuild pipeline.
+// Detects the structural layout elements present in an uploaded email HTML.
+// Result is stored in brandDNA.detectedStructure and passed into getAuditPrompt
+// so Claude mirrors the original structure instead of falling back to a generic template.
+function detectStructure(html) {
+  if (!html) return null;
+  return {
+    hasStatCards:    /font-size:\s*2[4-9]px|font-size:\s*3/.test(html) && /\d+%/.test(html),
+    hasEmojiBoxes:   /font-size:24px[\s\S]{0,50}line-height:1\.2/.test(html),
+    hasFeatureRows:  /<table[\s\S]{0,200}width:48px/.test(html),
+    hasScreenshots:  /background:#f5f5f5[\s\S]{0,100}border-radius:8px/.test(html),
+    isSerif:         /Georgia|serif/.test(html),
+    hasNumberedSteps:/(<ol\b|<li\b[\s\S]{0,20}\d+\.)/.test(html),
+    columnCount:     (html.match(/width:33%/g) || []).length > 0 ? 3 : 1,
+    noEmoji:         !/[\u{1F300}-\u{1F9FF}]|[\\u{2600}-\u{26FF}]/u.test(html)
+  };
+}
+
 // Used by the /parse-html endpoint when users upload their original email HTML file.
 function parseEmailHtmlContent(html) {
   if (!html || html.length < 20) return { success: false, error: 'Empty or too-short HTML' };
@@ -548,7 +565,8 @@ function parseEmailHtmlContent(html) {
     primaryCtaUrl,
     url: primaryCtaUrl,
     fontFamily,
-    textContent
+    textContent,
+    detectedStructure: detectStructure(html)
   };
 }
 
