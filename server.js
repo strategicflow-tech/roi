@@ -609,6 +609,63 @@ function parseEmailHtmlContent(html) {
   };
 }
 
+// Detect if the original email body is a promotional-grid type:
+// 4+ Order/Shop/Buy-now CTAs and 2+ deal badges = grid layout.
+function detectPromotionalGrid(text) {
+  if (!text || text.length < 100) return false;
+  const ctaCount = (text.match(/\b(order|shop|buy)\s+now\b/gi) || []).length;
+  if (ctaCount < 4) return false;
+  const dealCount = (text.match(/%\s*off|\bfree\b|\bsale\b|buy\s+\d|get\s+\d|€\s*\d|\$\s*\d/gi) || []).length;
+  return dealCount >= 2;
+}
+
+// Extract product/restaurant cards from the original body text.
+// Splits at each CTA ("Order now" / "Shop now" / "Buy now") — each preceding
+// chunk is one card. Extracts name and deal badges from the surrounding lines.
+function extractPromotionalItems(text) {
+  if (!text) return [];
+  const parts = text.split(/\b(?:order|shop|buy)\s+now\b/gi);
+  const cardChunks = parts.slice(0, -1); // last chunk is footer — skip
+
+  // Two forms of the deal regex: global (for match collection) and non-global (for .test()
+  // inside a loop — avoids the stateful lastIndex bug that causes every other call to miss).
+  const DEAL_RE_G  = /buy\s+\d+\s+get\s+\d+\s+free|free\s+item[^.]{0,30}?(?:€|\$)?\d+|(?:€|\$)\s*0\s*delivery(?:\s*fee)?|(?:€|\$)\s*\d+\s*delivery|free\s+delivery|\d+%\s*off|\bfree\s+shipping\b/gi;
+  const DEAL_RE_I  = /buy\s+\d+\s+get\s+\d+\s+free|free\s+item[^.]{0,30}?(?:€|\$)?\d+|(?:€|\$)\s*0\s*delivery(?:\s*fee)?|(?:€|\$)\s*\d+\s*delivery|free\s+delivery|\d+%\s*off|\bfree\s+shipping\b/i;
+  const SKIP_RE    = /^(explore|unsubscribe|view in|click|tap|download|learn more|get started|see all|browse|check out|discover|unlock|follow|sign up|log in|open|go to|save|apply|activate|redeem|claim|start|watch|read|join|earn|terms|privacy|copyright|all rights)/i;
+
+  const items = [];
+  for (const chunk of cardChunks) {
+    const lines = chunk
+      .split(/[\n\r|·•]+/)
+      .map(l => l.replace(/\*+/g, '').trim())
+      .filter(l => l.length > 1 && l.length < 80);
+    if (lines.length < 1) continue;
+
+    // Collect deals (use global regex on chunk string — safe because it's a fresh .match())
+    const chunkStr = chunk.replace(/\*+/g, '');
+    DEAL_RE_G.lastIndex = 0;
+    const dealMatches = chunkStr.match(DEAL_RE_G) || [];
+    const deals = [...new Set(dealMatches.map(d => d.trim()))];
+
+    // Name candidates: non-deal, non-skip lines (use non-global DEAL_RE_I to avoid lastIndex drift)
+    const nameCandidates = lines.filter(l => !SKIP_RE.test(l) && !DEAL_RE_I.test(l));
+    if (nameCandidates.length === 0 || deals.length === 0) continue;
+
+    // Name = last meaningful line closest to the CTA
+    const name = nameCandidates[nameCandidates.length - 1].trim();
+    items.push({ name, deal: deals[0], extraDeal: deals[1] || null });
+  }
+
+  // Deduplicate by first 20 chars of name
+  const seen = new Set();
+  return items.filter(item => {
+    const key = item.name.toLowerCase().slice(0, 20);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // Strip emoji benefit-card tables from Claude HTML when contentStyle is longform.
 // Matches the exact table structure emitted by the SECTION STRUCTURE section 4 prompt.
 function stripEmojiBoxTables(html) {
@@ -745,6 +802,12 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     ? `<img src="${brandDNA.logo}" alt="${company}" style="max-height:32px;display:block;margin:0 auto 10px;" />`
     : '';
 
+  // Footer colors defined early — also used by the promotional-grid wave divider
+  const footerBg     = isDark ? '#111111' : '#f4f4f7';
+  const footerBorder = isDark ? '#2a2a2a' : '#e8e8e8';
+  const footerText   = isDark ? '#888888' : '#999999';
+  const footerMuted  = isDark ? '#666666' : '#bbbbbb';
+
   // If Claude returned structured HTML (new format), inject it directly after substituting
   // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
   // Otherwise fall back to the legacy newline-based formatter.
@@ -779,10 +842,70 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
 
-  const footerBg     = isDark ? '#111111' : '#f4f4f7';
-  const footerBorder = isDark ? '#2a2a2a' : '#e8e8e8';
-  const footerText   = isDark ? '#888888' : '#999999';
-  const footerMuted  = isDark ? '#666666' : '#bbbbbb';
+  // ── PROMOTIONAL GRID OVERRIDE ────────────────────────────────────────────────
+  // When the original email was detected as a promotional grid, replace bodyContent
+  // with a 2-column card layout + deal badges row. All item names/deals come from
+  // extractPromotionalItems() which pulls ONLY from the original text — never invented.
+  if (options.layoutType === 'promotional-grid' && Array.isArray(options.promotionalItems) && options.promotionalItems.length >= 2) {
+    const items = options.promotionalItems;
+
+    // Unique deals → horizontal pill badges row
+    const uniqueDeals = [...new Set(
+      items.flatMap(i => [i.deal, i.extraDeal].filter(Boolean))
+    )].slice(0, 6);
+    const badgePills = uniqueDeals.map(deal =>
+      `<span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:11px;font-weight:700;padding:5px 14px;border-radius:20px;margin:3px 4px;white-space:nowrap;">${deal}</span>`
+    ).join('');
+
+    // Build individual card cell
+    const buildCard = item => `<td width="50%" valign="top" style="padding:8px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:${cardBg};border-radius:8px;overflow:hidden;border:1px solid ${dividerColor};">
+          <tr><td style="padding:16px;">
+            <div style="margin-bottom:8px;">
+              <span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;">${item.deal}</span>
+              ${item.extraDeal ? `<span style="display:inline-block;background:${accentColor};color:${accentText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;margin-left:4px;white-space:nowrap;">${item.extraDeal}</span>` : ''}
+            </div>
+            <div style="font-size:13px;font-weight:700;color:${textColor};margin-bottom:12px;line-height:1.35;">${item.name}</div>
+            <table cellpadding="0" cellspacing="0"><tr>
+              <td bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:4px;">
+                <a href="${ctaHref}" target="_blank" style="display:inline-block;color:${primaryText};font-size:12px;font-weight:700;text-decoration:none;padding:7px 16px;">Order now</a>
+              </td>
+            </tr></table>
+          </td></tr>
+        </table>
+      </td>`;
+
+    // Pair items into rows of 2
+    const gridRows = [];
+    for (let i = 0; i < items.length; i += 2) {
+      gridRows.push(`<tr>
+        ${buildCard(items[i])}
+        ${items[i + 1] ? buildCard(items[i + 1]) : '<td width="50%"></td>'}
+      </tr>`);
+    }
+
+    // Wave SVG divider (colour matches footer background)
+    const waveSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="540" height="36" viewBox="0 0 540 36" style="display:block;width:100%;max-width:540px;margin:24px auto 0;">
+      <path d="M0,18 C100,36 200,0 310,18 C420,36 500,8 540,18 L540,36 L0,36 Z" fill="${footerBg}"/>
+    </svg>`;
+
+    bodyContent = `
+      <!-- DEAL BADGES ROW -->
+      <div style="text-align:center;padding:8px 0 16px;">${badgePills}</div>
+      <!-- PRODUCT GRID -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+        ${gridRows.join('\n        ')}
+      </table>
+      <!-- SECONDARY CTA -->
+      <table cellpadding="0" cellspacing="0" style="margin:8px auto 16px;">
+        <tr><td align="center" style="border:2px solid ${primaryColor};border-radius:4px;">
+          <a href="${ctaHref}" target="_blank" style="display:inline-block;color:${primaryColor};font-size:13px;font-weight:700;text-decoration:none;padding:10px 28px;">Explore more</a>
+        </td></tr>
+      </table>
+      <!-- WAVE DIVIDER -->
+      ${waveSvg}`;
+  }
+  // ────────────────────────────────────────────────────────────────────────────
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1483,10 +1606,18 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       || knownUrl
       || 'https://strategic-flow-audit.replit.app';
 
+    // Detect promotional grid from the ORIGINAL body text (never the rebuilt version).
+    // Items are extracted from the original so names/deals are never invented.
+    const isPromoGrid = detectPromotionalGrid(body || '');
+    const promotionalItems = isPromoGrid ? extractPromotionalItems(body || '') : [];
+    if (isPromoGrid) console.log(`[promo-grid] detected — ${promotionalItems.length} items extracted`);
+
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
-      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '' });
+      { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '',
+        layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
+        promotionalItems });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
