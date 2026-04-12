@@ -609,61 +609,46 @@ function parseEmailHtmlContent(html) {
   };
 }
 
-// Detect if the original email body is a promotional-grid type:
-// 4+ Order/Shop/Buy-now CTAs and 2+ deal badges = grid layout.
+// Detect if the original email body is a promotional-grid type.
+// Strips HTML first so tags don't interfere with CTA/deal matching.
 function detectPromotionalGrid(text) {
-  if (!text || text.length < 100) return false;
-  const ctaCount = (text.match(/\b(order|shop|buy)\s+now\b/gi) || []).length;
-  if (ctaCount < 4) return false;
-  const dealCount = (text.match(/%\s*off|\bfree\b|\bsale\b|buy\s+\d|get\s+\d|€\s*\d|\$\s*\d/gi) || []).length;
-  return dealCount >= 2;
+  if (!text) return false;
+
+  const stripped = text.replace(/<[^>]+>/g, ' ');
+
+  const ctaCount = (stripped.match(/\b(order now|shop now|buy now)\b/gi) || []).length;
+  const dealCount = (stripped.match(/buy.{1,5}get|free item|€\d+|£\d+|\$\d+|free delivery|€0/gi) || []).length;
+
+  return ctaCount >= 2 || dealCount >= 2;
 }
 
 // Extract product/restaurant cards from the original body text.
-// Splits at each CTA ("Order now" / "Shop now" / "Buy now") — each preceding
-// chunk is one card. Extracts name and deal badges from the surrounding lines.
+// Strips HTML first, then splits at each "Order now" — each preceding chunk = one card.
 function extractPromotionalItems(text) {
   if (!text) return [];
-  const parts = text.split(/\b(?:order|shop|buy)\s+now\b/gi);
-  const cardChunks = parts.slice(0, -1); // last chunk is footer — skip
 
-  // Two forms of the deal regex: global (for match collection) and non-global (for .test()
-  // inside a loop — avoids the stateful lastIndex bug that causes every other call to miss).
-  const DEAL_RE_G  = /buy\s+\d+\s+get\s+\d+\s+free|free\s+item[^.]{0,30}?(?:€|\$)?\d+|(?:€|\$)\s*0\s*delivery(?:\s*fee)?|(?:€|\$)\s*\d+\s*delivery|free\s+delivery|\d+%\s*off|\bfree\s+shipping\b/gi;
-  const DEAL_RE_I  = /buy\s+\d+\s+get\s+\d+\s+free|free\s+item[^.]{0,30}?(?:€|\$)?\d+|(?:€|\$)\s*0\s*delivery(?:\s*fee)?|(?:€|\$)\s*\d+\s*delivery|free\s+delivery|\d+%\s*off|\bfree\s+shipping\b/i;
-  const SKIP_RE    = /^(explore|unsubscribe|view in|click|tap|download|learn more|get started|see all|browse|check out|discover|unlock|follow|sign up|log in|open|go to|save|apply|activate|redeem|claim|start|watch|read|join|earn|terms|privacy|copyright|all rights)/i;
+  const stripped = text.replace(/<[^>]+>/g, ' ')
+    .replace(/[ \t]+/g, ' ')   // collapse horizontal whitespace only — preserve \n
+    .trim();
 
   const items = [];
-  for (const chunk of cardChunks) {
-    const lines = chunk
-      .split(/[\n\r|·•]+/)
-      .map(l => l.replace(/\*+/g, '').trim())
-      .filter(l => l.length > 1 && l.length < 80);
-    if (lines.length < 1) continue;
+  const chunks = stripped.split(/order now/gi);
 
-    // Collect deals (use global regex on chunk string — safe because it's a fresh .match())
-    const chunkStr = chunk.replace(/\*+/g, '');
-    DEAL_RE_G.lastIndex = 0;
-    const dealMatches = chunkStr.match(DEAL_RE_G) || [];
-    const deals = [...new Set(dealMatches.map(d => d.trim()))];
+  const DEAL_LINE = /buy.{1,10}get.{1,10}free|free item|€\d|£\d|\$\d|free delivery|€0|\d+%\s*off/i;
 
-    // Name candidates: non-deal, non-skip lines (use non-global DEAL_RE_I to avoid lastIndex drift)
-    const nameCandidates = lines.filter(l => !SKIP_RE.test(l) && !DEAL_RE_I.test(l));
-    if (nameCandidates.length === 0 || deals.length === 0) continue;
-
-    // Name = last meaningful line closest to the CTA
-    const name = nameCandidates[nameCandidates.length - 1].trim();
-    items.push({ name, deal: deals[0], extraDeal: deals[1] || null });
-  }
-
-  // Deduplicate by first 20 chars of name
-  const seen = new Set();
-  return items.filter(item => {
-    const key = item.name.toLowerCase().slice(0, 20);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+  chunks.slice(0, -1).forEach(chunk => {
+    const lines = chunk.trim().split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 2);
+    // Name = last line that is NOT a deal/price line
+    const nameLines = lines.filter(l => !DEAL_LINE.test(l));
+    const name = nameLines[nameLines.length - 1]?.trim();
+    const dealMatch = chunk.match(/buy.{1,10}get.{1,10}free|free item[^€]*€?\d*|€0 delivery/gi);
+    const deal = dealMatch ? dealMatch[dealMatch.length - 1] : '€0 Delivery Fee';
+    if (name && name.length > 2 && name.length < 60) {
+      items.push({ name, deal });
+    }
   });
+
+  return items;
 }
 
 // Extract the main headline/hero text from the original email body for promo-grid emails.
