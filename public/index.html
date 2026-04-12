@@ -1066,13 +1066,19 @@ async function submitGenerate() {
   animateLoading();
 
   try {
-    const gen = await api('/generate', {
+    // Step 1: Start the job — returns immediately with a jobId (< 1 s)
+    // This prevents mobile browser tab suspension from killing a long-running request.
+    const startResp = await api('/generate/start', {
       email: currentEmail, company, name: document.getElementById('fName')?.value.trim() || '',
       goal: document.getElementById('fGoal')?.value || '', subject, body: body || '',
       pageUrl: pageUrl || null,
       emailType: emailType || null, roadmapNotes: roadmapNotes || null,
       brandDNA: uploadedHtmlBrandDNA || currentBrandDNA, voiceProfile: currentVoiceProfile
     });
+    if (!startResp.jobId) throw new Error(startResp.error || 'Failed to start generation');
+
+    // Step 2: Poll /generate/status/:jobId every 3 seconds until done
+    const gen = await pollJob(startResp.jobId);
 
     // Server-side footer-only rejection (200 response with error flag)
     if (gen.error === 'footer_only') {
@@ -1093,6 +1099,22 @@ async function submitGenerate() {
     errEl.classList.remove('warn');
     setErr('errForm', e.message || 'Generation failed. Please try again.');
   }
+}
+
+async function pollJob(jobId, maxWaitMs = 240000, intervalMs = 3000) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, intervalMs));
+    let status;
+    try {
+      const resp = await fetch(`/generate/status/${jobId}`);
+      status = await resp.json();
+    } catch (_) { continue; } // transient network error — keep polling
+    if (status.status === 'complete') return status.result;
+    if (status.status === 'failed')   throw new Error(status.error || 'Generation failed');
+    // status === 'pending' → keep polling
+  }
+  throw new Error('Generation timed out. Please try again.');
 }
 
 function animateLoading() {

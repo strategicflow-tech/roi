@@ -47,11 +47,9 @@ function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voicePro
       if (rules.length > 0) {
         structureBlock = `
 
-━━━ STRUCTURAL MIRROR — NON-NEGOTIABLE ━━━
-The original HTML has been analyzed. Your rebuilt_body MUST replicate these structural patterns:
-${rules.join('\n')}
-Do not substitute any detected structure with a generic alternative. These rules override every default template preference.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+STRUCTURE HINTS (apply where the original content supports it):
+The original HTML was scanned for layout patterns. Where applicable, mirror these:
+${rules.join('\n')}`;
       }
     }
   } catch (e) {
@@ -131,7 +129,7 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
   }
 
-  return `You are rebuilding a newsletter for ${company}.${analysisBlock}${structureBlock}
+  return `You are rebuilding a newsletter for ${company}.${analysisBlock}
 
 Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
 
@@ -257,6 +255,7 @@ EMAIL TYPE: Detect the correct category for the badge label:
 - Security, compliance, or trust update → "Security Update"
 Return as emailType in the JSON.
 
+${structureBlock}
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }

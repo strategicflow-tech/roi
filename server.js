@@ -26,6 +26,15 @@ const SENDER         = 'onboarding@resend.dev';
 const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com']);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 
+// ── IN-MEMORY JOB STORE (for polling-based generation) ──────────────────────
+// Each job: { status:'pending'|'complete'|'failed', result, error, created }
+const jobs = new Map();
+function makeJobId() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [id, job] of jobs) { if (job.created < cutoff) jobs.delete(id); }
+}, 10 * 60 * 1000);
+
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static('public'));
 
@@ -1104,7 +1113,7 @@ app.post('/parse-html', async (req, res) => {
 });
 
 // ── GENERATE (main) ──
-app.post('/generate', async (req, res) => {
+async function handleGenerate(req, res) {
   try {
     let { email, company, name, goal, subject, body, emailType, roadmapNotes, brandDNA, voiceProfile, pageUrl } = req.body;
     const e = (email || '').toLowerCase().trim();
@@ -1525,6 +1534,52 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
       notify(`⚡ VIP URGENT — ${company || e}`, `<p><b>VIP Submission</b><br>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
   } catch (err) { console.error('[generate]', err); if (!res.headersSent) res.status(500).json({ error: err.message }); }
+}
+
+// Legacy direct route — keeps existing single-request behaviour
+app.post('/generate', handleGenerate);
+
+// ── POLLING ROUTES ────────────────────────────────────────────────────────────
+// /generate/start  → validates input, returns jobId immediately (< 1 s)
+// /generate/status/:jobId → client polls every 3 s until complete/failed
+
+app.post('/generate/start', async (req, res) => {
+  const jobId = makeJobId();
+  jobs.set(jobId, { status: 'pending', created: Date.now() });
+  res.json({ jobId });
+
+  // Build a fake response that writes into the job store instead of an HTTP socket
+  const fakeRes = (() => {
+    const obj = {
+      headersSent: false,
+      _code: 200,
+      status(code) { obj._code = code; return obj; },
+      json(data) {
+        if (obj.headersSent) return;
+        obj.headersSent = true;
+        if (obj._code >= 400 || data?.error) {
+          jobs.set(jobId, { status: 'failed', error: data?.error || 'Generation failed', created: Date.now() });
+        } else {
+          jobs.set(jobId, { status: 'complete', result: data, created: Date.now() });
+        }
+      }
+    };
+    return obj;
+  })();
+
+  handleGenerate(req, fakeRes).catch(err => {
+    console.error('[generate/start]', err.message);
+    if (!fakeRes.headersSent)
+      jobs.set(jobId, { status: 'failed', error: err.message, created: Date.now() });
+  });
+});
+
+app.get('/generate/status/:jobId', (req, res) => {
+  const job = jobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found or expired' });
+  if (job.status === 'complete') return res.json({ status: 'complete', result: job.result });
+  if (job.status === 'failed')   return res.json({ status: 'failed',   error:  job.error  });
+  res.json({ status: 'pending' });
 });
 
 // ── A/B SUBJECTS (Lite+) ──
