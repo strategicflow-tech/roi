@@ -221,6 +221,13 @@ Original Subject: "${subject}"
 Original Body:
 ${body}
 
+DATA TABLES RULE: If the Original Body above contains a section starting with "DATA TABLES FROM ORIGINAL ARTICLE:", you MUST rebuild ALL tables found there as email-safe HTML tables in the newsletter.
+- Extract exact values — never approximate or invent table data.
+- Place each table immediately after the paragraph that references its data.
+- Use the format specified in SECTION STRUCTURE item 8 below.
+- If multiple tables are present, rebuild each one as a separate <table> block with a header label.
+- This is MANDATORY — a newsletter missing data tables that were present in the source FAILS this rebuild.
+
 CONTENT STYLE ANALYSIS — do this before writing a single word:
 
 Step A — Detect the original's FORMAT and match it exactly:

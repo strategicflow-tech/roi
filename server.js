@@ -283,7 +283,15 @@ function safeParseJSON(raw) {
     if (s !== -1 && e > s) return JSON.parse(clean.slice(s, e + 1));
     return JSON.parse(clean);
   } catch (_) {}
-  // Layer 4: all attempts failed — return null so callers can show a clean error
+  // Layer 4: decode HTML entities that Claude sometimes encodes in JSON string values (&lt; &gt; &amp;)
+  try {
+    const decoded = raw
+      .replace(/```json|```/gi, '').trim()
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+    const s = decoded.indexOf('{'), e = decoded.lastIndexOf('}');
+    if (s !== -1 && e > s) return JSON.parse(decoded.slice(s, e + 1));
+  } catch (_) {}
+  // Layer 5: all attempts failed — return null so callers can show a clean error
   console.warn('[safeParseJSON] all layers failed. Raw (first 300):', (raw || '').slice(0, 300));
   return null;
 }
@@ -1296,6 +1304,31 @@ app.post('/brand-dna', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+function extractTables(html) {
+  const tables = [];
+  const tableMatches = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+  tableMatches.forEach(tableHtml => {
+    const lower = tableHtml.toLowerCase();
+    if (lower.includes('nav') || lower.includes('footer')) return;
+    if (lower.includes('menu') || lower.includes('social')) return;
+    const rows = (tableHtml.match(/<tr/gi) || []).length;
+    const cells = (tableHtml.match(/<td|<th/gi) || []).length;
+    if (rows >= 2 && cells >= 4) {
+      const plainText = tableHtml
+        .replace(/<th[^>]*>/gi, '| ')
+        .replace(/<td[^>]*>/gi, '| ')
+        .replace(/<\/th>|<\/td>/gi, ' ')
+        .replace(/<tr[^>]*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (plainText.length > 20) tables.push(plainText);
+    }
+  });
+  return tables;
+}
+
 async function fetchPageContent(rawUrl) {
   let url = rawUrl.trim();
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -1348,7 +1381,9 @@ async function fetchPageContent(rawUrl) {
       .replace(/\s+/g,' ').trim()
   ).slice(0, 2000);
 
-  return { title, meta, text: stripped, url, ogImage };
+  const tables = extractTables(html);
+
+  return { title, meta, text: stripped, url, ogImage, tables };
 }
 
 // ── FOOTER-ONLY DETECTION (server-side guard) ──
@@ -1417,11 +1452,14 @@ async function handleGenerate(req, res) {
         body = [
           page.title ? `Headline: ${page.title}` : '',
           page.meta  ? `Summary: ${page.meta}` : '',
-          page.text
+          page.text,
+          page.tables && page.tables.length > 0
+            ? '\n\nDATA TABLES FROM ORIGINAL ARTICLE:\n' + page.tables.join('\n\n')
+            : ''
         ].filter(Boolean).join('\n\n');
         analyzedPage = true;
         if (page.ogImage) req.body._ogImage = page.ogImage;
-        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}`);
+        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}, tables: ${page.tables ? page.tables.length : 0}`);
       } catch (fetchErr) {
         console.error('[pageUrl]', fetchErr.message);
         return res.json({ error: 'url_fetch_failed' });
@@ -1614,7 +1652,7 @@ async function handleGenerate(req, res) {
     } else {
       // Pass the strategic analysis into the rebuild prompt — closed loop
       const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis });
-      result = await claudeJSON(prompt, 2500);
+      result = await claudeJSON(prompt, 8000);
     }
 
     console.log('STEP 3: Claude generation complete');
@@ -1778,13 +1816,16 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     const normalizedCompany = (company || '').toLowerCase().trim();
     const knownUrl = Object.entries(KNOWN_BRANDS)
       .find(([key]) => normalizedCompany.includes(key))?.[1] || null;
-    // Priority: explicit primaryCtaUrl → source page URL (article/landing page) → brand url → known brand → fallback
-    // knownBrands fallback is only used when NO source URL was provided by the user
-    const ctaHref = effectiveBrandDNA?.primaryCtaUrl
-      || (pageUrl && pageUrl.trim())
-      || effectiveBrandDNA?.url
-      || knownUrl
-      || 'https://strategic-flow-audit.replit.app';
+    // Priority: blog/article URL always wins as CTA destination (it's the article itself);
+    // otherwise: explicit primaryCtaUrl → pageUrl → brand url → known brand → fallback
+    const isBlogUrl = pageUrl && /\/(blog|news|resources|article|post|changelog)\//i.test(pageUrl);
+    const ctaHref = isBlogUrl
+      ? pageUrl
+      : (effectiveBrandDNA?.primaryCtaUrl
+        || (pageUrl && pageUrl.trim())
+        || effectiveBrandDNA?.url
+        || knownUrl
+        || 'https://strategic-flow-audit.replit.app');
 
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
