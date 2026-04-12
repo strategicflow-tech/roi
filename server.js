@@ -1481,6 +1481,15 @@ async function handleGenerate(req, res) {
     // When the original body has 4+ CTAs and deal badges, build HTML directly
     // from extracted data. Claude is used ONLY for subject + hero paragraph.
     // This guarantees zero invented facts in the output.
+    console.log('=== PROMO DEBUG ===');
+    console.log('body length:', body?.length);
+    console.log('body first 500 chars:', body?.slice(0,500));
+    console.log('stripped first 500:', body?.replace(/<[^>]+>/g,' ')?.slice(0,500));
+    console.log('ctaCount:', (body?.replace(/<[^>]+>/g,' ')?.match(/\b(order now|shop now|buy now)\b/gi)||[]).length);
+    console.log('dealCount:', (body?.replace(/<[^>]+>/g,' ')?.match(/buy.{1,10}get|free item|free delivery|€\d+|£\d+|\$\d+|\d+%\s*off|€0/gi)||[]).length);
+    console.log('isPromoGrid:', detectPromotionalGrid(body));
+    console.log('items:', JSON.stringify(extractPromotionalItems(body)));
+    console.log('=== END DEBUG ===');
     const isPromoGrid = detectPromotionalGrid(body || '');
     const promotionalItems = isPromoGrid ? extractPromotionalItems(body || '') : [];
     let promoGridResult = null;
