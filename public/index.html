@@ -454,7 +454,16 @@ textarea{resize:vertical;line-height:1.7;}
       <div class="field" style="margin-top:4px;">
         <label style="font-size:12px;color:var(--muted);">Or paste a link to your website or landing page</label>
         <input type="url" id="fPageUrl" placeholder="https://yourcompany.com/landing-page" style="font-size:13px;" oninput="updateHtmlTip()" />
-        <span style="font-size:11px;color:var(--muted);margin-top:3px;">We'll read the page and build the newsletter from your core message. Use instead of, or alongside, the body above.</span>
+        <span style="font-size:11px;color:var(--muted);margin-top:3px;">Works best with blogs and articles. Some sites (Stripe, Google, Amazon) block automated access — paste the content directly if the URL doesn't work.</span>
+      </div>
+
+      <div id="urlFetchWarning" style="display:none;background:#fff7ed;border:1px solid #f97316;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#92400e;line-height:1.6;">
+        <strong style="display:block;margin-bottom:6px;">⚠️ We couldn't access this URL directly</strong>
+        The site may block automated requests (common with Stripe, Google, Amazon, and large platforms).
+        <br><br>
+        <strong>For best results:</strong><br>
+        → Copy the article or page text and paste it in the body field above<br>
+        → Or upload the page's HTML file directly
       </div>
 
       <div class="field">
@@ -1069,6 +1078,10 @@ async function submitGenerate() {
   const emailType    = document.getElementById('fEmailType')?.value || '';
   const roadmapNotes = document.getElementById('fRoadmap')?.value || '';
 
+  // Hide any previous URL fetch warning before starting
+  const urlWarn = document.getElementById('urlFetchWarning');
+  if (urlWarn) urlWarn.style.display = 'none';
+
   showOnly('stateLoading');
   animateLoading();
 
@@ -1082,6 +1095,7 @@ async function submitGenerate() {
       emailType: emailType || null, roadmapNotes: roadmapNotes || null,
       brandDNA: uploadedHtmlBrandDNA || currentBrandDNA, voiceProfile: currentVoiceProfile
     });
+
     if (!startResp.jobId) throw new Error(startResp.error || 'Failed to start generation');
 
     // Step 2: Poll /generate/status/:jobId every 3 seconds until done
@@ -1102,6 +1116,12 @@ async function submitGenerate() {
 
   } catch (e) {
     showOnly('stateForm');
+    // URL fetch failures → orange advisory warning, keep form open (not a hard error)
+    if (e.message === 'url_fetch_failed' || e.message === 'url_fetch_empty') {
+      if (urlWarn) urlWarn.style.display = 'block';
+      if (urlWarn) urlWarn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const errEl = document.getElementById('errForm');
     errEl.classList.remove('warn');
     setErr('errForm', e.message || 'Generation failed. Please try again.');

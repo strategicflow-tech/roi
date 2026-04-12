@@ -1376,7 +1376,11 @@ async function handleGenerate(req, res) {
         console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}`);
       } catch (fetchErr) {
         console.error('[pageUrl]', fetchErr.message);
-        return res.status(400).json({ error: `Could not load that URL: ${fetchErr.message}` });
+        return res.json({ error: 'url_fetch_failed' });
+      }
+      // FIX 3 — too little content extracted (bot-blocked page returns skeleton HTML)
+      if (!body || body.trim().length < 200) {
+        return res.json({ error: 'url_fetch_empty' });
       }
     }
 
