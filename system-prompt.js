@@ -217,6 +217,22 @@ SECTION STRUCTURE:
    <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — must match original intent per Rule 3]</a></td></tr></table>
    CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders. Use them literally in both bgcolor attribute and background style. Never output them as visible text.
 7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
+8. DATA TABLES — when the original article or email contains data tables, statistics tables, comparison tables, or regional/category breakdowns:
+   - EXTRACT the actual numbers from the source text. NEVER approximate or invent data.
+   - Rebuild as email-safe HTML table (no CSS classes, inline styles only):
+   <table cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;margin:20px 0;font-family:Arial,Helvetica,sans-serif;">
+     <tr style="background:#f5f5f5;">
+       <th style="text-align:left;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column Header]</th>
+       <th style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column Header]</th>
+     </tr>
+     <tr>
+       <td style="padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;">[Data from source]</td>
+       <td style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;font-weight:600;">[Exact stat from source]</td>
+     </tr>
+   </table>
+   - Alternate row background for readability: odd rows #ffffff, even rows #fafafa (set via style on each <tr>).
+   - Only include columns that appear in the original source. Source = ground truth — extract numbers exactly.
+   - If the original has multiple separate tables (e.g. one per region or category), rebuild each as its own <table> block with a header <p> label above it.
 
 HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
 

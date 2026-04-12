@@ -836,7 +836,9 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     }
     return `https://images.unsplash.com/${photoId}?w=620&h=300&fit=crop`;
   };
-  const heroSrc = buildHeroSrc(company, brandDNA, options.heroKeyword);
+  // Use og:image from the fetched URL when available — it's always the article's real cover.
+  // Fall back to the topic/industry keyword-matched Unsplash image otherwise.
+  const heroSrc = options.heroImageUrl || buildHeroSrc(company, brandDNA, options.heroKeyword);
   const heroRow = `<tr>
   <td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;border-collapse:collapse;">
     <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
@@ -1264,6 +1266,29 @@ async function fetchPageContent(rawUrl) {
     || html.match(/<meta[^>]*content=["']([^"']{20,})[^>]*name=["']description["']/i);
   const meta = metaMatch ? metaMatch[1].trim() : '';
 
+  // Extract the article's own cover image. Priority order:
+  //   1. og:image (standard Open Graph)
+  //   2. twitter:image (Twitter card — common fallback)
+  //   3. First large <img> inside <article> or <main> (for sites that render meta server-side but skip OG)
+  const ogImage = (() => {
+    // og:image — content attr can appear before or after property attr
+    const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1];
+    if (og && og.startsWith('http')) return og;
+
+    // twitter:image
+    const tw = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i)?.[1];
+    if (tw && tw.startsWith('http')) return tw;
+
+    // First <img> with absolute URL inside <article> or <main> (static renders without OG meta)
+    const articleBlock = html.match(/<(?:article|main)[^>]*>([\s\S]{0,8000}?)<\/(?:article|main)>/i)?.[1] || '';
+    const imgSrc = articleBlock.match(/src=["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"']*)?)/i)?.[1];
+    if (imgSrc) return imgSrc;
+
+    return null;
+  })();
+
   // Strip scripts, styles, nav, footer elements then pull plain text
   const stripped = sanitizeForJSON(
     html
@@ -1275,7 +1300,7 @@ async function fetchPageContent(rawUrl) {
       .replace(/\s+/g,' ').trim()
   ).slice(0, 2000);
 
-  return { title, meta, text: stripped, url };
+  return { title, meta, text: stripped, url, ogImage };
 }
 
 // ── FOOTER-ONLY DETECTION (server-side guard) ──
@@ -1347,7 +1372,8 @@ async function handleGenerate(req, res) {
           page.text
         ].filter(Boolean).join('\n\n');
         analyzedPage = true;
-        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars extracted`);
+        if (page.ogImage) req.body._ogImage = page.ogImage;
+        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}`);
       } catch (fetchErr) {
         console.error('[pageUrl]', fetchErr.message);
         return res.status(400).json({ error: `Could not load that URL: ${fetchErr.message}` });
@@ -1481,15 +1507,6 @@ async function handleGenerate(req, res) {
     // When the original body has 4+ CTAs and deal badges, build HTML directly
     // from extracted data. Claude is used ONLY for subject + hero paragraph.
     // This guarantees zero invented facts in the output.
-    console.log('=== PROMO DEBUG ===');
-    console.log('body length:', body?.length);
-    console.log('body first 500 chars:', body?.slice(0,500));
-    console.log('stripped first 500:', body?.replace(/<[^>]+>/g,' ')?.slice(0,500));
-    console.log('ctaCount:', (body?.replace(/<[^>]+>/g,' ')?.match(/\b(order now|shop now|buy now)\b/gi)||[]).length);
-    console.log('dealCount:', (body?.replace(/<[^>]+>/g,' ')?.match(/buy.{1,10}get|free item|free delivery|€\d+|£\d+|\$\d+|\d+%\s*off|€0/gi)||[]).length);
-    console.log('isPromoGrid:', detectPromotionalGrid(body));
-    console.log('items:', JSON.stringify(extractPromotionalItems(body)));
-    console.log('=== END DEBUG ===');
     const isPromoGrid = detectPromotionalGrid(body || '');
     const promotionalItems = isPromoGrid ? extractPromotionalItems(body || '') : [];
     let promoGridResult = null;
@@ -1719,7 +1736,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '',
         layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
-        promotionalItems });
+        promotionalItems, heroImageUrl: req.body._ogImage || null });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
