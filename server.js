@@ -427,9 +427,56 @@ function stripResendTracking(html) {
   );
 }
 
+// Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
+// Returns { cleaned, wasComplex, gifCount } so callers know what was removed.
+function cleanEmailHTML(html) {
+  let cleaned = html;
+  let wasComplex = false;
+
+  // Scripts
+  if (/<script[\s\S]*?<\/script>/i.test(cleaned)) { wasComplex = true; }
+  cleaned = cleaned.replace(/<script[\s\S]*?<\/script>/gi, '');
+
+  // CSS animations & transitions inside <style> blocks
+  if (/@keyframes|animation\s*:|transition\s*:/i.test(cleaned)) { wasComplex = true; }
+  cleaned = cleaned.replace(/@keyframes[\s\S]*?\}/gi, '');
+  cleaned = cleaned.replace(/animation\s*:[^;}"]{0,200};/gi, '');
+  cleaned = cleaned.replace(/transition\s*:[^;}"]{0,200};/gi, '');
+
+  // Videos
+  if (/<video[\s\S]*?<\/video>/i.test(cleaned)) { wasComplex = true; }
+  cleaned = cleaned.replace(/<video[\s\S]*?<\/video>/gi, '');
+
+  // Forms
+  if (/<form[\s\S]*?<\/form>/i.test(cleaned)) { wasComplex = true; }
+  cleaned = cleaned.replace(/<form[\s\S]*?<\/form>/gi, '');
+
+  // Inline event handlers
+  if (/\s(on\w+)\s*=\s*["'][^"']*["']/i.test(cleaned)) { wasComplex = true; }
+  cleaned = cleaned.replace(/\s(onclick|onload|onmouseover|onfocus|onblur|onerror|onsubmit|onchange)\s*=\s*["'][^"']*["']/gi, '');
+
+  // GIFs — mark with data attribute and extract alt text as a note
+  const gifRe = /<img([^>]*?)src=["']([^"']*\.gif(?:\?[^"']*)?)["']([^>]*?)>/gi;
+  const gifAltTexts = [];
+  let gifCount = 0;
+  cleaned = cleaned.replace(gifRe, (_, pre, src, post) => {
+    wasComplex = true;
+    gifCount++;
+    const altM = (pre + post).match(/alt=["']([^"']{1,80})["']/i);
+    if (altM) gifAltTexts.push(altM[1]);
+    return `<span data-was-gif="true" data-gif-alt="${altM ? altM[1] : ''}">[animated image${altM ? ': ' + altM[1] : ''}]</span>`;
+  });
+
+  return { cleaned, wasComplex, gifCount, gifAltTexts };
+}
+
 // Used by the /parse-html endpoint when users upload their original email HTML file.
 function parseEmailHtmlContent(html) {
   if (!html || html.length < 20) return { success: false, error: 'Empty or too-short HTML' };
+
+  // Clean dynamic elements before any extraction
+  const { cleaned, wasComplex, gifCount, gifAltTexts } = cleanEmailHTML(html);
+  html = cleaned;
 
   // ── PLAIN TEXT (populate body field + scoring) ──
   const textContent = html
@@ -556,7 +603,9 @@ function parseEmailHtmlContent(html) {
     primaryCtaUrl,
     url: primaryCtaUrl,
     fontFamily,
-    textContent
+    textContent,
+    wasComplex,
+    gifCount
   };
 }
 

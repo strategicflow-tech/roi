@@ -986,6 +986,11 @@ async function handleHtmlUpload(input) {
     const logoHtml = data.logo
       ? `<img src="${data.logo}" style="max-height:18px;vertical-align:middle;border-radius:2px;margin-left:2px;" onerror="this.style.display='none'" />`
       : '';
+    const complexLine = data.wasComplex
+      ? `<div style="margin-top:6px;color:#f0a05a;font-size:11px;font-weight:600;">
+           ⚡ Complex email detected — animations${data.gifCount ? ', ' + data.gifCount + ' GIF' + (data.gifCount > 1 ? 's' : '') : ''} removed, static brand elements extracted successfully.
+         </div>`
+      : '';
     res.style.display = 'block';
     res.innerHTML = `<div class="html-analysis-badge">
       <div><span style="color:var(--teal);font-weight:700;">✓ HTML analyzed</span> — brand colors, logo, and style extracted</div>
@@ -995,6 +1000,7 @@ async function handleHtmlUpload(input) {
         ${data.fontFamily ? `<span style="color:var(--muted);font-size:10px;font-family:var(--mono);">Font: <span style="color:var(--text2);">${data.fontFamily}</span></span>` : ''}
         ${logoHtml}
       </div>
+      ${complexLine}
     </div>`;
     txt.textContent = file.name;
     document.getElementById('htmlTip').style.display = 'none';
