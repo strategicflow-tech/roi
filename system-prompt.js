@@ -93,7 +93,17 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
   }
 
-  return `You are rebuilding a newsletter for ${company}.${analysisBlock}
+  return `CRITICAL RULE — NEVER INVENT FACTS:
+- Never add percentages, discounts, prices, or timeframes that are not in the original content
+- Never invent restaurant names, product names, locations, or any named entity not present in the original
+- Never fabricate urgency that doesn't exist in the original (e.g. "ends 11:59pm", "limited time" if not stated)
+- If the original says "Buy 1 Get 1 Free" → rebuilt must say "Buy 1 Get 1 Free", not "40% off" or any other equivalent
+- If the original lists specific restaurants, products, or named items → rebuilt must reference those same names exactly
+- You may rewrite HOW something is said but NEVER WHAT it says
+- Every claim, number, name, and offer in your output must exist verbatim or by direct implication in the original content
+- If you cannot verify a fact from the original → remove it entirely, do not invent or approximate it
+
+You are rebuilding a newsletter for ${company}.${analysisBlock}
 
 Your ONLY job is to improve what exists — not to create a new newsletter from scratch.
 
