@@ -20,42 +20,6 @@ const EMAIL_TYPE_STRATEGIES = {
 };
 
 function getAuditPrompt({ tier, company, goal, subject, body, brandDNA, voiceProfile, emailType, roadmapNotes, priorExamples, analysis }) {
-  // Structure mirror block — built from detectedStructure when an HTML file was uploaded.
-  // Tells Claude exactly which layout elements the original used so it mirrors them instead
-  // of defaulting to a generic template. Empty for plain-text input (no HTML uploaded).
-  let structureBlock = '';
-  try {
-    const ds = brandDNA?.detectedStructure;
-    if (ds && typeof ds === 'object') {
-      const rules = [];
-      if (ds.hasStatCards)
-        rules.push('- Include STAT CARDS with large numbers/percentages — the original uses a data-forward layout');
-      if (ds.hasEmojiBoxes)
-        rules.push('- Include EMOJI FEATURE BOXES — the original uses icon-led benefit cards');
-      if (ds.noEmoji && !ds.hasEmojiBoxes)
-        rules.push('- NO EMOJI BOXES — the original does not use emoji. Use styled HTML boxes or paragraphs only');
-      if (ds.hasFeatureRows)
-        rules.push('- Include FEATURE ROWS with icon columns (48px icon cell + text cell) — mirror this layout exactly');
-      if (ds.hasScreenshots)
-        rules.push('- Include SCREENSHOT MOCKUP blocks — render as styled boxes with background:#f5f5f5;border-radius:8px');
-      if (ds.isSerif)
-        rules.push('- Use SERIF FONT — specify font-family:Georgia,serif in all body text styles');
-      if (ds.hasNumberedSteps)
-        rules.push('- Preserve NUMBERED STEPS — use <ol><li> structure with the same step count as the original');
-      if (ds.columnCount === 3)
-        rules.push('- Use 3-COLUMN LAYOUT — the original uses 33%-width columns; match this');
-      if (rules.length > 0) {
-        structureBlock = `
-
-STRUCTURE HINTS (apply where the original content supports it):
-The original HTML was scanned for layout patterns. Where applicable, mirror these:
-${rules.join('\n')}`;
-      }
-    }
-  } catch (e) {
-    console.error('[structureBlock] failed to build:', e.message);
-  }
-
   // Theme block — tells Claude which colors to use in the HTML body for dark-theme brands
   let themeBlock = '';
   if (brandDNA?.theme === 'dark') {
@@ -255,7 +219,6 @@ EMAIL TYPE: Detect the correct category for the badge label:
 - Security, compliance, or trust update → "Security Update"
 Return as emailType in the JSON.
 
-${structureBlock}
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
 {"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
