@@ -1509,12 +1509,13 @@ async function handleGenerate(req, res) {
     console.log('STEP 1: Input validated');
     let analyzedPage = false;
 
-    // Fetch page content if a URL was provided — result supplements or replaces pasted body
-    let fetchedContent = '';
-    if (pageUrl && pageUrl.trim()) {
+    // Use pasted body if substantial; otherwise fetch the URL
+    let effectiveBody = (body || '').trim();
+    if (effectiveBody.length < 100 && pageUrl) {
+      console.log('[generate] body too short, fetching URL:', pageUrl);
       try {
         const page = await fetchPageContent(pageUrl);
-        fetchedContent = [
+        const fetched = [
           page.title ? `Headline: ${page.title}` : '',
           page.meta  ? `Summary: ${page.meta}` : '',
           page.text,
@@ -1522,25 +1523,21 @@ async function handleGenerate(req, res) {
             ? '\n\nDATA TABLES FROM ORIGINAL ARTICLE:\n' + page.tables.join('\n\n')
             : ''
         ].filter(Boolean).join('\n\n');
-        analyzedPage = true;
-        if (page.ogImage) req.body._ogImage = page.ogImage;
-        console.log(`[pageUrl] fetched ${page.url} — ${fetchedContent.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}, tables: ${page.tables ? page.tables.length : 0}`);
-      } catch (fetchErr) {
-        console.error('[pageUrl]', fetchErr.message);
-        // Non-fatal if body already has sufficient content; otherwise surface the error
-        if (!body || body.trim().length < 50) {
-          return res.json({ error: 'url_fetch_failed' });
+        if (fetched && fetched.length > 100) {
+          effectiveBody = fetched;
+          analyzedPage = true;
+          if (page.ogImage) req.body._ogImage = page.ogImage;
+          console.log('[generate] URL content fetched, length:', effectiveBody.length);
         }
+      } catch (fetchErr) {
+        console.error('[generate] URL fetch failed:', fetchErr.message);
       }
     }
 
-    // Use pasted body when it's substantial; otherwise fall back to fetched page content
-    const effectiveBody = (body && body.trim().length > 50) ? body : fetchedContent;
-
-    if (!effectiveBody || effectiveBody.trim().length < 100) {
+    if (effectiveBody.length < 100) {
       return res.status(400).json({
         error: 'content_too_short',
-        message: 'Please add content — paste your newsletter text, upload an HTML file, or provide a valid URL.'
+        message: 'Please add content — paste text, upload HTML, or provide a valid URL.'
       });
     }
 
