@@ -867,23 +867,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const headerText = primaryText;
   const footerBg   = '#0d0d0d';
 
-  // Header logo: left-aligned in the new two-column header
-  const logoInHeader = (() => {
-    if (brandDNA?.logoSvg) {
-      const svgConstrained = brandDNA.logoSvg
-        .replace(/\s(width|height)=["'][^"']*["']/gi, '')
-        .replace('<svg', '<svg height="36" style="display:inline-block;vertical-align:middle;"');
-      return `<div style="line-height:1;">${svgConstrained}</div>`;
-    }
-    if (brandDNA?.logo) {
-      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:36px;width:auto;display:block;" />`;
-    }
-    return '';
-  })();
-  // Left cell of the header: logo if available, otherwise company name
-  const headerNameContent = logoInHeader
-    ? logoInHeader
-    : `<span style="font-size:18px;font-weight:800;color:${headerText};letter-spacing:-0.3px;">${company}</span>`;
+  // Fix 3 — Logo: img URL → <img height="28">, no logo found → brand name span. Never inline SVG.
+  const logoOrBrandName = brandDNA?.logo
+    ? `<img src="${brandDNA.logo}" height="28" style="display:block;height:28px;width:auto;" alt="${company}" />`
+    : `<span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -994,87 +981,136 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     return `<p style="font-size:12px;color:${footerMuted};margin:0 0 8px;line-height:1.5;">${trimmed}</p>`;
   })();
 
-  // Parse body: first try XML-section format, then HTML, then legacy plain text.
+  // ── FIX 4: PARSER — extract all XML tags from Claude's body output ─────────
   const rawBody = (body || '').trim();
   const isHtmlBody = rawBody.startsWith('<');
 
-  // ── XML-SECTION PARSER (new structured format) ────────────────────────────
-  const hookContent    = extractSection(rawBody, 'hook');
-  const tensionContent = extractSection(rawBody, 'tension');
-  const statsContent   = extractSection(rawBody, 'stats');
-  const insightContent = extractSection(rawBody, 'insight');
-  const proofContent   = extractSection(rawBody, 'proof');
-  const costContent    = extractSection(rawBody, 'cost');
-  const ctaTagText     = extractSection(rawBody, 'cta');
-  const hasXmlSections = !!(hookContent && tensionContent && insightContent && proofContent && costContent);
+  // New flat-tag format (v2) — unique tags that only appear in new format output
+  const p_preheader    = extractSection(rawBody, 'preheader')         || '';
+  const p_hook         = extractSection(rawBody, 'hook')              || '';
+  const p_tension      = extractSection(rawBody, 'tension')           || '';
+  const p_stat1Value   = extractSection(rawBody, 'stat1_value')       || '';
+  const p_stat1Label   = extractSection(rawBody, 'stat1_label')       || '';
+  const p_stat2Value   = extractSection(rawBody, 'stat2_value')       || '';
+  const p_stat2Label   = extractSection(rawBody, 'stat2_label')       || '';
+  const p_stat3Value   = extractSection(rawBody, 'stat3_value')       || '';
+  const p_stat3Label   = extractSection(rawBody, 'stat3_label')       || '';
+  const p_insight      = extractSection(rawBody, 'insight')           || '';
+  const p_proof        = extractSection(rawBody, 'proof')             || '';
+  const p_cost         = extractSection(rawBody, 'cost')              || '';
+  const p_ctaText      = extractSection(rawBody, 'cta_text')          || 'Read the full story →';
+  const p_ctaUrl       = extractSection(rawBody, 'cta_url')           || ctaHref;
+  const p_calWeek1     = extractSection(rawBody, 'calendar_week1')    || '';
+  const p_calWeek2     = extractSection(rawBody, 'calendar_week2')    || '';
+  const p_calWeek3     = extractSection(rawBody, 'calendar_week3')    || '';
+  const p_calWeek4     = extractSection(rawBody, 'calendar_week4')    || '';
+  const p_brandTagline = extractSection(rawBody, 'brand_tagline')     || '';
+  const p_brandDesc    = extractSection(rawBody, 'brand_description') || '';
 
-  let bodyContent;
-  if (hasXmlSections) {
-    // Shared label style per spec
-    const sectionLabel = text =>
-      `<p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;margin:32px 0 6px 0;">${text}</p>`;
+  // Detect new flat-tag format by presence of any new-format-only tag
+  const isNewFormat = !!(p_preheader || p_stat1Value || p_ctaText !== 'Read the full story →' ||
+                         p_calWeek1 || p_brandTagline || p_brandDesc ||
+                         extractSection(rawBody, 'cta_text'));
 
-    // Substitute colour placeholders + adapt for dark theme
-    const processHtml = html =>
-      adaptBodyForDarkTheme(
-        (html || '')
-          .replace(/CTABGCOLOR/g,   primaryColor)
-          .replace(/CTATEXTCOLOR/g, primaryText)
-          .replace(/CTAACCENTCOLOR/g, accentColor)
-          .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`)
-      );
+  // ── Old XML section tags (v1 — backward compat) ───────────────────────────
+  const oldHookContent    = isNewFormat ? null : extractSection(rawBody, 'hook');
+  const oldTensionContent = isNewFormat ? null : extractSection(rawBody, 'tension');
+  const oldStatsContent   = isNewFormat ? null : extractSection(rawBody, 'stats');
+  const oldInsightContent = isNewFormat ? null : extractSection(rawBody, 'insight');
+  const oldProofContent   = isNewFormat ? null : extractSection(rawBody, 'proof');
+  const oldCostContent    = isNewFormat ? null : extractSection(rawBody, 'cost');
+  const oldCtaTagText     = isNewFormat ? null : extractSection(rawBody, 'cta');
+  const hasOldXmlSections = !isNewFormat &&
+    !!(oldHookContent && oldTensionContent && oldInsightContent && oldProofContent && oldCostContent);
 
-    const statsBlock = (statsContent && statsContent.trim()) ? processHtml(statsContent) : '';
+  // ── Build derived blocks for new template ─────────────────────────────────
+  // Stat cards — only rendered when at least one stat has a value
+  const statCardsHtml = (() => {
+    const stats = [
+      { v: p_stat1Value, l: p_stat1Label },
+      { v: p_stat2Value, l: p_stat2Label },
+      { v: p_stat3Value, l: p_stat3Label },
+    ].filter(s => s.v);
+    if (!stats.length) return '';
+    const cells = stats.map((s, i) => {
+      const border = i > 0 ? 'border-left:1px solid rgba(255,255,255,0.08);' : '';
+      return `<td style="width:33%;text-align:center;padding:16px 8px;${border}">
+        <p style="font-size:28px;font-weight:900;color:${primaryColor};margin:0;line-height:1;">${s.v}</p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.50);margin:5px 0 0;line-height:1.4;">${s.l}</p>
+      </td>`;
+    }).join('');
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.12);border-radius:8px;margin:0;"><tr>${cells}</tr></table>`;
+  })();
 
-    const btnText = (ctaTagText || 'Read the full story →').trim();
-    const ctaBlock = `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:28px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${btnText}</a></td></tr></table></td></tr></table></td></tr></table>`;
+  // Calendar rows — only rendered when at least one week has content
+  const calendarRowsHtml = (() => {
+    const weeks = [
+      { label: 'Week 1', topic: p_calWeek1 },
+      { label: 'Week 2', topic: p_calWeek2 },
+      { label: 'Week 3', topic: p_calWeek3 },
+      { label: 'Week 4', topic: p_calWeek4 },
+    ].filter(w => w.topic);
+    return weeks.map((w, i) =>
+      `<div style="padding:12px 20px;${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.05);' : ''}">
+        <span style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:1px;">${w.label}</span>
+        <p style="font-size:13px;color:rgba(255,255,255,0.70);margin:3px 0 0;line-height:1.5;">${w.topic}</p>
+      </div>`
+    ).join('');
+  })();
 
-    bodyContent = [
-      // 1. HOOK — large, bold, high contrast
-      `<p style="font-size:22px;font-weight:900;color:${textColor};line-height:1.35;margin:0 0 24px;letter-spacing:-0.3px;">${hookContent}</p>`,
-      // 2. TENSION — one paragraph, no label
-      processHtml(tensionContent),
-      // 3. STAT CARDS — optional, only when Claude returned data
-      statsBlock,
-      // 4. INSIGHT
-      sectionLabel('THE ONE THING THAT CHANGES EVERYTHING'),
-      processHtml(insightContent),
-      // 5. PROOF
-      sectionLabel("WHO'S ALREADY DOING IT"),
-      processHtml(proofContent),
-      // 6. COST OF WAITING
-      sectionLabel('THE COST OF WAITING'),
-      processHtml(costContent),
-      // 7. CTA
-      ctaBlock
-    ].filter(Boolean).join('\n');
+  // ── Legacy bodyContent (used by old-format and promotional-grid paths) ────
+  let bodyContent = '';
 
-  } else if (isHtmlBody) {
-    // Legacy HTML path — Claude returned raw HTML without XML section tags
-    let processed = rawBody
-      .replace(/CTABGCOLOR/g, primaryColor)
-      .replace(/CTATEXTCOLOR/g, primaryText)
-      .replace(/CTAACCENTCOLOR/g, accentColor)
-      .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
-    if (contentStyle === 'longform' || contentStyle === 'steps') {
-      processed = stripEmojiBoxTables(processed);
+  if (!isNewFormat) {
+    if (hasOldXmlSections) {
+      const sectionLabel = text =>
+        `<p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;margin:32px 0 6px 0;">${text}</p>`;
+      const processHtml = html =>
+        adaptBodyForDarkTheme(
+          (html || '')
+            .replace(/CTABGCOLOR/g,   primaryColor)
+            .replace(/CTATEXTCOLOR/g, primaryText)
+            .replace(/CTAACCENTCOLOR/g, accentColor)
+            .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`)
+        );
+      const statsBlock = (oldStatsContent && oldStatsContent.trim()) ? processHtml(oldStatsContent) : '';
+      const btnText = (oldCtaTagText || 'Read the full story →').trim();
+      const ctaBlock = `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:28px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${btnText}</a></td></tr></table></td></tr></table></td></tr></table>`;
+      bodyContent = [
+        `<p style="font-size:22px;font-weight:900;color:${textColor};line-height:1.35;margin:0 0 24px;letter-spacing:-0.3px;">${oldHookContent}</p>`,
+        processHtml(oldTensionContent),
+        statsBlock,
+        sectionLabel('THE ONE THING THAT CHANGES EVERYTHING'),
+        processHtml(oldInsightContent),
+        sectionLabel("WHO'S ALREADY DOING IT"),
+        processHtml(oldProofContent),
+        sectionLabel('THE COST OF WAITING'),
+        processHtml(oldCostContent),
+        ctaBlock
+      ].filter(Boolean).join('\n');
+    } else if (isHtmlBody) {
+      let processed = rawBody
+        .replace(/CTABGCOLOR/g, primaryColor)
+        .replace(/CTATEXTCOLOR/g, primaryText)
+        .replace(/CTAACCENTCOLOR/g, accentColor)
+        .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
+      if (contentStyle === 'longform' || contentStyle === 'steps') processed = stripEmojiBoxTables(processed);
+      processed = adaptBodyForDarkTheme(processed);
+      bodyContent = processed;
+    } else {
+      const lines = rawBody.split('\n').map(l => l.trim()).filter(Boolean);
+      const lastLine = lines[lines.length - 1] || '';
+      const looksLikeCTA = lastLine.length > 0 && lastLine.length < 80 && !lastLine.endsWith('.');
+      const ctaText   = looksLikeCTA ? lastLine : '';
+      const bodyLines = looksLikeCTA ? lines.slice(0, -1) : lines;
+      const formattedBody = bodyLines.join('\n')
+        .replace(/\n\n/g, `</p><p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">`)
+        .replace(/\n/g, '<br>');
+      const legacyCtaBlock = ctaText
+        ? `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:24px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table></td></tr></table></td></tr></table>`
+        : '';
+      bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${legacyCtaBlock}`;
     }
-    processed = adaptBodyForDarkTheme(processed);
-    bodyContent = processed;
-  } else {
-    // Legacy plain-text path — split, detect CTA, format paragraphs
-    const lines = rawBody.split('\n').map(l => l.trim()).filter(Boolean);
-    const lastLine = lines[lines.length - 1] || '';
-    const looksLikeCTA = lastLine.length > 0 && lastLine.length < 80 && !lastLine.endsWith('.');
-    const ctaText   = looksLikeCTA ? lastLine : '';
-    const bodyLines = looksLikeCTA ? lines.slice(0, -1) : lines;
-    const formattedBody = bodyLines.join('\n')
-      .replace(/\n\n/g, `</p><p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">`)
-      .replace(/\n/g, '<br>');
-    const ctaBlock = ctaText
-      ? `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:24px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table></td></tr></table></td></tr></table>`
-      : '';
-    bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
 
   // ── PROMOTIONAL GRID OVERRIDE ────────────────────────────────────────────────
@@ -1147,8 +1183,121 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       <!-- WAVE DIVIDER -->
       ${waveSvg}`;
   }
-  // ────────────────────────────────────────────────────────────────────────────
+  // ── FIX 1: TEMPLATE ROUTER ────────────────────────────────────────────────
+  // New-format generations use the v2 template; everything else falls back to legacy.
 
+  const tierLabels = { single: 'SINGLE — One-time rebuild', lite: 'LITE — Standard Delivery', growth: 'GROWTH — Premium', high_impact: 'HIGH-IMPACT — Full Stack' };
+  const tierLabelRow = tierLabels[tier]
+    ? `<tr><td style="padding:7px 24px;background:#16a34a;color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">${tierLabels[tier]}</td></tr>`
+    : '';
+
+  if (isNewFormat) {
+    // ── V2 TEMPLATE ─────────────────────────────────────────────────────────
+    const finalCtaUrl = p_ctaUrl && p_ctaUrl !== 'https://strategic-flow-audit.replit.app' ? p_ctaUrl : ctaHref;
+    const calendarSection = calendarRowsHtml ? `
+        <!-- 30-DAY CONTENT CALENDAR -->
+        <tr>
+          <td style="padding:0 32px 36px;">
+            <div style="border:1px solid rgba(255,255,255,0.10);border-left:4px solid ${primaryColor};border-radius:10px;overflow:hidden;">
+              <div style="padding:16px 20px;background:rgba(255,255,255,0.05);">
+                <div style="font-size:10px;font-weight:800;color:${primaryColor};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">30-Day Content Calendar</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.65);">Follow-up email topics to extend this campaign</div>
+              </div>
+              ${calendarRowsHtml}
+            </div>
+          </td>
+        </tr>` : '';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
+<body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;">
+<!-- PREHEADER -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${p_preheader}&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#0a0f1e;min-width:100%;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background:#111111;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.10);">
+
+        ${tierLabelRow}
+
+        <!-- HEADER -->
+        <tr>
+          <td style="padding:22px 32px 18px;background:#0a0f1e;border-bottom:3px solid ${primaryColor};">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td>
+                  ${logoOrBrandName}
+                  ${p_brandTagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${p_brandTagline}</div>` : ''}
+                </td>
+                <td align="right" style="vertical-align:top;">
+                  <div style="font-size:10px;color:rgba(255,255,255,0.40);font-family:monospace;white-space:nowrap;">${today}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- HERO IMAGE -->
+        <tr><td style="padding:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="600" height="220" style="width:100%;max-width:600px;height:220px;object-fit:cover;display:block;border:0;" /></td></tr>
+
+        <!-- HOOK + TENSION + STAT CARDS -->
+        <tr>
+          <td style="padding:36px 32px 28px;border-bottom:1px solid rgba(255,255,255,0.10);">
+            <h1 style="margin:0 0 16px;font-size:26px;font-weight:900;color:#ffffff;line-height:1.2;letter-spacing:-0.4px;">${p_hook}</h1>
+            <p style="margin:0 0 28px;font-size:16px;color:rgba(255,255,255,0.65);line-height:1.75;">${p_tension}</p>
+            ${statCardsHtml}
+          </td>
+        </tr>
+
+        <!-- GRADIENT DIVIDER -->
+        <tr><td style="padding:0;line-height:0;height:3px;background:linear-gradient(to right,${primaryColor},rgba(94,106,210,0.3),transparent);font-size:0;">&nbsp;</td></tr>
+
+        <!-- INSIGHT + PROOF + COST -->
+        <tr><td style="padding:32px 32px 28px;">
+          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">THE ONE THING THAT CHANGES EVERYTHING</p>
+          <p style="font-size:15px;color:#ffffff;line-height:1.8;margin:0 0 28px;">${p_insight}</p>
+
+          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">WHO&#39;S ALREADY DOING IT</p>
+          <p style="font-size:15px;color:rgba(255,255,255,0.80);line-height:1.8;font-style:italic;border-left:2px solid rgba(255,255,255,0.15);padding-left:16px;margin:0 0 28px;">${p_proof}</p>
+
+          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">THE COST OF WAITING</p>
+          <p style="font-size:15px;color:rgba(255,255,255,0.65);line-height:1.8;margin:0;">${p_cost}</p>
+        </td></tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="padding:0 32px 36px;">
+            <div style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,#0a0f1e 100%);border-radius:12px;">
+              <div style="background:#111111;border-radius:10px;padding:28px 32px;text-align:center;">
+                <a href="${finalCtaUrl}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        ${calendarSection}
+
+        <!-- FOOTER -->
+        <tr>
+          <td style="padding:28px 40px 32px;border-top:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.25);text-align:center;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.35);">${company}</p>
+            ${p_brandDesc ? `<p style="margin:8px 0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">${p_brandDesc}</p>` : ''}
+            <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.20);"><a href="#" style="color:rgba(255,255,255,0.25);text-decoration:none;">Unsubscribe</a></p>
+          </td>
+        </tr>
+
+        ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body></html>`;
+  }
+
+  // ── LEGACY TEMPLATE (v1 XML sections, promotional grid, plain text) ────────
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
@@ -1156,59 +1305,33 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.55);">
-
-  <!-- 0. TIER LABEL BAR (paid tiers only) -->
-  ${(() => {
-    const labels = { single: 'SINGLE — One-time rebuild', lite: 'LITE — Standard Delivery', growth: 'GROWTH — Premium', high_impact: 'HIGH-IMPACT — Full Stack' };
-    const label = labels[tier];
-    return label ? `<tr><td style="padding:6px 24px;background:#16a34a;color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">${label}</td></tr>` : '';
-  })()}
-
-  <!-- 1. HEADER: logo/name left · date right -->
+  ${tierLabelRow}
   <tr><td style="background:${headerBg};padding:18px 32px;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="vertical-align:middle;">${headerNameContent}</td>
-        <td align="right" style="vertical-align:middle;white-space:nowrap;">
-          <span style="font-family:'DM Mono',monospace,Arial,sans-serif;font-size:10px;font-weight:600;color:${headerText};opacity:0.75;text-transform:uppercase;letter-spacing:1.5px;">${today}</span>
-        </td>
-      </tr>
-    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="vertical-align:middle;">${logoOrBrandName}</td>
+      <td align="right" style="vertical-align:middle;white-space:nowrap;">
+        <span style="font-family:monospace;font-size:10px;font-weight:600;color:${headerText};opacity:0.75;text-transform:uppercase;letter-spacing:1.5px;">${today}</span>
+      </td>
+    </tr></table>
   </td></tr>
-
-  <!-- 2. HERO IMAGE -->
   <tr><td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;">
     <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
   </td></tr>
-
-  <!-- 2b. HERO HEADLINE BAND — kicker + bold dramatic headline on brand background -->
   <tr><td style="background:${headerBg};padding:28px 40px 24px;">
-    <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:600;color:${headerText};opacity:0.6;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px 0;">${company} &middot; ${today}</p>
+    <p style="font-size:10px;font-weight:600;color:${headerText};opacity:0.6;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px 0;">${company} &middot; ${today}</p>
     <h1 style="font-size:27px;font-weight:900;color:${headerText};margin:0;line-height:1.28;letter-spacing:-0.5px;">${subject}</h1>
   </td></tr>
-
-  <!-- 3. GRADIENT DIVIDER -->
   <tr><td style="height:4px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);font-size:0;line-height:0;">&nbsp;</td></tr>
-
-  <!-- 4–8. BODY: hook · stat cards · paragraphs · testimonial · offer pills · CTA (all from Claude) -->
-  <tr><td style="background:${containerBg};padding:40px;">
-    ${bodyContent}
-  </td></tr>
-
-  <!-- 9. FOOTER: brand name · tagline · unsubscribe -->
+  <tr><td style="background:${containerBg};padding:40px;">${bodyContent}</td></tr>
   <tr><td style="background:${footerBg};padding:28px 40px;text-align:center;border-top:1px solid ${footerBorder};">
     ${footerLogo}
     <p style="font-size:13px;font-weight:700;color:${footerText};margin:0 0 4px;">${company}</p>
     ${taglineText}
     ${['lite','growth','high_impact'].includes(tier)
       ? `<p style="font-size:11px;color:${footerMuted};margin:8px 0 0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
-      : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p>
-    <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`}
+      : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p><p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a></p>`}
   </td></tr>
-
-  <!-- HUMAN-CHECK BADGE (Lite and above only) -->
   ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
-
 </table></td></tr></table></body></html>`;
 }
 

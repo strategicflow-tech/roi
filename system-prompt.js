@@ -318,64 +318,43 @@ TONE AND RHYTHM RULES — these are non-negotiable:
 
 8. THE GOAL: When someone reads this email, they must feel like a person wrote it specifically for them — not like they're reading a Wikipedia article about the topic.
 
-OUTPUT FORMAT — MANDATORY:
-- Output rebuilt_body as XML-tagged sections in this EXACT order: <hook>, <tension>, <stats>, <insight>, <proof>, <cost>, <cta>
-- Each tag wraps only the HTML (or plain text where specified) for that section. No <html>, <head>, or <body> tags. No markdown syntax. Use <strong> for emphasis.
-- NEVER output numbered section headers ("Finding 01", "Step 01", etc.). NEVER output offer pill rows. Section labels are added by the template — do not include them.
+OUTPUT FORMAT RULE: Structure your entire rebuilt_body using these XML tags. All tags are required. Output nothing outside the tags.
+- No markdown. No <html>/<head>/<body> wrapper. No numbered section headers. Section labels are injected by the template.
+- Plain text inside: <preheader>, <hook>, <cta_text>, stat value/label tags, calendar tags, <brand_tagline>, <brand_description>
+- All other tags accept plain prose — no HTML wrappers needed. The template handles all styling.
 
-SECTION STRUCTURE — write each section wrapped in its XML tag, in order:
+<preheader>One sentence — the single most compelling reason to read this email. Max 90 characters.</preheader>
 
-<hook>
-A SINGLE sentence (max 20 words) that creates immediate tension or dissonance. Not a statistic. Not a greeting. A pattern-interrupt that makes the reader feel something is at stake RIGHT NOW.
-Output as PLAIN TEXT only — no HTML tags inside this section.
-</hook>
+<hook>Single tension sentence. Pattern-interrupt. Something is at stake RIGHT NOW for this reader. Max 20 words.</hook>
 
-<tension>
-One paragraph (2–3 sentences). Widen the gap: what's changing, who's already moving, what it costs to wait. No label. No number prefix.
-Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[tension paragraph — <strong> on the single sharpest claim]</p>
-</tension>
+<tension>One paragraph (2–3 sentences). What is changing. Who is already moving. What it costs to wait.</tension>
 
-<stats>
-ONLY include when the source contains 3 or more distinct numbers/statistics. If fewer than 3 stats exist, output empty: <stats></stats>
-Use CTABGCOLOR as the number color (server-replaced placeholder — use it literally, never output it as visible text):
-<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:8px;margin:0 0 24px;"><tr>
-  <td style="width:33%;text-align:center;padding:18px 8px;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
-  <td style="width:33%;text-align:center;padding:18px 8px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
-  <td style="width:33%;text-align:center;padding:18px 8px;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
-</tr></table>
-</stats>
+<stat1_value>First key number or metric from the source — exact, not approximated</stat1_value>
+<stat1_label>What this stat measures — 3 to 6 words</stat1_label>
+<stat2_value>Second key number or metric from the source</stat2_value>
+<stat2_label>What this stat measures — 3 to 6 words</stat2_label>
+<stat3_value>Third key number or metric from the source</stat3_value>
+<stat3_label>What this stat measures — 3 to 6 words</stat3_label>
+STATS RULE: Use ONLY real numbers that appear explicitly in the source. If fewer than 3 distinct stats exist in the source, leave the remaining stat tags empty (e.g. <stat3_value></stat3_value>).
 
-<insight>
-The single most valuable, specific, actionable idea from the source. One idea. Not three. The idea that changes how the reader sees their situation. One paragraph.
-Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[insight — <strong> on the single most important phrase]</p>
-If the source contains 3+ data points sharing the same unit or category, also include a data table here (see DATA TABLES format below). Never invent rows or percentages.
-</insight>
+<insight>The single most valuable idea from the source. One idea only. Specific and actionable. The idea that changes how the reader sees their situation. Two to three sentences max.</insight>
 
-<proof>
-One company, one person, or one data point from the source that validates the insight. Real name. Real outcome. No vague adjectives. One paragraph only.
-If a direct quote exists in the source:
-<table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[exact quote from source — never invented]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Name · Role · Company]</p></td></tr></table>
-Otherwise: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[Name + role + specific result]</p>
-NEVER invent a quote. If no real quote exists, use the paragraph format.
-</proof>
+<proof>One company or person from the source. Real name. Real role. Real outcome. No invented details. One paragraph. If a direct quote exists in the source, use it — Name · Role · outcome format.</proof>
 
-<cost>
-One paragraph. The specific consequence of inaction — what the reader concretely loses by not acting. Tied directly to the insight. Not generic FOMO.
-Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[cost of waiting paragraph]</p>
-</cost>
+<cost>One paragraph. The specific consequence of inaction for this reader. Tied directly to the insight. Not generic FOMO. A concrete cost.</cost>
 
-<cta>
-CTA button text only — 3 to 7 words. An ownership verb (See, Get, Start, Claim, Read, Watch, Try) followed by a specific outcome. Must match the original CTA intent per Rule 3.
-NEVER use: "Learn more", "Click here", "Find out", "Discover".
-Output as PLAIN TEXT only — no HTML tags.
-</cta>
+<cta_text>Ownership verb + specific outcome. Max 8 words. NEVER: "Learn more", "Click here", "Discover", "Find out".</cta_text>
 
-DATA TABLES FORMAT (for use inside <insight> when source has structured numeric data):
-<table cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;margin:20px 0;font-family:Arial,Helvetica,sans-serif;">
-  <tr style="background:#f5f5f5;"><th style="text-align:left;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column]</th><th style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column]</th></tr>
-  <tr><td style="padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;">[data from source]</td><td style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;font-weight:600;">[exact stat]</td></tr>
-</table>
-Alternate row background: odd rows #ffffff, even rows #fafafa. Only use real numbers from the source.
+<cta_url>The exact original source URL from the content — the article, report, or page being discussed. Never the brand homepage or signup page.</cta_url>
+
+<calendar_week1>Follow-up email topic for week 1 — specific to this campaign's content, one sentence</calendar_week1>
+<calendar_week2>Follow-up email topic for week 2 — builds on week 1, one sentence</calendar_week2>
+<calendar_week3>Follow-up email topic for week 3 — one sentence</calendar_week3>
+<calendar_week4>Follow-up email topic for week 4 — closes the 30-day arc, one sentence</calendar_week4>
+
+<brand_tagline>The brand's actual tagline or one-line description extracted from the source. Never invented.</brand_tagline>
+
+<brand_description>Complete brand description for the email footer. Extracted from the source. Never truncate mid-sentence. Max 2 sentences.</brand_description>
 
 HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
 
@@ -389,7 +368,7 @@ EMAIL TYPE: Detect the correct category for the badge label:
 Return as emailType in the JSON.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string (XML-tagged sections in order: <hook>plain text</hook><tension>html</tension><stats>html or empty</stats><insight>html</insight><proof>html</proof><cost>html</cost><cta>plain text</cta>)","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string (all XML tags in order: <preheader/><hook/><tension/><stat1_value/><stat1_label/><stat2_value/><stat2_label/><stat3_value/><stat3_label/><insight/><proof/><cost/><cta_text/><cta_url/><calendar_week1/><calendar_week2/><calendar_week3/><calendar_week4/><brand_tagline/><brand_description/>)","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
