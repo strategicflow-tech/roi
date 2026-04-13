@@ -822,6 +822,13 @@ function extractAddressFromBody(originalBody) {
   ) || null;
 }
 
+// Extract a named XML section from Claude's body output.
+// Returns trimmed inner content or null if the tag is absent / empty.
+function extractSection(html, tag) {
+  const m = (html || '').match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return m ? m[1].trim() : null;
+}
+
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Guard all critical inputs — never render the string "undefined" or "null" in output HTML
   company = safeVal(company) || 'Your Company';
@@ -987,20 +994,68 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     return `<p style="font-size:12px;color:${footerMuted};margin:0 0 8px;line-height:1.5;">${trimmed}</p>`;
   })();
 
-  // If Claude returned structured HTML (new format), inject it directly after substituting
-  // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
-  // Otherwise fall back to the legacy newline-based formatter.
+  // Parse body: first try XML-section format, then HTML, then legacy plain text.
   const rawBody = (body || '').trim();
   const isHtmlBody = rawBody.startsWith('<');
 
+  // ── XML-SECTION PARSER (new structured format) ────────────────────────────
+  const hookContent    = extractSection(rawBody, 'hook');
+  const tensionContent = extractSection(rawBody, 'tension');
+  const statsContent   = extractSection(rawBody, 'stats');
+  const insightContent = extractSection(rawBody, 'insight');
+  const proofContent   = extractSection(rawBody, 'proof');
+  const costContent    = extractSection(rawBody, 'cost');
+  const ctaTagText     = extractSection(rawBody, 'cta');
+  const hasXmlSections = !!(hookContent && tensionContent && insightContent && proofContent && costContent);
+
   let bodyContent;
-  if (isHtmlBody) {
+  if (hasXmlSections) {
+    // Shared label style per spec
+    const sectionLabel = text =>
+      `<p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;margin:32px 0 6px 0;">${text}</p>`;
+
+    // Substitute colour placeholders + adapt for dark theme
+    const processHtml = html =>
+      adaptBodyForDarkTheme(
+        (html || '')
+          .replace(/CTABGCOLOR/g,   primaryColor)
+          .replace(/CTATEXTCOLOR/g, primaryText)
+          .replace(/CTAACCENTCOLOR/g, accentColor)
+          .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`)
+      );
+
+    const statsBlock = (statsContent && statsContent.trim()) ? processHtml(statsContent) : '';
+
+    const btnText = (ctaTagText || 'Read the full story →').trim();
+    const ctaBlock = `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:28px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${btnText}</a></td></tr></table></td></tr></table></td></tr></table>`;
+
+    bodyContent = [
+      // 1. HOOK — large, bold, high contrast
+      `<p style="font-size:22px;font-weight:900;color:${textColor};line-height:1.35;margin:0 0 24px;letter-spacing:-0.3px;">${hookContent}</p>`,
+      // 2. TENSION — one paragraph, no label
+      processHtml(tensionContent),
+      // 3. STAT CARDS — optional, only when Claude returned data
+      statsBlock,
+      // 4. INSIGHT
+      sectionLabel('THE ONE THING THAT CHANGES EVERYTHING'),
+      processHtml(insightContent),
+      // 5. PROOF
+      sectionLabel("WHO'S ALREADY DOING IT"),
+      processHtml(proofContent),
+      // 6. COST OF WAITING
+      sectionLabel('THE COST OF WAITING'),
+      processHtml(costContent),
+      // 7. CTA
+      ctaBlock
+    ].filter(Boolean).join('\n');
+
+  } else if (isHtmlBody) {
+    // Legacy HTML path — Claude returned raw HTML without XML section tags
     let processed = rawBody
       .replace(/CTABGCOLOR/g, primaryColor)
       .replace(/CTATEXTCOLOR/g, primaryText)
       .replace(/CTAACCENTCOLOR/g, accentColor)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
-    // For longform or steps content, strip any emoji box tables Claude may have added despite instructions
     if (contentStyle === 'longform' || contentStyle === 'steps') {
       processed = stripEmojiBoxTables(processed);
     }

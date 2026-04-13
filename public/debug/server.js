@@ -776,6 +776,11 @@ function extractAddressFromBody(originalBody) {
   ) || null;
 }
 
+function extractSection(html, tag) {
+  const m = (html || '').match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return m ? m[1].trim() : null;
+}
+
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Guard all critical inputs — never render the string "undefined" or "null" in output HTML
   company = safeVal(company) || 'Your Company';
@@ -912,19 +917,55 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const footerText   = isDark ? '#888888' : '#999999';
   const footerMuted  = isDark ? '#666666' : '#bbbbbb';
 
-  // If Claude returned structured HTML (new format), inject it directly after substituting
-  // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
-  // Otherwise fall back to the legacy newline-based formatter.
+  // Parse body: first try XML-section format, then HTML, then legacy plain text.
   const rawBody = (body || '').trim();
   const isHtmlBody = rawBody.startsWith('<');
 
+  const hookContent    = extractSection(rawBody, 'hook');
+  const tensionContent = extractSection(rawBody, 'tension');
+  const statsContent   = extractSection(rawBody, 'stats');
+  const insightContent = extractSection(rawBody, 'insight');
+  const proofContent   = extractSection(rawBody, 'proof');
+  const costContent    = extractSection(rawBody, 'cost');
+  const ctaTagText     = extractSection(rawBody, 'cta');
+  const hasXmlSections = !!(hookContent && tensionContent && insightContent && proofContent && costContent);
+
   let bodyContent;
-  if (isHtmlBody) {
+  if (hasXmlSections) {
+    const sectionLabel = text =>
+      `<p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;margin:32px 0 6px 0;">${text}</p>`;
+
+    const processHtml = html =>
+      adaptBodyForDarkTheme(
+        (html || '')
+          .replace(/CTABGCOLOR/g,   primaryColor)
+          .replace(/CTATEXTCOLOR/g, primaryText)
+          .replace(/CTAACCENTCOLOR/g, accentColor)
+          .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`)
+      );
+
+    const statsBlock = (statsContent && statsContent.trim()) ? processHtml(statsContent) : '';
+    const btnText = (ctaTagText || 'Read the full story →').trim();
+    const ctaBlock = `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:28px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${btnText}</a></td></tr></table></td></tr></table></td></tr></table>`;
+
+    bodyContent = [
+      `<p style="font-size:22px;font-weight:900;color:${textColor};line-height:1.35;margin:0 0 24px;letter-spacing:-0.3px;">${hookContent}</p>`,
+      processHtml(tensionContent),
+      statsBlock,
+      sectionLabel('THE ONE THING THAT CHANGES EVERYTHING'),
+      processHtml(insightContent),
+      sectionLabel("WHO'S ALREADY DOING IT"),
+      processHtml(proofContent),
+      sectionLabel('THE COST OF WAITING'),
+      processHtml(costContent),
+      ctaBlock
+    ].filter(Boolean).join('\n');
+
+  } else if (isHtmlBody) {
     let processed = rawBody
       .replace(/CTABGCOLOR/g, primaryColor)
       .replace(/CTATEXTCOLOR/g, primaryText)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
-    // For longform or steps content, strip any emoji box tables Claude may have added despite instructions
     if (contentStyle === 'longform' || contentStyle === 'steps') {
       processed = stripEmojiBoxTables(processed);
     }

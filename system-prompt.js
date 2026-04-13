@@ -318,117 +318,64 @@ TONE AND RHYTHM RULES — these are non-negotiable:
 
 8. THE GOAL: When someone reads this email, they must feel like a person wrote it specifically for them — not like they're reading a Wikipedia article about the topic.
 
-OUTPUT FORMAT — MANDATORY (email must render in Gmail and Outlook):
-- Output ONLY valid HTML for the body content area. No <html>, <head>, or <body> tags. Table-based layout only — no div-based layouts.
-- NEVER use markdown syntax. No **bold**, no *italic*, no bullet dashes. Use <strong> for emphasis, <em> for italics.
+OUTPUT FORMAT — MANDATORY:
+- Output rebuilt_body as XML-tagged sections in this EXACT order: <hook>, <tension>, <stats>, <insight>, <proof>, <cost>, <cta>
+- Each tag wraps only the HTML (or plain text where specified) for that section. No <html>, <head>, or <body> tags. No markdown syntax. Use <strong> for emphasis.
+- NEVER output numbered section headers ("Finding 01", "Step 01", etc.). NEVER output offer pill rows. Section labels are added by the template — do not include them.
 
-CONTENT FORMAT DECISION — set contentStyle based on the original:
-- Original is a blog post, article, long-form narrative, or announcement written in paragraphs → contentStyle: "longform". Use ONLY <p> tags and <strong> headers. ABSOLUTELY NO emoji boxes or benefit cards. EXCEPTION: data tables (border-collapse:collapse format from item 8) ARE allowed and required whenever the article contains structured numeric data across categories — this applies to longform too.
-- Original is a feature list, product update email, or uses bullet-point structure → contentStyle: "boxes". Use the emoji benefit card format.
-- Original has numbered steps or a how-to sequence → contentStyle: "steps". Use <ol><li> structure. No emoji cards.
+SECTION STRUCTURE — write each section wrapped in its XML tag, in order:
 
-SECTION STRUCTURE:
-1. Opening hook — <p style="font-size:17px;color:#222222;line-height:1.7;font-weight:600;margin:0 0 20px;">[first sentence earns the read]</p>
+<hook>
+A SINGLE sentence (max 20 words) that creates immediate tension or dissonance. Not a statistic. Not a greeting. A pattern-interrupt that makes the reader feel something is at stake RIGHT NOW.
+Output as PLAIN TEXT only — no HTML tags inside this section.
+</hook>
 
-1b. STAT HIGHLIGHT ROW — MANDATORY when the article contains 3 or more distinct numbers/statistics:
-   Insert this IMMEDIATELY after the opening hook, before any body text. Use CTABGCOLOR as the number color (server-replaced placeholder — use it literally):
-   <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:8px;margin:0 0 24px;">
-   <tr>
-     <td style="width:33%;text-align:center;padding:18px 8px;">
-       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content — e.g. 65%]</p>
-       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
-     </td>
-     <td style="width:33%;text-align:center;padding:18px 8px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;">
-       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content]</p>
-       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
-     </td>
-     <td style="width:33%;text-align:center;padding:18px 8px;">
-       <p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number from content]</p>
-       <p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[What this number means — 3-6 words]</p>
-     </td>
-   </tr>
-   </table>
-   RULE: Numbers make emails scannable — readers must understand the value in 10 seconds. ONLY use real numbers from the source. Skip this block entirely if the source has fewer than 3 distinct numbers.
+<tension>
+One paragraph (2–3 sentences). Widen the gap: what's changing, who's already moving, what it costs to wait. No label. No number prefix.
+Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[tension paragraph — <strong> on the single sharpest claim]</p>
+</tension>
 
-2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[consequence first — architecture second — bold the key insight using &lt;strong&gt;]</p>
+<stats>
+ONLY include when the source contains 3 or more distinct numbers/statistics. If fewer than 3 stats exist, output empty: <stats></stats>
+Use CTABGCOLOR as the number color (server-replaced placeholder — use it literally, never output it as visible text):
+<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e8e8;border-radius:8px;margin:0 0 24px;"><tr>
+  <td style="width:33%;text-align:center;padding:18px 8px;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
+  <td style="width:33%;text-align:center;padding:18px 8px;border-left:1px solid #e0e0e0;border-right:1px solid #e0e0e0;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
+  <td style="width:33%;text-align:center;padding:18px 8px;"><p style="font-size:30px;font-weight:900;color:CTABGCOLOR;margin:0;line-height:1;">[Exact number]</p><p style="font-size:11px;color:#666666;margin:6px 0 0;line-height:1.4;">[3–6 word label]</p></td>
+</tr></table>
+</stats>
 
-   BODY WRITING RULES (mandatory):
-   — CONSEQUENCE FIRST: every paragraph opens with what the reader gains or avoids, then explains how.
-     BAD: "We rebuilt our checkout to reduce friction." GOOD: "Your checkout now converts 3x more mobile users — because we removed 4 steps."
-   — BOLD THE KEY INSIGHT: use <strong> on the single most important claim in each paragraph. Never bold more than one phrase per paragraph.
-   — MAX 2–3 PARAGRAPHS: the body section must contain no more than 3 paragraphs. If the source has more content, distill — never pad.
-   — Each paragraph must end with the reader feeling like something just landed.
+<insight>
+The single most valuable, specific, actionable idea from the source. One idea. Not three. The idea that changes how the reader sees their situation. One paragraph.
+Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[insight — <strong> on the single most important phrase]</p>
+If the source contains 3+ data points sharing the same unit or category, also include a data table here (see DATA TABLES format below). Never invent rows or percentages.
+</insight>
 
-   VISUAL RHYTHM RULE — MANDATORY for all contentStyles including longform:
-   After EVERY 2-3 consecutive paragraphs, insert ONE visual break. Never allow 4+ paragraphs in a row.
-   Choose the most appropriate break based on context:
-   a) Section label (for articles with distinct findings/steps/points — preferred when article has 3+ sections):
-      <p style="font-size:11px;font-weight:700;color:CTABGCOLOR;text-transform:uppercase;letter-spacing:1.5px;margin:28px 0 6px 0;">Finding 01</p>
-      Use sequential labels matching the content type:
-      — Research/data articles: "Finding 01", "Finding 02", "Finding 03"
-      — How-to articles: "Step 01", "Step 02", "Step 03"
-      — Listicles/opinions: "Key Point 01", "Key Point 02"
-      — General sections: "Section 01", "Section 02"
-   b) Horizontal divider (lightweight visual break when no new section starts):
-      <table cellpadding="0" cellspacing="0" style="width:100%;margin:24px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-   c) Stat callout or quote block (when a striking number or quote appears at this point in the content)
+<proof>
+One company, one person, or one data point from the source that validates the insight. Real name. Real outcome. No vague adjectives. One paragraph only.
+If a direct quote exists in the source:
+<table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[exact quote from source — never invented]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Name · Role · Company]</p></td></tr></table>
+Otherwise: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[Name + role + specific result]</p>
+NEVER invent a quote. If no real quote exists, use the paragraph format.
+</proof>
 
-3. Section divider (before AND after benefit cards — only include if using boxes or steps):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="height:1px;background:#e0e0e0;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-4. Benefit cards — ONLY when contentStyle is "boxes". SKIP ENTIRELY for "longform" and "steps". COUNT the distinct value propositions in the original. Create EXACTLY that many cards (min 2, max 6). Each card title restates one actual proposition from the original. One SEPARATE TABLE per card:
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit from THIS email — 4 to 7 words, outcome language]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
-   Emoji: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never ✓ ★ generic bullet.
-   For "steps" contentStyle only: <ol style="margin:0 0 20px;padding-left:20px;"><li style="font-size:15px;color:#333333;line-height:1.75;margin-bottom:10px;">[step content]</li></ol>
-5. Quote/testimonial (ONLY if a real quote exists in the original — never invent):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Name · Role · Company]</p></td></tr></table>
+<cost>
+One paragraph. The specific consequence of inaction — what the reader concretely loses by not acting. Tied directly to the insight. Not generic FOMO.
+Format: <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[cost of waiting paragraph]</p>
+</cost>
 
-6. OFFER PILLS ROW — MANDATORY when source mentions 2 or more distinct features, updates, or capabilities:
-   List every distinct feature/update/capability mentioned in the original as a horizontal row of pills.
-   Use CTABGCOLOR as pill background and CTATEXTCOLOR as pill text (server-replaced placeholders):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0 24px;">
-     <tr><td style="text-align:center;padding:4px 0;line-height:2.4;">
-       <span style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;margin:3px 4px;white-space:nowrap;">[Feature — 2-5 words]</span>
-       <span style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;margin:3px 4px;white-space:nowrap;">[Feature — 2-5 words]</span>
-     </td></tr>
-   </table>
-   RULE: Min 2 pills, max 8 pills. Only include items explicitly mentioned in the source. Never invent.
-   SKIP this block if the source has fewer than 2 distinct features/updates/capabilities.
+<cta>
+CTA button text only — 3 to 7 words. An ownership verb (See, Get, Start, Claim, Read, Watch, Try) followed by a specific outcome. Must match the original CTA intent per Rule 3.
+NEVER use: "Learn more", "Click here", "Find out", "Discover".
+Output as PLAIN TEXT only — no HTML tags.
+</cta>
 
-7. CTA BLOCK — gradient border box with centered ownership-language button (EXACTLY this structure):
-   <table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;">
-     <tr><td style="padding:3px;background:linear-gradient(135deg,CTABGCOLOR 0%,CTAACCENTCOLOR 100%);border-radius:10px;">
-       <table cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;border-radius:8px;">
-         <tr><td style="padding:28px 32px;text-align:center;">
-           <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
-             <tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:6px;">
-               <a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[Ownership verb (See/Get/Start/Claim) + specific outcome — must match original intent per Rule 3]</a>
-             </td></tr>
-           </table>
-         </td></tr>
-       </table>
-     </td></tr>
-   </table>
-   CTABGCOLOR, CTATEXTCOLOR, and CTAACCENTCOLOR are server-replaced placeholders. Use them literally. Never output as visible text.
-   CTA text MUST use an ownership verb: See, Get, Start, Claim, Read, Watch, Try — followed by a specific outcome.
-   NEVER use: "Learn more", "Click here", "Find out", "Discover" — these are forbidden.
-
-8. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
-9. DATA TABLES — when the original article or email contains data tables, statistics tables, comparison tables, or regional/category breakdowns:
-   - EXTRACT the actual numbers from the source text. NEVER approximate or invent data.
-   - Rebuild as email-safe HTML table (no CSS classes, inline styles only):
-   <table cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;margin:20px 0;font-family:Arial,Helvetica,sans-serif;">
-     <tr style="background:#f5f5f5;">
-       <th style="text-align:left;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column Header]</th>
-       <th style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column Header]</th>
-     </tr>
-     <tr>
-       <td style="padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;">[Data from source]</td>
-       <td style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;font-weight:600;">[Exact stat from source]</td>
-     </tr>
-   </table>
-   - Alternate row background for readability: odd rows #ffffff, even rows #fafafa (set via style on each <tr>).
-   - Only include columns that appear in the original source. Source = ground truth — extract numbers exactly.
-   - If the original has multiple separate tables (e.g. one per region or category), rebuild each as its own <table> block with a header <p> label above it.
+DATA TABLES FORMAT (for use inside <insight> when source has structured numeric data):
+<table cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;margin:20px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr style="background:#f5f5f5;"><th style="text-align:left;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column]</th><th style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#1a1a1a;font-weight:700;">[Column]</th></tr>
+  <tr><td style="padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;">[data from source]</td><td style="text-align:right;padding:10px 12px;border:1px solid #e0e0e0;font-size:13px;color:#333333;font-weight:600;">[exact stat]</td></tr>
+</table>
+Alternate row background: odd rows #ffffff, even rows #fafafa. Only use real numbers from the source.
 
 HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
 
@@ -442,7 +389,7 @@ EMAIL TYPE: Detect the correct category for the badge label:
 Return as emailType in the JSON.
 
 Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
+{"rebuilt_subject":"string","rebuilt_body":"string (XML-tagged sections in order: <hook>plain text</hook><tension>html</tension><stats>html or empty</stats><insight>html</insight><proof>html</proof><cost>html</cost><cta>plain text</cta>)","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
