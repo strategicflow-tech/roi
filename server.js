@@ -306,7 +306,8 @@ const safeVal = (val) => {
 const JSON_SYSTEM_INSTRUCTION = 'Return ONLY valid JSON. Use straight ASCII quotes only — no curly quotes (\u201C\u201D\u2018\u2019), no em dashes (\u2014), no en dashes (\u2013), no ellipsis characters (\u2026), no non-breaking spaces, no other Unicode. No markdown fences. No text before or after the JSON object.';
 
 async function claudeJSON(prompt, maxTokens = 2000) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const retries = 3;
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const msg = await claude.messages.create({
         model: MODEL, max_tokens: maxTokens,
@@ -316,13 +317,31 @@ async function claudeJSON(prompt, maxTokens = 2000) {
       const raw = msg.content[0].text.trim();
       return safeParseJSON(raw);
     } catch (err) {
-      if (attempt === 1) {
-        console.error('[claudeJSON] both attempts failed:', err.message);
-        return null; // callers must check for null and surface a user-facing error
+      const is529 = err.status === 529 || String(err.message).includes('529') || String(err.message).includes('Overloaded');
+      if (is529) {
+        if (attempt < retries) {
+          const delay = attempt * 5000; // 5s, 10s
+          console.log(`[claudeJSON] 529 Overloaded, waiting ${delay}ms before retry ${attempt + 1}/${retries}`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        // All retries exhausted on 529 — throw a user-friendly error so callers can surface it
+        console.error(`[claudeJSON] all ${retries} attempts failed (529 Overloaded)`);
+        const overloadErr = new Error('Claude AI is temporarily overloaded. Please try again in 2-3 minutes.');
+        overloadErr.isOverloaded = true;
+        throw overloadErr;
       }
-      await new Promise(r => setTimeout(r, 400));
+      // Non-529 error: short delay then retry; give up with null after last attempt
+      console.error(`[claudeJSON] attempt ${attempt} failed:`, err.message);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 400));
+      } else {
+        console.error(`[claudeJSON] all ${retries} attempts failed:`, err.message);
+        return null;
+      }
     }
   }
+  return null;
 }
 
 // Returns true when a hex color is light enough to need dark text on top of it.
