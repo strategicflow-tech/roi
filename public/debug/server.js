@@ -437,17 +437,23 @@ function adaptBodyForDarkTheme(html) {
 // post-generation safety net so the downloaded HTML always has clean, original URLs.
 function stripResendTracking(html) {
   if (!html) return html;
-  return html.replace(
-    /https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL[^"'\s]*/g,
-    (match) => {
+
+  // Remove tracking pixel
+  html = html.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
+
+  // Decode and replace resend-wrapped URLs
+  html = html.replace(
+    /https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL0\/([^/'">\s]+)\/\d+\/[^'">\s]*/gi,
+    (match, encodedUrl) => {
       try {
-        const decoded = decodeURIComponent(match);
-        // Find the first non-Resend URL embedded inside the wrapper
-        const urlMatch = decoded.match(/https?:\/\/(?!(?:[a-z0-9-]+\.)?resend)[^\s"']+/);
-        return urlMatch ? urlMatch[0] : match;
-      } catch (_) { return match; }
+        return decodeURIComponent(encodedUrl);
+      } catch (e) {
+        return match;
+      }
     }
   );
+
+  return html;
 }
 
 // Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
