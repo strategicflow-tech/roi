@@ -109,6 +109,7 @@ async function setupDB() {
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS conversion_hook TEXT;
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS original_score JSONB;
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS rebuild_path VARCHAR(20);
+    ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS og_image TEXT;
     ALTER TABLE rebuild_learning ADD COLUMN IF NOT EXISTS rebuild_path VARCHAR(20);
   `).catch(e => console.error('[DB] alter:', e.message));
   console.log('[DB] All tables ready');
@@ -1478,10 +1479,13 @@ async function handleGenerate(req, res) {
             const previewBody = (n.rebuilt_body || '')
               .replace(/CTABGCOLOR/g, pa)
               .replace(/CTATEXTCOLOR/g, pat);
+            const cachedOgImage = req.body._ogImage || n.og_image || null;
+            console.log('[cache] ogImage:', cachedOgImage);
             const downloadHtml = stripResendTracking(buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
               { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
-                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app' }
+                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app',
+                heroImageUrl: cachedOgImage }
             ));
             return res.json({
               rebuilt_subject: n.rebuilt_subject,
@@ -1492,6 +1496,7 @@ async function handleGenerate(req, res) {
               emailType:       n.email_type || null,
               key_changes:     n.key_changes || [],
               conversion_hook: n.conversion_hook || '',
+              og_image:        n.og_image || null,
               cached:          true
             });
           }
@@ -1824,14 +1829,15 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // Persist to DB
     try {
       const s = await pool.query(`
-        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id
+        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path,og_image)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id
       `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, finalEmailType,
           effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
           result.key_changes ? JSON.stringify(result.key_changes) : null,
           result.conversion_hook || null,
           originalScore ? JSON.stringify(originalScore) : null,
-          rebuildPath]);
+          rebuildPath,
+          req.body._ogImage || null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db save]', dbErr.message); }
     console.log('STEP 5: DB save attempted');
