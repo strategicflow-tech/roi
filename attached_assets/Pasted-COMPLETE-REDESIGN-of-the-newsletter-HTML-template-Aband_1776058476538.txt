@@ -1,0 +1,54 @@
+COMPLETE REDESIGN of the newsletter HTML template.
+Abandon the current structure entirely. 
+Build a new template based on this reference design.
+
+The new structure must be:
+
+1. HEADER — brand logo/name on left, date/edition on right
+   Dark background matching brand
+
+2. HERO SECTION — bold dramatic headline + 1-2 sentence hook
+   Headline style: consequence-first, curiosity gap, specific number
+   Example pattern: "⚡ Three things your [audience] couldn't do last week — now they can"
+
+3. STAT CARDS ROW — 3 cards with large metric + short label
+   Each card: one number/word + 3-6 word explanation
+   Use brand primary color for the metric
+   Cards must use data FROM the actual content
+
+4. DIVIDER with gradient
+
+5. BODY SECTION — max 2-3 paragraphs
+   Each paragraph: consequence first, architecture second
+   Bold the key insight in each paragraph
+
+6. TESTIMONIAL BLOCK — if any quote exists in source
+   Left border in brand color, italic text, name + role + company
+   Only include if a real quote exists — never invent
+
+7. OFFER PILLS ROW — feature list as horizontal pills
+   Small colored tags listing all features/updates mentioned
+   Brand color background
+
+8. CTA BLOCK — gradient border box, centered
+   Ownership language CTA button
+   href = source article URL
+
+9. FOOTER — brand name, tagline extracted from site, unsubscribe
+
+WRITING RULES for Claude:
+- Subject: must contain a number + consequence + timeframe
+- Hook: first sentence = what the reader's team can now do (or stop doing)
+- Features: always translate to admin/user outcome, never architecture
+- Before/after: contrast must be in the main copy, not footnotes
+- CTA: ownership verb (See, Get, Start, Claim) + specific outcome
+
+TECHNICAL:
+- All table-based, email-safe HTML
+- Brand colors from brandDNA
+- Hero image: og:image from source URL if available
+- All links: source article URL or extracted CTAs from the page
+- Never use strategicflow.carrd.co as CTA — use client's own URL
+
+Apply this new template to ALL newsletter generations going forward.
+Test with: https://stripe.com/blog/global-checkout-trends

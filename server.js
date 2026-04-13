@@ -786,26 +786,25 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '' } = options;
   const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark, headerBg, headerText } = getEmailColors(brandDNA);
 
-  // Header content: show logo OR company name — never both.
-  // brandDNA.logo has already been verified (HEAD request) in the route handler before this
-  // function is called — if the URL was broken, logo was set to null upstream.
+  // Header logo: left-aligned in the new two-column header
   const logoInHeader = (() => {
     if (brandDNA?.logoSvg) {
       const svgConstrained = brandDNA.logoSvg
         .replace(/\s(width|height)=["'][^"']*["']/gi, '')
-        .replace('<svg', '<svg height="40" style="display:inline-block;vertical-align:middle;"');
-      return `<div style="text-align:center;line-height:1;">${svgConstrained}</div>`;
+        .replace('<svg', '<svg height="36" style="display:inline-block;vertical-align:middle;"');
+      return `<div style="line-height:1;">${svgConstrained}</div>`;
     }
     if (brandDNA?.logo) {
-      // URL already verified valid by verifyImageUrl() in the route handler
-      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:40px;width:auto;display:block;margin:0 auto;" />`;
+      return `<img src="${brandDNA.logo}" alt="${company} logo" style="max-height:36px;width:auto;display:block;" />`;
     }
     return '';
   })();
-  // Show company name text only when no verified logo is available
-  const headerContent = logoInHeader
+  // Left cell of the header: logo if available, otherwise company name
+  const headerNameContent = logoInHeader
     ? logoInHeader
-    : `<span style="font-size:20px;font-weight:700;color:${headerText};">${company}</span>`;
+    : `<span style="font-size:18px;font-weight:800;color:${headerText};letter-spacing:-0.3px;">${company}</span>`;
+  // Right cell: issue date
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Hero image: topic-first, then industry fallback. heroKeyword comes from Claude's JSON response.
   const buildHeroSrc = (comp, dna, heroKeyword) => {
@@ -895,22 +894,25 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Use og:image from the fetched URL when available — it's always the article's real cover.
   // Fall back to the topic/industry keyword-matched Unsplash image otherwise.
   const heroSrc = options.heroImageUrl || buildHeroSrc(company, brandDNA, options.heroKeyword);
-  const heroRow = `<tr>
-  <td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;border-collapse:collapse;">
-    <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
-  </td>
-</tr>`;
-
-  // Footer logo (small, centered)
-  const footerLogo = brandDNA?.logo
-    ? `<img src="${brandDNA.logo}" alt="${company}" style="max-height:32px;display:block;margin:0 auto 10px;" />`
-    : '';
 
   // Footer colors defined early — also used by the promotional-grid wave divider
   const footerBg     = isDark ? '#111111' : '#f4f4f7';
   const footerBorder = isDark ? '#2a2a2a' : '#e8e8e8';
   const footerText   = isDark ? '#888888' : '#999999';
   const footerMuted  = isDark ? '#666666' : '#bbbbbb';
+
+  // Footer logo (small, centered)
+  const footerLogo = brandDNA?.logo
+    ? `<img src="${brandDNA.logo}" alt="${company}" style="max-height:28px;display:block;margin:0 auto 10px;" />`
+    : '';
+
+  // Tagline from site meta description (capped at 90 chars for footer)
+  const taglineText = (() => {
+    const raw = (brandDNA?.meta?.description || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    if (!raw) return '';
+    const trimmed = raw.length > 90 ? raw.slice(0, 87) + '...' : raw;
+    return `<p style="font-size:12px;color:${footerMuted};margin:0 0 8px;line-height:1.5;">${trimmed}</p>`;
+  })();
 
   // If Claude returned structured HTML (new format), inject it directly after substituting
   // the CTABGCOLOR / CTATEXTCOLOR placeholders with real brand colours.
@@ -923,6 +925,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     let processed = rawBody
       .replace(/CTABGCOLOR/g, primaryColor)
       .replace(/CTATEXTCOLOR/g, primaryText)
+      .replace(/CTAACCENTCOLOR/g, accentColor)
       .replace(/href="#" target="_blank"/g, `href="${ctaHref}" target="_blank"`);
     // For longform or steps content, strip any emoji box tables Claude may have added despite instructions
     if (contentStyle === 'longform' || contentStyle === 'steps') {
@@ -941,7 +944,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       .replace(/\n\n/g, `</p><p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">`)
       .replace(/\n/g, '<br>');
     const ctaBlock = ctaText
-      ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:4px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table>`
+      ? `<table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;"><tr><td style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);border-radius:10px;"><table cellpadding="0" cellspacing="0" style="width:100%;background:${containerBg};border-radius:8px;"><tr><td style="padding:24px 32px;text-align:center;"><table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${primaryColor}" style="background:${primaryColor};border-radius:6px;"><a href="${ctaHref}" target="_blank" style="display:inline-block;background:${primaryColor};color:${primaryText};font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">${ctaText}</a></td></tr></table></td></tr></table></td></tr></table>`
       : '';
     bodyContent = `<p style="font-size:16px;color:${textColor};line-height:1.75;margin:0 0 20px;">${formattedBody}</p>${ctaBlock}`;
   }
@@ -1025,26 +1028,48 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
-  <!-- HEADER -->
-  <tr><td style="background:${headerBg};padding:28px 40px;text-align:center;">
-    ${headerContent}
+
+  <!-- 1. HEADER: logo/name left · date right -->
+  <tr><td style="background:${headerBg};padding:18px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="vertical-align:middle;">${headerNameContent}</td>
+        <td align="right" style="vertical-align:middle;white-space:nowrap;">
+          <span style="font-size:11px;font-weight:600;color:${headerText};opacity:0.7;text-transform:uppercase;letter-spacing:1px;">${today}</span>
+        </td>
+      </tr>
+    </table>
   </td></tr>
-  <!-- HERO IMAGE -->
-  ${heroRow}
-  <!-- BODY -->
+
+  <!-- 2. HERO IMAGE -->
+  <tr><td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;">
+    <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
+  </td></tr>
+
+  <!-- 2b. HERO HEADLINE BAND — bold dramatic headline on dark brand background -->
+  <tr><td style="background:${headerBg};padding:30px 40px 26px;">
+    <h1 style="font-size:26px;font-weight:900;color:${headerText};margin:0;line-height:1.3;letter-spacing:-0.4px;">${subject}</h1>
+  </td></tr>
+
+  <!-- 3. GRADIENT DIVIDER -->
+  <tr><td style="height:4px;background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);font-size:0;line-height:0;">&nbsp;</td></tr>
+
+  <!-- 4–8. BODY: hook · stat cards · paragraphs · testimonial · offer pills · CTA (all from Claude) -->
   <tr><td style="background:${containerBg};padding:40px;">
-    <h1 style="font-size:22px;color:${accentColor};margin:0 0 24px;line-height:1.35;">${subject}</h1>
     ${bodyContent}
   </td></tr>
-  <!-- FOOTER -->
+
+  <!-- 9. FOOTER: brand name · tagline · unsubscribe -->
   <tr><td style="background:${footerBg};padding:28px 40px;text-align:center;border-top:1px solid ${footerBorder};">
     ${footerLogo}
+    <p style="font-size:13px;font-weight:700;color:${footerText};margin:0 0 4px;">${company}</p>
+    ${taglineText}
     ${['lite','growth','high_impact'].includes(tier)
-      ? `<p style="font-size:12px;font-weight:600;color:${mutedText};margin:0 0 8px;">${company}</p>
-    <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
-      : `<p style="font-size:11px;color:${footerText};margin:0 0 8px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a> &nbsp;·&nbsp; strategic-flow-audit.replit.app</p>
+      ? `<p style="font-size:11px;color:${footerMuted};margin:8px 0 0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
+      : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p>
     <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`}
   </td></tr>
+
 </table></td></tr></table></body></html>`;
 }
 
@@ -1505,10 +1530,11 @@ async function handleGenerate(req, res) {
           if (cached.rows.length > 0) {
             const n = cached.rows[0];
             const cachedDNA = n.brand_dna || null;
-            const { primaryColor: pa, primaryText: pat } = getEmailColors(cachedDNA);
+            const { primaryColor: pa, primaryText: pat, accentColor: pac } = getEmailColors(cachedDNA);
             const previewBody = (n.rebuilt_body || '')
               .replace(/CTABGCOLOR/g, pa)
-              .replace(/CTATEXTCOLOR/g, pat);
+              .replace(/CTATEXTCOLOR/g, pat)
+              .replace(/CTAACCENTCOLOR/g, pac);
             const downloadHtml = stripResendTracking(buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
               { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
@@ -1838,10 +1864,11 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
     // replaced by real brand colours — the frontend injects this as innerHTML directly.
-    const { primaryColor: previewAccent, primaryText: previewAccentText } = getEmailColors(effectiveBrandDNA);
+    const { primaryColor: previewAccent, primaryText: previewAccentText, accentColor: previewAccentAlt } = getEmailColors(effectiveBrandDNA);
     const previewBody = (result.rebuilt_body || '')
       .replace(/CTABGCOLOR/g, previewAccent)
-      .replace(/CTATEXTCOLOR/g, previewAccentText);
+      .replace(/CTATEXTCOLOR/g, previewAccentText)
+      .replace(/CTAACCENTCOLOR/g, previewAccentAlt);
 
     // Prefer email type returned by Claude in the generation JSON; fall back to separately detected type
     const finalEmailType = result.emailType || detectedType;

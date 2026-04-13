@@ -225,13 +225,13 @@ DATA TABLES RULE:
 PART A — If the Original Body above contains a section starting with "DATA TABLES FROM ORIGINAL ARTICLE:", you MUST rebuild ALL tables found there as email-safe HTML tables in the newsletter.
 - Extract exact values — never approximate or invent table data.
 - Place each table immediately after the paragraph that references its data.
-- Use the format specified in SECTION STRUCTURE item 8 below.
+- Use the format specified in SECTION STRUCTURE item 9 below.
 - If multiple tables are present, rebuild each one as a separate <table> block with a header label.
 - This is MANDATORY — a newsletter missing data tables that were present in the source FAILS this rebuild.
 
 PART B — Even when no "DATA TABLES FROM ORIGINAL ARTICLE" section is present: if the article text contains 3 or more distinct data points that share the same unit or category (percentages by region, wallet adoption by age group, device breakdown by price range, conversion rates by payment method), you MUST reconstruct them as an email-safe HTML table using the exact values stated in the text.
 - Only use numbers and labels that appear explicitly in the source text — never invent rows or percentages.
-- A table reconstructed from text must still follow the format in SECTION STRUCTURE item 8 (border-collapse:collapse, inline styles only).
+- A table reconstructed from text must still follow the format in SECTION STRUCTURE item 9 (border-collapse:collapse, inline styles only).
 - IMPORTANT: The STAT HIGHLIGHT ROW (3 big numbers) does NOT replace a data table. They serve different purposes. Stat row = 3 headline metrics. Data table = structured comparison across categories or segments. Include BOTH when the article has data that fits each format.
 - Example trigger: article mentions "65% mobile for sub-$50", "61% shoppers use wallets", "50% of 18-29 year olds use wallets for sub-$25 purchases", "30% global POS volume" → build a table: Metric | Value with each row being one of these data points.
 - Place the data table after the section of text that introduces the data.
@@ -322,7 +322,14 @@ SECTION STRUCTURE:
    </table>
    RULE: Numbers make emails scannable — readers must understand the value in 10 seconds. ONLY use real numbers from the source. Skip this block entirely if the source has fewer than 3 distinct numbers.
 
-2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[content from the original, improved]</p>
+2. Body paragraph(s) — <p style="font-size:16px;color:#333333;line-height:1.75;margin:0 0 20px;">[consequence first — architecture second — bold the key insight using &lt;strong&gt;]</p>
+
+   BODY WRITING RULES (mandatory):
+   — CONSEQUENCE FIRST: every paragraph opens with what the reader gains or avoids, then explains how.
+     BAD: "We rebuilt our checkout to reduce friction." GOOD: "Your checkout now converts 3x more mobile users — because we removed 4 steps."
+   — BOLD THE KEY INSIGHT: use <strong> on the single most important claim in each paragraph. Never bold more than one phrase per paragraph.
+   — MAX 2–3 PARAGRAPHS: the body section must contain no more than 3 paragraphs. If the source has more content, distill — never pad.
+   — Each paragraph must end with the reader feeling like something just landed.
 
    VISUAL RHYTHM RULE — MANDATORY for all contentStyles including longform:
    After EVERY 2-3 consecutive paragraphs, insert ONE visual break. Never allow 4+ paragraphs in a row.
@@ -344,13 +351,41 @@ SECTION STRUCTURE:
    <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 12px;"><tr><td style="background:#f5f5f5;border-radius:6px;padding:16px;"><table cellpadding="0" cellspacing="0" style="width:100%;"><tr><td style="width:40px;vertical-align:top;font-size:24px;line-height:1.2;padding-top:2px;">[emoji]</td><td style="vertical-align:top;padding-left:8px;"><strong style="font-size:15px;color:#1a1a1a;display:block;margin-bottom:4px;">[Benefit from THIS email — 4 to 7 words, outcome language]</strong><span style="font-size:14px;color:#555555;line-height:1.6;">[One sentence: the specific reader outcome this benefit produces]</span></td></tr></table></td></tr></table>
    Emoji: 🚀 speed/launch · 🔒 security · 📊 analytics · 💬 communication · ⚡ performance · 🎯 targeting · 🌍 scale · 💡 insight · 🧠 intelligence · 🔄 workflow · 💰 revenue · 🎓 learning. Never ✓ ★ generic bullet.
    For "steps" contentStyle only: <ol style="margin:0 0 20px;padding-left:20px;"><li style="font-size:15px;color:#333333;line-height:1.75;margin-bottom:10px;">[step content]</li></ol>
-5. Quote/testimonial (ONLY if a quote exists in the original):
-   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Attribution]</p></td></tr></table>
-6. CTA button (EXACTLY this structure — no plain text, no <button> tags):
-   <table cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px;"><tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:4px;"><a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:4px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[CTA text — must match original intent per Rule 3]</a></td></tr></table>
-   CTABGCOLOR and CTATEXTCOLOR are server-replaced placeholders. Use them literally in both bgcolor attribute and background style. Never output them as visible text.
-7. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
-8. DATA TABLES — when the original article or email contains data tables, statistics tables, comparison tables, or regional/category breakdowns:
+5. Quote/testimonial (ONLY if a real quote exists in the original — never invent):
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0;"><tr><td style="border-left:3px solid CTABGCOLOR;background:#f5f5f5;padding:16px;border-radius:0 6px 6px 0;"><p style="font-style:italic;font-size:15px;color:#333333;line-height:1.7;margin:0;">"[quote]"</p><p style="font-size:13px;color:#777777;margin:8px 0 0;">— [Name · Role · Company]</p></td></tr></table>
+
+6. OFFER PILLS ROW — MANDATORY when source mentions 2 or more distinct features, updates, or capabilities:
+   List every distinct feature/update/capability mentioned in the original as a horizontal row of pills.
+   Use CTABGCOLOR as pill background and CTATEXTCOLOR as pill text (server-replaced placeholders):
+   <table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0 24px;">
+     <tr><td style="text-align:center;padding:4px 0;line-height:2.4;">
+       <span style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;margin:3px 4px;white-space:nowrap;">[Feature — 2-5 words]</span>
+       <span style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-size:12px;font-weight:700;padding:6px 16px;border-radius:20px;margin:3px 4px;white-space:nowrap;">[Feature — 2-5 words]</span>
+     </td></tr>
+   </table>
+   RULE: Min 2 pills, max 8 pills. Only include items explicitly mentioned in the source. Never invent.
+   SKIP this block if the source has fewer than 2 distinct features/updates/capabilities.
+
+7. CTA BLOCK — gradient border box with centered ownership-language button (EXACTLY this structure):
+   <table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 8px;">
+     <tr><td style="padding:3px;background:linear-gradient(135deg,CTABGCOLOR 0%,CTAACCENTCOLOR 100%);border-radius:10px;">
+       <table cellpadding="0" cellspacing="0" style="width:100%;background:#ffffff;border-radius:8px;">
+         <tr><td style="padding:28px 32px;text-align:center;">
+           <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+             <tr><td align="center" bgcolor="CTABGCOLOR" style="background:CTABGCOLOR;border-radius:6px;">
+               <a href="#" target="_blank" style="display:inline-block;background:CTABGCOLOR;color:CTATEXTCOLOR;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:6px;-webkit-text-size-adjust:none;mso-padding-alt:0;">[Ownership verb (See/Get/Start/Claim) + specific outcome — must match original intent per Rule 3]</a>
+             </td></tr>
+           </table>
+         </td></tr>
+       </table>
+     </td></tr>
+   </table>
+   CTABGCOLOR, CTATEXTCOLOR, and CTAACCENTCOLOR are server-replaced placeholders. Use them literally. Never output as visible text.
+   CTA text MUST use an ownership verb: See, Get, Start, Claim, Read, Watch, Try — followed by a specific outcome.
+   NEVER use: "Learn more", "Click here", "Find out", "Discover" — these are forbidden.
+
+8. P.S. line (optional): <p style="margin-top:24px;font-style:italic;font-size:14px;color:#555555;">[P.S. text]</p>
+9. DATA TABLES — when the original article or email contains data tables, statistics tables, comparison tables, or regional/category breakdowns:
    - EXTRACT the actual numbers from the source text. NEVER approximate or invent data.
    - Rebuild as email-safe HTML table (no CSS classes, inline styles only):
    <table cellpadding="8" cellspacing="0" style="width:100%;border-collapse:collapse;margin:20px 0;font-family:Arial,Helvetica,sans-serif;">
