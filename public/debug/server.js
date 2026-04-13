@@ -436,23 +436,30 @@ function adaptBodyForDarkTheme(html) {
 // Resend may still wrap hrefs server-side despite clickTracking:false — this is a
 // post-generation safety net so the downloaded HTML always has clean, original URLs.
 function stripResendTracking(html) {
-  if (!html) return html;
-
-  // Remove tracking pixel
-  html = html.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
-
-  // Decode and replace resend-wrapped URLs
+  if (!html || typeof html !== 'string') return html;
+  
+  // Step 1 — Remove tracking pixel
   html = html.replace(
-    /https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL0\/([^/'">\s]+)\/\d+\/[^'">\s]*/gi,
-    (match, encodedUrl) => {
+    /<img[^>]*src=["'][^"']*resend-clicks\.com[^"']*["'][^>]*>/gi,
+    ''
+  );
+  
+  // Step 2 — Decode and replace resend-wrapped hrefs
+  // [^/"'\s>]+ captures the encoded URL (stops at first literal / which is the /1/ tracking segment)
+  // [^"'\s]* then consumes and discards the trailing /1/jobId/hash suffix
+  html = html.replace(
+    /https?:\/\/[a-z0-9.-]*resend-clicks\.com\/CL\d\/([^/"'\s>]+)[^"'\s]*/gi,
+    (match, encodedPath) => {
       try {
-        return decodeURIComponent(encodedUrl);
-      } catch (e) {
+        const decoded = decodeURIComponent(encodedPath);
+        const realUrl = decoded.split('/1/')[0];
+        return realUrl || decoded;
+      } catch(e) {
         return match;
       }
     }
   );
-
+  
   return html;
 }
 
