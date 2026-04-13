@@ -1086,6 +1086,13 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <tr><td align="center">
 <table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.55);">
 
+  <!-- 0. TIER LABEL BAR (paid tiers only) -->
+  ${(() => {
+    const labels = { single: 'SINGLE — One-time rebuild', lite: 'LITE — Standard Delivery', growth: 'GROWTH — Premium', high_impact: 'HIGH-IMPACT — Full Stack' };
+    const label = labels[tier];
+    return label ? `<tr><td style="padding:6px 24px;background:#16a34a;color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">${label}</td></tr>` : '';
+  })()}
+
   <!-- 1. HEADER: logo/name left · date right -->
   <tr><td style="background:${headerBg};padding:18px 32px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -1127,6 +1134,9 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p>
     <p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`}
   </td></tr>
+
+  <!-- HUMAN-CHECK BADGE (Lite and above only) -->
+  ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
 
 </table></td></tr></table></body></html>`;
 }
