@@ -329,13 +329,13 @@ OUTPUT FORMAT RULE: Structure your entire rebuilt_body using these XML tags. All
 
 <tension>One paragraph (2–3 sentences). What is changing. Who is already moving. What it costs to wait.</tension>
 
-<stat1_value>First key number or metric from the source — exact, not approximated</stat1_value>
-<stat1_label>What this stat measures — 3 to 6 words</stat1_label>
-<stat2_value>Second key number or metric from the source</stat2_value>
-<stat2_label>What this stat measures — 3 to 6 words</stat2_label>
-<stat3_value>Third key number or metric from the source</stat3_value>
-<stat3_label>What this stat measures — 3 to 6 words</stat3_label>
-STATS RULE: Use ONLY real numbers that appear explicitly in the source. If fewer than 3 distinct stats exist in the source, leave the remaining stat tags empty (e.g. <stat3_value></stat3_value>).
+<stat1_value>First specific metric — must contain a number, unit, or date (e.g. "50 themes", "30%", "Nov 10")</stat1_value>
+<stat1_label>What this metric measures — 3 to 6 words</stat1_label>
+<stat2_value>Second specific metric with number, unit, or date</stat2_value>
+<stat2_label>What this metric measures — 3 to 6 words</stat2_label>
+<stat3_value>Third specific metric with number, unit, or date</stat3_value>
+<stat3_label>What this metric measures — 3 to 6 words</stat3_label>
+STATS RULE: Extract exactly the metrics from the source that have the most impact. Priority: (1) specific numbers with units like "50 themes", "30%", "Nov 10", (2) named features with counts, (3) availability dates with specifics. NEVER use a standalone year (e.g. "2026"), NEVER use a generic category name like "Performance Max" or "Open Beta" as a stat value — those belong in the text body, not stat cards. If fewer than 3 genuinely specific metrics exist in the source, leave the remaining stat tags empty.
 
 <insight>The single most valuable idea from the source. One idea only. Specific and actionable. The idea that changes how the reader sees their situation. Two to three sentences max.</insight>
 

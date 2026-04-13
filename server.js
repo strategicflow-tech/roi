@@ -515,10 +515,11 @@ function stripResendTracking(html) {
 function sanitizeCTAUrl(url) {
   if (!url || typeof url !== 'string') return url;
   if (url.includes('resend-clicks.com')) {
-    const match = url.match(/resend-clicks\.com\/CL\d\/([^/"'\s>]+)/i);
-    if (match) {
-      try { return decodeURIComponent(match[1]).split('/1/')[0] || url; } catch (e) {}
-    }
+    try {
+      // Split on any /CLn/ segment (CL0, CL1, etc.) — take everything after, up to the next /
+      const clPart = url.split(/\/CL\d\//)[1];
+      if (clPart) return decodeURIComponent(clPart.split('/')[0]);
+    } catch (e) {}
   }
   return url;
 }
@@ -866,6 +867,18 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (a.l < 42) accentColor = hslToHex(a.h, Math.max(a.s, 55), 58);
   } catch (_) {}
 
+  // ── BRAND COLOR OVERRIDES — applied after lightness boost so exact hex is preserved
+  const BRAND_COLOR_OVERRIDES = {
+    'microsoft': '#0078d4', 'microsoft advertising': '#0078d4',
+    'google': '#4285f4',    'meta': '#0866ff',
+    'stripe': '#635bff',    'linear': '#5e6ad2',
+    'notion': '#000000',    'figma': '#f24e1e',
+  };
+  const _brandKey = company.toLowerCase().trim();
+  for (const [k, v] of Object.entries(BRAND_COLOR_OVERRIDES)) {
+    if (_brandKey === k || _brandKey.startsWith(k + ' ')) { primaryColor = v; break; }
+  }
+
   // ── ALWAYS-DARK PALETTE ─────────────────────────────────────────────────────
   // The template is dark-first regardless of brand theme.
   // Only primaryColor / accentColor vary per brand — all backgrounds are fixed dark.
@@ -995,7 +1008,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   })();
 
   // ── FIX 4: PARSER — extract all XML tags from Claude's body output ─────────
-  const rawBody = (body || '').trim();
+  // Strip any Resend tracking pixels/URLs that Claude may have copied from the source email
+  const rawBody = (body || '').replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '').trim();
   const isHtmlBody = rawBody.startsWith('<');
 
   // New flat-tag format (v2) — unique tags that only appear in new format output
@@ -1097,11 +1111,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         `<p style="font-size:22px;font-weight:900;color:${textColor};line-height:1.35;margin:0 0 24px;letter-spacing:-0.3px;">${oldHookContent}</p>`,
         processHtml(oldTensionContent),
         statsBlock,
-        sectionLabel('THE ONE THING THAT CHANGES EVERYTHING'),
         processHtml(oldInsightContent),
-        sectionLabel("WHO'S ALREADY DOING IT"),
         processHtml(oldProofContent),
-        sectionLabel('THE COST OF WAITING'),
         processHtml(oldCostContent),
         ctaBlock
       ].filter(Boolean).join('\n');
@@ -1273,13 +1284,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- INSIGHT + PROOF + COST -->
         <tr><td style="padding:32px 32px 28px;">
-          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">THE ONE THING THAT CHANGES EVERYTHING</p>
           <p style="font-size:15px;color:#ffffff;line-height:1.8;margin:0 0 28px;">${p_insight}</p>
 
-          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">WHO&#39;S ALREADY DOING IT</p>
           <p style="font-size:15px;color:rgba(255,255,255,0.80);line-height:1.8;font-style:italic;border-left:2px solid rgba(255,255,255,0.15);padding-left:16px;margin:0 0 28px;">${p_proof}</p>
 
-          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:2px;border-left:3px solid ${primaryColor};padding-left:10px;margin:0 0 8px;">THE COST OF WAITING</p>
           <p style="font-size:15px;color:rgba(255,255,255,0.65);line-height:1.8;margin:0;">${p_cost}</p>
         </td></tr>
 
