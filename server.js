@@ -510,6 +510,20 @@ function stripResendTracking(html) {
   return html;
 }
 
+// Final HTML cleanup — strips any residual Resend tracking that wasn't caught upstream.
+// Called at the end of buildNewsletterHTML on both template paths.
+function finalizeEmailHtml(html) {
+  if (!html) return html;
+  // Remove tracking pixel
+  html = html.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
+  // Decode any tracked hrefs still in the output
+  html = html.replace(
+    /https?:\/\/[a-z0-9.-]*resend-clicks\.com\/CL\d+\/([^/"'\s>]+)[^"'\s]*/gi,
+    (_, enc) => { try { return decodeURIComponent(enc).split('/1/')[0]; } catch(e) { return ''; } }
+  );
+  return html;
+}
+
 // Sanitize a single CTA URL — strips Resend tracking wrapper before it enters the HTML template.
 // The full-output stripResendTracking() is a second line of defence; this cleans at the source.
 function sanitizeCTAUrl(url) {
@@ -1236,7 +1250,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
           </td>
         </tr>` : '';
 
-    return `<!DOCTYPE html>
+    const _v2Html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
 <body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -1320,10 +1334,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   </tr>
 </table>
 </body></html>`;
+    return finalizeEmailHtml(_v2Html);
   }
 
   // ── LEGACY TEMPLATE (v1 XML sections, promotional grid, plain text) ────────
-  return `<!DOCTYPE html>
+  const _legacyHtml = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
 <body style="margin:0;padding:0;background:${bgColor};font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -1358,6 +1373,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   </td></tr>
   ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
 </table></td></tr></table></body></html>`;
+  return finalizeEmailHtml(_legacyHtml);
 }
 
 async function notify(subject, html) {
@@ -2168,10 +2184,19 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     let previewAccent = previewAccentRaw, previewAccentAlt = previewAccentAltRaw;
     try { const _p = hexToHSL(previewAccent);    if (_p.l < 42) previewAccent    = hslToHex(_p.h, Math.max(_p.s, 55), 55); } catch (_) {}
     try { const _a = hexToHSL(previewAccentAlt); if (_a.l < 42) previewAccentAlt = hslToHex(_a.h, Math.max(_a.s, 55), 58); } catch (_) {}
-    const previewBody = adaptBodyForDarkTheme((result.rebuilt_body || '')
-      .replace(/CTABGCOLOR/g, previewAccent)
-      .replace(/CTATEXTCOLOR/g, previewAccentText)
-      .replace(/CTAACCENTCOLOR/g, previewAccentAlt));
+    // For new-format XML bodies: use the fully rendered downloadHtml (already tracking-stripped)
+    // so the preview shows the actual email layout instead of raw XML tags.
+    // For legacy formats: keep the existing dark-theme adapted body HTML.
+    const _isNewXml = (result.rebuilt_body || '').includes('<preheader>') ||
+                      (result.rebuilt_body || '').includes('<cta_text>');
+    const previewBody = _isNewXml
+      ? downloadHtml
+          .replace(/^[\s\S]*?<body[^>]*>/i, '')
+          .replace(/<\/body>[\s\S]*$/i, '')
+      : adaptBodyForDarkTheme((result.rebuilt_body || '')
+          .replace(/CTABGCOLOR/g, previewAccent)
+          .replace(/CTATEXTCOLOR/g, previewAccentText)
+          .replace(/CTAACCENTCOLOR/g, previewAccentAlt));
 
     // Prefer email type returned by Claude in the generation JSON; fall back to separately detected type
     const finalEmailType = result.emailType || detectedType;
