@@ -596,6 +596,16 @@ textarea{resize:vertical;line-height:1.7;}
       <div style="margin-top:12px;font-size:12px;color:var(--muted);padding:12px 14px;background:var(--bg2);border-radius:8px;border:1px solid var(--border);">
         <span style="color:var(--teal);font-weight:700;">Conversion hook:</span> <span id="resHook"></span>
       </div>
+
+      <div id="upgradeBannerAudit" hidden style="margin-top:32px;padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;text-align:center;border:1px solid rgba(99,102,241,0.3);">
+        <p style="font-size:13px;color:rgba(255,255,255,0.6);margin:0 0 6px;">
+          Want the full rebuild — with 30-day calendar, segmentation strategy, and conversion audit?
+        </p>
+        <a href="https://strategic-flow-pro.replit.app"
+           style="display:inline-block;background:#6366f1;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;padding:10px 24px;border-radius:6px;margin-top:8px;">
+          Upgrade to Strategic Flow Pro →
+        </a>
+      </div>
     </div>
 
     <!-- Score Breakdown Card — always shown after rebuild -->
@@ -1273,6 +1283,13 @@ function showResults(gen) {
     scoreCard.removeAttribute('hidden');
   } else if (scoreCard) {
     scoreCard.setAttribute('hidden', '');
+  }
+
+  // Upgrade banner — shown for free_trial and single only
+  const showUpgradeBanner = !currentIsAdmin && (gen.tier === 'free_trial' || gen.tier === 'single');
+  const upgradeBannerEl = document.getElementById('upgradeBannerAudit');
+  if (upgradeBannerEl) {
+    showUpgradeBanner ? upgradeBannerEl.removeAttribute('hidden') : upgradeBannerEl.setAttribute('hidden', '');
   }
 
   // Tier panels
