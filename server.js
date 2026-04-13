@@ -428,21 +428,32 @@ function getEmailColors(brandDNA) {
 // Post-process Claude-generated body HTML to flip hardcoded light-mode colors when the brand uses a dark theme.
 function adaptBodyForDarkTheme(html) {
   return html
+    // Text colors: light → dark-readable
     .replace(/color:\s*#222222/g,                   'color:#f0f0f0')
     .replace(/color:\s*#333333/g,                   'color:#e0e0e0')
     .replace(/color:\s*#333\b/g,                    'color:#e0e0e0')
     .replace(/color:\s*#1a1a1a/g,                   'color:#ffffff')
     .replace(/color:\s*#555555/g,                   'color:#aaaaaa')
     .replace(/color:\s*#555\b/g,                    'color:#aaaaaa')
-    .replace(/color:\s*#777777/g,                   'color:#888888')
+    .replace(/color:\s*#666666/g,                   'color:#999999')
+    .replace(/color:\s*#777777/g,                   'color:#999999')
+    // Background colors: light → dark
     .replace(/background:\s*#f5f5f5/g,              'background:#1e1e1e')
     .replace(/background-color:\s*#f5f5f5/g,        'background-color:#1e1e1e')
+    .replace(/background:\s*#fafafa/g,              'background:#161616')
+    .replace(/background-color:\s*#fafafa/g,        'background-color:#161616')
+    .replace(/background:\s*#f8f9fc/g,              'background:#1a1a1a')
     .replace(/background:\s*#ffffff/gi,             'background:#111111')
     .replace(/background:\s*#fff\b/gi,              'background:#111111')
     .replace(/background:\s*white\b/gi,             'background:#111111')
     .replace(/background-color:\s*#ffffff/gi,       'background-color:#111111')
     .replace(/background-color:\s*#fff\b/gi,        'background-color:#111111')
     .replace(/bgcolor=["']#?(?:ffffff|fff|white)["']/gi, 'bgcolor="#111111"')
+    // Border/divider colors: light → dark
+    .replace(/border:1px solid #e0e0e0/g,           'border:1px solid #2a2a2a')
+    .replace(/border:1px solid #e8e8e8/g,           'border:1px solid #2a2a2a')
+    .replace(/border-left:1px solid #e0e0e0/g,      'border-left:1px solid #2a2a2a')
+    .replace(/border-right:1px solid #e0e0e0/g,     'border-right:1px solid #2a2a2a')
     .replace(/height:1px;background:#e0e0e0/g,      'height:1px;background:#2a2a2a');
 }
 
@@ -784,7 +795,35 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
   const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '' } = options;
-  const { primaryColor, accentColor, bgColor, containerBg, textColor, mutedText, cardBg, dividerColor, primaryText, accentText, isDark, headerBg, headerText } = getEmailColors(brandDNA);
+
+  // Extract ONLY brand accent colors — the template always uses its own dark palette.
+  const { primaryColor: rawPrimary, accentColor: rawAccent, primaryText, accentText } = getEmailColors(brandDNA);
+
+  // Ensure accent colors are bright enough to pop on dark backgrounds (lightness ≥ 50%)
+  let primaryColor = rawPrimary;
+  let accentColor  = rawAccent;
+  try {
+    const p = hexToHSL(primaryColor);
+    if (p.l < 42) primaryColor = hslToHex(p.h, Math.max(p.s, 55), 55);
+  } catch (_) {}
+  try {
+    const a = hexToHSL(accentColor);
+    if (a.l < 42) accentColor = hslToHex(a.h, Math.max(a.s, 55), 58);
+  } catch (_) {}
+
+  // ── ALWAYS-DARK PALETTE ─────────────────────────────────────────────────────
+  // The template is dark-first regardless of brand theme.
+  // Only primaryColor / accentColor vary per brand — all backgrounds are fixed dark.
+  const bgColor      = '#0a0a0a';
+  const containerBg  = '#111111';
+  const textColor    = '#e0e0e0';
+  const mutedText    = '#999999';
+  const cardBg       = '#1e1e1e';
+  const dividerColor = '#2a2a2a';
+  // Header band uses the brand's primary color (creates visual identity at a glance)
+  const headerBg   = primaryColor;
+  const headerText = primaryText;
+  const footerBg   = '#0d0d0d';
 
   // Header logo: left-aligned in the new two-column header
   const logoInHeader = (() => {
@@ -895,11 +934,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Fall back to the topic/industry keyword-matched Unsplash image otherwise.
   const heroSrc = options.heroImageUrl || buildHeroSrc(company, brandDNA, options.heroKeyword);
 
-  // Footer colors defined early — also used by the promotional-grid wave divider
-  const footerBg     = isDark ? '#111111' : '#f4f4f7';
-  const footerBorder = isDark ? '#2a2a2a' : '#e8e8e8';
-  const footerText   = isDark ? '#888888' : '#999999';
-  const footerMuted  = isDark ? '#666666' : '#bbbbbb';
+  // Footer colors — always dark (template is dark-first)
+  const footerBorder = '#1e1e1e';
+  const footerText   = '#888888';
+  const footerMuted  = '#555555';
 
   // Footer logo (small, centered)
   const footerLogo = brandDNA?.logo
@@ -931,7 +969,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (contentStyle === 'longform' || contentStyle === 'steps') {
       processed = stripEmojiBoxTables(processed);
     }
-    if (isDark) processed = adaptBodyForDarkTheme(processed);
+    processed = adaptBodyForDarkTheme(processed);
     bodyContent = processed;
   } else {
     // Legacy plain-text path — split, detect CTA, format paragraphs
@@ -1027,7 +1065,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <body style="margin:0;padding:0;background:${bgColor};font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${bgColor};padding:40px 20px;">
 <tr><td align="center">
-<table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,${isDark ? '0.4' : '0.08'});">
+<table width="620" cellpadding="0" cellspacing="0" style="background:${containerBg};border-radius:8px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.55);">
 
   <!-- 1. HEADER: logo/name left · date right -->
   <tr><td style="background:${headerBg};padding:18px 32px;">
@@ -1035,7 +1073,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       <tr>
         <td style="vertical-align:middle;">${headerNameContent}</td>
         <td align="right" style="vertical-align:middle;white-space:nowrap;">
-          <span style="font-size:11px;font-weight:600;color:${headerText};opacity:0.7;text-transform:uppercase;letter-spacing:1px;">${today}</span>
+          <span style="font-family:'DM Mono',monospace,Arial,sans-serif;font-size:10px;font-weight:600;color:${headerText};opacity:0.75;text-transform:uppercase;letter-spacing:1.5px;">${today}</span>
         </td>
       </tr>
     </table>
@@ -1046,9 +1084,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
   </td></tr>
 
-  <!-- 2b. HERO HEADLINE BAND — bold dramatic headline on dark brand background -->
-  <tr><td style="background:${headerBg};padding:30px 40px 26px;">
-    <h1 style="font-size:26px;font-weight:900;color:${headerText};margin:0;line-height:1.3;letter-spacing:-0.4px;">${subject}</h1>
+  <!-- 2b. HERO HEADLINE BAND — kicker + bold dramatic headline on brand background -->
+  <tr><td style="background:${headerBg};padding:28px 40px 24px;">
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:600;color:${headerText};opacity:0.6;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px 0;">${company} &middot; ${today}</p>
+    <h1 style="font-size:27px;font-weight:900;color:${headerText};margin:0;line-height:1.28;letter-spacing:-0.5px;">${subject}</h1>
   </td></tr>
 
   <!-- 3. GRADIENT DIVIDER -->
@@ -1530,11 +1569,14 @@ async function handleGenerate(req, res) {
           if (cached.rows.length > 0) {
             const n = cached.rows[0];
             const cachedDNA = n.brand_dna || null;
-            const { primaryColor: pa, primaryText: pat, accentColor: pac } = getEmailColors(cachedDNA);
-            const previewBody = (n.rebuilt_body || '')
+            const { primaryColor: paRaw, primaryText: pat, accentColor: pacRaw } = getEmailColors(cachedDNA);
+            let pa = paRaw, pac = pacRaw;
+            try { const _p = hexToHSL(pa);  if (_p.l < 42) pa  = hslToHex(_p.h, Math.max(_p.s, 55), 55); } catch (_) {}
+            try { const _a = hexToHSL(pac); if (_a.l < 42) pac = hslToHex(_a.h, Math.max(_a.s, 55), 58); } catch (_) {}
+            const previewBody = adaptBodyForDarkTheme((n.rebuilt_body || '')
               .replace(/CTABGCOLOR/g, pa)
               .replace(/CTATEXTCOLOR/g, pat)
-              .replace(/CTAACCENTCOLOR/g, pac);
+              .replace(/CTAACCENTCOLOR/g, pac));
             const downloadHtml = stripResendTracking(buildNewsletterHTML(
               n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
               { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
@@ -1862,13 +1904,16 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
-    // Build a preview-ready body with the CTABGCOLOR/CTATEXTCOLOR placeholders already
-    // replaced by real brand colours — the frontend injects this as innerHTML directly.
-    const { primaryColor: previewAccent, primaryText: previewAccentText, accentColor: previewAccentAlt } = getEmailColors(effectiveBrandDNA);
-    const previewBody = (result.rebuilt_body || '')
+    // Build a preview-ready body: replace placeholders with bright-on-dark brand colors,
+    // then adapt all hardcoded light colors to dark — the frontend renders this as innerHTML.
+    const { primaryColor: previewAccentRaw, primaryText: previewAccentText, accentColor: previewAccentAltRaw } = getEmailColors(effectiveBrandDNA);
+    let previewAccent = previewAccentRaw, previewAccentAlt = previewAccentAltRaw;
+    try { const _p = hexToHSL(previewAccent);    if (_p.l < 42) previewAccent    = hslToHex(_p.h, Math.max(_p.s, 55), 55); } catch (_) {}
+    try { const _a = hexToHSL(previewAccentAlt); if (_a.l < 42) previewAccentAlt = hslToHex(_a.h, Math.max(_a.s, 55), 58); } catch (_) {}
+    const previewBody = adaptBodyForDarkTheme((result.rebuilt_body || '')
       .replace(/CTABGCOLOR/g, previewAccent)
       .replace(/CTATEXTCOLOR/g, previewAccentText)
-      .replace(/CTAACCENTCOLOR/g, previewAccentAlt);
+      .replace(/CTAACCENTCOLOR/g, previewAccentAlt));
 
     // Prefer email type returned by Claude in the generation JSON; fall back to separately detected type
     const finalEmailType = result.emailType || detectedType;
