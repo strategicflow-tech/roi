@@ -510,6 +510,19 @@ function stripResendTracking(html) {
   return html;
 }
 
+// Sanitize a single CTA URL — strips Resend tracking wrapper before it enters the HTML template.
+// The full-output stripResendTracking() is a second line of defence; this cleans at the source.
+function sanitizeCTAUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  if (url.includes('resend-clicks.com')) {
+    const match = url.match(/resend-clicks\.com\/CL\d\/([^/"'\s>]+)/i);
+    if (match) {
+      try { return decodeURIComponent(match[1]).split('/1/')[0] || url; } catch (e) {}
+    }
+  }
+  return url;
+}
+
 // Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
 // Returns { cleaned, wasComplex, gifCount } so callers know what was removed.
 function cleanEmailHTML(html) {
@@ -999,7 +1012,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const p_proof        = extractSection(rawBody, 'proof')             || '';
   const p_cost         = extractSection(rawBody, 'cost')              || '';
   const p_ctaText      = extractSection(rawBody, 'cta_text')          || 'Read the full story →';
-  const p_ctaUrl       = extractSection(rawBody, 'cta_url')           || ctaHref;
+  const p_ctaUrl       = sanitizeCTAUrl(extractSection(rawBody, 'cta_url') || ctaHref);
   const p_calWeek1     = extractSection(rawBody, 'calendar_week1')    || '';
   const p_calWeek2     = extractSection(rawBody, 'calendar_week2')    || '';
   const p_calWeek3     = extractSection(rawBody, 'calendar_week3')    || '';
@@ -1032,10 +1045,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       { v: p_stat3Value, l: p_stat3Label },
     ].filter(s => s.v);
     if (!stats.length) return '';
+    const count = stats.length;
+    const colWidth  = count === 1 ? '100%' : count === 2 ? '50%' : '33%';
+    const valueFontSize = count === 1 ? '36px' : '28px';
     const cells = stats.map((s, i) => {
-      const border = i > 0 ? 'border-left:1px solid rgba(255,255,255,0.08);' : '';
-      return `<td style="width:33%;text-align:center;padding:16px 8px;${border}">
-        <p style="font-size:28px;font-weight:900;color:${primaryColor};margin:0;line-height:1;">${s.v}</p>
+      const borderLeft = i > 0 ? 'border-left:1px solid rgba(255,255,255,0.08);' : '';
+      const align = count === 1 ? 'text-align:center;' : 'text-align:center;';
+      return `<td style="width:${colWidth};${align}padding:${count === 1 ? '24px 16px' : '16px 8px'};${borderLeft}">
+        <p style="font-size:${valueFontSize};font-weight:900;color:${primaryColor};margin:0;line-height:1;">${s.v}</p>
         <p style="font-size:11px;color:rgba(255,255,255,0.50);margin:5px 0 0;line-height:1.4;">${s.l}</p>
       </td>`;
     }).join('');
@@ -1193,7 +1210,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
   if (isNewFormat) {
     // ── V2 TEMPLATE ─────────────────────────────────────────────────────────
-    const finalCtaUrl = p_ctaUrl && p_ctaUrl !== 'https://strategic-flow-audit.replit.app' ? p_ctaUrl : ctaHref;
+    const finalCtaUrl = sanitizeCTAUrl(p_ctaUrl && p_ctaUrl !== 'https://strategic-flow-audit.replit.app' ? p_ctaUrl : ctaHref);
     const calendarSection = calendarRowsHtml ? `
         <!-- 30-DAY CONTENT CALENDAR -->
         <tr>

@@ -339,7 +339,7 @@ STATS RULE: Use ONLY real numbers that appear explicitly in the source. If fewer
 
 <insight>The single most valuable idea from the source. One idea only. Specific and actionable. The idea that changes how the reader sees their situation. Two to three sentences max.</insight>
 
-<proof>One company or person from the source. Real name. Real role. Real outcome. No invented details. One paragraph. If a direct quote exists in the source, use it — Name · Role · outcome format.</proof>
+<proof>ONE real named entity from the source content — a specific company name, person's name and role, or quoted statistic with its source. Format: "[Company/Person] — [what they did or said, with specific outcome]". If the source content contains no named company, person, or quoted statistic, write: "Not enough named proof in source — recommend adding a customer case study." Never repeat the feature description. Never invent names or outcomes.</proof>
 
 <cost>One paragraph. The specific consequence of inaction for this reader. Tied directly to the insight. Not generic FOMO. A concrete cost.</cost>
 
