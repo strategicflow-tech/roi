@@ -1509,11 +1509,12 @@ async function handleGenerate(req, res) {
     console.log('STEP 1: Input validated');
     let analyzedPage = false;
 
-    // If a page URL was provided and body is absent/minimal, fetch the page and extract content
-    if (pageUrl && pageUrl.trim() && (!body || body.trim().length < 30)) {
+    // Fetch page content if a URL was provided — result supplements or replaces pasted body
+    let fetchedContent = '';
+    if (pageUrl && pageUrl.trim()) {
       try {
         const page = await fetchPageContent(pageUrl);
-        body = [
+        fetchedContent = [
           page.title ? `Headline: ${page.title}` : '',
           page.meta  ? `Summary: ${page.meta}` : '',
           page.text,
@@ -1523,18 +1524,27 @@ async function handleGenerate(req, res) {
         ].filter(Boolean).join('\n\n');
         analyzedPage = true;
         if (page.ogImage) req.body._ogImage = page.ogImage;
-        console.log(`[pageUrl] fetched ${page.url} — ${body.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}, tables: ${page.tables ? page.tables.length : 0}`);
+        console.log(`[pageUrl] fetched ${page.url} — ${fetchedContent.length} chars, ogImage: ${page.ogImage ? 'yes' : 'none'}, tables: ${page.tables ? page.tables.length : 0}`);
       } catch (fetchErr) {
         console.error('[pageUrl]', fetchErr.message);
-        return res.json({ error: 'url_fetch_failed' });
-      }
-      // FIX 3 — too little content extracted (bot-blocked page returns skeleton HTML)
-      if (!body || body.trim().length < 200) {
-        return res.json({ error: 'url_fetch_empty' });
+        // Non-fatal if body already has sufficient content; otherwise surface the error
+        if (!body || body.trim().length < 50) {
+          return res.json({ error: 'url_fetch_failed' });
+        }
       }
     }
 
-    if (!body || body.trim().length < 10) return res.status(400).json({ error: 'email, subject, body required' });
+    // Use pasted body when it's substantial; otherwise fall back to fetched page content
+    const effectiveBody = (body && body.trim().length > 50) ? body : fetchedContent;
+
+    if (!effectiveBody || effectiveBody.trim().length < 100) {
+      return res.status(400).json({
+        error: 'content_too_short',
+        message: 'Please add content — paste your newsletter text, upload an HTML file, or provide a valid URL.'
+      });
+    }
+
+    body = effectiveBody;
 
     const adminAccess = isAdmin(e);
     const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
