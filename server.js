@@ -1090,10 +1090,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Calendar rows — only rendered when at least one week has content
   const calendarRowsHtml = (() => {
     const weeks = [
-      { label: 'Week 1', topic: p_calWeek1 },
-      { label: 'Week 2', topic: p_calWeek2 },
-      { label: 'Week 3', topic: p_calWeek3 },
-      { label: 'Week 4', topic: p_calWeek4 },
+      { label: 'Week 1', topic: (p_calWeek1 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 2', topic: (p_calWeek2 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 3', topic: (p_calWeek3 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 4', topic: (p_calWeek4 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
     ].filter(w => w.topic);
     return weeks.map((w, i) =>
       `<div style="padding:12px 20px;${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.05);' : ''}">
@@ -1310,7 +1310,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
           <td style="padding:0 32px 36px;">
             <div style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,#0a0f1e 100%);border-radius:12px;">
               <div style="background:#111111;border-radius:10px;padding:28px 32px;text-align:center;">
-                <a href="${finalCtaUrl}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
+                <a href="${(()=>{ const _u=finalCtaUrl||''; if(!_u.includes('resend-clicks.com'))return _u; try{const _p=_u.split(/\/CL\d+\//)[1];if(_p)return decodeURIComponent(_p.split('/')[0]);}catch(e){} return _u; })()}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
               </div>
             </div>
           </td>
