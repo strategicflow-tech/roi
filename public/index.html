@@ -1420,10 +1420,10 @@ function showResults(gen) {
 
   // Before/After — always shown for all tiers
   document.getElementById('baOrigSubject').textContent = currentOrigSubject;
-  document.getElementById('baOrigBody').textContent = currentOrigBody.slice(0, 300) + (currentOrigBody.length > 300 ? '…' : '');
+  document.getElementById('baOrigBody').textContent = currentOrigBody;
   document.getElementById('baNewSubject').textContent = gen.rebuilt_subject;
   const baNewBodyPlain = (gen.rebuilt_body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  document.getElementById('baNewBody').textContent = baNewBodyPlain.slice(0, 300) + (baNewBodyPlain.length > 300 ? '…' : '');
+  document.getElementById('baNewBody').textContent = baNewBodyPlain;
 
   // ── SCORE BREAKDOWN ──────────────────────────────────────────────────────
   const sc = gen.originalScore;
