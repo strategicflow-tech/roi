@@ -1060,6 +1060,7 @@ function resetState() {
   currentEmail=''; currentTier=''; currentIsAdmin=false; currentVip=false;
   currentCompany=''; currentOrigSubject=''; currentOrigBody='';
   currentResult=null; currentBrandDNA=null; currentVoiceProfile=null; auditState={};
+  window.conversionScorePromise = null; window.segmentsPromise = null; window.cohesionPromise = null;
   uploadedHtmlBrandDNA=null;
   downloadHtmlContent='';
   // Reset HTML upload UI
@@ -1495,7 +1496,7 @@ function showResults(gen) {
 
   if (isLite || currentIsAdmin) {
     show('panelLite');
-    loadConversionScore();
+    window.conversionScorePromise = loadConversionScore();
     loadABSubjects();
   }
 
@@ -1505,13 +1506,13 @@ function showResults(gen) {
       show('brandDNAPanel');
       renderBrandDNAInResult(currentBrandDNA, currentVoiceProfile);
     }
-    loadAudienceSegments();
+    window.segmentsPromise = loadAudienceSegments();
     loadContentCalendar();
   }
 
   if (isHI || currentIsAdmin) {
     show('panelHighImpact');
-    loadCohesionCheck();
+    window.cohesionPromise = loadCohesionCheck();
   }
 
   // Upgrade CTA (for paid-tier users approaching their limit)
@@ -1743,13 +1744,6 @@ function generateAuditReportHtml() {
   const origBodyPlain = (currentOrigBody || '');
   const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 
-  // DEBUG — remove once all sections confirmed working
-  console.log('DEBUG auditState.score:', JSON.stringify(auditState.score));
-  console.log('DEBUG auditState.abSubjects:', JSON.stringify(auditState.abSubjects));
-  console.log('DEBUG auditState.segments:', JSON.stringify(auditState.segments));
-  console.log('DEBUG auditState.calendar:', JSON.stringify(auditState.calendar));
-  console.log('DEBUG auditState.cohesion:', JSON.stringify(auditState.cohesion));
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1858,8 +1852,17 @@ function generateAuditReportHtml() {
 </html>`;
 }
 
-function downloadAuditReport() {
+async function downloadAuditReport() {
   if (!currentResult) return;
+  const btn = document.querySelector('[onclick="downloadAuditReport()"]');
+  if (btn) { btn.textContent = '⏳ Preparing report...'; btn.disabled = true; }
+
+  await Promise.allSettled([
+    window.conversionScorePromise,
+    window.segmentsPromise,
+    window.cohesionPromise,
+  ].filter(Boolean));
+
   const reportHtml = generateAuditReportHtml();
   const blob = new Blob([reportHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
@@ -1868,6 +1871,8 @@ function downloadAuditReport() {
   a.download = `strategic-flow-audit-${(currentCompany||'report').replace(/\s+/g,'-').toLowerCase()}.html`;
   a.click();
   URL.revokeObjectURL(url);
+
+  if (btn) { btn.textContent = '↓ Download Audit Report'; btn.disabled = false; }
 }
 
 async function requestReview() {
