@@ -2160,6 +2160,7 @@ async function handleGenerate(req, res) {
         });
         return clean.trim();
       }).filter(p => p.length > 20);
+      result.body = result.body.map(p => p.replace(/^[\s''""`]+/, '').replace(/\b0\s+(pulls|gives|shows|provides|delivers)/gi, 'Recall $1').trim());
       // ── END STAT VALIDATION ──
 
       // ── CTA CONTEXT MISMATCH — fix generic acquisition CTAs on changelog/update emails ──
