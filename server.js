@@ -928,9 +928,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const headerText = primaryText;
   const footerBg   = '#0d0d0d';
 
-  // Fix 3 — Logo: img URL → <img height="28">, no logo found → brand name span. Never inline SVG.
-  const logoOrBrandName = brandDNA?.logo
-    ? `<img src="${brandDNA.logo}" height="28" style="display:block;height:28px;width:auto;" alt="${company}" />`
+  // Logo: icon (36×36, rounded) beside brand name text — always shows name for readability.
+  // apple-touch-icon / PNG favicon → img; nothing found → name only.
+  const logoUrl = brandDNA?.logo || null;
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" /><span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
     : `<span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -1324,7 +1326,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
-                  ${logoOrBrandName}
+                  ${logoHtml}
                   ${p_brandTagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.70);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${p_brandTagline}</div>` : ''}
                 </td>
                 <td align="right" style="vertical-align:top;">
@@ -1404,7 +1406,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   ${tierLabelRow}
   <tr><td style="background:${headerBg};padding:18px 32px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="vertical-align:middle;">${logoOrBrandName}</td>
+      <td style="vertical-align:middle;">${logoHtml}</td>
       <td align="right" style="vertical-align:middle;white-space:nowrap;">
         <span style="font-family:monospace;font-size:10px;font-weight:600;color:${headerText};opacity:0.75;text-transform:uppercase;letter-spacing:1.5px;">${today}</span>
       </td>

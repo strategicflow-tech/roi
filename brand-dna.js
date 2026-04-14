@@ -19,7 +19,7 @@ async function extractBrandDNA(websiteUrl) {
     // Fetch external stylesheets in parallel alongside other extraction work
     const [externalCss, logo, textContent, ctaVerbs, industry, audience, meta] = await Promise.all([
       fetchExternalCSS(html, url),
-      Promise.resolve(extractLogo(html, url)),
+      Promise.resolve(extractBestLogoUrl(html, url)),
       Promise.resolve(extractReadableText(html)),
       Promise.resolve(extractCTAVerbs(html)),
       Promise.resolve(detectIndustry(html)),
@@ -147,89 +147,47 @@ function isNeutral(hex) {
 }
 
 // ─── LOGO EXTRACTION ────────────────────────────────────────────────────────
+// apple-touch-icon is the FIRST priority — it is a 180×180 PNG, perfect for email.
+// The old filter that excluded favicon/icon/apple-touch-icon URLs has been removed.
 
-function extractLogo(html, baseUrl) {
-  // Derive the apex domain of the company site so we can verify image ownership.
-  let companyApex = '';
-  try {
-    const parts = new URL(baseUrl).hostname.split('.');
-    companyApex = parts.slice(-2).join('.');          // e.g. "memrise.com"
-  } catch {}
+function extractBestLogoUrl(pageHtml, pageUrl) {
+  let domain = '';
+  try { domain = new URL(pageUrl).origin; } catch { return null; }
 
-  // Known CDN / media / social aggregator domains whose images are never a company logo.
-  const thirdPartyPatterns = [
-    'condenast', 'hearst', 'meredith', 'wordpress.com', 'wp.com',
-    'cloudfront.net', 'akamaized.net', 'fastly.net', 'imgix.net',
-    'cloudinary.com', 'unsplash.com', 'pexels.com', 'gettyimages',
-    'shutterstock', 'istockphoto', 'squarespace-cdn', 'wixstatic',
-    'shopify.com/s/files', 'fbcdn.net', 'twimg.com',
-  ];
-
-  const isCompanyOwned = (imageUrl) => {
-    if (!imageUrl) return false;
-    try {
-      const hostname = new URL(imageUrl).hostname;
-      // Reject any known third-party / CDN domain
-      if (thirdPartyPatterns.some(p => imageUrl.includes(p))) return false;
-      // Must share the apex domain with the company site
-      return companyApex && hostname.includes(companyApex);
-    } catch { return false; }
+  const resolve = (href) => {
+    if (!href) return null;
+    if (href.startsWith('http')) return href;
+    if (href.startsWith('//')) return 'https:' + href;
+    try { return new URL(href, pageUrl).href; } catch { return domain + href; }
   };
 
-  // Paths that indicate this is an OG/social-preview image, not an actual logo
-  const isOGImagePath = (url) =>
-    /opengraph|og[-_]image|og[-_]preview|social[-_]preview|social[-_]card|twitter[-_]card|open-graph/i.test(url);
+  const candidates = [];
 
-  // Social auth / third-party provider logos — never a company's own logo
-  // e.g. "Sign in with Google" button images
-  const SOCIAL_PROVIDER_RE = /\b(google|facebook|apple|github|microsoft|twitter|linkedin|slack|discord|oauth|sign[-_]?in|sso|openid)\b/i;
+  // Priority 1: apple-touch-icon (180×180 PNG — ideal for email headers)
+  const appleTouchIcon = pageHtml.match(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i)?.[1]
+    || pageHtml.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']apple-touch-icon["']/i)?.[1];
 
-  // Returns true when the full <img> tag (attributes string) references a social-auth icon
-  const isSocialProviderImg = (imgAttrs) => {
-    const altM = imgAttrs.match(/\balt=["']([^"']*)["']/i);
-    const classM = imgAttrs.match(/\bclass=["']([^"']*)["']/i);
-    const idM   = imgAttrs.match(/\bid=["']([^"']*)["']/i);
-    const srcM  = imgAttrs.match(/\bsrc=["']([^"']*)["']/i);
-    const filename = srcM ? (srcM[1].split('/').pop().replace(/\?.*$/, '')) : '';
-    return SOCIAL_PROVIDER_RE.test(altM?.[1] || '')
-        || SOCIAL_PROVIDER_RE.test(classM?.[1] || '')
-        || SOCIAL_PROVIDER_RE.test(idM?.[1] || '')
-        || SOCIAL_PROVIDER_RE.test(filename);
-  };
+  // Priority 2: PNG favicon declared with type="image/png"
+  const iconPng = pageHtml.match(/<link[^>]*rel=["']icon["'][^>]*type=["']image\/png["'][^>]*href=["']([^"']+)["']/i)?.[1]
+    || pageHtml.match(/<link[^>]*href=["']([^"']+)["'][^>]*type=["']image\/png["'][^>]*rel=["']icon["']/i)?.[1];
 
-  // Find first valid logo img in a chunk of HTML.
-  // Returns the resolved URL or null.
-  const findLogoInScope = (scopeHtml) => {
-    const imgRe = /<img([^>]+)>/gi;
-    let m;
-    while ((m = imgRe.exec(scopeHtml)) !== null) {
-      const attrs = m[1];
-      const hasLogoSignal =
-        /(?:class|alt|id)=["'][^"']*logo[^"']*["']/i.test(attrs)
-        || /src=["'][^"']*\/(?:logo|brand)[^"']*\.(?:png|svg|webp|jpg)["']/i.test(attrs);
-      if (!hasLogoSignal) continue;
-      if (isSocialProviderImg(attrs)) continue;
-      const srcM = attrs.match(/\bsrc=["']([^"']+)["']/i);
-      if (!srcM) continue;
-      const resolved = resolveUrl(srcM[1], baseUrl);
-      if (!isOGImagePath(resolved)) return resolved;
-    }
-    return null;
-  };
+  // Priority 3: img tag with "logo" in class, id, or alt — logo attribute must precede src
+  const logoImg = pageHtml.match(/<img[^>]*(?:class|id|alt)=["'][^"']*logo[^"']*["'][^>]*src=["']([^"']+)["']/i)?.[1];
 
-  // 1. Search specifically inside <header> and <nav> elements for logo <img> tags
-  const headerNavMatch = html.match(/<(?:header|nav)\b[^>]*>([\s\S]{0,8000}?)<\/(?:header|nav)>/i);
-  if (headerNavMatch) {
-    const found = findLogoInScope(headerNavMatch[1]);
-    if (found) return found;
-  }
+  // Priority 4: shortcut icon (skip .ico — it renders poorly at email scale)
+  const shortcutIcon = pageHtml.match(/<link[^>]*rel=["']shortcut icon["'][^>]*href=["']([^"']+)["']/i)?.[1]
+    || pageHtml.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']shortcut icon["']/i)?.[1];
 
-  // 2. Global scan — same rules, entire document
-  const found = findLogoInScope(html);
-  if (found) return found;
+  // Priority 5: /favicon.ico hard fallback
+  const faviconIco = `${domain}/favicon.ico`;
 
-  // Nothing reliable found — return null so only company name text is shown
-  return null;
+  if (appleTouchIcon) candidates.push(resolve(appleTouchIcon));
+  if (iconPng)        candidates.push(resolve(iconPng));
+  if (logoImg)        candidates.push(resolve(logoImg));
+  if (shortcutIcon && !shortcutIcon.endsWith('.ico')) candidates.push(resolve(shortcutIcon));
+  candidates.push(faviconIco);
+
+  return candidates.find(Boolean) || null;
 }
 
 function extractLogoSvg(html) {
