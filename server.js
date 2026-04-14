@@ -2061,6 +2061,37 @@ async function handleGenerate(req, res) {
     // Normalize flat JSON format (new) → internal representation used by the rest of the pipeline
     if (result && result.headline && Array.isArray(result.body)) {
       if (!result.rebuilt_subject) result.rebuilt_subject = result.subject || subject;
+
+      // ── STAT VALIDATION — strip invented statistics not present verbatim in source ──
+      // Runs before _flatFields and rebuilt_body are built so downstream gets clean paragraphs.
+      const INVENTED_STAT_PATTERNS = [
+        /\d+%\s+(lower|higher|faster|slower|more|less|better|worse)/gi,
+        /report\s+\d+%/gi,
+        /\d+\+?\s+tools?\s+daily/gi,
+        /save[sd]?\s+\d+[\.\d]*\s+(hours?|minutes?|days?)/gi,
+        /\d+[\.\d]*\s+(hours?|minutes?)\s+(per|a)\s+(day|week)/gi,
+      ];
+      const _sourceText = body || '';
+      result.body = result.body.map(paragraph => {
+        let clean = paragraph;
+        INVENTED_STAT_PATTERNS.forEach(pattern => {
+          pattern.lastIndex = 0;
+          const match = clean.match(pattern);
+          if (match) {
+            const statNum = match[0].match(/\d+/)?.[0];
+            if (statNum && !_sourceText.includes(statNum)) {
+              // Number not found in source — drop every sentence containing this pattern
+              clean = clean.split(/(?<=[.!?])\s+/).filter(sentence => {
+                pattern.lastIndex = 0;
+                return !pattern.test(sentence);
+              }).join(' ');
+            }
+          }
+        });
+        return clean.trim();
+      }).filter(p => p.length > 20);
+      // ── END STAT VALIDATION ──
+
       result._flatFields = {
         headline:          result.headline          || '',
         lead:              result.lead              || '',
