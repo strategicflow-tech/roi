@@ -553,7 +553,19 @@ function cleanCTAUrl(rawUrl, sourceUrl) {
     } catch(e) {}
     return sourceUrl;
   }
-  if (rawUrl.startsWith('http') && rawUrl.length > 20) return rawUrl;
+  if (rawUrl.startsWith('http') && rawUrl.length > 20) {
+    // Final safety: if ctaUrl doesn't start with sourceUrl's path, use sourceUrl
+    try {
+      const ctaPath = new URL(rawUrl).pathname;
+      const sourcePath = new URL(sourceUrl).pathname;
+      if (!ctaPath.startsWith(sourcePath.substring(0, sourcePath.length - 5))) {
+        return sourceUrl;
+      }
+    } catch(e) {
+      return sourceUrl;
+    }
+    return rawUrl;
+  }
   return sourceUrl;
 }
 
@@ -1440,13 +1452,22 @@ async function notify(subject, html) {
 }
 
 // Hard limit: max 3 paragraphs, max 3 sentences each — applied before body paragraphs enter the template.
+function shortenLongSentence(sentence) {
+  const words = sentence.trim().split(' ');
+  if (words.length <= 30) return sentence;
+  const cutoff = words.slice(0, 30).join(' ');
+  const lastBreak = Math.max(cutoff.lastIndexOf(','), cutoff.lastIndexOf('—'), cutoff.lastIndexOf(' and '));
+  if (lastBreak > 20) return cutoff.substring(0, lastBreak) + '.';
+  return words.slice(0, 25).join(' ') + '.';
+}
+
 function enforceBodyLimits(paragraphs) {
   if (!Array.isArray(paragraphs)) {
     paragraphs = String(paragraphs).split(/\n\n+/).filter(p => p.trim().length > 0);
   }
   return paragraphs.slice(0, 3).map(p => {
     const sentences = p.match(/[^.!?]+[.!?]+(\s|$)/g) || [p];
-    return sentences.slice(0, 3).join('').trim();
+    return sentences.slice(0, 3).map(s => shortenLongSentence(s)).join(' ').trim();
   });
 }
 
