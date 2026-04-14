@@ -2202,6 +2202,33 @@ async function handleGenerate(req, res) {
     const finalEmailType = result.emailType || detectedType;
     const brandDNASource = effectiveBrandDNA?.source || null;
 
+    // ── NUCLEAR RESEND STRIP — unconditional final pass before any output leaves the server ──
+    // Applied to BOTH downloadHtml and previewBody — no conditions, no short-circuits.
+    // Catches any Resend-wrapped href that evaded earlier passes (ctaHref, flatField ctaUrl, etc.)
+    {
+      const _nukeResend = (h) => {
+        if (!h || typeof h !== 'string') return h;
+        // 1. Decode tracked hrefs — anchored to href=" so the replacement is always clean
+        h = h.replace(
+          /href="https?:\/\/[a-z0-9.-]*resend-clicks\.com\/CL\d+\/([^"\/]+)[^"]*"/gi,
+          (_, encoded) => {
+            try {
+              const decoded = decodeURIComponent(encoded);
+              if (decoded.startsWith('http')) return `href="${decoded}"`;
+            } catch (_e) {}
+            return `href="${pageUrl || '#'}"`;
+          }
+        );
+        // 2. Remove tracking pixels (both resend-clicks.com and hidden resend.com pixel)
+        h = h.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
+        h = h.replace(/<img[^>]*resend\.com[^>]*style="[^"]*display:\s*none[^>]*>/gi, '');
+        return h;
+      };
+      downloadHtml = _nukeResend(downloadHtml);
+      previewBody  = _nukeResend(previewBody);
+    }
+    // ── END NUCLEAR STRIP ──────────────────────────────────────────────────────
+
     // BUG 1 — Send the success response IMMEDIATELY after HTML is built.
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.

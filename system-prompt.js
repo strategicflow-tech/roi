@@ -210,6 +210,7 @@ CONVERSION COPY RULES — apply to every sentence:
 - The hook must name a specific daily frustration, not a category of problem
 - Paragraph 2 must contain one real named person OR one specific number — not both, not neither
 - Paragraph 3 must end with a sentence that makes the reader feel time pressure without using the word "today" or "now"
+- Paragraph 3 FABRICATION RULE: Never state that users "report", "say", or "experience" outcomes unless those exact words appear as a direct quote in the source. If no user outcome data exists in the source, write a logical consequence of inaction instead — never invent a testimonial or anecdotal claim.
 
 BRAND PRESERVATION RULE:
 You are improving this company's communication — NOT replacing their identity. Preserve their brand voice, their terminology, their audience relationship. Upgrade the structure, clarity, and conversion mechanics. The reader should feel this is a better version of the brand they know — not a different brand. Match their existing tone: if they write formally, improve formally. If casually, improve casually. Use their existing CTA verb patterns. Mirror their industry language and terminology.
