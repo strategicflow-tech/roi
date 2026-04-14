@@ -946,6 +946,7 @@ let currentCompany = '', currentOrigSubject = '', currentOrigBody = '';
 let currentResult = null, currentBrandDNA = null, currentVoiceProfile = null;
 let uploadedHtmlBrandDNA = null;
 let downloadHtmlContent = '';
+let auditState = {};
 let selectedAdminTier = 'high_impact';
 
 const ADMIN_TIER_COLORS = { lite: '#3b82f6', growth: '#00d4c8', high_impact: '#10b981' };
@@ -1058,7 +1059,7 @@ function restart() {
 function resetState() {
   currentEmail=''; currentTier=''; currentIsAdmin=false; currentVip=false;
   currentCompany=''; currentOrigSubject=''; currentOrigBody='';
-  currentResult=null; currentBrandDNA=null; currentVoiceProfile=null;
+  currentResult=null; currentBrandDNA=null; currentVoiceProfile=null; auditState={};
   uploadedHtmlBrandDNA=null;
   downloadHtmlContent='';
   // Reset HTML upload UI
@@ -1562,6 +1563,7 @@ async function loadConversionScore() {
       email: currentEmail, originalSubject: currentOrigSubject, originalBody: currentOrigBody,
       rebuiltSubject: currentResult.rebuilt_subject, rebuiltBody: currentResult.rebuilt_body
     });
+    auditState.score = data;
     hide('scoreLoading'); show('scoreResult');
     document.getElementById('scoreOrig').textContent = data.original_score;
     document.getElementById('scoreNew').textContent  = data.rebuilt_score;
@@ -1575,6 +1577,7 @@ async function loadConversionScore() {
 async function loadABSubjects() {
   try {
     const data = await api('/ab-subjects', { email: currentEmail, company: currentCompany, subject: currentOrigSubject, body: currentOrigBody });
+    auditState.abSubjects = data;
     hide('abLoading'); show('abResult');
     const labels = { curiosity_gap: 'Curiosity Gap', specific_outcome: 'Specific Outcome', pattern_interrupt: 'Pattern Interrupt' };
     document.getElementById('abResult').innerHTML = (data.variants || []).map(v => `
@@ -1590,6 +1593,7 @@ async function loadABSubjects() {
 async function loadAudienceSegments() {
   try {
     const data = await api('/audience-segments', { email: currentEmail, company: currentCompany, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    auditState.segments = data;
     hide('segLoading'); show('segResult');
     document.getElementById('segResult').innerHTML = (data.segments || []).map(s => `
       <div class="segment-card">
@@ -1604,6 +1608,7 @@ async function loadAudienceSegments() {
 async function loadContentCalendar() {
   try {
     const data = await api('/content-calendar', { email: currentEmail, company: currentCompany, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    auditState.calendar = data;
     hide('calLoading'); show('calResult');
     document.getElementById('calResult').innerHTML = (data.follow_ups || []).map((f, i) => `
       <div class="cal-item">
@@ -1618,6 +1623,7 @@ async function loadContentCalendar() {
 async function loadCohesionCheck() {
   try {
     const data = await api('/cohesion-check', { email: currentEmail, subject: currentResult.rebuilt_subject, body: currentResult.rebuilt_body });
+    auditState.cohesion = data;
     hide('cohLoading'); show('cohResult');
     const score = data.cohesion_score || 0;
     document.getElementById('cohScore').textContent = score;
@@ -1646,69 +1652,86 @@ function generateAuditReportHtml() {
   const company = currentCompany || 'Unknown Brand';
   const date = new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
-  // Always returns innerHTML regardless of hidden state — content presence is the gate
-  const domHtml = (id) => { const el = document.getElementById(id); return el ? el.innerHTML.trim() : ''; };
-  const domText = (id) => { const el = document.getElementById(id); return el ? el.textContent.trim() : ''; };
+  // ── All section data comes from auditState, populated as each async call resolves ──
 
-  // Conversion Score — reads from DOM populated by the async /conversion-score call
-  const scoreOrig   = domText('scoreOrig');
-  const scoreNew    = domText('scoreNew');
-  const scoreOrigExp = domText('scoreOrigExp');
-  const scoreNewExp  = domText('scoreNewExp');
-  const scoreSection = (scoreOrig && scoreOrig !== '—') ? `
+  // Conversion Score — auditState.score set by loadConversionScore()
+  const sc = auditState.score || null;
+  const scoreSection = sc ? `
     <div class="section">
       <div class="section-title">Conversion Score</div>
       <div class="section-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">
           <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;text-align:center;">
             <div style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Original Score</div>
-            <div class="score-big">${scoreOrig}<span style="font-size:24px;font-weight:600;">/10</span></div>
-            ${scoreOrigExp ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${scoreOrigExp}</div>` : ''}
+            <div class="score-big">${sc.original_score}<span style="font-size:24px;font-weight:600;">/10</span></div>
+            ${sc.original_explanation ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${sc.original_explanation}</div>` : ''}
           </div>
           <div style="background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.25);border-radius:8px;padding:16px;text-align:center;">
             <div style="font-size:10px;color:#2dd4bf;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Rebuilt Score</div>
-            <div class="score-big" style="color:#2dd4bf;">${scoreNew}<span style="font-size:24px;font-weight:600;">/10</span></div>
-            ${scoreNewExp ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${scoreNewExp}</div>` : ''}
+            <div class="score-big" style="color:#2dd4bf;">${sc.rebuilt_score}<span style="font-size:24px;font-weight:600;">/10</span></div>
+            ${sc.rebuilt_explanation ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${sc.rebuilt_explanation}</div>` : ''}
           </div>
         </div>
       </div>
     </div>` : '';
 
-  // A/B subjects
-  const abHtml = domHtml('abResult');
-  const abSection = abHtml ? `
+  // A/B subjects — auditState.abSubjects set by loadABSubjects()
+  const abLabels = { curiosity_gap: 'Curiosity Gap', specific_outcome: 'Specific Outcome', pattern_interrupt: 'Pattern Interrupt' };
+  const abVariants = auditState.abSubjects?.variants || [];
+  const abSection = abVariants.length ? `
     <div class="section">
       <div class="section-title">A/B Subject Lines</div>
-      <div class="section-body">${abHtml}</div>
+      <div class="section-body">${abVariants.map(v => `
+        <div class="ab-item">
+          <div class="ab-angle">${abLabels[v.angle] || v.angle}</div>
+          <div class="ab-subject">${v.subject}</div>
+          <div class="ab-reasoning">${v.reasoning || ''}</div>
+          <div class="ab-lift">${v.predicted_lift || ''}</div>
+        </div>`).join('')}
+      </div>
     </div>` : '';
 
-  // Audience segments
-  const segHtml = domHtml('segResult');
-  const segSection = segHtml ? `
+  // Audience segments — auditState.segments set by loadAudienceSegments()
+  const segments = auditState.segments?.segments || [];
+  const segSection = segments.length ? `
     <div class="section">
       <div class="section-title">Audience Segments</div>
-      <div class="section-body">${segHtml}</div>
+      <div class="section-body">${segments.map(s => `
+        <div class="segment-card">
+          <div class="segment-name">${s.name}</div>
+          <div class="segment-desc">${s.description}</div>
+          <div class="segment-why">↳ ${s.why_converts}</div>
+          ${s.behavioral_signal ? `<div style="font-size:10px;color:rgba(255,255,255,0.40);margin-top:5px;">Signal: ${s.behavioral_signal}</div>` : ''}
+        </div>`).join('')}
+      </div>
     </div>` : '';
 
-  // Content calendar
-  const calHtml = domHtml('calResult');
-  const calSection = calHtml ? `
+  // Content calendar — auditState.calendar set by loadContentCalendar()
+  const followUps = auditState.calendar?.follow_ups || [];
+  const calSection = followUps.length ? `
     <div class="section">
       <div class="section-title">Content Calendar</div>
-      <div class="section-body">${calHtml}</div>
+      <div class="section-body">${followUps.map((f, i) => `
+        <div class="cal-item">
+          <div class="cal-timing">Email ${i+2} — ${f.timing}</div>
+          <div class="cal-subject">${f.subject_line}</div>
+          <div class="cal-angle">${f.angle}</div>
+          ${f.why_now ? `<div style="font-size:10px;color:rgba(255,255,255,0.40);margin-top:4px;font-style:italic;">${f.why_now}</div>` : ''}
+        </div>`).join('')}
+      </div>
     </div>` : '';
 
-  // Cohesion check
-  const cohScore   = domText('cohScore');
-  const cohVerdict = domText('cohVerdict');
-  const cohFlags   = domHtml('cohFlags');
-  const cohSection = cohScore ? `
+  // Cohesion check — auditState.cohesion set by loadCohesionCheck()
+  const coh = auditState.cohesion || null;
+  const cohSection = coh ? `
     <div class="section">
       <div class="section-title">Full-Funnel Cohesion Check</div>
       <div class="section-body">
-        <div class="score-big">${cohScore}<span style="font-size:24px;font-weight:600;">/10</span></div>
-        <div style="font-size:14px;color:rgba(255,255,255,0.65);margin:12px 0 20px;">${cohVerdict}</div>
-        ${cohFlags}
+        <div class="score-big">${coh.cohesion_score || 0}<span style="font-size:24px;font-weight:600;">/10</span></div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.65);margin:12px 0 20px;">${coh.overall_verdict || ''}</div>
+        ${(coh.narrative_breaks || []).length
+          ? (coh.narrative_breaks).map(f => `<div class="flag-item"><div class="flag-loc">${f.location}</div><div class="flag-issue">${f.issue}</div><div class="flag-fix">Fix: ${f.fix}</div></div>`).join('')
+          : '<div style="color:#2dd4bf;font-size:13px;">✓ No narrative breaks detected.</div>'}
       </div>
     </div>` : '';
 
