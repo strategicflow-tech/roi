@@ -1963,16 +1963,20 @@ async function handleGenerate(req, res) {
                 heroImageUrl: cachedOgImage }
             ));
             return res.json({
-              rebuilt_subject: n.rebuilt_subject,
-              rebuilt_body:    n.rebuilt_body,
+              rebuilt_subject:  n.rebuilt_subject,
+              rebuilt_body:     n.rebuilt_body,
               previewBody,
               downloadHtml,
-              tier:            n.tier || 'free_trial',
-              emailType:       n.email_type || null,
-              key_changes:     n.key_changes || [],
-              conversion_hook: n.conversion_hook || '',
-              og_image:        n.og_image || null,
-              cached:          true
+              tier:             n.tier || 'free_trial',
+              emailType:        n.email_type || null,
+              key_changes:      n.key_changes || [],
+              conversion_hook:  n.conversion_hook || '',
+              og_image:         n.og_image || null,
+              ab_subjects:      n.ab_subjects      || [],
+              segments:         n.audience_segments || [],
+              follow_ups:       n.content_calendar  || [],
+              cohesion:         n.cohesion_check    || null,
+              cached:           true
             });
           }
         }
@@ -2331,15 +2335,19 @@ async function handleGenerate(req, res) {
     // Persist to DB
     try {
       const s = await pool.query(`
-        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path,og_image)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id
+        INSERT INTO newsletters (email,company,original_subject,original_body,rebuilt_subject,rebuilt_body,tier,email_type,brand_dna,key_changes,conversion_hook,original_score,rebuild_path,og_image,ab_subjects,audience_segments,content_calendar,cohesion_check)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id
       `, [e, company, subject, body, result.rebuilt_subject, result.rebuilt_body, tier, finalEmailType,
           effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
           result.key_changes ? JSON.stringify(result.key_changes) : null,
           result.conversion_hook || null,
           null,
           'rebuilt',
-          req.body._ogImage || null]);
+          req.body._ogImage || null,
+          result.ab_subjects  ? JSON.stringify(result.ab_subjects)  : null,
+          result.segments     ? JSON.stringify(result.segments)     : null,
+          result.follow_ups   ? JSON.stringify(result.follow_ups)   : null,
+          result.cohesion     ? JSON.stringify(result.cohesion)     : null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db save]', dbErr.message); }
     console.log('STEP 5: DB save attempted');
