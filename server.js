@@ -2189,7 +2189,7 @@ async function handleGenerate(req, res) {
     // For legacy formats: keep the existing dark-theme adapted body HTML.
     const _isNewXml = (result.rebuilt_body || '').includes('<preheader>') ||
                       (result.rebuilt_body || '').includes('<cta_text>');
-    const previewBody = _isNewXml
+    let previewBody = _isNewXml
       ? downloadHtml
           .replace(/^[\s\S]*?<body[^>]*>/i, '')
           .replace(/<\/body>[\s\S]*$/i, '')
