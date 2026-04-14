@@ -369,6 +369,8 @@ Variant angles (one each):
 - specific_outcome: Names the exact measurable result the reader gets
 - pattern_interrupt: Breaks genre convention for this email type — unexpected enough to stop scrolling
 
+A/B SUBJECT LINE RULE: Never include specific metrics (percentages, speeds, counts) unless they appear verbatim in the source content above. If no metrics exist in the source, use outcome-framed language without numbers.
+
 Return ONLY valid JSON:
 {"variants":[{"subject":"string","angle":"curiosity_gap","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"specific_outcome","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"pattern_interrupt","reasoning":"string","predicted_lift":"string"}]}`;
 }

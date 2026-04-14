@@ -1743,6 +1743,13 @@ function generateAuditReportHtml() {
   const origBodyPlain = (currentOrigBody || '');
   const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 
+  // DEBUG — remove once all sections confirmed working
+  console.log('DEBUG auditState.score:', JSON.stringify(auditState.score));
+  console.log('DEBUG auditState.abSubjects:', JSON.stringify(auditState.abSubjects));
+  console.log('DEBUG auditState.segments:', JSON.stringify(auditState.segments));
+  console.log('DEBUG auditState.calendar:', JSON.stringify(auditState.calendar));
+  console.log('DEBUG auditState.cohesion:', JSON.stringify(auditState.cohesion));
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
