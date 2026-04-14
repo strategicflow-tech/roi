@@ -944,7 +944,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // apple-touch-icon / PNG favicon → img; nothing found → name only.
   const logoUrl = brandDNA?.logo || null;
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" /><span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
+    ? `<img src="${logoUrl}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" /><span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
     : `<span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -1334,7 +1334,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HEADER -->
         <tr>
-          <td style="padding:22px 32px 18px;background:${primaryColor};border-bottom:3px solid rgba(0,0,0,0.25);">
+          <td style="padding:22px 32px 18px;background:#0a0f1e;border-bottom:3px solid ${primaryColor};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
