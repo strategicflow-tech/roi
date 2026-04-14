@@ -1255,6 +1255,9 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
           </td>
         </tr>` : '';
 
+    // Enforce body limits before inserting into HTML template
+    const bodyParagraphs = enforceBodyLimits([p_insight, p_proof, p_cost]);
+
     const _v2Html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
@@ -1303,11 +1306,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- INSIGHT + PROOF + COST -->
         <tr><td style="padding:32px 32px 28px;">
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_insight}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[0] || ''}</p>
 
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_proof}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[1] || ''}</p>
 
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_cost}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[2] || ''}</p>
         </td></tr>
 
         <!-- CTA -->
@@ -1384,6 +1387,17 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 async function notify(subject, html) {
   try { await resend.emails.send({ from: SENDER, to: OWNER_EMAIL, subject, html }); }
   catch (e) { console.error('[email]', e.message); }
+}
+
+// Hard limit: max 3 paragraphs, max 3 sentences each — applied before body paragraphs enter the template.
+function enforceBodyLimits(paragraphs) {
+  if (!Array.isArray(paragraphs)) {
+    paragraphs = String(paragraphs).split(/\n\n+/).filter(p => p.trim().length > 0);
+  }
+  return paragraphs.slice(0, 3).map(p => {
+    const sentences = p.match(/[^.!?]+[.!?]+(\s|$)/g) || [p];
+    return sentences.slice(0, 3).join('').trim();
+  });
 }
 
 // Truncate a plain-text string to maxWords words, ending cleanly at a sentence boundary if possible.
