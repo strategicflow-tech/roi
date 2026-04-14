@@ -1052,7 +1052,12 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const p_calWeek3     = ff?.calendarWeek3   || extractSection(rawBody, 'calendar_week3')    || '';
   const p_calWeek4     = ff?.calendarWeek4   || extractSection(rawBody, 'calendar_week4')    || '';
   const p_brandTagline = ff?.brandTagline    || extractSection(rawBody, 'brand_tagline')     || '';
-  const p_brandDesc    = ff?.brandDescription || extractSection(rawBody, 'brand_description') || '';
+  const p_brandDesc      = ff?.brandDescription || extractSection(rawBody, 'brand_description') || '';
+  const p_conversionType = ff?.conversionType || '';
+  const p_quoteText      = ff?.quoteText      || '';
+  const p_quotePerson    = ff?.quotePerson    || '';
+  const p_beforeState    = ff?.beforeState    || '';
+  const p_afterState     = ff?.afterState     || '';
 
   // New format: flatFields provided directly, OR XML tags detected in body
   const isNewFormat = !!(ff || p_preheader || p_stat1Value || p_ctaText !== 'Read the full story →' ||
@@ -1077,7 +1082,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       { v: p_stat1Value, l: p_stat1Label },
       { v: p_stat2Value, l: p_stat2Label },
       { v: p_stat3Value, l: p_stat3Label },
-    ].filter(s => s.v);
+    ].filter(s => s.v && s.v.trim().length > 0);
     if (!stats.length) return '';
     const count = stats.length;
     const colWidth  = count === 1 ? '100%' : count === 2 ? '50%' : '33%';
@@ -1107,6 +1112,30 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <p style="font-size:13px;color:rgba(255,255,255,0.70);margin:3px 0 0;line-height:1.5;">${w.topic}</p>
       </div>`
     ).join('');
+  })();
+
+  // Conversion element: quote block OR before/after comparison card (only for new format)
+  const conversionElementHtml = (() => {
+    if (!isNewFormat) return '';
+    if (p_conversionType === 'quote' && p_quoteText) {
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid ${primaryColor};border-radius:2px;margin:0;"><tr><td style="padding:18px 24px;">
+        <p style="font-size:15px;color:#ffffff;line-height:1.7;margin:0 0 10px;font-style:italic;">"${p_quoteText}"</p>
+        ${p_quotePerson ? `<p style="font-size:11px;color:rgba(255,255,255,0.40);margin:0;letter-spacing:.04em;">${p_quotePerson}</p>` : ''}
+      </td></tr></table>`;
+    }
+    if (p_beforeState || p_afterState) {
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.10);border-radius:8px;margin:0;"><tr>
+        <td style="width:50%;padding:16px 20px;border-right:1px solid rgba(255,255,255,0.10);vertical-align:top;">
+          <p style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.30);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Before</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.60);margin:0;line-height:1.5;">${p_beforeState}</p>
+        </td>
+        <td style="width:50%;padding:16px 20px;vertical-align:top;">
+          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">After</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.85);margin:0;line-height:1.5;">${p_afterState}</p>
+        </td>
+      </tr></table>`;
+    }
+    return '';
   })();
 
   // ── Legacy bodyContent (used by old-format and promotional-grid paths) ────
@@ -1313,6 +1342,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
           <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[2] || ''}</p>
         </td></tr>
+
+        ${conversionElementHtml ? `<tr><td style="padding:0 32px 28px;">${conversionElementHtml}</td></tr>` : ''}
 
         <!-- CTA -->
         <tr>
@@ -2044,6 +2075,11 @@ async function handleGenerate(req, res) {
         calendarWeek2:     result.calendarWeek2     || '',
         calendarWeek3:     result.calendarWeek3     || '',
         calendarWeek4:     result.calendarWeek4     || '',
+        conversionType:    result.conversionType    || '',
+        quoteText:         result.quoteText         || '',
+        quotePerson:       result.quotePerson       || '',
+        beforeState:       result.beforeState       || '',
+        afterState:        result.afterState        || '',
       };
       // Synthetic rebuilt_body for DB storage, weakness verification, and section patching
       result.rebuilt_body = [result.headline, result.lead, ...(result.body || [])].filter(Boolean).join('\n\n');
