@@ -334,10 +334,23 @@ Never use "We", "Our", "We've" — these imply you are the brand.
 Always write in third person about the brand: "Linear redesigned...", "The new interface...", "Stripe now supports..."
 The reader receives this newsletter from Strategic Flow, not from the brand itself.
 
-BODY PARAGRAPH RULES (the "body" array — exactly 3 entries):
-- body[0] THE PROBLEM: Specific operational pain in the reader's own language. Do NOT mention the product. Max 2 sentences.
-- body[1] THE SHIFT: One specific capability or result from the source. Name a real person or company if available. Max 2 sentences.
-- body[2] THE CONSEQUENCE: What happens if the reader does nothing. Specific to their role. End with implicit urgency — never use the word "today" or "now". Max 2 sentences.
+BODY STRUCTURE — STRICT NARRATIVE PROGRESSION (the "body" array — exactly 3 entries):
+
+Paragraph 1 — THE PROBLEM (reader's current reality):
+Describe the specific operational friction the reader experiences TODAY, before this product change. Write in second person. Name the exact daily action that causes pain. Max 2 sentences. Do NOT mention the product or feature yet.
+
+Paragraph 2 — THE SHIFT (what changed and how it works):
+Introduce the specific product change from the source. Name exactly what was built or redesigned. Connect it directly to the pain from paragraph 1. One concrete example of how it works. Max 2 sentences. Bold the product name once.
+
+Paragraph 3 — THE CONSEQUENCE (cost of inaction):
+What happens to the reader if they ignore this update. Must be a logical consequence of NOT having the Paragraph 2 solution — not a feature list, not unrelated features, not invented statistics. Specific to the reader's role. Max 2 sentences. No "teams report", no invented metrics.
+
+NARRATIVE COHERENCE RULE:
+All 3 paragraphs must be about the SAME topic from the source article.
+If the source is about UI consistency → all 3 paragraphs are about UI consistency.
+If the source is about an AI agent → all 3 paragraphs are about that AI agent.
+NEVER introduce features from other articles or other product areas in paragraph 3.
+The CTA must resolve the tension opened in paragraph 1.
 
 STATS RULE: Use only metrics that appear verbatim in the source with a number, unit, or date (e.g. "50 themes", "30%", "Nov 10"). NEVER use a standalone year, a generic category name, or any invented number. Leave stat fields empty ("") when fewer than 3 genuine metrics exist.
 

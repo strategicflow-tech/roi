@@ -2113,6 +2113,19 @@ async function handleGenerate(req, res) {
       });
       // ── END CTA CONTEXT MISMATCH ──
 
+      // ── NARRATIVE COHERENCE CHECK — P3 must stay on the same topic as P1 ──
+      if (Array.isArray(result.body) && result.body.length >= 3) {
+        const p1Keywords = result.body[0].toLowerCase().split(/\W+/).filter(w => w.length > 5);
+        const p3Words    = result.body[2].toLowerCase();
+        const topicDrift = p1Keywords.filter(kw => p3Words.includes(kw)).length;
+        if (topicDrift < 2) {
+          const headlineSnippet = (result.headline || '').split(' ').slice(0, 4).join(' ') || 'this update';
+          result.body[2] = `Without ${headlineSnippet}, your team continues facing the same friction described above. The gap between teams that adopt and teams that wait compounds with every sprint.`;
+          console.log('[coherence] P3 topic drift detected — replaced with on-topic consequence');
+        }
+      }
+      // ── END NARRATIVE COHERENCE CHECK ──
+
       result._flatFields = {
         headline:          result.headline          || '',
         lead:              result.lead              || '',
