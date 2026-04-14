@@ -906,6 +906,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     'google': '#4285f4',    'meta': '#0866ff',
     'stripe': '#635bff',    'linear': '#5e6ad2',
     'notion': '#000000',    'figma': '#f24e1e',
+    'vercel': '#000000',    'github': '#24292F',
+    'slack': '#4A154B',
   };
   const _brandKey = company.toLowerCase().trim();
   for (const [k, v] of Object.entries(BRAND_COLOR_OVERRIDES)) {
@@ -929,7 +931,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Fix 3 — Logo: img URL → <img height="28">, no logo found → brand name span. Never inline SVG.
   const logoOrBrandName = brandDNA?.logo
     ? `<img src="${brandDNA.logo}" height="28" style="display:block;height:28px;width:auto;" alt="${company}" />`
-    : `<span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;">${company}</span>`;
+    : `<span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -1318,12 +1320,12 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HEADER -->
         <tr>
-          <td style="padding:22px 32px 18px;background:#0a0f1e;border-bottom:3px solid ${primaryColor};">
+          <td style="padding:22px 32px 18px;background:${primaryColor};border-bottom:3px solid rgba(0,0,0,0.25);">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
                   ${logoOrBrandName}
-                  ${p_brandTagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${p_brandTagline}</div>` : ''}
+                  ${p_brandTagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.70);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${p_brandTagline}</div>` : ''}
                 </td>
                 <td align="right" style="vertical-align:top;">
                   <div style="font-size:10px;color:rgba(255,255,255,0.40);font-family:monospace;white-space:nowrap;">${today}</div>
