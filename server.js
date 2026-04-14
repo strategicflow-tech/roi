@@ -1339,7 +1339,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
               <tr>
                 <td>
                   ${logoHtml}
-                  ${p_brandTagline ? `<div style="font-size:10px;color:rgba(255,255,255,0.70);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${p_brandTagline}</div>` : ''}
+                  ${(() => { const headerTagline = p_brandTagline && p_brandTagline.length > 10 ? p_brandTagline : `${company} · ${new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'})}`; return `<div style="font-size:10px;color:rgba(255,255,255,0.70);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${headerTagline}</div>`; })()}
                 </td>
                 <td align="right" style="vertical-align:top;">
                   <div style="font-size:10px;color:rgba(255,255,255,0.40);font-family:monospace;white-space:nowrap;">${today}</div>
