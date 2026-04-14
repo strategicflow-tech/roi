@@ -1767,57 +1767,90 @@ async function fetchPageContent(rawUrl) {
   let url = rawUrl.trim();
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   const fetch = (await import('node-fetch')).default;
-  const resp = await fetch(url, {
-    timeout: 12000,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
-  });
-  if (!resp.ok) throw new Error(`Page returned ${resp.status}`);
-  const html = await resp.text();
 
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].replace(/\s+/g,' ').trim() : '';
+  const BROWSER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Cache-Control': 'no-cache',
+  };
 
-  const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)/i)
-    || html.match(/<meta[^>]*content=["']([^"']{20,})[^>]*name=["']description["']/i);
-  const meta = metaMatch ? metaMatch[1].trim() : '';
+  // Extract structured content from raw HTML — shared across all strategies
+  function parseHtml(html) {
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].replace(/\s+/g,' ').trim() : '';
 
-  // Extract the article's own cover image. Priority order:
-  //   1. og:image (standard Open Graph)
-  //   2. twitter:image (Twitter card — common fallback)
-  //   3. First large <img> inside <article> or <main> (for sites that render meta server-side but skip OG)
-  const ogImage = (() => {
-    // og:image — content attr can appear before or after property attr
-    const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
-      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1];
-    if (og && og.startsWith('http')) return og;
+    const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)/i)
+      || html.match(/<meta[^>]*content=["']([^"']{20,})[^>]*name=["']description["']/i);
+    const meta = metaMatch ? metaMatch[1].trim() : '';
 
-    // twitter:image
-    const tw = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
-      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i)?.[1];
-    if (tw && tw.startsWith('http')) return tw;
+    // Extract the article's own cover image. Priority order:
+    //   1. og:image (standard Open Graph)
+    //   2. twitter:image (Twitter card — common fallback)
+    //   3. First large <img> inside <article> or <main>
+    const ogImage = (() => {
+      const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+        || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1];
+      if (og && og.startsWith('http')) return og;
+      const tw = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+        || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i)?.[1];
+      if (tw && tw.startsWith('http')) return tw;
+      const articleBlock = html.match(/<(?:article|main)[^>]*>([\s\S]{0,8000}?)<\/(?:article|main)>/i)?.[1] || '';
+      const imgSrc = articleBlock.match(/src=["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"']*)?)/i)?.[1];
+      if (imgSrc) return imgSrc;
+      return null;
+    })();
 
-    // First <img> with absolute URL inside <article> or <main> (static renders without OG meta)
-    const articleBlock = html.match(/<(?:article|main)[^>]*>([\s\S]{0,8000}?)<\/(?:article|main)>/i)?.[1] || '';
-    const imgSrc = articleBlock.match(/src=["'](https:\/\/[^"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"']*)?)/i)?.[1];
-    if (imgSrc) return imgSrc;
+    const stripped = sanitizeForJSON(
+      html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+        .replace(/\s+/g,' ').trim()
+    ).slice(0, 3500);
 
-    return null;
-  })();
+    const tables = extractTables(html);
+    return { title, meta, text: stripped, ogImage, tables };
+  }
 
-  // Strip scripts, styles, nav, footer elements then pull plain text
-  const stripped = sanitizeForJSON(
-    html
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
-      .replace(/\s+/g,' ').trim()
-  ).slice(0, 3500);
+  // Strategy 1: Direct fetch with realistic browser headers
+  try {
+    const resp = await fetch(url, { timeout: 12000, headers: BROWSER_HEADERS });
+    if (resp.ok) {
+      const html = await resp.text();
+      const parsed = parseHtml(html);
+      if (parsed.text.length >= 100) return { ...parsed, url };
+    }
+  } catch (e) { console.log('[fetch] strategy 1 failed:', e.message); }
 
-  const tables = extractTables(html);
+  // Strategy 2: Google Cache
+  try {
+    const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
+    const resp = await fetch(cacheUrl, { timeout: 8000, headers: BROWSER_HEADERS });
+    if (resp.ok) {
+      const html = await resp.text();
+      const parsed = parseHtml(html);
+      if (parsed.text.length >= 100) return { ...parsed, url };
+    }
+  } catch (e) { console.log('[fetch] strategy 2 (Google Cache) failed:', e.message); }
 
-  return { title, meta, text: stripped, url, ogImage, tables };
+  // Strategy 3: HTTP fallback (some servers reject HTTPS-only requests)
+  try {
+    const httpUrl = url.replace(/^https:\/\//i, 'http://');
+    if (httpUrl !== url) {
+      const resp = await fetch(httpUrl, { timeout: 8000, headers: BROWSER_HEADERS });
+      if (resp.ok) {
+        const html = await resp.text();
+        const parsed = parseHtml(html);
+        if (parsed.text.length >= 100) return { ...parsed, url };
+      }
+    }
+  } catch (e) { console.log('[fetch] strategy 3 (HTTP) failed:', e.message); }
+
+  console.log('[fetch] all strategies exhausted for:', url);
+  return null;
 }
 
 // ── FOOTER-ONLY DETECTION (server-side guard) ──
@@ -1885,29 +1918,45 @@ async function handleGenerate(req, res) {
       console.log('[generate] body too short, fetching URL:', pageUrl);
       try {
         const page = await fetchWithCache(pageUrl);
-        const fetched = [
-          page.title ? `Headline: ${page.title}` : '',
-          page.meta  ? `Summary: ${page.meta}` : '',
-          page.text,
-          page.tables && page.tables.length > 0
-            ? '\n\nDATA TABLES FROM ORIGINAL ARTICLE:\n' + page.tables.join('\n\n')
-            : ''
-        ].filter(Boolean).join('\n\n');
-        if (fetched && fetched.length > 100) {
-          effectiveBody = fetched;
-          analyzedPage = true;
-          if (page.ogImage) req.body._ogImage = page.ogImage;
-          console.log('[generate] URL content fetched, length:', effectiveBody.length);
+        if (page) {
+          const fetched = [
+            page.title ? `Headline: ${page.title}` : '',
+            page.meta  ? `Summary: ${page.meta}` : '',
+            page.text,
+            page.tables && page.tables.length > 0
+              ? '\n\nDATA TABLES FROM ORIGINAL ARTICLE:\n' + page.tables.join('\n\n')
+              : ''
+          ].filter(Boolean).join('\n\n');
+          if (fetched && fetched.length > 100) {
+            effectiveBody = fetched;
+            analyzedPage = true;
+            if (page.ogImage) req.body._ogImage = page.ogImage;
+            console.log('[generate] URL content fetched, length:', effectiveBody.length);
+          }
         }
       } catch (fetchErr) {
         console.error('[generate] URL fetch failed:', fetchErr.message);
+      }
+
+      // All fetch strategies failed — fall back to manually pasted fields
+      if (effectiveBody.length < 100) {
+        const manualFallback = [
+          req.body.subject || '',
+          req.body.body    || '',
+          req.body.company ? `Company: ${req.body.company}` : '',
+        ].filter(s => s.trim().length > 0).join('\n\n');
+        if (manualFallback.length >= 50) {
+          effectiveBody = manualFallback;
+          console.log('[generate] URL unreachable — using manual fields as fallback');
+        }
       }
     }
 
     if (effectiveBody.length < 100) {
       return res.status(400).json({
         error: 'content_too_short',
-        message: 'Please add content — paste text, upload HTML, or provide a valid URL.'
+        message: 'URL could not be fetched automatically. Paste the email body in the text field.',
+        hint: 'URL could not be fetched automatically. Paste the email body in the text field.'
       });
     }
 

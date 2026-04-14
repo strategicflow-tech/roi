@@ -1323,7 +1323,11 @@ async function submitGenerate() {
     }
     const errEl = document.getElementById('errForm');
     errEl.classList.remove('warn');
-    setErr('errForm', e.message || 'Generation failed. Please try again.');
+    if (e.message === 'content_too_short') {
+      setErr('errForm', "⚠️ This page couldn't be fetched automatically (login required or JavaScript-only). Paste the email body directly in the text field below and try again.");
+    } else {
+      setErr('errForm', e.message || 'Generation failed. Please try again.');
+    }
   }
 }
 
