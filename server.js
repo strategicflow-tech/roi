@@ -1938,6 +1938,7 @@ async function handleGenerate(req, res) {
       if (!lim.allowed) {
         // Free-trial users who already used their rebuild: return cached last result
         // instead of a hard block, so they see value and are prompted to upgrade.
+        let shouldBlock = true;
         if (lim.reason === 'trial_used') {
           const cached = await pool.query(
             'SELECT * FROM newsletters WHERE email = $1 ORDER BY created_at DESC LIMIT 1',
@@ -1945,42 +1946,50 @@ async function handleGenerate(req, res) {
           );
           if (cached.rows.length > 0) {
             const n = cached.rows[0];
-            const cachedDNA = n.brand_dna || null;
-            const { primaryColor: paRaw, primaryText: pat, accentColor: pacRaw } = getEmailColors(cachedDNA);
-            let pa = paRaw, pac = pacRaw;
-            try { const _p = hexToHSL(pa);  if (_p.l < 42) pa  = hslToHex(_p.h, Math.max(_p.s, 55), 55); } catch (_) {}
-            try { const _a = hexToHSL(pac); if (_a.l < 42) pac = hslToHex(_a.h, Math.max(_a.s, 55), 58); } catch (_) {}
-            const previewBody = adaptBodyForDarkTheme((n.rebuilt_body || '')
-              .replace(/CTABGCOLOR/g, pa)
-              .replace(/CTATEXTCOLOR/g, pat)
-              .replace(/CTAACCENTCOLOR/g, pac));
-            const cachedOgImage = req.body._ogImage || n.og_image || null;
-            console.log('[cache] ogImage:', cachedOgImage);
-            const downloadHtml = stripResendTracking(buildNewsletterHTML(
-              n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
-              { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
-                ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app',
-                heroImageUrl: cachedOgImage }
-            ));
-            return res.json({
-              rebuilt_subject:  n.rebuilt_subject,
-              rebuilt_body:     n.rebuilt_body,
-              previewBody,
-              downloadHtml,
-              tier:             n.tier || 'free_trial',
-              emailType:        n.email_type || null,
-              key_changes:      n.key_changes || [],
-              conversion_hook:  n.conversion_hook || '',
-              og_image:         n.og_image || null,
-              ab_subjects:      n.ab_subjects      || [],
-              segments:         n.audience_segments || [],
-              follow_ups:       n.content_calendar  || [],
-              cohesion:         n.cohesion_check    || null,
-              cached:           true
-            });
+            // Guard: if audit fields are null (pre-fix rows), treat as cache miss and regenerate
+            if (!n.ab_subjects || !n.audience_segments || !n.content_calendar) {
+              console.log('[cache] audit fields null — falling through to full regeneration');
+              shouldBlock = false;
+            } else {
+              const cachedDNA = n.brand_dna || null;
+              const { primaryColor: paRaw, primaryText: pat, accentColor: pacRaw } = getEmailColors(cachedDNA);
+              let pa = paRaw, pac = pacRaw;
+              try { const _p = hexToHSL(pa);  if (_p.l < 42) pa  = hslToHex(_p.h, Math.max(_p.s, 55), 55); } catch (_) {}
+              try { const _a = hexToHSL(pac); if (_a.l < 42) pac = hslToHex(_a.h, Math.max(_a.s, 55), 58); } catch (_) {}
+              const previewBody = adaptBodyForDarkTheme((n.rebuilt_body || '')
+                .replace(/CTABGCOLOR/g, pa)
+                .replace(/CTATEXTCOLOR/g, pat)
+                .replace(/CTAACCENTCOLOR/g, pac));
+              const cachedOgImage = req.body._ogImage || n.og_image || null;
+              console.log('[cache] ogImage:', cachedOgImage);
+              const downloadHtml = stripResendTracking(buildNewsletterHTML(
+                n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
+                { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
+                  ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app',
+                  heroImageUrl: cachedOgImage }
+              ));
+              return res.json({
+                rebuilt_subject:  n.rebuilt_subject,
+                rebuilt_body:     n.rebuilt_body,
+                previewBody,
+                downloadHtml,
+                tier:             n.tier || 'free_trial',
+                emailType:        n.email_type || null,
+                key_changes:      n.key_changes || [],
+                conversion_hook:  n.conversion_hook || '',
+                og_image:         n.og_image || null,
+                ab_subjects:      n.ab_subjects      || [],
+                segments:         n.audience_segments || [],
+                follow_ups:       n.content_calendar  || [],
+                cohesion:         n.cohesion_check    || null,
+                cached:           true
+              });
+            }
           }
         }
-        return res.status(403).json({ error: 'limit_reached', reason: lim.reason, used: lim.used, limit: lim.limit });
+        if (shouldBlock) {
+          return res.status(403).json({ error: 'limit_reached', reason: lim.reason, used: lim.used, limit: lim.limit });
+        }
       }
     }
 
