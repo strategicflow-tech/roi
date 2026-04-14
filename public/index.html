@@ -1643,32 +1643,34 @@ function downloadHTML() {
 
 function generateAuditReportHtml() {
   const r = currentResult || {};
-  const sc = r.originalScore;
   const company = currentCompany || 'Unknown Brand';
   const date = new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
-  const domHtml = (id) => { const el = document.getElementById(id); return (el && !el.hidden) ? el.innerHTML : ''; };
+  // Always returns innerHTML regardless of hidden state — content presence is the gate
+  const domHtml = (id) => { const el = document.getElementById(id); return el ? el.innerHTML.trim() : ''; };
   const domText = (id) => { const el = document.getElementById(id); return el ? el.textContent.trim() : ''; };
 
-  // Score / weakness breakdown from originalScore
-  const scoreCriteria = [
-    { label:'Subject Line', key:'subject_score', note:'subject_note' },
-    { label:'Hook',         key:'hook_score',     note:'hook_note'   },
-    { label:'Structure',    key:'structure_score', note:'structure_note' },
-    { label:'CTA',          key:'cta_score',      note:'cta_note'    },
-    { label:'Brand Voice',  key:'voice_score',     note:'voice_note'  }
-  ];
-  const scoreSection = sc ? `
+  // Conversion Score — reads from DOM populated by the async /conversion-score call
+  const scoreOrig   = domText('scoreOrig');
+  const scoreNew    = domText('scoreNew');
+  const scoreOrigExp = domText('scoreOrigExp');
+  const scoreNewExp  = domText('scoreNewExp');
+  const scoreSection = (scoreOrig && scoreOrig !== '—') ? `
     <div class="section">
       <div class="section-title">Conversion Score</div>
       <div class="section-body">
-        <div class="score-big">${sc.total ?? '?'}<span style="font-size:24px;font-weight:600;">/10</span></div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.40);margin-bottom:20px;">${sc.percentage || 0}% conversion readiness</div>
-        ${scoreCriteria.map(c => `
-          <div class="card${(sc[c.key] ?? 2) < 2 ? ' weakness' : ''}">
-            <div class="card-label">${c.label} — ${sc[c.key] ?? '?'}/2</div>
-            <div class="card-body">${sc[c.note] || '—'}</div>
-          </div>`).join('')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px;">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Original Score</div>
+            <div class="score-big">${scoreOrig}<span style="font-size:24px;font-weight:600;">/10</span></div>
+            ${scoreOrigExp ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${scoreOrigExp}</div>` : ''}
+          </div>
+          <div style="background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.25);border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:10px;color:#2dd4bf;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Rebuilt Score</div>
+            <div class="score-big" style="color:#2dd4bf;">${scoreNew}<span style="font-size:24px;font-weight:600;">/10</span></div>
+            ${scoreNewExp ? `<div style="font-size:12px;color:rgba(255,255,255,0.50);margin-top:10px;line-height:1.5;">${scoreNewExp}</div>` : ''}
+          </div>
+        </div>
       </div>
     </div>` : '';
 
@@ -1697,9 +1699,9 @@ function generateAuditReportHtml() {
     </div>` : '';
 
   // Cohesion check
-  const cohScore = domText('cohScore');
+  const cohScore   = domText('cohScore');
   const cohVerdict = domText('cohVerdict');
-  const cohFlags = domHtml('cohFlags');
+  const cohFlags   = domHtml('cohFlags');
   const cohSection = cohScore ? `
     <div class="section">
       <div class="section-title">Full-Funnel Cohesion Check</div>
@@ -1714,9 +1716,9 @@ function generateAuditReportHtml() {
   const changesHtml = (r.key_changes || []).map(c =>
     `<div class="card"><div class="card-body">${c}</div></div>`).join('');
 
-  // Before / After
-  const origBodyPlain = (currentOrigBody || '').slice(0, 400) + (currentOrigBody.length > 400 ? '…' : '');
-  const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,400);
+  // Before / After — full text, no truncation
+  const origBodyPlain = (currentOrigBody || '');
+  const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 
   return `<!DOCTYPE html>
 <html lang="en">
