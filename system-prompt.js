@@ -334,23 +334,32 @@ Never use "We", "Our", "We've" — these imply you are the brand.
 Always write in third person about the brand: "Linear redesigned...", "The new interface...", "Stripe now supports..."
 The reader receives this newsletter from Strategic Flow, not from the brand itself.
 
-BODY STRUCTURE — STRICT NARRATIVE PROGRESSION (the "body" array — exactly 3 entries):
+BODY STRUCTURE — STRICT NARRATIVE PROGRESSION:
 
-Paragraph 1 — THE PROBLEM (reader's current reality):
-Describe the specific operational friction the reader experiences TODAY, before this product change. Write in second person. Name the exact daily action that causes pain. Max 2 sentences. Do NOT mention the product or feature yet.
+Paragraph 1 — THE PROBLEM:
+Describe the specific operational friction the reader experiences TODAY. Second person. Name the exact daily action that causes pain. Max 2 sentences. Do NOT mention the product yet.
 
-Paragraph 2 — THE SHIFT (what changed and how it works):
-Introduce the specific product change from the source. Name exactly what was built or redesigned. Connect it directly to the pain from paragraph 1. One concrete example of how it works. Max 2 sentences. Bold the product name once.
+Paragraph 2 — THE SHIFT:
+Introduce the specific product change from the source. Connect directly to paragraph 1 pain. One concrete example. Max 2 sentences. Bold the product name once.
 
-Paragraph 3 — THE CONSEQUENCE (cost of inaction):
-What happens to the reader if they ignore this update. Must be a logical consequence of NOT having the Paragraph 2 solution — not a feature list, not unrelated features, not invented statistics. Specific to the reader's role. Max 2 sentences. No "teams report", no invented metrics.
+Paragraph 3 — THE CONSEQUENCE:
+Logical result of NOT having the paragraph 2 solution. Specific to reader's role. Max 2 sentences. No invented metrics. No unrelated features. No "teams report".
 
-NARRATIVE COHERENCE RULE:
-All 3 paragraphs must be about the SAME topic from the source article.
-If the source is about UI consistency → all 3 paragraphs are about UI consistency.
-If the source is about an AI agent → all 3 paragraphs are about that AI agent.
-NEVER introduce features from other articles or other product areas in paragraph 3.
-The CTA must resolve the tension opened in paragraph 1.
+COHERENCE RULE: All 3 paragraphs must be about the SAME topic. If source is about shared mailboxes → all 3 paragraphs are about shared mailboxes. NEVER introduce unrelated features in paragraph 3.
+
+CTA COHERENCE RULE — NON-NEGOTIABLE:
+The ctaText must directly resolve the tension opened in the headline.
+
+Examples:
+- Headline: "Your team inbox lives outside ChatGPT's context window"
+  → CTA: "Connect your shared inbox →"
+- Headline: "Every context switch costs you focus time"
+  → CTA: "See the consistent interface →"
+- Headline: "Your avatar still looks like AI"
+  → CTA: "Build your Avatar V in 15 seconds →"
+
+BANNED generic CTAs: "Learn more", "Get started", "Discover", "See what's new", "Read more"
+The CTA verb must promise resolution of the exact pain named in paragraph 1.
 
 STATS RULE: Use only metrics that appear verbatim in the source with a number, unit, or date (e.g. "50 themes", "30%", "Nov 10"). NEVER use a standalone year, a generic category name, or any invented number. Leave stat fields empty ("") when fewer than 3 genuine metrics exist.
 
@@ -374,10 +383,17 @@ FOLLOW-UP CALENDAR: In "follow_ups", suggest 3 sequential follow-up email topics
 
 CONVERSION SCORE: In "conversion_score", score the ORIGINAL email (provided above as input) vs your REBUILT version using the Strategic Flow 5-criterion rubric (0-2 points each, max 10 total): 1) subject curiosity/specificity, 2) hook strength (first 15 words), 3) feature-to-outcome translation rate, 4) social proof specificity, 5) CTA ownership language. Fields: original_score (number 0-10), original_explanation (1 sentence), rebuilt_score (number 0-10), rebuilt_explanation (1 sentence).
 
-COHESION CHECK: In "cohesion", assess if your REBUILT email's subject → hook → body → CTA tell ONE consistent story. Flag narrative breaks where the promise shifts, the audience changes, or the CTA asks for something the email didn't earn. Fields: cohesion_score (0-10), narrative_breaks (array of {location, issue, fix} — empty array if none), cta_earned (boolean), overall_verdict (1 sentence).
+COHESION CHECK: In "cohesion", score your REBUILT email using these 5 criteria (0-2 each, total 0-10):
+1. HOOK SPECIFICITY (0-2): Does paragraph 1 name a specific daily pain without mentioning the product? 2=yes specific, 1=vague, 0=missing or mentions product
+2. SOLUTION CONNECTION (0-2): Does paragraph 2 connect the product change directly to paragraph 1 pain? 2=direct connection, 1=loose connection, 0=no connection
+3. CONSEQUENCE QUALITY (0-2): Does paragraph 3 state a logical consequence of inaction — NOT a feature list, NOT invented metrics, NOT unrelated features? 2=clean consequence, 1=partial, 0=feature dump or invented stat
+4. CTA RESOLUTION (0-2): Does the ctaText verb resolve the exact tension opened in paragraph 1? 2=direct resolution, 1=related, 0=generic
+5. NARRATIVE UNITY (0-2): Are all 3 paragraphs about the same topic from the source? 2=fully unified, 1=minor drift, 0=topic changes
+TARGET: 8+/10. If total is below 7, populate "rewrite_instructions" with specific fixes for each failing criterion.
+Fields: cohesion_score (number 0-10), criteria ({hook_specificity, solution_connection, consequence_quality, cta_resolution, narrative_unity} each 0-2), narrative_breaks (array of {location, issue, fix} — empty if none), cta_earned (boolean), overall_verdict (1 sentence), rewrite_instructions (string with specific rewrites if score < 7, otherwise null).
 
 Return ONLY valid JSON:
-{"rebuilt_subject":"Hook-first subject line under 55 characters","headline":"Single tension sentence — names a specific daily pain for this reader. Max 12 words. No product name in headline.","lead":"One paragraph. What is changing right now, who is already moving, what it costs to stay still. Max 35 words.","body":["body[0] THE PROBLEM — specific operational pain in reader language, no product mention, max 2 sentences","body[1] THE SHIFT — specific capability or result, name a real person or company if available, max 2 sentences","body[2] THE CONSEQUENCE — what happens if reader does nothing, end with implicit urgency, never 'today'/'now', max 2 sentences"],"ctaText":"Ownership verb + specific outcome. Max 6 words. Never: Discover, Listen, Learn, Connect.","ctaUrl":"Exact original source URL — the article or page, never the brand homepage","stat1Value":"Real number from source only — empty string if none","stat1Label":"What it measures — 3 to 6 words","stat2Value":"Real number from source only — empty string if none","stat2Label":"What it measures — 3 to 6 words","stat3Value":"Real number from source only — empty string if none","stat3Label":"What it measures — 3 to 6 words","preheader":"Max 90 characters — the single most compelling reason to read this email","brandTagline":"Brand's actual tagline from source. Never invented.","brandDescription":"Complete brand footer description extracted from source. Never truncate mid-sentence. Max 2 sentences.","calendarWeek1":"Follow-up topic — max 8 words","calendarWeek2":"Follow-up topic — max 8 words","calendarWeek3":"Follow-up topic — max 8 words","calendarWeek4":"Follow-up topic — max 8 words","conversionType":"quote if source contains an exact quotable statement — otherwise comparison","quoteText":"Exact quote from source — empty string if none","quotePerson":"Name, Role · Company — empty string if none","beforeState":"Reader situation without this product — 1 sentence, empty string if not relevant","afterState":"Reader situation with this product — 1 sentence with specific metric if available, empty string if not relevant","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"The opening line you used and why it works for this specific audience","inferredBrandColor":"This brand's most recognizable hex color. Use known brand colors when identifiable: Linear #5E6AD2, Stripe #635BFF, Microsoft #0078D4, Notion #000000, Figma #F24E1E, Vercel #000000, GitHub #24292F, Slack #4A154B, Shopify #96BF48, HubSpot #FF7A59, Salesforce #00A1E0, Twilio #F22F46, Atlassian #0052CC, Zoom #2D8CFF, Anthropic #D97757. Infer from brand name or industry if unknown. Never use #00d4c8 or #3498db.","ab_subjects":[{"subject":"string","angle":"curiosity_gap","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"specific_outcome","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"pattern_interrupt","reasoning":"string","predicted_lift":"string"}],"segments":[{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"},{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"},{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"}],"follow_ups":[{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"}],"conversion_score":{"original_score":0,"original_explanation":"string","rebuilt_score":0,"rebuilt_explanation":"string"},"cohesion":{"cohesion_score":0,"narrative_breaks":[],"cta_earned":true,"overall_verdict":"string"}}`;
+{"rebuilt_subject":"Hook-first subject line under 55 characters","headline":"Single tension sentence — names a specific daily pain for this reader. Max 12 words. No product name in headline.","lead":"One paragraph. What is changing right now, who is already moving, what it costs to stay still. Max 35 words.","body":["body[0] THE PROBLEM — specific operational pain in reader language, no product mention, max 2 sentences","body[1] THE SHIFT — specific capability or result, name a real person or company if available, max 2 sentences","body[2] THE CONSEQUENCE — what happens if reader does nothing, end with implicit urgency, never 'today'/'now', max 2 sentences"],"ctaText":"Ownership verb + specific outcome. Max 6 words. Never: Discover, Listen, Learn, Connect.","ctaUrl":"Exact original source URL — the article or page, never the brand homepage","stat1Value":"Real number from source only — empty string if none","stat1Label":"What it measures — 3 to 6 words","stat2Value":"Real number from source only — empty string if none","stat2Label":"What it measures — 3 to 6 words","stat3Value":"Real number from source only — empty string if none","stat3Label":"What it measures — 3 to 6 words","preheader":"Max 90 characters — the single most compelling reason to read this email","brandTagline":"Brand's actual tagline from source. Never invented.","brandDescription":"Complete brand footer description extracted from source. Never truncate mid-sentence. Max 2 sentences.","calendarWeek1":"Follow-up topic — max 8 words","calendarWeek2":"Follow-up topic — max 8 words","calendarWeek3":"Follow-up topic — max 8 words","calendarWeek4":"Follow-up topic — max 8 words","conversionType":"quote if source contains an exact quotable statement — otherwise comparison","quoteText":"Exact quote from source — empty string if none","quotePerson":"Name, Role · Company — empty string if none","beforeState":"Reader situation without this product — 1 sentence, empty string if not relevant","afterState":"Reader situation with this product — 1 sentence with specific metric if available, empty string if not relevant","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"The opening line you used and why it works for this specific audience","inferredBrandColor":"This brand's most recognizable hex color. Use known brand colors when identifiable: Linear #5E6AD2, Stripe #635BFF, Microsoft #0078D4, Notion #000000, Figma #F24E1E, Vercel #000000, GitHub #24292F, Slack #4A154B, Shopify #96BF48, HubSpot #FF7A59, Salesforce #00A1E0, Twilio #F22F46, Atlassian #0052CC, Zoom #2D8CFF, Anthropic #D97757. Infer from brand name or industry if unknown. Never use #00d4c8 or #3498db.","ab_subjects":[{"subject":"string","angle":"curiosity_gap","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"specific_outcome","reasoning":"string","predicted_lift":"string"},{"subject":"string","angle":"pattern_interrupt","reasoning":"string","predicted_lift":"string"}],"segments":[{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"},{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"},{"name":"string","description":"string","why_converts":"string","behavioral_signal":"string"}],"follow_ups":[{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"}],"conversion_score":{"original_score":0,"original_explanation":"string","rebuilt_score":0,"rebuilt_explanation":"string"},"cohesion":{"cohesion_score":0,"criteria":{"hook_specificity":0,"solution_connection":0,"consequence_quality":0,"cta_resolution":0,"narrative_unity":0},"narrative_breaks":[],"cta_earned":true,"overall_verdict":"string","rewrite_instructions":null}}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
@@ -446,16 +462,29 @@ Return ONLY valid JSON:
 {"follow_ups":[{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"},{"topic":"string","subject_line":"string","angle":"string","timing":"string","why_now":"string"}]}`;
 }
 
-function getCohesionCheckPrompt(subject, body) {
-  return `Perform a full-funnel narrative cohesion check. Assess if subject → hook → body → CTA tell ONE consistent story.
+function getCohesionCheckPrompt(rebuiltSubject, rebuiltBodyParagraphs, rebuiltCta) {
+  const p1 = (rebuiltBodyParagraphs || [])[0] || '';
+  const p2 = (rebuiltBodyParagraphs || [])[1] || '';
+  const p3 = (rebuiltBodyParagraphs || [])[2] || '';
+  return `You are evaluating the REBUILT newsletter generated by Strategic Flow — NOT the original source content.
 
-Subject: "${subject}"
-Body: ${body.slice(0, 1000)}
+Subject: "${rebuiltSubject}"
+Paragraph 1 (THE PROBLEM): ${p1}
+Paragraph 2 (THE SHIFT): ${p2}
+Paragraph 3 (THE CONSEQUENCE): ${p3}
+CTA: "${rebuiltCta}"
 
-Flag narrative breaks: where the promise shifts, audience changes, or CTA asks for something the email didn't earn.
+Score this rebuilt newsletter on 5 criteria (0-2 each, total 0-10):
+1. HOOK SPECIFICITY (0-2): Does paragraph 1 name a specific daily pain without mentioning the product? 2=yes specific, 1=vague, 0=missing or mentions product
+2. SOLUTION CONNECTION (0-2): Does paragraph 2 connect the product change directly to paragraph 1 pain? 2=direct connection, 1=loose, 0=none
+3. CONSEQUENCE QUALITY (0-2): Does paragraph 3 state a logical consequence of inaction — NOT a feature list, NOT invented metrics, NOT unrelated features? 2=clean, 1=partial, 0=feature dump or invented stat
+4. CTA RESOLUTION (0-2): Does the CTA verb resolve the exact tension opened in paragraph 1? 2=direct resolution, 1=related, 0=generic
+5. NARRATIVE UNITY (0-2): Are all 3 paragraphs about the same topic from the source? 2=fully unified, 1=minor drift, 0=topic changes
+
+TARGET SCORE: 8+/10. If total is below 7, include "rewrite_instructions" with specific fixes for each failing criterion — what exact change would bring each to 2/2.
 
 Return ONLY valid JSON:
-{"cohesion_score":number,"narrative_consistent":boolean,"promise_in_subject":"string","promise_fulfilled":boolean,"narrative_breaks":[{"location":"string","issue":"string","fix":"string"}],"cta_earned":boolean,"cta_mismatch":"string or null","overall_verdict":"string"}`;
+{"cohesion_score":number,"criteria":{"hook_specificity":0,"solution_connection":0,"consequence_quality":0,"cta_resolution":0,"narrative_unity":0},"narrative_breaks":[{"location":"string","issue":"string","fix":"string"}],"cta_earned":boolean,"overall_verdict":"string","rewrite_instructions":"string or null"}`;
 }
 
 function getEmailTypePrompt(subject, body) {
