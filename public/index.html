@@ -1051,6 +1051,8 @@ function restart() {
   document.getElementById('fCompany').value = '';
   const fp = document.getElementById('fPageUrl'); if (fp) fp.value = '';
   const fe = document.getElementById('fEmail'); if (fe) fe.value = '';
+  const proBlock = document.getElementById('pro-conversion-block');
+  if (proBlock) proBlock.style.display = 'none';
 }
 function resetState() {
   currentEmail=''; currentTier=''; currentIsAdmin=false; currentVip=false;

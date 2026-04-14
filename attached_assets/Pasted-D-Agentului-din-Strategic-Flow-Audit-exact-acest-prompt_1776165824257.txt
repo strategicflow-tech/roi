@@ -1,0 +1,64 @@
+Dă Agentului din **Strategic Flow Audit** exact acest prompt:
+
+---
+
+Two fixes needed. Do both in the same task.
+
+**Fix 1 — Pro conversion block missing for some generation types:**
+
+Search `index.html` for every function or code block that handles a successful generation result. Look for all of these patterns:
+- `showState('result')`
+- `setState('result')`  
+- `stateResult`
+- Any `.innerHTML =` or `.style.display = 'block'` that reveals a result to the user
+
+For each one found, confirm that `document.getElementById('pro-conversion-block').style.display = 'block'` is called after it.
+
+If the Pro block is not being shown for all result types, wrap the entire Pro conversion HTML in:
+
+```html
+<div id="pro-conversion-block" style="display:none;margin-top:24px;">
+  [the existing Pro conversion block HTML from line 844-876]
+</div>
+```
+
+Then find the single JavaScript function that runs after ANY generation completes — it likely calls `showState('result')` or similar — and add immediately after:
+
+```javascript
+const proBlock = document.getElementById('pro-conversion-block');
+if (proBlock) proBlock.style.display = 'block';
+```
+
+Also add this to the reset/new rebuild function so the block hides when user starts a new rebuild:
+
+```javascript
+const proBlock = document.getElementById('pro-conversion-block');
+if (proBlock) proBlock.style.display = 'none';
+```
+
+**Fix 2 — Resend tracker still in CTA URL:**
+
+In `server.js`, find the exact line where `res.json(...)` or `res.send(...)` returns the final generated HTML to the client. It will look something like:
+
+```javascript
+res.json({ html: finalHtml, ... })
+```
+
+Immediately before that line — on the line directly above it — add:
+
+```javascript
+if (typeof finalHtml === 'string') {
+  finalHtml = finalHtml.replace(/href="https?:\/\/[a-z0-9-]+\.resend-clicks\.com\/CL0\/([^"\/\s]+)[^"]*"/gi, (match, encoded) => {
+    try {
+      const decoded = decodeURIComponent(encoded);
+      if (decoded.startsWith('http')) return `href="${decoded}"`;
+    } catch(e) {}
+    return `href="${sourceUrl || '#'}"`;
+  });
+  finalHtml = finalHtml.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
+}
+```
+
+If the variable is not called `finalHtml`, show me what it's called first before applying the fix.
+
+Show me both fixes confirmed with exact line numbers.
