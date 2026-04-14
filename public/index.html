@@ -685,6 +685,7 @@ textarea{resize:vertical;line-height:1.7;}
         <div id="resVipBadge" hidden class="vip-badge">⚡ VIP Priority</div>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="downloadHTML()">↓ Download HTML</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadAuditReport()">↓ Download Audit</button>
           <button class="btn btn-ghost btn-sm" onclick="restart()">← New Rebuild</button>
         </div>
       </div>
@@ -1638,6 +1639,203 @@ function downloadHTML() {
   a.download = `strategic-flow-${(currentCompany||'newsletter').replace(/\s+/g,'-').toLowerCase()}.html`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function generateAuditReportHtml() {
+  const r = currentResult || {};
+  const sc = r.originalScore;
+  const company = currentCompany || 'Unknown Brand';
+  const date = new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+
+  const domHtml = (id) => { const el = document.getElementById(id); return (el && !el.hidden) ? el.innerHTML : ''; };
+  const domText = (id) => { const el = document.getElementById(id); return el ? el.textContent.trim() : ''; };
+
+  // Score / weakness breakdown from originalScore
+  const scoreCriteria = [
+    { label:'Subject Line', key:'subject_score', note:'subject_note' },
+    { label:'Hook',         key:'hook_score',     note:'hook_note'   },
+    { label:'Structure',    key:'structure_score', note:'structure_note' },
+    { label:'CTA',          key:'cta_score',      note:'cta_note'    },
+    { label:'Brand Voice',  key:'voice_score',     note:'voice_note'  }
+  ];
+  const scoreSection = sc ? `
+    <div class="section">
+      <div class="section-title">Conversion Score</div>
+      <div class="section-body">
+        <div class="score-big">${sc.total ?? '?'}<span style="font-size:24px;font-weight:600;">/10</span></div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.40);margin-bottom:20px;">${sc.percentage || 0}% conversion readiness</div>
+        ${scoreCriteria.map(c => `
+          <div class="card${(sc[c.key] ?? 2) < 2 ? ' weakness' : ''}">
+            <div class="card-label">${c.label} — ${sc[c.key] ?? '?'}/2</div>
+            <div class="card-body">${sc[c.note] || '—'}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  // A/B subjects
+  const abHtml = domHtml('abResult');
+  const abSection = abHtml ? `
+    <div class="section">
+      <div class="section-title">A/B Subject Lines</div>
+      <div class="section-body">${abHtml}</div>
+    </div>` : '';
+
+  // Audience segments
+  const segHtml = domHtml('segResult');
+  const segSection = segHtml ? `
+    <div class="section">
+      <div class="section-title">Audience Segments</div>
+      <div class="section-body">${segHtml}</div>
+    </div>` : '';
+
+  // Content calendar
+  const calHtml = domHtml('calResult');
+  const calSection = calHtml ? `
+    <div class="section">
+      <div class="section-title">Content Calendar</div>
+      <div class="section-body">${calHtml}</div>
+    </div>` : '';
+
+  // Cohesion check
+  const cohScore = domText('cohScore');
+  const cohVerdict = domText('cohVerdict');
+  const cohFlags = domHtml('cohFlags');
+  const cohSection = cohScore ? `
+    <div class="section">
+      <div class="section-title">Full-Funnel Cohesion Check</div>
+      <div class="section-body">
+        <div class="score-big">${cohScore}<span style="font-size:24px;font-weight:600;">/10</span></div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.65);margin:12px 0 20px;">${cohVerdict}</div>
+        ${cohFlags}
+      </div>
+    </div>` : '';
+
+  // What Changed items
+  const changesHtml = (r.key_changes || []).map(c =>
+    `<div class="card"><div class="card-body">${c}</div></div>`).join('');
+
+  // Before / After
+  const origBodyPlain = (currentOrigBody || '').slice(0, 400) + (currentOrigBody.length > 400 ? '…' : '');
+  const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,400);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Strategic Flow Audit Report — ${company}</title>
+  <style>
+    *{box-sizing:border-box;}
+    body{margin:0;padding:40px 20px;background:#0a0f1e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e2e8f0;}
+    .inner{max-width:800px;margin:0 auto;}
+    .header{border-bottom:3px solid #2dd4bf;padding-bottom:24px;margin-bottom:32px;}
+    .logo{font-size:22px;font-weight:900;color:#2dd4bf;}
+    .brand{font-size:14px;color:rgba(255,255,255,0.45);margin-top:4px;}
+    .date{font-size:12px;color:rgba(255,255,255,0.30);margin-top:4px;}
+    .section{margin-bottom:28px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;overflow:hidden;}
+    .section-title{padding:14px 20px;background:rgba(255,255,255,0.05);font-size:11px;font-weight:800;color:#2dd4bf;text-transform:uppercase;letter-spacing:1.5px;}
+    .section-body{padding:20px;}
+    .score-big{font-size:48px;font-weight:900;color:#2dd4bf;line-height:1;margin-bottom:6px;}
+    .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;margin-bottom:12px;}
+    .card.weakness{border-left:4px solid #ef4444;}
+    .card-label{font-size:10px;font-weight:700;color:#2dd4bf;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+    .card.weakness .card-label{color:#ef4444;}
+    .card-body{font-size:13px;color:rgba(255,255,255,0.65);line-height:1.7;}
+    .subject-line{font-size:26px;font-weight:900;color:#fff;line-height:1.3;margin-bottom:16px;}
+    .hook-box{background:rgba(45,212,191,0.08);border:1px solid rgba(45,212,191,0.20);border-radius:8px;padding:16px;}
+    .hook-label{font-size:10px;font-weight:700;color:#2dd4bf;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+    .hook-text{font-size:13px;color:#e2e8f0;line-height:1.7;}
+    .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .ba-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;}
+    .ba-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+    .ba-subject{font-size:14px;font-weight:700;color:#2dd4bf;margin-bottom:8px;}
+    .ba-body{font-size:13px;color:rgba(255,255,255,0.60);line-height:1.6;}
+    .ab-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;margin-bottom:12px;}
+    .ab-angle{font-size:10px;font-weight:700;color:#2dd4bf;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+    .ab-subject{font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;}
+    .ab-reasoning{font-size:13px;color:rgba(255,255,255,0.65);line-height:1.6;}
+    .ab-lift{font-size:13px;color:#2dd4bf;font-weight:700;margin-top:8px;}
+    .segment-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;margin-bottom:12px;}
+    .segment-name{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;}
+    .segment-desc{font-size:13px;color:rgba(255,255,255,0.65);line-height:1.6;}
+    .segment-why{font-size:12px;color:#2dd4bf;margin-top:6px;}
+    .cal-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:14px;margin-bottom:10px;}
+    .cal-timing{font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+    .cal-subject{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px;}
+    .cal-angle{font-size:12px;color:rgba(255,255,255,0.55);}
+    .flag-item{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:14px;margin-bottom:10px;}
+    .flag-loc{font-size:10px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+    .flag-issue{font-size:13px;color:#e2e8f0;margin-bottom:6px;}
+    .flag-fix{font-size:12px;color:#2dd4bf;font-style:italic;}
+    .change-item{font-size:13px;color:rgba(255,255,255,0.70);line-height:1.7;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+    .change-item:last-child{border-bottom:none;}
+    .footer{text-align:center;padding:32px 0;border-top:1px solid rgba(255,255,255,0.08);margin-top:40px;color:rgba(255,255,255,0.25);font-size:12px;}
+    @media print{body{padding:20px;}.section{break-inside:avoid;}}
+  </style>
+</head>
+<body>
+<div class="inner">
+  <div class="header">
+    <div class="logo">Strategic Flow</div>
+    <div class="brand">Audit Report — ${company}</div>
+    <div class="date">Generated ${date}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Rebuilt Subject Line</div>
+    <div class="section-body">
+      <div class="subject-line">${r.rebuilt_subject || '—'}</div>
+      <div class="hook-box">
+        <div class="hook-label">Conversion Hook</div>
+        <div class="hook-text">${r.conversion_hook || '—'}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">What Changed &amp; Why</div>
+    <div class="section-body">${changesHtml || '<p style="color:rgba(255,255,255,0.35);">No changes recorded.</p>'}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Before / After Comparison</div>
+    <div class="section-body">
+      <div class="ba-grid">
+        <div class="ba-box">
+          <div class="ba-label">Original</div>
+          <div class="ba-subject">${currentOrigSubject || '—'}</div>
+          <div class="ba-body">${origBodyPlain || '—'}</div>
+        </div>
+        <div class="ba-box" style="border-color:rgba(45,212,191,0.30);">
+          <div class="ba-label" style="color:#2dd4bf;">Rebuilt by Strategic Flow</div>
+          <div class="ba-subject">${r.rebuilt_subject || '—'}</div>
+          <div class="ba-body">${newBodyPlain || '—'}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  ${scoreSection}
+  ${abSection}
+  ${segSection}
+  ${calSection}
+  ${cohSection}
+
+  <div class="footer">Strategic Flow © 2026 · strategicflow.carrd.co</div>
+</div>
+</body>
+</html>`;
+}
+
+function downloadAuditReport() {
+  if (!currentResult) return;
+  const reportHtml = generateAuditReportHtml();
+  const blob = new Blob([reportHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `strategic-flow-audit-${(currentCompany||'report').replace(/\s+/g,'-').toLowerCase()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function requestReview() {
