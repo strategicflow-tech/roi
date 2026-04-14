@@ -869,7 +869,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   body    = safeVal(body);
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '' } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null } = options;
 
   // Extract ONLY brand accent colors — the template always uses its own dark palette.
   const { primaryColor: rawPrimary, accentColor: rawAccent, primaryText, accentText } = getEmailColors(brandDNA);
@@ -1031,30 +1031,31 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const rawBody = (body || '').replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '').trim();
   const isHtmlBody = rawBody.startsWith('<');
 
-  // New flat-tag format (v2) — unique tags that only appear in new format output
-  const p_preheader    = extractSection(rawBody, 'preheader')         || '';
-  const p_hook         = extractSection(rawBody, 'hook')              || '';
-  const p_tension      = truncateLead(extractSection(rawBody, 'tension') || '', 40);
-  const p_stat1Value   = extractSection(rawBody, 'stat1_value')       || '';
-  const p_stat1Label   = extractSection(rawBody, 'stat1_label')       || '';
-  const p_stat2Value   = extractSection(rawBody, 'stat2_value')       || '';
-  const p_stat2Label   = extractSection(rawBody, 'stat2_label')       || '';
-  const p_stat3Value   = extractSection(rawBody, 'stat3_value')       || '';
-  const p_stat3Label   = extractSection(rawBody, 'stat3_label')       || '';
-  const p_insight      = extractSection(rawBody, 'insight')           || '';
-  const p_proof        = extractSection(rawBody, 'proof')             || '';
-  const p_cost         = extractSection(rawBody, 'cost')              || '';
-  const p_ctaText      = extractSection(rawBody, 'cta_text')          || 'Read the full story →';
-  const p_ctaUrl       = cleanCTAUrl(extractSection(rawBody, 'cta_url'), ctaHref);
-  const p_calWeek1     = extractSection(rawBody, 'calendar_week1')    || '';
-  const p_calWeek2     = extractSection(rawBody, 'calendar_week2')    || '';
-  const p_calWeek3     = extractSection(rawBody, 'calendar_week3')    || '';
-  const p_calWeek4     = extractSection(rawBody, 'calendar_week4')    || '';
-  const p_brandTagline = extractSection(rawBody, 'brand_tagline')     || '';
-  const p_brandDesc    = extractSection(rawBody, 'brand_description') || '';
+  // Extract template fields — prefer pre-parsed flatFields (new JSON format), fall back to XML extraction
+  const ff = flatFields || null;
+  const p_preheader    = ff?.preheader       || extractSection(rawBody, 'preheader')         || '';
+  const p_hook         = ff?.headline        || extractSection(rawBody, 'hook')              || '';
+  const p_tension      = ff ? truncateLead(ff.lead || '', 40) : truncateLead(extractSection(rawBody, 'tension') || '', 40);
+  const p_stat1Value   = ff?.stat1Value      || extractSection(rawBody, 'stat1_value')       || '';
+  const p_stat1Label   = ff?.stat1Label      || extractSection(rawBody, 'stat1_label')       || '';
+  const p_stat2Value   = ff?.stat2Value      || extractSection(rawBody, 'stat2_value')       || '';
+  const p_stat2Label   = ff?.stat2Label      || extractSection(rawBody, 'stat2_label')       || '';
+  const p_stat3Value   = ff?.stat3Value      || extractSection(rawBody, 'stat3_value')       || '';
+  const p_stat3Label   = ff?.stat3Label      || extractSection(rawBody, 'stat3_label')       || '';
+  const p_insight      = ff?.body?.[0]       || extractSection(rawBody, 'insight')           || '';
+  const p_proof        = ff?.body?.[1]       || extractSection(rawBody, 'proof')             || '';
+  const p_cost         = ff?.body?.[2]       || extractSection(rawBody, 'cost')              || '';
+  const p_ctaText      = ff?.ctaText         || extractSection(rawBody, 'cta_text')          || 'Read the full story →';
+  const p_ctaUrl       = cleanCTAUrl(ff?.ctaUrl || extractSection(rawBody, 'cta_url'), ctaHref);
+  const p_calWeek1     = ff?.calendarWeek1   || extractSection(rawBody, 'calendar_week1')    || '';
+  const p_calWeek2     = ff?.calendarWeek2   || extractSection(rawBody, 'calendar_week2')    || '';
+  const p_calWeek3     = ff?.calendarWeek3   || extractSection(rawBody, 'calendar_week3')    || '';
+  const p_calWeek4     = ff?.calendarWeek4   || extractSection(rawBody, 'calendar_week4')    || '';
+  const p_brandTagline = ff?.brandTagline    || extractSection(rawBody, 'brand_tagline')     || '';
+  const p_brandDesc    = ff?.brandDescription || extractSection(rawBody, 'brand_description') || '';
 
-  // Detect new flat-tag format by presence of any new-format-only tag
-  const isNewFormat = !!(p_preheader || p_stat1Value || p_ctaText !== 'Read the full story →' ||
+  // New format: flatFields provided directly, OR XML tags detected in body
+  const isNewFormat = !!(ff || p_preheader || p_stat1Value || p_ctaText !== 'Read the full story →' ||
                          p_calWeek1 || p_brandTagline || p_brandDesc ||
                          extractSection(rawBody, 'cta_text'));
 
@@ -2024,10 +2025,35 @@ async function handleGenerate(req, res) {
       result = await claudeJSON(prompt, 8000);
     }
 
+    // Normalize flat JSON format (new) → internal representation used by the rest of the pipeline
+    if (result && result.headline && Array.isArray(result.body)) {
+      if (!result.rebuilt_subject) result.rebuilt_subject = result.subject || subject;
+      result._flatFields = {
+        headline:          result.headline          || '',
+        lead:              result.lead              || '',
+        body:              result.body              || [],
+        ctaText:           result.ctaText           || '',
+        ctaUrl:            result.ctaUrl            || '',
+        stat1Value:        result.stat1Value        || '', stat1Label: result.stat1Label || '',
+        stat2Value:        result.stat2Value        || '', stat2Label: result.stat2Label || '',
+        stat3Value:        result.stat3Value        || '', stat3Label: result.stat3Label || '',
+        preheader:         result.preheader         || '',
+        brandTagline:      result.brandTagline      || '',
+        brandDescription:  result.brandDescription  || '',
+        calendarWeek1:     result.calendarWeek1     || '',
+        calendarWeek2:     result.calendarWeek2     || '',
+        calendarWeek3:     result.calendarWeek3     || '',
+        calendarWeek4:     result.calendarWeek4     || '',
+      };
+      // Synthetic rebuilt_body for DB storage, weakness verification, and section patching
+      result.rebuilt_body = [result.headline, result.lead, ...(result.body || [])].filter(Boolean).join('\n\n');
+      if (!result.conversion_hook) result.conversion_hook = result.lead || '';
+    }
+
     console.log('STEP 3: Claude generation complete');
     // Guard: Claude must have returned a parseable object with the two critical fields.
     // If either is missing, surface a clean error rather than rendering "undefined" everywhere.
-    if (!result || !safeVal(result.rebuilt_subject) || !safeVal(result.rebuilt_body)) {
+    if (!result || !safeVal(result.rebuilt_subject) || (!safeVal(result.rebuilt_body) && !result._flatFields)) {
       console.error('[generate] Claude response missing rebuilt_subject or rebuilt_body', result);
       return res.status(500).json({ error: 'Generation failed. Please try again.' });
     }
@@ -2201,7 +2227,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '',
         layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
-        promotionalItems, heroImageUrl: req.body._ogImage || null });
+        promotionalItems, heroImageUrl: req.body._ogImage || null,
+        flatFields: result._flatFields || null });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 

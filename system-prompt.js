@@ -326,57 +326,29 @@ TONE AND RHYTHM RULES — these are non-negotiable:
 
 8. THE GOAL: When someone reads this email, they must feel like a person wrote it specifically for them — not like they're reading a Wikipedia article about the topic.
 
-OUTPUT FORMAT RULE: Structure your entire rebuilt_body using these XML tags. All tags are required. Output nothing outside the tags.
-- No markdown. No <html>/<head>/<body> wrapper. No numbered section headers. Section labels are injected by the template.
-- Plain text inside: <preheader>, <hook>, <cta_text>, stat value/label tags, calendar tags, <brand_tagline>, <brand_description>
-- All other tags accept plain prose — no HTML wrappers needed. The template handles all styling.
+OUTPUT FORMAT: Return ONLY valid JSON — no XML, no markdown, no code fences. Every field is a plain string or array of strings.
 
-<preheader>One sentence — the single most compelling reason to read this email. Max 90 characters.</preheader>
+BODY PARAGRAPH RULES (the "body" array — exactly 3 entries):
+- body[0] THE PROBLEM: Specific operational pain in the reader's own language. Do NOT mention the product. Max 2 sentences.
+- body[1] THE SHIFT: One specific capability or result from the source. Name a real person or company if available. Max 2 sentences.
+- body[2] THE CONSEQUENCE: What happens if the reader does nothing. Specific to their role. End with implicit urgency — never use the word "today" or "now". Max 2 sentences.
 
-<hook>Single tension sentence. Pattern-interrupt. Something is at stake RIGHT NOW for this reader. Max 20 words.</hook>
+STATS RULE: Use only metrics that appear verbatim in the source with a number, unit, or date (e.g. "50 themes", "30%", "Nov 10"). NEVER use a standalone year, a generic category name, or any invented number. Leave stat fields empty ("") when fewer than 3 genuine metrics exist.
 
-<tension>One paragraph (2–3 sentences). What is changing. Who is already moving. What it costs to wait.</tension>
+CTA URL RULE: Use the exact article, report, or page URL from the source content. Never the brand homepage or signup page.
 
-<stat1_value>First specific metric — must contain a number, unit, or date (e.g. "50 themes", "30%", "Nov 10")</stat1_value>
-<stat1_label>What this metric measures — 3 to 6 words</stat1_label>
-<stat2_value>Second specific metric with number, unit, or date</stat2_value>
-<stat2_label>What this metric measures — 3 to 6 words</stat2_label>
-<stat3_value>Third specific metric with number, unit, or date</stat3_value>
-<stat3_label>What this metric measures — 3 to 6 words</stat3_label>
-STATS RULE: Extract exactly the metrics from the source that have the most impact. Priority: (1) specific numbers with units like "50 themes", "30%", "Nov 10", (2) named features with counts, (3) availability dates with specifics. NEVER use a standalone year (e.g. "2026"), NEVER use a generic category name like "Performance Max" or "Open Beta" as a stat value — those belong in the text body, not stat cards. If fewer than 3 genuinely specific metrics exist in the source, leave the remaining stat tags empty.
+HERO IMAGE KEYWORD: "heroKeyword" — a 2–3 word English phrase for the main visual theme of this specific email (e.g. "cybersecurity laptop", "CRM dashboard", "AI coding assistant"). Specific to the email topic, not the industry alone.
 
-<insight>The single most valuable idea from the source. One idea only. Specific and actionable. The idea that changes how the reader sees their situation. Two to three sentences max.</insight>
-
-<proof>ONE real named entity from the source content — a specific company name, person's name and role, or quoted statistic with its source. Format: "[Company/Person] — [what they did or said, with specific outcome]". If the source content contains no named company, person, or quoted statistic, write: "Not enough named proof in source — recommend adding a customer case study." Never repeat the feature description. Never invent names or outcomes.</proof>
-
-<cost>One paragraph. The specific consequence of inaction for this reader. Tied directly to the insight. Not generic FOMO. A concrete cost.</cost>
-
-<cta_text>Ownership verb + specific outcome. Max 8 words. NEVER: "Learn more", "Click here", "Discover", "Find out".</cta_text>
-
-<cta_url>The exact original source URL from the content — the article, report, or page being discussed. Never the brand homepage or signup page.</cta_url>
-
-<calendar_week1>Follow-up email topic for week 1 — specific to this campaign's content, one sentence</calendar_week1>
-<calendar_week2>Follow-up email topic for week 2 — builds on week 1, one sentence</calendar_week2>
-<calendar_week3>Follow-up email topic for week 3 — one sentence</calendar_week3>
-<calendar_week4>Follow-up email topic for week 4 — closes the 30-day arc, one sentence</calendar_week4>
-
-<brand_tagline>The brand's actual tagline or one-line description extracted from the source. Never invented.</brand_tagline>
-
-<brand_description>Complete brand description for the email footer. Extracted from the source. Never truncate mid-sentence. Max 2 sentences.</brand_description>
-
-HERO IMAGE KEYWORD: Include a "heroKeyword" field — a 2–3 word English phrase describing the main visual theme of this specific email. Examples: "cybersecurity laptop", "language learning", "CRM dashboard", "startup funding", "penetration testing", "AI coding". This is used to select the hero image. Be specific to the email topic, not just the industry.
-
-EMAIL TYPE: Detect the correct category for the badge label:
+EMAIL TYPE — return one of these exact strings as emailType:
 - New feature or product announcement → "Product Announcement"
-- Re-engagement or win-back campaign → "Retention Campaign"
-- New user onboarding flow → "Onboarding"
+- Re-engagement or win-back → "Retention Campaign"
+- New user onboarding → "Onboarding"
 - Promotion, discount, or limited-time offer → "Promotional"
-- Blog post, article, or editorial newsletter → "Newsletter"
+- Blog post, article, or editorial → "Newsletter"
 - Security, compliance, or trust update → "Security Update"
-Return as emailType in the JSON.
 
-Return ONLY valid JSON — no markdown, no explanation, no code fences:
-{"rebuilt_subject":"string","rebuilt_body":"string (all XML tags in order: <preheader/><hook/><tension/><stat1_value/><stat1_label/><stat2_value/><stat2_label/><stat3_value/><stat3_label/><insight/><proof/><cost/><cta_text/><cta_url/><calendar_week1/><calendar_week2/><calendar_week3/><calendar_week4/><brand_tagline/><brand_description/>)","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"string (the opening line you used and why it works for this specific audience)"}`;
+Return ONLY valid JSON:
+{"rebuilt_subject":"Hook-first subject line under 55 characters","headline":"Single tension sentence — names a specific daily pain for this reader. Max 12 words. No product name in headline.","lead":"One paragraph. What is changing right now, who is already moving, what it costs to stay still. Max 35 words.","body":["body[0] THE PROBLEM — specific operational pain in reader language, no product mention, max 2 sentences","body[1] THE SHIFT — specific capability or result, name a real person or company if available, max 2 sentences","body[2] THE CONSEQUENCE — what happens if reader does nothing, end with implicit urgency, never 'today'/'now', max 2 sentences"],"ctaText":"Ownership verb + specific outcome. Max 6 words. Never: Discover, Listen, Learn, Connect.","ctaUrl":"Exact original source URL — the article or page, never the brand homepage","stat1Value":"Real number from source only — empty string if none","stat1Label":"What it measures — 3 to 6 words","stat2Value":"Real number from source only — empty string if none","stat2Label":"What it measures — 3 to 6 words","stat3Value":"Real number from source only — empty string if none","stat3Label":"What it measures — 3 to 6 words","preheader":"Max 90 characters — the single most compelling reason to read this email","brandTagline":"Brand's actual tagline from source. Never invented.","brandDescription":"Complete brand footer description extracted from source. Never truncate mid-sentence. Max 2 sentences.","calendarWeek1":"Follow-up topic — max 8 words","calendarWeek2":"Follow-up topic — max 8 words","calendarWeek3":"Follow-up topic — max 8 words","calendarWeek4":"Follow-up topic — max 8 words","heroKeyword":"2-3 word English phrase for the main visual theme","contentStyle":"longform|boxes|steps","emailType":"Product Announcement|Retention Campaign|Onboarding|Promotional|Newsletter|Security Update","key_changes":["→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]","→ [what changed] — [why it converts better]"],"removed_elements":["string"],"conversion_hook":"The opening line you used and why it works for this specific audience"}`;
 }
 
 function getABSubjectsPrompt(company, subject, body) {
