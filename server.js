@@ -1465,9 +1465,18 @@ function enforceBodyLimits(paragraphs) {
   if (!Array.isArray(paragraphs)) {
     paragraphs = String(paragraphs).split(/\n\n+/).filter(p => p.trim().length > 0);
   }
+  const FABRICATION_PHRASES = [
+    /teams (already )?using .{0,30} report/i,
+    /users (already )?using .{0,30} report/i,
+    /early (adopters|users) report/i,
+    /teams report (fewer|less|more|faster)/i,
+  ];
   return paragraphs.slice(0, 3).map(p => {
     const sentences = p.match(/[^.!?]+[.!?]+(\s|$)/g) || [p];
-    return sentences.slice(0, 3).map(s => shortenLongSentence(s)).join(' ').trim();
+    return sentences.slice(0, 3).map(s => {
+      if (FABRICATION_PHRASES.some(fp => fp.test(s))) return '';
+      return shortenLongSentence(s);
+    }).filter(s => s.length > 10).join(' ').trim();
   });
 }
 
@@ -2091,6 +2100,19 @@ async function handleGenerate(req, res) {
         return clean.trim();
       }).filter(p => p.length > 20);
       // ── END STAT VALIDATION ──
+
+      // ── CTA CONTEXT MISMATCH — fix generic acquisition CTAs on changelog/update emails ──
+      const CTA_CONTEXT_MISMATCH = [
+        { pattern: /free trial/i,  forbidden_if: /changelog|update|refresh|release/i },
+        { pattern: /sign up/i,     forbidden_if: /changelog|update|refresh|release/i },
+        { pattern: /get started/i, forbidden_if: /changelog|update|refresh|release/i },
+      ];
+      CTA_CONTEXT_MISMATCH.forEach(rule => {
+        if (rule.pattern.test(result.ctaText) && rule.forbidden_if.test((pageUrl || '') + ' ' + (result.headline || ''))) {
+          result.ctaText = 'See what changed →';
+        }
+      });
+      // ── END CTA CONTEXT MISMATCH ──
 
       result._flatFields = {
         headline:          result.headline          || '',
