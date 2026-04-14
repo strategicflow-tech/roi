@@ -838,7 +838,8 @@ textarea{resize:vertical;line-height:1.7;}
       <a id="upgradeCTALink" href="#" target="_blank" class="btn btn-primary" style="display:inline-flex;max-width:280px;text-decoration:none;">Upgrade Now →</a>
     </div>
 
-    <!-- Pro conversion block — shown after every audit -->
+    <!-- Pro conversion block — shown after every successful generation -->
+    <div id="pro-conversion-block" style="display:none;">
     <div style="margin-top:32px;padding:28px 24px;background:linear-gradient(135deg,#0d2137 0%,#0a1628 100%);border:1px solid rgba(0,200,180,0.25);border-radius:16px;text-align:center;">
 
       <div style="font-size:11px;font-weight:700;color:#2dd4bf;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">
@@ -871,6 +872,7 @@ textarea{resize:vertical;line-height:1.7;}
       </div>
 
     </div>
+    </div><!-- /pro-conversion-block -->
 
   </div><!-- /stateResult -->
 
@@ -1351,6 +1353,9 @@ function animateLoading() {
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
 function showResults(gen) {
   showOnly('stateResult');
+  // Always show Pro CTA after any successful generation
+  const proBlock = document.getElementById('pro-conversion-block');
+  if (proBlock) proBlock.style.display = 'block';
 
   // Header
   const badgeEl = document.getElementById('resTierBadge');
