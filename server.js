@@ -7,8 +7,7 @@ const Anthropic  = require('@anthropic-ai/sdk');
 const { Resend } = require('resend');
 
 const {
-  TIER_CONFIGS, getAuditPrompt, getABSubjectsPrompt, getConversionScorePrompt,
-  getAudienceSegmentsPrompt, getContentCalendarPrompt, getCohesionCheckPrompt,
+  TIER_CONFIGS, getAuditPrompt,
   getEmailTypePrompt, getVoiceAnalysisPrompt,
   getEmailScorePrompt, getMicroImprovementsPrompt,
   getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt
@@ -2047,7 +2046,7 @@ async function handleGenerate(req, res) {
           : (slug ? `https://www.${slug}.com` : null);
         const [dnaSettled, claudeSettled] = await Promise.allSettled([
           candidateUrl ? extractBrandDNA(candidateUrl).catch(() => null) : Promise.resolve(null),
-          claudeJSON(prompt, 2000)
+          claudeJSON(prompt, 4000)
         ]);
         if (dnaSettled.status === 'fulfilled' && dnaSettled.value) {
           effectiveBrandDNA = dnaSettled.value;
@@ -2056,7 +2055,7 @@ async function handleGenerate(req, res) {
         }
         result = claudeSettled.status === 'fulfilled' ? claudeSettled.value : null;
       } else {
-        result = await claudeJSON(prompt, 2000);
+        result = await claudeJSON(prompt, 4000);
       }
     }
 
@@ -2407,61 +2406,6 @@ app.get('/generate/status/:jobId', (req, res) => {
   if (job.status === 'complete') return res.json({ status: 'complete', result: job.result });
   if (job.status === 'failed')   return res.json({ status: 'failed',   error:  job.error  });
   res.json({ status: 'pending' });
-});
-
-// ── A/B SUBJECTS (Lite+) ──
-app.post('/ab-subjects', async (req, res) => {
-  try {
-    const company = sanitizeInput(req.body.company);
-    const subject = sanitizeInput(req.body.subject);
-    const body    = sanitizeInput(req.body.body, 12000);
-    // Audit app — no tier gate, all features free
-    res.json(await claudeJSON(getABSubjectsPrompt(company, subject, body), 1000));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── CONVERSION SCORE (Lite+) ──
-app.post('/conversion-score', async (req, res) => {
-  try {
-    const originalSubject = sanitizeInput(req.body.originalSubject);
-    const originalBody    = sanitizeInput(req.body.originalBody, 12000);
-    const rebuiltSubject  = sanitizeInput(req.body.rebuiltSubject);
-    const rebuiltBody     = sanitizeInput(req.body.rebuiltBody, 12000);
-    // Audit app — no tier gate, all features free
-    res.json(await claudeJSON(getConversionScorePrompt(originalSubject, originalBody, rebuiltSubject, rebuiltBody), 1000));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── AUDIENCE SEGMENTS (Growth+) ──
-app.post('/audience-segments', async (req, res) => {
-  try {
-    const company = sanitizeInput(req.body.company);
-    const subject = sanitizeInput(req.body.subject);
-    const body    = sanitizeInput(req.body.body, 12000);
-    // Audit app — no tier gate, all features free
-    res.json(await claudeJSON(getAudienceSegmentsPrompt(company, subject, body), 900));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── CONTENT CALENDAR (Growth+) ──
-app.post('/content-calendar', async (req, res) => {
-  try {
-    const company = sanitizeInput(req.body.company);
-    const subject = sanitizeInput(req.body.subject);
-    const body    = sanitizeInput(req.body.body, 12000);
-    // Audit app — no tier gate, all features free
-    res.json(await claudeJSON(getContentCalendarPrompt(company, subject, body), 900));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── COHESION CHECK (High-Impact) ──
-app.post('/cohesion-check', async (req, res) => {
-  try {
-    const subject = sanitizeInput(req.body.subject);
-    const body    = sanitizeInput(req.body.body, 12000);
-    // Audit app — no tier gate, all features free
-    res.json(await claudeJSON(getCohesionCheckPrompt(subject, body), 900));
-  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── HUMAN REVIEW (Lite+) ──
