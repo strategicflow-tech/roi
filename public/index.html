@@ -220,6 +220,22 @@ textarea{resize:vertical;line-height:1.7;}
 .html-analysis-badge{padding:10px 14px;background:rgba(0,212,200,0.07);border:1px solid rgba(0,212,200,0.22);border-radius:8px;font-size:11px;margin-top:6px;display:flex;flex-direction:column;gap:7px;}
 .html-tip-bar{font-size:11px;color:var(--muted);margin-top:4px;padding:7px 11px;border-radius:6px;background:rgba(245,158,11,0.06);border-left:2px solid rgba(245,158,11,0.5);}
 
+/* USER GUIDE */
+.user-guide{margin-bottom:20px;}
+.user-guide h2{font-size:15px;font-weight:700;margin-bottom:20px;color:var(--text);}
+.step{display:flex;gap:16px;margin-bottom:18px;}
+.step-number{flex-shrink:0;width:26px;height:26px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#080f1e;font-family:var(--mono);}
+.step-content{flex:1;padding-top:2px;}
+.step-content strong{font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:5px;}
+.step-content p{font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 6px;}
+.step-content ul{padding-left:16px;margin:4px 0 0;}
+.step-content li{font-size:12px;color:var(--text2);line-height:1.8;}
+.guide-note{background:rgba(0,212,200,0.05);border-left:2px solid rgba(0,212,200,0.35);border-radius:0 6px 6px 0;padding:10px 14px;margin-top:14px;font-size:12px;color:var(--text2);line-height:1.7;}
+.guide-note strong{color:var(--text);}
+.guide-note a{color:var(--teal);text-decoration:none;}
+.guide-toggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;font-family:var(--mono);letter-spacing:0.08em;transition:color .2s,border-color .2s;}
+.guide-toggle:hover{color:var(--teal);border-color:rgba(0,212,200,0.4);}
+
 /* ANIMATIONS */
 @keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
@@ -241,14 +257,84 @@ textarea{resize:vertical;line-height:1.7;}
   <!-- HEADER -->
   <div class="header">
     <div class="logo-badge"><span class="logo-dot"></span>Strategic Flow</div>
-    <h1 style="line-height:1.15;">Rebuild My Newsletter<br><span style="color:var(--teal);">for Free</span></h1>
-    <p class="subtitle">Paste your existing newsletter. We'll rebuild it using proven direct-response frameworks — no payment required.</p>
+    <h1>Rebuild My Newsletter</h1>
+    <p class="subtitle" style="font-size:15px;font-weight:600;color:var(--text2);margin-top:12px;">One email. One rebuild. Done right.</p>
+    <p class="subtitle" style="margin-top:8px;">Paste your newsletter or drop a URL. We apply the Strategic Flow Method — outcome-first subject line, hook above fold, ownership CTA — and hand you back the HTML.</p>
     <div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap;">
-      <a href="/guide.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        User Guide
-      </a>
+      <button class="guide-toggle" id="guideToggleBtn" onclick="toggleGuide()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        How it works ↓
+      </button>
       <a href="#" onclick="showReturningUser();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Returning user →</a>
+    </div>
+  </div>
+
+  <!-- USER GUIDE (collapsible, hidden by default) -->
+  <div id="userGuide" hidden class="card user-guide">
+    <h2>How it works</h2>
+
+    <div class="step">
+      <span class="step-number">1</span>
+      <div class="step-content">
+        <strong>Give us something to work with</strong>
+        <p>Three ways to start:</p>
+        <ul>
+          <li><strong>Paste a URL</strong> — drop in any newsletter, blog post, product update, or changelog page. We fetch and analyze it automatically.</li>
+          <li><strong>Paste the text</strong> — copy your email body directly into the text field.</li>
+          <li><strong>Upload an HTML file</strong> — if you already have the email as .html, upload it directly.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <div class="step-content">
+        <strong>Add context (optional but recommended)</strong>
+        <p>Fill in your company name and original subject line if you have them. This helps us match your brand voice more accurately.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">3</span>
+      <div class="step-content">
+        <strong>Hit Rebuild</strong>
+        <p>We run your content through the Strategic Flow Method:</p>
+        <ul>
+          <li>Outcome-first subject line that gets opened</li>
+          <li>Hook above the fold that creates immediate tension</li>
+          <li>Body copy that leads with consequence, not feature list</li>
+          <li>Single ownership-framed CTA that drives clicks</li>
+          <li>Brand colors, voice, and tone preserved throughout</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">4</span>
+      <div class="step-content">
+        <strong>Review the Before vs. After</strong>
+        <p>You'll see your original alongside the rebuilt version, plus a breakdown of exactly what changed and why — subject line, hook, structure, CTA.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="step-number">5</span>
+      <div class="step-content">
+        <strong>Download and send</strong>
+        <p>Download the rebuilt newsletter as a ready-to-paste HTML file. Open it in your email platform (Mailchimp, HubSpot, Klaviyo, or any HTML-compatible sender) and send.</p>
+      </div>
+    </div>
+
+    <div class="guide-note">
+      <strong>One rebuild per session.</strong> This is the free version — one newsletter, rebuilt once, done right. For unlimited rebuilds, A/B subject line testing, 30-day content calendars, and segmentation strategy, see the <a href="https://strategic-flow-pro.replit.app" target="_blank">Pro plans</a>.
+    </div>
+
+    <div class="guide-note">
+      <strong>What works best:</strong> Product update emails, changelog announcements, feature launch newsletters, SaaS onboarding sequences. If it has a subject line and a CTA, we can rebuild it.
+    </div>
+
+    <div class="guide-note">
+      <strong>What to expect:</strong> Generation takes 15–25 seconds. We analyze your brand, extract your voice, and rebuild the full HTML — not just a text draft.
     </div>
   </div>
 
@@ -869,6 +955,17 @@ function toggleAdvanced() {
   arrow.style.transform = open ? 'rotate(90deg)' : '';
 }
 
+function toggleGuide() {
+  const guide = document.getElementById('userGuide');
+  const btn = document.getElementById('guideToggleBtn');
+  const open = guide.hidden;
+  guide.hidden = !open;
+  btn.innerHTML = open
+    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> How it works ↑'
+    : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> How it works ↓';
+  if (open) btn.style.color = 'var(--teal)', btn.style.borderColor = 'rgba(0,212,200,0.4)';
+  else btn.style.color = '', btn.style.borderColor = '';
+}
 function showReturningUser() { showOnly('stateEmail'); }
 
 function setErr(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.classList.remove('warn'); el.style.display = msg ? 'block' : 'none'; }
