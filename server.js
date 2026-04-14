@@ -526,20 +526,21 @@ function finalizeEmailHtml(html) {
   return html;
 }
 
-// Decode a Resend-wrapped CTA URL and verify it is a full HTTP URL.
-// Falls back to fallbackUrl if the decoded result is not a full URL or decoding fails.
-function cleanCTAUrl(url, fallbackUrl) {
-  if (!url) return fallbackUrl;
-  if (url.includes('resend-clicks.com')) {
+// Decode a Resend-wrapped CTA URL and verify it is a full HTTP URL with length > 20.
+// Falls back immediately to sourceUrl when Resend decoding fails or yields a short/domain-only result.
+function cleanCTAUrl(rawUrl, sourceUrl) {
+  if (!rawUrl) return sourceUrl;
+  if (rawUrl.includes('resend-clicks.com')) {
     try {
-      const part = url.split('/CL0/')[1];
+      const part = rawUrl.split('/CL0/')[1];
       const encoded = part.split('/')[0];
       const decoded = decodeURIComponent(encoded);
-      if (decoded.startsWith('http')) return decoded;
+      if (decoded.startsWith('http') && decoded.length > 20) return decoded;
     } catch(e) {}
+    return sourceUrl;
   }
-  if (url.startsWith('http') && !url.includes('resend-clicks')) return url;
-  return fallbackUrl;
+  if (rawUrl.startsWith('http') && rawUrl.length > 20) return rawUrl;
+  return sourceUrl;
 }
 
 // Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
@@ -1033,7 +1034,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // New flat-tag format (v2) — unique tags that only appear in new format output
   const p_preheader    = extractSection(rawBody, 'preheader')         || '';
   const p_hook         = extractSection(rawBody, 'hook')              || '';
-  const p_tension      = extractSection(rawBody, 'tension')           || '';
+  const p_tension      = truncateLead(extractSection(rawBody, 'tension') || '', 40);
   const p_stat1Value   = extractSection(rawBody, 'stat1_value')       || '';
   const p_stat1Label   = extractSection(rawBody, 'stat1_label')       || '';
   const p_stat2Value   = extractSection(rawBody, 'stat2_value')       || '';
@@ -1094,10 +1095,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Calendar rows — only rendered when at least one week has content
   const calendarRowsHtml = (() => {
     const weeks = [
-      { label: 'Week 1', topic: (p_calWeek1 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
-      { label: 'Week 2', topic: (p_calWeek2 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
-      { label: 'Week 3', topic: (p_calWeek3 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
-      { label: 'Week 4', topic: (p_calWeek4 || '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 1', topic: (p_calWeek1 || '').replace(/^Day\s*\d+[:\-]?\s*/i, '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 2', topic: (p_calWeek2 || '').replace(/^Day\s*\d+[:\-]?\s*/i, '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 3', topic: (p_calWeek3 || '').replace(/^Day\s*\d+[:\-]?\s*/i, '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
+      { label: 'Week 4', topic: (p_calWeek4 || '').replace(/^Day\s*\d+[:\-]?\s*/i, '').replace(/^Week\s*\d+[:\-]?\s*/i, '') },
     ].filter(w => w.topic);
     return weeks.map((w, i) =>
       `<div style="padding:12px 20px;${i > 0 ? 'border-top:1px solid rgba(255,255,255,0.05);' : ''}">
@@ -1383,6 +1384,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 async function notify(subject, html) {
   try { await resend.emails.send({ from: SENDER, to: OWNER_EMAIL, subject, html }); }
   catch (e) { console.error('[email]', e.message); }
+}
+
+// Truncate a plain-text string to maxWords words, ending cleanly at a sentence boundary if possible.
+function truncateLead(text, maxWords) {
+  if (!text) return text;
+  const words = text.split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(' ').replace(/[,;]$/, '') + '.';
 }
 
 // Convert any stray markdown that Claude may have left in rebuilt_body to valid HTML
