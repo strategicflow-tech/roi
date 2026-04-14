@@ -514,8 +514,10 @@ function stripResendTracking(html) {
 // Called at the end of buildNewsletterHTML on both template paths.
 function finalizeEmailHtml(html) {
   if (!html) return html;
-  // Remove tracking pixel
+  // Remove resend-clicks.com tracking pixel
   html = html.replace(/<img[^>]*resend-clicks\.com[^>]*>/gi, '');
+  // Remove resend.com hidden tracking pixel (display:none)
+  html = html.replace(/<img[^>]*resend\.com[^>]*style="display:\s*none[^>]*>/gi, '');
   // Decode any tracked hrefs still in the output
   html = html.replace(
     /https?:\/\/[a-z0-9.-]*resend-clicks\.com\/CL\d+\/([^/"'\s>]+)[^"'\s]*/gi,
@@ -524,18 +526,20 @@ function finalizeEmailHtml(html) {
   return html;
 }
 
-// Sanitize a single CTA URL — strips Resend tracking wrapper before it enters the HTML template.
-// The full-output stripResendTracking() is a second line of defence; this cleans at the source.
-function sanitizeCTAUrl(url) {
-  if (!url || typeof url !== 'string') return url;
+// Decode a Resend-wrapped CTA URL and verify it is a full HTTP URL.
+// Falls back to fallbackUrl if the decoded result is not a full URL or decoding fails.
+function cleanCTAUrl(url, fallbackUrl) {
+  if (!url) return fallbackUrl;
   if (url.includes('resend-clicks.com')) {
     try {
-      // Split on any /CLn/ segment (CL0, CL1, etc.) — take everything after, up to the next /
-      const clPart = url.split(/\/CL\d\//)[1];
-      if (clPart) return decodeURIComponent(clPart.split('/')[0]);
-    } catch (e) {}
+      const part = url.split('/CL0/')[1];
+      const encoded = part.split('/')[0];
+      const decoded = decodeURIComponent(encoded);
+      if (decoded.startsWith('http')) return decoded;
+    } catch(e) {}
   }
-  return url;
+  if (url.startsWith('http') && !url.includes('resend-clicks')) return url;
+  return fallbackUrl;
 }
 
 // Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
@@ -1040,7 +1044,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const p_proof        = extractSection(rawBody, 'proof')             || '';
   const p_cost         = extractSection(rawBody, 'cost')              || '';
   const p_ctaText      = extractSection(rawBody, 'cta_text')          || 'Read the full story →';
-  const p_ctaUrl       = sanitizeCTAUrl(extractSection(rawBody, 'cta_url') || ctaHref);
+  const p_ctaUrl       = cleanCTAUrl(extractSection(rawBody, 'cta_url'), ctaHref);
   const p_calWeek1     = extractSection(rawBody, 'calendar_week1')    || '';
   const p_calWeek2     = extractSection(rawBody, 'calendar_week2')    || '';
   const p_calWeek3     = extractSection(rawBody, 'calendar_week3')    || '';
@@ -1235,7 +1239,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
   if (isNewFormat) {
     // ── V2 TEMPLATE ─────────────────────────────────────────────────────────
-    const finalCtaUrl = sanitizeCTAUrl(p_ctaUrl && p_ctaUrl !== 'https://strategic-flow-audit.replit.app' ? p_ctaUrl : ctaHref);
+    const finalCtaUrl = cleanCTAUrl(p_ctaUrl, ctaHref);
     const calendarSection = calendarRowsHtml ? `
         <!-- 30-DAY CONTENT CALENDAR -->
         <tr>
@@ -1298,11 +1302,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- INSIGHT + PROOF + COST -->
         <tr><td style="padding:32px 32px 28px;">
-          <p style="font-size:15px;color:#ffffff;line-height:1.8;margin:0 0 28px;">${p_insight}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_insight}</p>
 
-          <p style="font-size:15px;color:rgba(255,255,255,0.80);line-height:1.8;font-style:italic;border-left:2px solid rgba(255,255,255,0.15);padding-left:16px;margin:0 0 28px;">${p_proof}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_proof}</p>
 
-          <p style="font-size:15px;color:rgba(255,255,255,0.65);line-height:1.8;margin:0;">${p_cost}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${p_cost}</p>
         </td></tr>
 
         <!-- CTA -->
