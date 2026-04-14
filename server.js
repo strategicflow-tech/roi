@@ -2412,12 +2412,10 @@ app.get('/generate/status/:jobId', (req, res) => {
 // ── A/B SUBJECTS (Lite+) ──
 app.post('/ab-subjects', async (req, res) => {
   try {
-    const { email } = req.body;
     const company = sanitizeInput(req.body.company);
     const subject = sanitizeInput(req.body.subject);
     const body    = sanitizeInput(req.body.body, 12000);
-    const u = await getUser((email || '').toLowerCase());
-    if (!isAdmin(email) && !['lite','growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Lite+ required' });
+    // Audit app — no tier gate, all features free
     res.json(await claudeJSON(getABSubjectsPrompt(company, subject, body), 1000));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2425,13 +2423,11 @@ app.post('/ab-subjects', async (req, res) => {
 // ── CONVERSION SCORE (Lite+) ──
 app.post('/conversion-score', async (req, res) => {
   try {
-    const { email } = req.body;
     const originalSubject = sanitizeInput(req.body.originalSubject);
     const originalBody    = sanitizeInput(req.body.originalBody, 12000);
     const rebuiltSubject  = sanitizeInput(req.body.rebuiltSubject);
     const rebuiltBody     = sanitizeInput(req.body.rebuiltBody, 12000);
-    const u = await getUser((email || '').toLowerCase());
-    if (!isAdmin(email) && !['lite','growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Lite+ required' });
+    // Audit app — no tier gate, all features free
     res.json(await claudeJSON(getConversionScorePrompt(originalSubject, originalBody, rebuiltSubject, rebuiltBody), 1000));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2439,12 +2435,10 @@ app.post('/conversion-score', async (req, res) => {
 // ── AUDIENCE SEGMENTS (Growth+) ──
 app.post('/audience-segments', async (req, res) => {
   try {
-    const { email } = req.body;
     const company = sanitizeInput(req.body.company);
     const subject = sanitizeInput(req.body.subject);
     const body    = sanitizeInput(req.body.body, 12000);
-    const u = await getUser((email || '').toLowerCase());
-    if (!isAdmin(email) && !['growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Growth+ required' });
+    // Audit app — no tier gate, all features free
     res.json(await claudeJSON(getAudienceSegmentsPrompt(company, subject, body), 900));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2452,12 +2446,10 @@ app.post('/audience-segments', async (req, res) => {
 // ── CONTENT CALENDAR (Growth+) ──
 app.post('/content-calendar', async (req, res) => {
   try {
-    const { email } = req.body;
     const company = sanitizeInput(req.body.company);
     const subject = sanitizeInput(req.body.subject);
     const body    = sanitizeInput(req.body.body, 12000);
-    const u = await getUser((email || '').toLowerCase());
-    if (!isAdmin(email) && !['growth','high_impact'].includes(u?.tier)) return res.status(403).json({ error: 'Growth+ required' });
+    // Audit app — no tier gate, all features free
     res.json(await claudeJSON(getContentCalendarPrompt(company, subject, body), 900));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2465,11 +2457,9 @@ app.post('/content-calendar', async (req, res) => {
 // ── COHESION CHECK (High-Impact) ──
 app.post('/cohesion-check', async (req, res) => {
   try {
-    const { email } = req.body;
     const subject = sanitizeInput(req.body.subject);
     const body    = sanitizeInput(req.body.body, 12000);
-    const u = await getUser((email || '').toLowerCase());
-    if (!isAdmin(email) && u?.tier !== 'high_impact') return res.status(403).json({ error: 'High-Impact required' });
+    // Audit app — no tier gate, all features free
     res.json(await claudeJSON(getCohesionCheckPrompt(subject, body), 900));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
