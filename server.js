@@ -30,6 +30,20 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 // Each job: { status:'pending'|'complete'|'failed', result, error, created }
 const jobs = new Map();
 function makeJobId() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+// ── URL content cache — 30-min TTL avoids repeat 12s fetches for the same article ──
+const urlCache = new Map();
+const CACHE_TTL = 1000 * 60 * 30;
+async function fetchWithCache(url) {
+  const cached = urlCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('[urlCache] hit:', url);
+    return cached.content;
+  }
+  const content = await fetchPageContent(url);
+  urlCache.set(url, { content, timestamp: Date.now() });
+  return content;
+}
 setInterval(() => {
   const cutoff = Date.now() - 30 * 60 * 1000;
   for (const [id, job] of jobs) { if (job.created < cutoff) jobs.delete(id); }
@@ -1837,7 +1851,7 @@ async function handleGenerate(req, res) {
     if (effectiveBody.length < 100 && pageUrl) {
       console.log('[generate] body too short, fetching URL:', pageUrl);
       try {
-        const page = await fetchPageContent(pageUrl);
+        const page = await fetchWithCache(pageUrl);
         const fetched = [
           page.title ? `Headline: ${page.title}` : '',
           page.meta  ? `Summary: ${page.meta}` : '',
@@ -1933,67 +1947,12 @@ async function handleGenerate(req, res) {
       }
     }
 
-    // When no brandDNA was provided (user skipped the website URL field), infer
-    // brand signals automatically from the email content + a company URL guess.
     let effectiveBrandDNA  = brandDNA  || null;
     let effectiveVoice     = voiceProfile || null;
+    const forceDark        = detectDarkFromEmailBody(body);
+    const detectedType     = emailType || null;
 
-    // Detect dark theme from body keywords BEFORE inference so Claude's default
-    // light bgColor response cannot override it later.
-    const forceDark = detectDarkFromEmailBody(body);
-
-    if (!effectiveBrandDNA) {
-      try {
-        const inferred = await inferBrandFromContent(company, subject, body, pageUrl);
-        if (inferred) {
-          effectiveBrandDNA = inferred;
-          if (inferred.voiceProfile && !effectiveVoice) effectiveVoice = inferred.voiceProfile;
-          console.log(`[brand-infer] source=${inferred.source} colors=${inferred.colors?.length}`);
-        }
-      } catch (inferErr) { console.error('[brand-infer]', inferErr.message); }
-    }
-
-    // Apply forceDark AFTER inference — body keyword match wins over Claude's inferred bgColor
-    if (forceDark) {
-      effectiveBrandDNA = effectiveBrandDNA || {};
-      effectiveBrandDNA = { ...effectiveBrandDNA, theme: 'dark' };
-      console.log('[dark-detect] body keyword match → theme forced dark');
-    }
-
-    console.log('STEP 2: Brand DNA extracted');
-
-    // High-Impact: detect type if not provided
-    let detectedType = emailType || null;
-    if (tier === 'high_impact' && !detectedType) {
-      try { detectedType = (await claudeJSON(getEmailTypePrompt(subject, body), 200))?.type || null; } catch (_) {}
-    }
-
-    const industry = effectiveBrandDNA?.industry || null;
-    const priorExamples = await getIndustryExamples(industry);
-
-    // ── SCORING + ANALYSIS: score the original email AND extract specific weaknesses ──
-    let originalScore = null;
-    let rebuildPath = 'rebuilt'; // default: full rebuild
-    let analysis = { weaknesses: [], directives: [] };
-    try {
-      const raw = await claudeJSON(getEmailScorePrompt(subject, body), 900);
-      if (raw) {
-        const total = (raw.subject_score || 0) + (raw.hook_score || 0) +
-                      (raw.structure_score || 0) + (raw.cta_score || 0) + (raw.voice_score || 0);
-        originalScore = { ...raw, total, percentage: Math.round(total / 10 * 100) };
-        rebuildPath = total >= 7 ? 'preserved' : 'rebuilt';
-        // Extract weakness analysis produced by the scoring call
-        analysis = {
-          weaknesses: Array.isArray(raw.weaknesses) ? raw.weaknesses : [],
-          directives: Array.isArray(raw.directives) ? raw.directives : []
-        };
-        console.log(`[score] ${company} → ${total}/10 (${originalScore.percentage}%) → path: ${rebuildPath} | weaknesses: ${analysis.weaknesses.length}`);
-      } else {
-        console.warn('[score] null response from Claude — using default rebuild path');
-      }
-    } catch (scoreErr) {
-      console.error('[score]', scoreErr.message);
-    }
+    console.log('STEP 2: Brand setup');
 
     // ── PROMOTIONAL GRID BYPASS ─────────────────────────────────────────────────
     // When the original body has 4+ CTAs and deal badges, build HTML directly
@@ -2039,21 +1998,39 @@ async function handleGenerate(req, res) {
     }
     // ── END PROMO GRID BYPASS ─────────────────────────────────────────────────
 
-    // ── PROMPT DISPATCH: micro-improvements for strong emails, full rebuild otherwise ──
+    // ── PROMPT DISPATCH: single Claude rebuild call ──────────────────────────────
     let result;
     if (promoGridResult) {
       result = promoGridResult;
-    } else if (rebuildPath === 'preserved') {
-      const microPrompt = getMicroImprovementsPrompt({
-        company: company || 'Your Company', goal, subject, body,
-        brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice,
-        score: originalScore, priorExamples
-      });
-      result = await claudeJSON(microPrompt, 2500);
     } else {
-      // Pass the strategic analysis into the rebuild prompt — closed loop
-      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis });
-      result = await claudeJSON(prompt, 8000);
+      const priorExamples = await getIndustryExamples(effectiveBrandDNA?.industry || null);
+      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis: { weaknesses: [], directives: [] } });
+      if (!effectiveBrandDNA) {
+        // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
+        const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const candidateUrl = pageUrl
+          ? (() => { try { return new URL(pageUrl).origin; } catch (_) { return null; } })()
+          : (slug ? `https://www.${slug}.com` : null);
+        const [dnaSettled, claudeSettled] = await Promise.allSettled([
+          candidateUrl ? extractBrandDNA(candidateUrl).catch(() => null) : Promise.resolve(null),
+          claudeJSON(prompt, 2000)
+        ]);
+        if (dnaSettled.status === 'fulfilled' && dnaSettled.value) {
+          effectiveBrandDNA = dnaSettled.value;
+          if (dnaSettled.value.voiceProfile && !effectiveVoice) effectiveVoice = dnaSettled.value.voiceProfile;
+          console.log(`[brand-parallel] source=${dnaSettled.value.source} colors=${dnaSettled.value.colors?.length}`);
+        }
+        result = claudeSettled.status === 'fulfilled' ? claudeSettled.value : null;
+      } else {
+        result = await claudeJSON(prompt, 2000);
+      }
+    }
+
+    // Apply forceDark after brand DNA resolves — keyword match wins over any inferred theme
+    if (forceDark) {
+      effectiveBrandDNA = effectiveBrandDNA || {};
+      effectiveBrandDNA = { ...effectiveBrandDNA, theme: 'dark' };
+      console.log('[dark-detect] body keyword match → theme forced dark');
     }
 
     // Normalize flat JSON format (new) → internal representation used by the rest of the pipeline
@@ -2094,85 +2071,18 @@ async function handleGenerate(req, res) {
       return res.status(500).json({ error: 'Generation failed. Please try again.' });
     }
 
-    // ── VERIFY + PATCH: check each weakness was addressed; fix any that weren't ──
-    // Only runs for full rebuilds with identified weaknesses (not micro-improvement or promo-grid path).
-    if (!promoGridResult && rebuildPath === 'rebuilt' && analysis.weaknesses.length > 0) {
-      try {
-        const verify = await claudeJSON(
-          getWeaknessVerifyPrompt(analysis.weaknesses, result.rebuilt_subject, result.rebuilt_body), 600
-        );
-        const unaddressed = (verify?.results || []).filter(r => !r.addressed);
-        if (unaddressed.length > 0) {
-          console.log(`[verify] ${unaddressed.length} weakness(es) unaddressed — patching`);
-          for (const item of unaddressed) {
-            const { section } = item;
-            // Find corresponding directive for this weakness
-            const idx = analysis.weaknesses.indexOf(item.weakness);
-            const directive = idx >= 0 ? (analysis.directives[idx] || item.weakness) : item.weakness;
-            const patchPrompt = getSectionPatchPrompt(section, item.weakness, directive, subject, result.rebuilt_subject, result.rebuilt_body);
-            if (!patchPrompt) continue;
-            try {
-              const patch = await claudeJSON(patchPrompt, 300);
-              if (!patch) continue;
-              if (section === 'subject' && patch.patched_subject) {
-                result.rebuilt_subject = patch.patched_subject;
-                console.log(`[patch] subject rewritten`);
-              } else if (section === 'hook' && patch.patched_hook) {
-                // Replace the first <p ...> block in rebuilt_body with the new hook
-                result.rebuilt_body = result.rebuilt_body.replace(/<p[^>]*>[\s\S]*?<\/p>/, patch.patched_hook);
-                console.log(`[patch] hook replaced`);
-              } else if (section === 'cta' && patch.patched_cta_text) {
-                // Replace CTA link text inside the button — text between last > and </a>
-                result.rebuilt_body = result.rebuilt_body.replace(
-                  /(<a[^>]*?>)([^<]{2,60})(<\/a>)/,
-                  (_, open, _old, close) => `${open}${patch.patched_cta_text}${close}`
-                );
-                console.log(`[patch] CTA text replaced: ${patch.patched_cta_text}`);
-              }
-            } catch (patchErr) {
-              console.error(`[patch] ${section} failed:`, patchErr.message);
-            }
-          }
-        } else {
-          console.log(`[verify] all ${analysis.weaknesses.length} weakness(es) addressed`);
-        }
-      } catch (verifyErr) {
-        console.error('[verify] skipped:', verifyErr.message);
+    // Apply Claude-inferred brand color when no colors exist — folded into main prompt
+    if (result?.inferredBrandColor && !effectiveBrandDNA?.colors?.length) {
+      const hex6 = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null;
+      const inferredColor = hex6(result.inferredBrandColor);
+      if (inferredColor) {
+        effectiveBrandDNA = {
+          ...(effectiveBrandDNA || {}),
+          source: 'claude-inferred',
+          colors: [{ type: 'inferred:primary', value: inferredColor }]
+        };
+        console.log(`[brand-infer] color from main prompt: ${inferredColor}`);
       }
-    }
-
-    // Safety net: if brand DNA still has no colours after the earlier inference pass,
-    // make one final targeted attempt using the rebuilt subject + body (richer signal
-    // than the original). The #00d4c8 teal inside buildNewsletterHTML is a true
-    // last resort and should never appear in practice after this guard.
-    if (!effectiveBrandDNA?.colors?.length) {
-      try {
-        const colorHint = await claudeJSON(
-          `You are a brand colour specialist. Based on this email, suggest the most appropriate brand colour palette.
-Return ONLY valid JSON: {"primaryColor":"#XXXXXX","accentColor":"#XXXXXX","bgColor":"#XXXXXX"}
-Rules: never use #00d4c8, #3498db, or plain grey. Infer colours specific to the industry and tone evident in the content.
-
-Company: ${company || 'Unknown'}
-Subject: ${result.rebuilt_subject}
-Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
-
-        const hex6 = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null;
-        const p = hex6(colorHint?.primaryColor);
-        const a = hex6(colorHint?.accentColor);
-        const b = hex6(colorHint?.bgColor);
-        if (p) {
-          effectiveBrandDNA = {
-            ...(effectiveBrandDNA || {}),
-            source: 'rebuilt-content-fallback',
-            colors: [
-              { type: 'inferred:primary', value: p },
-              ...(a ? [{ type: 'inferred:accent', value: a }] : []),
-              ...(b ? [{ type: 'inferred:bg',     value: b }] : [])
-            ]
-          };
-          console.log(`[brand-fallback] colours inferred from rebuilt content: ${p}`);
-        }
-      } catch (fbErr) { console.error('[brand-fallback]', fbErr.message); }
     }
 
     // Clean up any stray markdown that Claude may have included
@@ -2296,7 +2206,7 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath, originalScore, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
@@ -2310,8 +2220,8 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
           effectiveBrandDNA ? JSON.stringify(effectiveBrandDNA) : null,
           result.key_changes ? JSON.stringify(result.key_changes) : null,
           result.conversion_hook || null,
-          originalScore ? JSON.stringify(originalScore) : null,
-          rebuildPath,
+          null,
+          'rebuilt',
           req.body._ogImage || null]);
       newsletterId = s.rows[0].id;
     } catch (dbErr) { console.error('[db save]', dbErr.message); }
@@ -2319,11 +2229,11 @@ Body: ${(result.rebuilt_body || '').slice(0, 900)}`, 150);
 
     // Learning data
     storeLearning({
-      company: company || null, industry,
+      company: company || null, industry: effectiveBrandDNA?.industry || null,
       audienceType: effectiveBrandDNA?.audience || null,
       origSubject: subject, origBody: body,
       rebuiltSubject: result.rebuilt_subject, rebuiltBody: result.rebuilt_body,
-      whatChanged: result.key_changes, tier, rebuildPath
+      whatChanged: result.key_changes, tier, rebuildPath: 'rebuilt'
     }).catch(e2 => console.error('[learning]', e2.message));
 
     // Bump usage counter
