@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Strategic Flow | Email Rebuild Platform</title>
+<title>Rebuild My Newsletter — Strategic Flow</title>
+<meta name="description" content="One newsletter, rebuilt once. You have one email that isn't converting. Paste it in — we rebuild it using the Strategic Flow Method. Outcome-first subject line, hook above fold, ownership CTA. Download the HTML and send it. One rebuild, done right." />
+<meta property="og:title" content="Rebuild My Newsletter — Strategic Flow" />
+<meta property="og:description" content="One newsletter, rebuilt once. You have one email that isn't converting. Paste it in — we rebuild it using the Strategic Flow Method. Outcome-first subject line, hook above fold, ownership CTA. Download the HTML and send it. One rebuild, done right." />
+<meta property="og:url" content="https://strategic-flow-audit.replit.app" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Strategic Flow" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Rebuild My Newsletter — Strategic Flow" />
+<meta name="twitter:description" content="One newsletter, rebuilt once. Paste it in — we rebuild it using the Strategic Flow Method. Download the HTML and send it." />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -290,8 +299,6 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- Lite -->
         <div class="plan-card">
           <div class="plan-name" style="color:var(--teal);">LITE</div>
-          <div class="plan-price">$299</div>
-          <div class="plan-period">per month</div>
           <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Four newsletters a month, rebuilt professionally.</strong>Each one gets 3 alternative subject lines to A/B test, a conversion score before and after, and a full breakdown of what changed and why. Plus a human review option — send any rebuild to our team and get written feedback within 48 hours.</p>
           <ul class="plan-features">
             <li>4 newsletters/month</li>
@@ -306,9 +313,7 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- Growth -->
         <div class="plan-card">
           <div class="plan-name" style="color:#a78bfa;">GROWTH</div>
-          <div class="plan-price">$499</div>
-          <div class="plan-period">per month</div>
-          <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Your brand voice, preserved at scale.</strong>We extract your brand DNA — colors, tone, voice, audience language — from your website before every rebuild. Every newsletter sounds like you, not a template. Includes a 3-email content calendar after each rebuild. Eight newsletters per month.</p>
+          <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Your brand voice, preserved at scale.</strong>We extract your brand DNA — colors, tone, voice, audience language — from your website before every rebuild. Every newsletter sounds like you, not a template. Includes a 3-email content calendar after each rebuild. Eight newsletters every month.</p>
           <ul class="plan-features">
             <li>8 newsletters/month</li>
             <li>Brand DNA extraction from your site</li>
@@ -323,14 +328,12 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- High-Impact -->
         <div class="plan-card featured">
           <div class="plan-name" style="color:var(--gold);">HIGH-IMPACT</div>
-          <div class="plan-price">$899</div>
-          <div class="plan-period">per month</div>
           <div style="border:1px solid #00d4c8;border-radius:8px;padding:14px;margin:12px 0 16px;background:rgba(0,212,200,0.05);">
-            <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:0 0 10px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Unlimited rebuilds. Full-funnel thinking. Direct access.</strong>Unlimited rebuilds per month. Every email checked for full-funnel cohesion — does it fit your sequence, your audience, your conversion goal? Includes a monthly audit of your entire email program.</p>
+            <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:0 0 10px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Full-funnel thinking. Direct access.</strong>Rebuilds every month. Every email checked for full-funnel cohesion — does it fit your sequence, your audience, your conversion goal? Includes a monthly audit of your entire email program.</p>
             <p style="font-size:13px;color:#00d4c8;line-height:1.6;margin:0;text-align:left;">⚡ <strong>VIP Access:</strong> You get a dedicated Slack channel with direct async access to the Strategic Flow team. Urgent copy hotfix before a launch? Skip the queue — fast turnaround guaranteed. This is the plan for founders and marketing leads who treat email as a revenue channel, not a checkbox.</p>
           </div>
           <ul class="plan-features">
-            <li class="hi">Unlimited newsletters/month</li>
+            <li class="hi">Newsletters every month</li>
             <li class="hi">Full-funnel cohesion check</li>
             <li class="hi">Email type &amp; audience detection</li>
             <li class="hi">Monthly conversion audit</li>
@@ -393,9 +396,9 @@ textarea{resize:vertical;line-height:1.7;}
           <select id="activateTier">
             <option value="">Select tier…</option>
             <option value="single">Single Rebuild — $49</option>
-            <option value="lite">Lite — $299/mo</option>
-            <option value="growth">Growth — $499/mo</option>
-            <option value="high_impact">High-Impact — $899/mo</option>
+            <option value="lite">Lite</option>
+            <option value="growth">Growth</option>
+            <option value="high_impact">High-Impact</option>
           </select>
         </div>
       </div>
@@ -765,13 +768,13 @@ textarea{resize:vertical;line-height:1.7;}
           <span><strong style="color:var(--text);">Single</strong> — 1 rebuild</span><span style="color:var(--teal);font-weight:700;">$49</span>
         </a>
         <a href="https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(0,212,200,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
-          <span><strong style="color:var(--text);">Lite</strong> — 4/mo</span><span style="color:var(--teal);font-weight:700;">$299/mo</span>
+          <span><strong style="color:var(--text);">Lite</strong> — 4/mo</span>
         </a>
         <a href="https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid rgba(139,92,246,0.35);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(139,92,246,0.6)'" onmouseout="this.style.borderColor='rgba(139,92,246,0.35)'">
-          <span><strong style="color:#a78bfa;">Growth</strong> — 8/mo</span><span style="color:#a78bfa;font-weight:700;">$499/mo</span>
+          <span><strong style="color:#a78bfa;">Growth</strong> — 8/mo</span>
         </a>
         <a href="https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03" target="_blank" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid rgba(245,158,11,0.35);border-radius:10px;text-decoration:none;color:var(--text2);font-size:12px;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(245,158,11,0.6)'" onmouseout="this.style.borderColor='rgba(245,158,11,0.35)'">
-          <span><strong style="color:var(--gold);">High-Impact</strong> — 12/mo</span><span style="color:var(--gold);font-weight:700;">$899/mo</span>
+          <span><strong style="color:var(--gold);">High-Impact</strong> — 12/mo</span>
         </a>
       </div>
     </div>
