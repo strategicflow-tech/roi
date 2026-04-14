@@ -1,0 +1,46 @@
+Văd în screenshot că app-ul Audit încă are sistemul vechi de scoring/weakness cu casete roșii. Dar da, să adăugăm CTA spre Pro la final.
+
+Dă Agentului din **Strategic Flow Audit** exact acest prompt:
+
+---
+
+At the bottom of the free analysis result page, after all the audit cards, add a conversion section that drives users to the Pro app. Find where the analysis result HTML ends in `index.html` or the frontend JS, and add this block immediately before the closing of the results container:
+
+```html
+<div style="margin-top:32px;padding:28px 24px;background:linear-gradient(135deg,#0d2137 0%,#0a1628 100%);border:1px solid rgba(0,200,180,0.25);border-radius:16px;text-align:center;">
+  
+  <div style="font-size:11px;font-weight:700;color:#2dd4bf;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">
+    Want this rebuilt — not just analyzed?
+  </div>
+  
+  <h3 style="font-size:22px;font-weight:900;color:#ffffff;margin:0 0 12px;line-height:1.3;letter-spacing:-0.3px;">
+    The full rebuild takes 60 seconds.<br/>The difference is what your subscribers actually read.
+  </h3>
+  
+  <p style="font-size:14px;color:rgba(255,255,255,0.55);margin:0 0 24px;line-height:1.7;max-width:400px;margin-left:auto;margin-right:auto;">
+    Strategic Flow Pro applies everything in this audit — plus brand DNA extraction, A/B subject lines, 30-day content calendar, and segmentation strategy. You get the HTML, ready to send.
+  </p>
+
+  <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;">
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.70);">✓ Full HTML rebuild</div>
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.70);">✓ 3 A/B subject lines</div>
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.70);">✓ 30-day content calendar</div>
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.70);">✓ Brand DNA extraction</div>
+    <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.70);">✓ Segmentation strategy</div>
+  </div>
+
+  <a href="https://strategic-flow-pro.replit.app" target="_blank" 
+     style="display:inline-block;background:#2dd4bf;color:#0a1628;font-size:15px;font-weight:800;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:0.3px;margin-bottom:12px;">
+    See Pro Plans →
+  </a>
+  
+  <div style="font-size:11px;color:rgba(255,255,255,0.30);margin-top:8px;">
+    Lite from $299/mo · Growth $499/mo · High-Impact $899/mo
+  </div>
+
+</div>
+```
+
+Place this block so it appears after the last audit finding card and before the footer. It must be visible without scrolling past the results — position it as a natural next step after reading the analysis.
+
+Show me where exactly it's inserted in the code.
