@@ -686,6 +686,8 @@ textarea{resize:vertical;line-height:1.7;}
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" onclick="downloadHTML()">↓ Download HTML</button>
           <button class="btn btn-secondary btn-sm" onclick="downloadAuditReport()">↓ Download Audit</button>
+          <button id="showcaseBtn" class="btn btn-secondary btn-sm" style="display:none;" onclick="generateShowcase()">✨ Showcase</button>
+          <button id="downloadNewsletterBtn" class="btn btn-secondary btn-sm" style="display:none;" onclick="downloadRebuiltNewsletter()">↓ Newsletter HTML</button>
           <button class="btn btn-ghost btn-sm" onclick="restart()">← New Rebuild</button>
         </div>
       </div>
@@ -1061,6 +1063,10 @@ function resetState() {
   currentResult=null; currentBrandDNA=null; currentVoiceProfile=null;
   uploadedHtmlBrandDNA=null;
   downloadHtmlContent='';
+  window.lastAuditInput = null;
+  window.lastAuditResult = null;
+  const _sb = document.getElementById('showcaseBtn'); if (_sb) _sb.style.display = 'none';
+  const _dnb = document.getElementById('downloadNewsletterBtn'); if (_dnb) _dnb.style.display = 'none';
   // Reset HTML upload UI
   const uploadTxt = document.getElementById('htmlUploadText');
   if (uploadTxt) uploadTxt.textContent = 'Upload .html file';
@@ -1312,6 +1318,11 @@ async function submitGenerate() {
     currentResult = gen;
     downloadHtmlContent = gen.downloadHtml || '';
     showResults(gen);
+
+    window.lastAuditInput = { emailBody: currentOrigBody, brandName: currentCompany };
+    window.lastAuditResult = { ...gen, newsletterHtml: gen.downloadHtml || '' };
+    document.getElementById('showcaseBtn').style.display = 'inline-block';
+    document.getElementById('downloadNewsletterBtn').style.display = 'inline-block';
 
   } catch (e) {
     showOnly('stateForm');
@@ -1931,6 +1942,47 @@ async function api(path, body) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('emailInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
+
+// ─── SHOWCASE ────────────────────────────────────────────────────────────────
+async function generateShowcase() {
+  const btn = document.getElementById('showcaseBtn');
+  btn.textContent = 'Generating showcase…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/showcase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        originalContent: window.lastAuditInput?.emailBody || '',
+        rebuiltHtml:     window.lastAuditResult?.newsletterHtml || '',
+        auditData:       window.lastAuditResult || {},
+        brandName:       window.lastAuditInput?.brandName || 'Newsletter'
+      })
+    });
+    const data = await res.json();
+    if (data.html) {
+      const blob = new Blob([data.html], { type: 'text/html' });
+      window.open(URL.createObjectURL(blob), '_blank');
+    } else {
+      alert('Showcase generation failed. Please try again.');
+    }
+  } catch (err) {
+    alert('Showcase generation failed. Please try again.');
+  } finally {
+    btn.textContent = '✨ Showcase';
+    btn.disabled = false;
+  }
+}
+
+function downloadRebuiltNewsletter() {
+  const html = window.lastAuditResult?.newsletterHtml;
+  if (!html) return;
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rebuilt-newsletter-${Date.now()}.html`;
+  a.click();
+}
 </script>
 </body>
 </html>

@@ -2656,6 +2656,47 @@ async function runMonthlyAudit() {
 
 // ─── BOOT ───────────────────────────────────────────────────────────────────
 
+// ─── SHOWCASE ───────────────────────────────────────────────────────────────
+app.post('/api/showcase', async (req, res) => {
+  const { originalContent, rebuiltHtml, auditData, brandName } = req.body;
+  const prompt = `You are Strategic Flow. Generate a Before/After showcase HTML page for a newsletter teardown.
+
+ORIGINAL NEWSLETTER CONTENT:
+${originalContent}
+
+REBUILT NEWSLETTER (HTML):
+${rebuiltHtml}
+
+AUDIT DATA (JSON):
+${JSON.stringify(auditData)}
+
+BRAND: ${brandName}
+
+Generate a complete, self-contained HTML page that shows a professional Before/After newsletter teardown. The page must include:
+1. Two-column Before/After layout — original left (with ❌ red flag annotations), rebuilt right (with ✅ green improvement annotations)
+2. "Title Transformation" section — before/after subject line with explanation
+3. "Strategic Upgrades" section — numbered list of 5-7 specific changes made and WHY (conversion reasoning, not just description)
+4. Dark background (#0a0f1e), teal accent (#2dd4bf), clean typography
+5. Strategic Flow branding + link to strategic-flow-pro.replit.app at bottom
+6. Upgrade CTA at bottom: "Want A/B variants, audience segments & content calendar? → See Pro Plans" linking to strategic-flow-pro.replit.app
+
+Use the actual content from the audit data for flags and improvements. Be specific — name exact lines, exact changes, exact conversion reasoning.
+
+Return ONLY the complete HTML. No markdown, no explanation.`;
+  try {
+    const response = await claude.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const html = response.content[0].text;
+    res.json({ html });
+  } catch (err) {
+    console.error('[showcase]', err.message);
+    res.status(500).json({ error: 'Showcase generation failed' });
+  }
+});
+
 process.on('uncaughtException',  e => console.error('[uncaught]', e.message));
 process.on('unhandledRejection', e => console.error('[unhandled]', e));
 
