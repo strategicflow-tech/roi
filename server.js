@@ -2675,10 +2675,26 @@ BRAND: ${brandName}
 Generate a complete, self-contained HTML page that shows a professional Before/After newsletter teardown. The page must include:
 1. Two-column Before/After layout — original left (with ❌ red flag annotations), rebuilt right (with ✅ green improvement annotations)
 2. "Title Transformation" section — before/after subject line with explanation
-3. "Strategic Upgrades" section — numbered list of 5-7 specific changes made and WHY (conversion reasoning, not just description)
-4. Dark background (#0a0f1e), teal accent (#2dd4bf), clean typography
-5. Strategic Flow branding + link to strategic-flow-pro.replit.app at bottom
-6. Upgrade CTA at bottom: "Want A/B variants, audience segments & content calendar? → See Pro Plans" linking to strategic-flow-pro.replit.app
+3. Dark background (#0a0f1e), teal accent (#2dd4bf), clean typography
+4. Strategic Flow branding + link to strategic-flow-pro.replit.app at bottom
+
+Include this CSS in the <style> block:
+.cta-card{background:rgba(45,212,191,0.06);border:2px solid #2dd4bf;border-radius:16px;padding:40px 32px;text-align:center;margin:48px 0 32px;}
+.cta-card h2{font-size:24px;font-weight:900;color:#fff;margin:0 0 12px;}
+.cta-card p{font-size:15px;color:rgba(255,255,255,0.65);margin:0 0 24px;line-height:1.6;}
+.cta-card a{display:inline-block;padding:14px 32px;background:#2dd4bf;color:#0a0f1e;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;}
+
+After the "Rebuilt Newsletter" section, you MUST include these two sections before </body>:
+
+SECTION: "Strategic Upgrades" — a numbered list (1-7) of specific changes made and WHY. Each item has a bold title + 2-3 sentences of conversion reasoning. Use the actual changes from the audit data.
+
+SECTION: Upgrade CTA — a full-width dark card using class="cta-card" with:
+- Headline: "This is a free preview."
+- Subheadline: "Want A/B subject lines, audience segments & content calendar for every send?"
+- Button: "See Pro Plans →" linking to https://strategic-flow-pro.replit.app
+- Style: teal border, dark background, centered, prominent
+
+These two sections are MANDATORY. Do not skip them under any circumstance.
 
 Use the actual content from the audit data for flags and improvements. Be specific — name exact lines, exact changes, exact conversion reasoning.
 
