@@ -2533,7 +2533,7 @@ async function handleGenerate(req, res) {
         sourceHtml: _pageRawHtml || '',
         featureCards: (() => {
           if (Array.isArray(result.featureCards) && result.featureCards.length > 0) return result.featureCards;
-          if (/thought.?leadership/i.test(detectedType || '')) {
+          if (/thought.?leadership/i.test(result.emailType || detectedType || '')) {
             const _b = result.body || result._flatFields?.body || [];
             return _b.slice(0, 3).map((b, i) => ({
               title: `INSIGHT ${i + 1}`,
