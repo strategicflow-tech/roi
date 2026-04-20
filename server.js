@@ -13,7 +13,7 @@ const {
   getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
-const { generateShowcaseHtml } = require('./showcase-generator.js');
+const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
 
 const app    = express();
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -1822,7 +1822,7 @@ async function fetchPageContent(rawUrl) {
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
-      if (parsed.text.length >= 100) return { ...parsed, url };
+      if (parsed.text.length >= 100) return { ...parsed, url, rawHtml: html };
     }
   } catch (e) { console.log('[fetch] strategy 1 failed:', e.message); }
 
@@ -1833,7 +1833,7 @@ async function fetchPageContent(rawUrl) {
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
-      if (parsed.text.length >= 100) return { ...parsed, url };
+      if (parsed.text.length >= 100) return { ...parsed, url, rawHtml: html };
     }
   } catch (e) { console.log('[fetch] strategy 2 (Google Cache) failed:', e.message); }
 
@@ -1845,7 +1845,7 @@ async function fetchPageContent(rawUrl) {
       if (resp.ok) {
         const html = await resp.text();
         const parsed = parseHtml(html);
-        if (parsed.text.length >= 100) return { ...parsed, url };
+        if (parsed.text.length >= 100) return { ...parsed, url, rawHtml: html };
       }
     }
   } catch (e) { console.log('[fetch] strategy 3 (HTTP) failed:', e.message); }
@@ -1914,6 +1914,7 @@ async function handleGenerate(req, res) {
     let analyzedPage = false;
 
     // Use pasted body if substantial; otherwise fetch the URL
+    let _pageRawHtml = '';
     let effectiveBody = (body || '').trim();
     if (effectiveBody.length < 100 && pageUrl) {
       console.log('[generate] body too short, fetching URL:', pageUrl);
@@ -1932,6 +1933,7 @@ async function handleGenerate(req, res) {
             effectiveBody = fetched;
             analyzedPage = true;
             if (page.ogImage) req.body._ogImage = page.ogImage;
+            _pageRawHtml = page.rawHtml || '';
             console.log('[generate] URL content fetched, length:', effectiveBody.length);
           }
         }
@@ -2387,6 +2389,7 @@ async function handleGenerate(req, res) {
     let showcaseHtml = '';
     try {
       const { primaryColor: _showcaseAccent } = getEmailColors(effectiveBrandDNA);
+      const { images: _imgs, gifs: _gifs, tables: _tbls } = extractVisualAssets(_pageRawHtml, pageUrl || '');
       showcaseHtml = generateShowcaseHtml({
         companyName:    company || 'Your Company',
         primaryColor:   _showcaseAccent,
@@ -2399,6 +2402,7 @@ async function handleGenerate(req, res) {
         hookHeadline:   result.headline  || result._flatFields?.headline  || '',
         hookLead:       result.lead      || result._flatFields?.lead      || '',
         bodyParagraphs: result.body      || result._flatFields?.body      || [],
+        featureCards:   result._flatFields?.body ? result._flatFields.body.map((b, i) => ({ title: ['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`, body: b, imageUrl: null })) : [],
         ctaText:        result.ctaText   || result._flatFields?.ctaText   || '',
         ctaUrl:         ctaHref || '',
         originalScore:  result.conversion_score?.original_score || 0,
@@ -2407,7 +2411,10 @@ async function handleGenerate(req, res) {
         flags:          result.key_changes  || [],
         abSubjects:     result.ab_subjects  || [],
         contentCalendar: result.follow_ups  || [],
-        whatChanged:    result.whatChanged  || []
+        whatChanged:    result.whatChanged  || [],
+        originalImages: _imgs,
+        originalGifs:   _gifs,
+        originalTables: _tbls
       });
     } catch (_se) { console.error('[showcase-gen]', _se.message); }
 

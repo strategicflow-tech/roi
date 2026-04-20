@@ -2,9 +2,10 @@ function generateShowcaseHtml({
   companyName, primaryColor, logoUrl, sourceUrl,
   originalSubject, originalBody,
   rebuiltSubject, previewText, hookHeadline, hookLead,
-  bodyParagraphs, ctaText, ctaUrl,
+  bodyParagraphs, featureCards, ctaText, ctaUrl,
   originalScore, rebuiltScore, scoreReason,
-  flags, abSubjects, contentCalendar, whatChanged
+  flags, abSubjects, contentCalendar, whatChanged,
+  originalImages, originalGifs, originalTables
 }) {
   const accent  = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#2dd4bf';
   const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -16,8 +17,12 @@ function generateShowcaseHtml({
   const flagsArr    = safeArr(flags);
   const abArr       = safeArr(abSubjects);
   const calArr      = safeArr(contentCalendar);
-  const changedArr  = safeArr(whatChanged);
-  const bodyParaArr = safeArr(bodyParagraphs);
+  const changedArr      = safeArr(whatChanged);
+  const bodyParaArr     = safeArr(bodyParagraphs);
+  const featureCardsArr = safeArr(featureCards);
+  const imgsArr         = safeArr(originalImages);
+  const gifsArr         = safeArr(originalGifs);
+  const tablesArr       = safeArr(originalTables);
 
   function scoreBar(val, max) {
     const pct = Math.min(100, Math.round((val / max) * 100));
@@ -35,6 +40,21 @@ function generateShowcaseHtml({
     <div class="section-title">Original Email Body</div>
     <div class="body-text">${esc(originalBody || '').replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</div>
   </div>
+  ${imgsArr.length ? `
+  <div class="section-card">
+    <div class="section-title">Original Images</div>
+    ${imgsArr.map(img => `<img src="${img.url}" alt="${esc(img.alt)}" style="width:100%;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
+  </div>` : ''}
+  ${gifsArr.length ? `
+  <div class="section-card">
+    <div class="section-title">Original GIFs</div>
+    ${gifsArr.map(gif => `<img src="${gif.url}" alt="${esc(gif.alt)}" style="width:100%;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
+  </div>` : ''}
+  ${tablesArr.length ? `
+  <div class="section-card">
+    <div class="section-title">Original Tables</div>
+    ${tablesArr.map(t => `<div style="overflow-x:auto;margin:12px 0">${t.html}</div>`).join('')}
+  </div>` : ''}
   ${flagsArr.length ? `
   <div class="section-card">
     <div class="section-title">❌ Issues Found (${flagsArr.length})</div>
@@ -66,6 +86,18 @@ function generateShowcaseHtml({
   <div class="section-card">
     <div class="section-title">Rebuilt Body</div>
     ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-label">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`}</div><p>${esc(p)}</p></div>`).join('')}
+  </div>` : ''}
+  ${featureCardsArr.length ? `
+  <div class="section-card">
+    <div class="section-title">Feature Cards</div>
+    ${featureCardsArr.map(card => `
+    <div class="fc">
+      <div class="fc-top">
+        <div class="fc-lbl">${esc(card.title || '')}</div>
+        <div class="fc-txt">${esc(card.body || '')}</div>
+      </div>
+      ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;display:block;border-radius:0 0 8px 8px" alt="${esc(card.title || '')}">` : ''}
+    </div>`).join('')}
   </div>` : ''}
   ${ctaText ? `
   <div class="section-card">
@@ -216,6 +248,11 @@ ${sourceUrl ? `.source-link{font-size:12px;color:rgba(255,255,255,0.35);margin-b
 .methodology{border-left:3px solid rgba(255,255,255,0.15)}
 .methodology p{font-size:13px;color:rgba(255,255,255,0.55);line-height:1.65;margin-bottom:10px}
 .methodology p:last-child{margin-bottom:0}
+.fc{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.fc:last-child{margin-bottom:0}
+.fc-top{padding:14px 16px}
+.fc-lbl{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:${accent};margin-bottom:6px}
+.fc-txt{font-size:14px;color:rgba(255,255,255,0.75);line-height:1.6}
 .cta-card{background:${accent}0e;border:2px solid ${accent};border-radius:16px;padding:40px 32px;text-align:center;margin:32px 0}
 .cta-card h2{font-size:24px;font-weight:900;color:#fff;margin:0 0 12px}
 .cta-card p{font-size:15px;color:rgba(255,255,255,0.6);margin:0 0 24px;line-height:1.6}
@@ -263,4 +300,34 @@ function switchTab(id, btn) {
 </html>`;
 }
 
-module.exports = { generateShowcaseHtml };
+function extractVisualAssets(rawHtml, baseUrl) {
+  const images = [];
+  const gifs   = [];
+  const tables = [];
+  if (!rawHtml || typeof rawHtml !== 'string') return { images, gifs, tables };
+
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi;
+  let match;
+  while ((match = imgRegex.exec(rawHtml)) !== null) {
+    let url = match[1] || '';
+    const alt = match[2] || '';
+    if (!url) continue;
+    if (!url.startsWith('http')) {
+      try { url = new URL(url, baseUrl).href; } catch (_) { continue; }
+    }
+    if (url.includes('.gif')) {
+      gifs.push({ url, alt });
+    } else if (/\.(jpg|jpeg|png|webp|svg)(\?|$)/i.test(url) || url.startsWith('https://')) {
+      images.push({ url, alt });
+    }
+  }
+
+  const tableRegex = /<table[\s\S]*?<\/table>/gi;
+  while ((match = tableRegex.exec(rawHtml)) !== null) {
+    tables.push({ html: match[0], caption: '' });
+  }
+
+  return { images, gifs, tables };
+}
+
+module.exports = { generateShowcaseHtml, extractVisualAssets };
