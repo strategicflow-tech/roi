@@ -2334,7 +2334,13 @@ async function handleGenerate(req, res) {
         });
         return clean.trim();
       }).filter(p => p.length > 20);
-      result.body = result.body.map(p => p.replace(/^[\s''""`]+/, '').replace(/\b0\s+(pulls|gives|shows|provides|delivers)/gi, '').trim());
+      result.body = result.body.map(p =>
+        (typeof p === 'string' ? p : (p?.body || p?.text || ''))
+          .replace(/^[\s\u201C\u201D\u2018\u2019''""`]+/, '')
+          .replace(/[\s\u201C\u201D\u2018\u2019''""`]+$/, '')
+          .replace(/\b0\s+(pulls|gives|shows|provides|delivers)/gi, '')
+          .trim()
+      ).filter(p => p.length > 0);
       // ── END STAT VALIDATION ──
 
       // ── CTA CONTEXT MISMATCH — fix generic acquisition CTAs on changelog/update emails ──
