@@ -1524,12 +1524,27 @@ async function notify(subject, html) {
 
 // Hard limit: max 3 paragraphs, max 3 sentences each — applied before body paragraphs enter the template.
 function shortenLongSentence(sentence) {
-  const words = sentence.trim().split(' ');
-  if (words.length <= 30) return sentence;
+  const words = sentence.trim().split(/\s+/);
+  if (words.length <= 30) return sentence.trim();
   const cutoff = words.slice(0, 30).join(' ');
   const lastBreak = Math.max(cutoff.lastIndexOf(','), cutoff.lastIndexOf('—'), cutoff.lastIndexOf(' and '));
-  if (lastBreak > 20) return cutoff.substring(0, lastBreak) + '.';
-  return words.slice(0, 25).join(' ') + '.';
+  if (lastBreak > 20) return cutoff.substring(0, lastBreak).trim() + '.';
+  return words.slice(0, 25).join(' ').trim() + '.';
+}
+
+function ensureCompleteSentence(text) {
+  if (!text) return text;
+  const trimmed = text.trim();
+  if (/[.!?]$/.test(trimmed)) return trimmed;
+  const lastEnd = Math.max(
+    trimmed.lastIndexOf('. '),
+    trimmed.lastIndexOf('? '),
+    trimmed.lastIndexOf('! ')
+  );
+  if (lastEnd > 0 && trimmed.length - lastEnd > 20) {
+    return trimmed.substring(0, lastEnd + 1).trim();
+  }
+  return trimmed.replace(/[,;:\s]+$/, '') + '.';
 }
 
 function enforceBodyLimits(paragraphs) {
@@ -1544,10 +1559,11 @@ function enforceBodyLimits(paragraphs) {
   ];
   return paragraphs.slice(0, 3).map(p => {
     const sentences = p.match(/[^.!?]+[.!?]+(\s|$)/g) || [p];
-    return sentences.slice(0, 3).map(s => {
+    const joined = sentences.slice(0, 3).map(s => {
       if (FABRICATION_PHRASES.some(fp => fp.test(s))) return '';
       return shortenLongSentence(s);
     }).filter(s => s.length > 10).join(' ').trim();
+    return ensureCompleteSentence(joined);
   });
 }
 
@@ -2201,7 +2217,8 @@ async function handleGenerate(req, res) {
         'rmode=crop','1646653490249','630c6d4e',
         'gravatar','avatar','author','profile','headshot',
         'logo','typelogo','symbol','favicon','keyboard-shortcuts',
-        'salesforce','hubspot','google','microsoft','adobe'
+        'salesforce','hubspot','google','microsoft','adobe',
+        'promoengine','300x300','200x200','150x150','128x128'
       ];
       if (skipPatterns.some(p => l.includes(p))) return false;
       if (l.endsWith('.svg')) return false;
@@ -2224,7 +2241,8 @@ async function handleGenerate(req, res) {
           if (newW > existW) baseMap.set(base, img);
         }
       }
-      return Array.from(baseMap.values());
+      // Apply _isProductImg filter HERE so _imgs is always clean
+      return Array.from(baseMap.values()).filter(img => _isProductImg(img.url));
     })();
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
@@ -2244,7 +2262,7 @@ async function handleGenerate(req, res) {
       // For thought_leadership emails, inject insight card structure
       const _isThoughtLeadership = /thought.?leadership/i.test(detectedType || '');
       if (_isThoughtLeadership) {
-        prompt += `\n\nTHOUGHT LEADERSHIP EMAIL — REQUIRED STRUCTURE:\nNever generate a single prose paragraph block for thought_leadership type.\nInstead generate exactly 3 insight cards as featureCards:\n[\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences with specific evidence, quote, or stat from the source article.","imageUrl":null},\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences.","imageUrl":null},\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences.","imageUrl":null}\n]\nReturn featureCards array. Do NOT return bodyParagraphs for thought_leadership.`;
+        prompt += `\n\nTHOUGHT LEADERSHIP EMAIL — MANDATORY JSON STRUCTURE:\nThis is a thought_leadership email. You MUST return a top-level "featureCards" array.\nDo NOT return a "body" array. Do NOT return bodyParagraphs. The "body" key must be absent or empty [].\n\nReturn exactly 3 featureCards in this format:\n"featureCards":[\n  {"title":"MISTAKE 1: [SHORT LABEL IN CAPS]","body":"2 sentences max. Cite a specific stat, quote, or example from the source.","imageUrl":null},\n  {"title":"MISTAKE 2: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null},\n  {"title":"MISTAKE 3: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null}\n]\n\nIf the article covers 6 mistakes, distill the 3 most impactful ones. Subject line should say "3 mistakes" if you reduce.\nVIOLATION: returning a "body" array instead of "featureCards" for thought_leadership is a critical error.`;
       }
       if (!effectiveBrandDNA) {
         // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
@@ -2571,10 +2589,27 @@ async function handleGenerate(req, res) {
         hookLead:       result.lead      || result._flatFields?.lead      || '',
         bodyParagraphs: result.body      || result._flatFields?.body      || [],
         featureCards:   (() => {
-          // For Product Announcement emails: use whatChanged items (real feature titles) + product screenshots
+          const _isTL = /thought.?leadership/i.test(finalEmailType || '');
           const _isProductUpdate = /product|announcement|feature|update/i.test(finalEmailType || '');
           const _wcArr = Array.isArray(result.whatChanged) ? result.whatChanged.filter(w => w?.title) : [];
           const _pImgs = Array.isArray(_imgs) ? _imgs : [];
+
+          // thought_leadership: Claude is instructed to return featureCards directly — use them first
+          if (_isTL) {
+            const _direct = Array.isArray(result.featureCards) && result.featureCards.length > 0
+              ? result.featureCards
+              : null;
+            if (_direct) return _direct;
+            // Claude fell back to body paragraphs — convert to insight cards
+            const _body = result.body || result._flatFields?.body || [];
+            return _body.slice(0, 3).map((b, i) => ({
+              title: `INSIGHT ${i + 1}`,
+              body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
+              imageUrl: null
+            }));
+          }
+
+          // Product announcement emails: use whatChanged items + product screenshots
           if (_isProductUpdate && _wcArr.length > 0) {
             return _wcArr.map((wc, i) => ({
               title:    wc.title || `Feature ${i + 1}`,
@@ -2607,7 +2642,17 @@ async function handleGenerate(req, res) {
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
-    const _origBodyClient = body.length > 600 ? body.slice(0, 600) + '...' : body;
+    const _origBodyRaw = body || '';
+    const _origBodyStripped = _origBodyRaw
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[a-z]+;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const _origBodyClient = _origBodyStripped.length > 500
+      ? _origBodyStripped.substring(0, 500) + '...'
+      : _origBodyStripped;
     res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient });
     console.log('STEP 7: Response sent');
 
