@@ -895,7 +895,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   body    = safeVal(body);
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null, sourceHtml = '' } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null, sourceHtml = '', featureCards = null, emailType: htmlEmailType = '' } = options;
 
   // Extract ONLY brand accent colors — the template always uses its own dark palette.
   const { primaryColor: rawPrimary, accentColor: rawAccent, primaryText, accentText } = getEmailColors(brandDNA);
@@ -978,6 +978,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const footerOverlay = isLightBrand ? 'rgba(0,0,0,0.03)'   : 'rgba(0,0,0,0.25)';
   const footerTxtMuted = isLightBrand ? 'rgba(0,0,0,0.40)'  : 'rgba(255,255,255,0.35)';
   const footerTxtDim   = isLightBrand ? 'rgba(0,0,0,0.25)'  : 'rgba(255,255,255,0.20)';
+  // Adaptive tokens for stat cards, quote block, and CTA gradient
+  const statLabelColor   = isLightBrand ? '#6b6b66'            : 'rgba(255,255,255,0.50)';
+  const statBorderColor  = isLightBrand ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.12)';
+  const quoteTextColor   = isLightBrand ? '#1a1a18'             : '#ffffff';
+  const quoteAttribColor = isLightBrand ? '#6b6b66'             : 'rgba(255,255,255,0.40)';
+  const ctaGradient      = isLightBrand
+    ? `linear-gradient(135deg,${primaryColor} 0%,#548dff 100%)`
+    : `linear-gradient(135deg,${primaryColor} 0%,#7c3aed 100%)`;
 
   // Logo: icon (36×36, rounded) beside brand name text — always shows name for readability.
   // apple-touch-icon / PNG favicon → img; nothing found → name only.
@@ -1167,14 +1175,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     const colWidth  = count === 1 ? '100%' : count === 2 ? '50%' : '33%';
     const valueFontSize = count === 1 ? '36px' : '28px';
     const cells = stats.map((s, i) => {
-      const borderLeft = i > 0 ? 'border-left:1px solid rgba(255,255,255,0.08);' : '';
+      const borderLeft = i > 0 ? `border-left:1px solid ${statBorderColor};` : '';
       const align = count === 1 ? 'text-align:center;' : 'text-align:center;';
       return `<td style="width:${colWidth};${align}padding:${count === 1 ? '24px 16px' : '16px 8px'};${borderLeft}">
         <p style="font-size:${valueFontSize};font-weight:900;color:${primaryColor};margin:0;line-height:1;">${s.v}</p>
-        <p style="font-size:11px;color:rgba(255,255,255,0.50);margin:5px 0 0;line-height:1.4;">${s.l}</p>
+        <p style="font-size:11px;color:${statLabelColor};margin:5px 0 0;line-height:1.4;">${s.l}</p>
       </td>`;
     }).join('');
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.12);border-radius:8px;margin:0;"><tr>${cells}</tr></table>`;
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${statBorderColor};border-radius:8px;margin:0;"><tr>${cells}</tr></table>`;
   })();
 
   // Calendar rows — only rendered when at least one week has content
@@ -1198,8 +1206,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (!isNewFormat) return '';
     if (p_conversionType === 'quote' && p_quoteText) {
       return `<table width="100%" cellpadding="0" cellspacing="0" style="border-left:3px solid ${primaryColor};border-radius:2px;margin:0;"><tr><td style="padding:18px 24px;">
-        <p style="font-size:15px;color:#ffffff;line-height:1.7;margin:0 0 10px;font-style:italic;">"${p_quoteText}"</p>
-        ${p_quotePerson ? `<p style="font-size:11px;color:rgba(255,255,255,0.40);margin:0;letter-spacing:.04em;">${p_quotePerson}</p>` : ''}
+        <p style="font-size:15px;color:${quoteTextColor};line-height:1.7;margin:0 0 10px;font-style:italic;">"${p_quoteText}"</p>
+        ${p_quotePerson ? `<p style="font-size:11px;color:${quoteAttribColor};margin:0;letter-spacing:.04em;">${p_quotePerson}</p>` : ''}
       </td></tr></table>`;
     }
     if (p_beforeState || p_afterState) {
@@ -1356,6 +1364,24 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     // Enforce body limits before inserting into HTML template
     const bodyParagraphs = enforceBodyLimits([p_insight, p_proof, p_cost]);
 
+    // Feature cards block: rendered for thought_leadership and product_update instead of prose paragraphs
+    const featureCardsHtml = (() => {
+      const _fc = Array.isArray(featureCards) ? featureCards.filter(c => c?.title || c?.body) : [];
+      if (!_fc.length) return '';
+      const _isTL = /thought.?leadership/i.test(htmlEmailType || '');
+      const _isPU = /product.?update|product.?announcement|feature.?launch/i.test(htmlEmailType || '');
+      if (!_isTL && !_isPU) return '';
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">` +
+        _fc.slice(0, 6).map((card, idx) =>
+          `<tr><td style="padding:${idx === 0 ? '0' : '16px'} 0 16px;${idx > 0 ? `border-top:1px solid ${dividerColor};padding-top:16px;` : ''}">
+            <p style="font-size:11px;font-weight:800;color:${primaryColor};text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${card.title || ''}</p>
+            ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;" />` : ''}
+            <p style="font-size:14px;color:${textBody};margin:0;line-height:1.65;">${card.body || ''}</p>
+          </td></tr>`
+        ).join('') +
+        `</table>`;
+    })();
+
     const _v2Html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
@@ -1372,7 +1398,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HEADER -->
         <tr>
-          <td style="padding:22px 32px 18px;background:${bgColor};border-bottom:3px solid ${primaryColor};">
+          <td style="padding:22px 32px 18px;background:${emailHeaderBg};border-bottom:3px solid ${primaryColor};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
@@ -1402,13 +1428,13 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <!-- GRADIENT DIVIDER -->
         <tr><td style="padding:0;line-height:0;height:3px;background:linear-gradient(to right,${primaryColor},rgba(94,106,210,0.3),transparent);font-size:0;">&nbsp;</td></tr>
 
-        <!-- INSIGHT + PROOF + COST -->
+        <!-- INSIGHT + PROOF + COST (or feature cards for thought_leadership / product_update) -->
         <tr><td style="padding:32px 32px 28px;">
+          ${featureCardsHtml || `
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[0] || ''}</p>
-
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[1] || ''}</p>
-
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[2] || ''}</p>
+          `}
         </td></tr>
 
         ${conversionElementHtml ? `<tr><td style="padding:0 32px 28px;">${conversionElementHtml}</td></tr>` : ''}
@@ -1416,7 +1442,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <!-- CTA -->
         <tr>
           <td style="padding:0 32px 36px;">
-            <div style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${bgColor} 100%);border-radius:12px;">
+            <div style="padding:3px;background:${ctaGradient};border-radius:12px;">
               <div style="background:${containerBg};border-radius:10px;padding:28px 32px;text-align:center;">
                 <a href="${(()=>{ const _u=finalCtaUrl||''; if(!_u.includes('resend-clicks.com'))return _u; try{const _p=_u.split(/\/CL\d+\//)[1];if(_p)return decodeURIComponent(_p.split('/')[0]);}catch(e){} return _u; })()}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
               </div>
@@ -2158,8 +2184,17 @@ async function handleGenerate(req, res) {
       catch (_) { return { images: [], gifs: [] }; }
     })();
     // Merge: page assets first, then body assets not already present (dedup by URL)
-    const _isProductImg = u => u && !/avatar|author|gravatar|profile|headshot|logo|typelogo|symbol|favicon|keyboard-shortcuts|salesforce|hubspot|google|rmode=crop|width=40|height=40|width=96|height=96/i.test(u);
-    const _imgs = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
+    const _isProductImg = u => u && !/avatar|author|gravatar|profile|headshot|logo|typelogo|symbol|favicon|keyboard-shortcuts|salesforce|hubspot|google|microsoft|1646653490249|rmode=crop|width=40|height=40|width=96|height=96/i.test(u);
+    const _imgs = (() => {
+      const merged = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
+      const seen = new Set();
+      return merged.filter(img => {
+        const base = (img.url || '').split('?')[0];
+        if (seen.has(base)) return false;
+        seen.add(base);
+        return true;
+      });
+    })();
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
     // ── PROMPT DISPATCH: single Claude rebuild call ──────────────────────────────
@@ -2175,10 +2210,10 @@ async function handleGenerate(req, res) {
         const _pImgList = _imgs.filter(img => _isProductImg(img.url)).map(i => i.url).slice(0, 6).join('\n');
         prompt += `\n\nPRODUCT UPDATE INSTRUCTION — MANDATORY: Return a "featureCards" array in your JSON:\n"featureCards":[{"title":"FEATURE NAME — max 4 words","body":"one outcome sentence for this feature","imageUrl":"pick one URL from the list below or null"}]\nAvailable product image URLs:\n${_pImgList || 'none'}\nFor product_update type, featureCards replaces the body[] paragraphs — do not also return a body array.`;
       }
-      // For thought_leadership emails, inject insight card instructions
+      // For thought_leadership emails, inject insight card structure
       const _isThoughtLeadership = /thought.?leadership/i.test(detectedType || '');
       if (_isThoughtLeadership) {
-        prompt += `\n\nTHOUGHT LEADERSHIP EMAIL BODY — MANDATORY:\nGenerate 3 insight cards. Each card:\n- "title": the insight in 3-5 words (ALL CAPS)\n- "body": 1-2 sentences explaining the insight with specific evidence or example from the article\nDo NOT generate paragraph body text for thought_leadership type.\nReturn as featureCards array:\n"featureCards":[{"title":"INSIGHT IN CAPS","body":"1-2 sentences with specific evidence","imageUrl":null}]`;
+        prompt += `\n\nTHOUGHT LEADERSHIP EMAIL — REQUIRED STRUCTURE:\nNever generate a single prose paragraph block for thought_leadership type.\nInstead generate exactly 3 insight cards as featureCards:\n[\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences with specific evidence, quote, or stat from the source article.","imageUrl":null},\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences.","imageUrl":null},\n  {"title":"INSIGHT LABEL IN CAPS","body":"1-2 sentences.","imageUrl":null}\n]\nReturn featureCards array. Do NOT return bodyParagraphs for thought_leadership.`;
       }
       if (!effectiveBrandDNA) {
         // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
@@ -2431,7 +2466,9 @@ async function handleGenerate(req, res) {
         promotionalItems, heroImageUrl: req.body._ogImage || null,
         productImages: _imgs,
         flatFields: result._flatFields || null,
-        sourceHtml: _pageRawHtml || '' });
+        sourceHtml: _pageRawHtml || '',
+        featureCards: result.featureCards || null,
+        emailType: result.emailType || detectedType || '' });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
