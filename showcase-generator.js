@@ -16,10 +16,29 @@ function generateShowcaseHtml({
   const safeArr   = a => Array.isArray(a) ? a : [];
   const mdToHtml  = t => esc(t).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   const PARA_LABELS = new Set(['THE PROBLEM','THE SHIFT','THE CONSEQUENCE','P1','P2','P3','P4','P5']);
-  const isProductImage = url => {
-    const skip = ['logo','favicon','avatar','gravatar','icon','badge','keyboard-shortcuts','typelogo','youtube','youtu.be'];
-    return !skip.some(s => url.toLowerCase().includes(s));
-  };
+  function isProductImage(url) {
+    if (!url) return false;
+    const l = url.toLowerCase();
+    const skip = [
+      'logo','favicon','avatar','gravatar','icon','badge','keyboard-shortcuts','typelogo',
+      'youtube','youtu.be','rmode=crop','width=40','height=40','width=32','height=32',
+      'width=96','height=96','1646653490249','630c6d4e','promoengine','300x300',
+      'author','profile','headshot','.svg'
+    ];
+    if (skip.some(s => l.includes(s))) return false;
+    const wm = url.match(/[?&]width=(\d+)/i);
+    if (wm && parseInt(wm[1]) < 100) return false;
+    return true;
+  }
+  function deduplicateImages(images) {
+    const seen = new Set();
+    return images.filter(img => {
+      const base = (img.url || img).split('?')[0];
+      if (seen.has(base)) return false;
+      seen.add(base);
+      return true;
+    });
+  }
 
   const origScore  = Number(originalScore) || 0;
   const rebScore   = Number(rebuiltScore)  || 0;
@@ -31,9 +50,9 @@ function generateShowcaseHtml({
   const changedArr      = safeArr(whatChanged);
   const bodyParaArr     = safeArr(bodyParagraphs);
   const tablesArr       = safeArr(originalTables);
-  const imgsArr         = safeArr(originalImages).filter(img => img.url && isProductImage(img.url));
-  const gifsArr         = safeArr(originalGifs).filter(gif => gif.url && isProductImage(gif.url));
-  const featureCardsArr = safeArr(featureCards).filter(c => c.title && !PARA_LABELS.has(c.title.trim().toUpperCase()));
+  const imgsArr         = deduplicateImages(safeArr(originalImages).filter(img => img.url && isProductImage(img.url)));
+  const gifsArr         = deduplicateImages(safeArr(originalGifs).filter(gif => gif.url && isProductImage(gif.url)));
+  const featureCardsArr = safeArr(featureCards).filter(c => (c.title || c.body) && !PARA_LABELS.has((c.title || '').trim().toUpperCase()));
 
   function scoreBar(val, max, color) {
     const pct = Math.min(100, Math.round((val / max) * 100));
@@ -107,12 +126,15 @@ function generateShowcaseHtml({
         ${emailBodyHtml}
       </div>
     </div>
-  </div>` : (hookHeadline || bodyParaArr.length ? `
+  </div>` : (hookHeadline || featureCardsArr.length || bodyParaArr.length ? `
   <div class="card">
     <div class="card-label">Rebuilt Content</div>
     ${hookHeadline ? `<div class="hook-headline">${esc(hookHeadline)}</div>` : ''}
     ${hookLead ? `<div class="hook-lead">${mdToHtml(hookLead)}</div>` : ''}
-    ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-lbl">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i]||`P${i+1}`}</div><p>${mdToHtml(p)}</p></div>`).join('')}
+    ${featureCardsArr.length
+      ? featureCardsArr.map(c => `<div class="body-para"><div class="para-lbl">${esc(c.title || '')}</div><p>${mdToHtml(c.body || c.text || c.content || c.description || '')}</p></div>`).join('')
+      : bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-lbl">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i]||`P${i+1}`}</div><p>${mdToHtml(typeof p === 'string' ? p : '')}</p></div>`).join('')
+    }
   </div>` : '')}
 
   ${origScore || rebScore ? `

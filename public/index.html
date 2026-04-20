@@ -1738,7 +1738,7 @@ function generateAuditReportHtml() {
     `<div class="card"><div class="card-body">${c}</div></div>`).join('');
 
   // Before / After — full text, no truncation
-  const origBodyPlain = (currentOrigBody || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 400);
+  const origBodyPlain = (currentOrigBody || r.originalBody || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 400);
   const newBodyPlain  = (r.rebuilt_body || '').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
 
   return `<!DOCTYPE html>

@@ -2324,7 +2324,7 @@ async function handleGenerate(req, res) {
         });
         return clean.trim();
       }).filter(p => p.length > 20);
-      result.body = result.body.map(p => p.replace(/^[\s''""`]+/, '').replace(/\b0\s+(pulls|gives|shows|provides|delivers)/gi, 'Recall $1').trim());
+      result.body = result.body.map(p => p.replace(/^[\s''""`]+/, '').replace(/\b0\s+(pulls|gives|shows|provides|delivers)/gi, '').trim());
       // ── END STAT VALIDATION ──
 
       // ── CTA CONTEXT MISMATCH — fix generic acquisition CTAs on changelog/update emails ──
@@ -2346,8 +2346,7 @@ async function handleGenerate(req, res) {
         const p3Words    = result.body[2].toLowerCase();
         const topicDrift = p1Keywords.filter(kw => p3Words.includes(kw)).length;
         if (topicDrift < 2) {
-          const headlineSnippet = (result.headline || '').split(' ').slice(0, 4).join(' ') || 'this update';
-          result.body[2] = `Without ${headlineSnippet}, your team continues facing the same friction described above. The gap between teams that adopt and teams that wait compounds with every sprint.`;
+          result.body[2] = 'Without a structured approach, your team continues facing the same friction — and the gap between teams that act and teams that wait compounds with every sprint.';
           console.log('[coherence] P3 topic drift detected — replaced with on-topic consequence');
         }
       }
@@ -2577,7 +2576,7 @@ async function handleGenerate(req, res) {
     try {
       const { primaryColor: _showcaseAccent } = getEmailColors(effectiveBrandDNA);
       showcaseHtml = generateShowcaseHtml({
-        companyName:    company || 'Your Company',
+        companyName:    company || (() => { try { const _h = new URL(pageUrl || '').hostname.replace(/^www\./, '').split('.')[0]; return _h.charAt(0).toUpperCase() + _h.slice(1); } catch (_) { return 'Newsletter'; } })(),
         primaryColor:   _showcaseAccent,
         logoUrl:        effectiveBrandDNA?.logoUrl || '',
         sourceUrl:      pageUrl || '',
