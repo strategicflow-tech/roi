@@ -1901,6 +1901,7 @@ async function handleGenerate(req, res) {
     // equivalents so they never corrupt Claude's JSON response.
     subject      = sanitizeInput(subject);
     body         = sanitizeInput(body, 12000);
+    const _pastedBody = body; // snapshot before URL-fetch may overwrite body
     company      = sanitizeInput(company);
     goal         = sanitizeInput(goal);
     roadmapNotes = sanitizeInput(roadmapNotes);
@@ -2356,10 +2357,18 @@ async function handleGenerate(req, res) {
 
     // Extract visual assets early so productImages is available for the hero image fallback
     // (before buildNewsletterHTML, which uses the first product image when og:image is absent)
-    const { images: _imgs, gifs: _gifs, tables: _tbls } = (() => {
+    // Extract from page rawHtml AND from the email body (covers pasted HTML email case).
+    const { images: _pageImgs, gifs: _pageGifs, tables: _tbls } = (() => {
       try { return extractVisualAssets(_pageRawHtml, pageUrl || ''); }
       catch (_) { return { images: [], gifs: [], tables: [] }; }
     })();
+    const { images: _bodyImgs, gifs: _bodyGifs } = (() => {
+      try { return extractVisualAssets(body || '', pageUrl || ''); }
+      catch (_) { return { images: [], gifs: [] }; }
+    })();
+    // Merge: page assets first, then body assets not already present (dedup by URL)
+    const _imgs = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
+    const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
@@ -2433,7 +2442,7 @@ async function handleGenerate(req, res) {
         logoUrl:        effectiveBrandDNA?.logoUrl || '',
         sourceUrl:      pageUrl || '',
         originalSubject: subject || '',
-        originalBody:   body || '',
+        originalBody:   _pastedBody || body || '',
         rebuiltSubject: result.rebuilt_subject || '',
         previewText:    result.preheader || result._flatFields?.preheader || '',
         hookHeadline:   result.headline  || result._flatFields?.headline  || '',
@@ -2461,7 +2470,7 @@ async function handleGenerate(req, res) {
         originalScore:  result.conversion_score?.original_score || 0,
         rebuiltScore:   result.conversion_score?.rebuilt_score  || 0,
         scoreReason:    result.conversion_score?.rebuilt_explanation || '',
-        flags:          result.key_changes  || [],
+        flags:          result.removed_elements || [],
         abSubjects:     result.ab_subjects  || [],
         contentCalendar: result.follow_ups  || [],
         whatChanged:    result.whatChanged  || [],
@@ -2476,7 +2485,7 @@ async function handleGenerate(req, res) {
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml });
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: body });
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──

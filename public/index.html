@@ -1321,6 +1321,7 @@ async function submitGenerate() {
 
     currentResult = gen;
     downloadHtmlContent = gen.downloadHtml || '';
+    if (gen.originalBody) currentOrigBody = gen.originalBody;
     showResults(gen);
 
     window.lastAuditInput = { emailBody: currentOrigBody, brandName: currentCompany };
