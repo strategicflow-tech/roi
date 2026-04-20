@@ -5,300 +5,333 @@ function generateShowcaseHtml({
   bodyParagraphs, featureCards, ctaText, ctaUrl,
   originalScore, rebuiltScore, scoreReason,
   flags, abSubjects, contentCalendar, whatChanged,
-  originalImages, originalGifs, originalTables
+  originalImages, originalGifs, originalTables,
+  rebuiltEmailHtml
 }) {
-  const accent  = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#2dd4bf';
-  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const safeArr = a => Array.isArray(a) ? a : [];
-  const mdToHtml = t => esc(t).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  const BG        = '#07090f';
+  const CARD_BG   = '#0f1119';
+  const BORDER    = 'rgba(255,255,255,0.08)';
+  const accent    = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#2dd4bf';
+  const esc       = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const safeArr   = a => Array.isArray(a) ? a : [];
+  const mdToHtml  = t => esc(t).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   const PARA_LABELS = new Set(['THE PROBLEM','THE SHIFT','THE CONSEQUENCE','P1','P2','P3','P4','P5']);
   const isProductImage = url => {
-    const skip = ['logo','favicon','avatar','gravatar','icon','badge','keyboard-shortcuts','typelogo'];
+    const skip = ['logo','favicon','avatar','gravatar','icon','badge','keyboard-shortcuts','typelogo','youtube','youtu.be'];
     return !skip.some(s => url.toLowerCase().includes(s));
   };
+
   const origScore  = Number(originalScore) || 0;
   const rebScore   = Number(rebuiltScore)  || 0;
   const scoreImprv = rebScore - origScore;
 
-  const flagsArr    = safeArr(flags);
-  const abArr       = safeArr(abSubjects);
-  const calArr      = safeArr(contentCalendar);
+  const flagsArr        = safeArr(flags);
+  const abArr           = safeArr(abSubjects);
+  const calArr          = safeArr(contentCalendar);
   const changedArr      = safeArr(whatChanged);
   const bodyParaArr     = safeArr(bodyParagraphs);
   const tablesArr       = safeArr(originalTables);
-  const imgsArr         = safeArr(originalImages).filter(img => isProductImage(img.url));
-  const gifsArr         = safeArr(originalGifs).filter(gif => isProductImage(gif.url));
+  const imgsArr         = safeArr(originalImages).filter(img => img.url && isProductImage(img.url));
+  const gifsArr         = safeArr(originalGifs).filter(gif => gif.url && isProductImage(gif.url));
   const featureCardsArr = safeArr(featureCards).filter(c => c.title && !PARA_LABELS.has(c.title.trim().toUpperCase()));
 
-  function scoreBar(val, max) {
+  function scoreBar(val, max, color) {
     const pct = Math.min(100, Math.round((val / max) * 100));
-    return `<div style="background:rgba(255,255,255,0.08);border-radius:100px;height:8px;width:100%;margin-top:6px;">
-      <div style="background:${accent};border-radius:100px;height:8px;width:${pct}%;"></div></div>`;
+    return `<div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
   }
 
+  function extractEmailBody(html) {
+    if (!html || typeof html !== 'string') return '';
+    const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    return m ? m[1] : html;
+  }
+
+  const emailBodyHtml = extractEmailBody(rebuiltEmailHtml);
+
+  /* ─── BEFORE TAB ────────────────────────────────────────────────── */
   const beforeTab = `
-<div class="tab-content active" id="tab-before">
-  <div class="section-card">
-    <div class="section-title">Original Subject Line</div>
-    <div class="subject-box original">${esc(originalSubject)}</div>
+<div class="tab-panel" id="tab-before">
+
+  <div class="card">
+    <div class="card-label">Original Subject Line</div>
+    <div class="subject-orig">${esc(originalSubject)}</div>
   </div>
-  <div class="section-card">
-    <div class="section-title">Original Email Body</div>
-    <div class="body-text">${esc(originalBody || '').replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')}</div>
+
+  <div class="card">
+    <div class="card-label">Original Email Body</div>
+    <div class="orig-body">${esc(originalBody || '').replace(/\n{2,}/g,'</p><p class="ob-p">').replace(/\n/g,'<br>')}</div>
   </div>
-  ${imgsArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Original Images</div>
-    ${imgsArr.map(img => `<img src="${img.url}" alt="${esc(img.alt)}" style="max-width:100%;max-height:400px;object-fit:contain;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
+
+  ${imgsArr.length || gifsArr.length ? `
+  <div class="card">
+    <div class="card-label">Product Images (${imgsArr.length + gifsArr.length})</div>
+    <div class="img-grid">
+      ${[...imgsArr, ...gifsArr].map(img => `<img src="${img.url}" alt="${esc(img.alt || '')}" class="prod-img" loading="lazy">`).join('')}
+    </div>
   </div>` : ''}
-  ${gifsArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Original GIFs</div>
-    ${gifsArr.map(gif => `<img src="${gif.url}" alt="${esc(gif.alt)}" style="max-width:100%;max-height:400px;object-fit:contain;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
-  </div>` : ''}
+
   ${tablesArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Original Tables</div>
-    ${tablesArr.map(t => `<div style="overflow-x:auto;margin:12px 0">${t.html}</div>`).join('')}
+  <div class="card">
+    <div class="card-label">Original Tables</div>
+    ${tablesArr.map(t => `<div class="tbl-wrap">${t.html}</div>`).join('')}
   </div>` : ''}
+
   ${flagsArr.length ? `
-  <div class="section-card">
-    <div class="section-title">❌ Issues Found (${flagsArr.length})</div>
-    <div class="flags-list">
+  <div class="card">
+    <div class="card-label">Issues Found &mdash; ${flagsArr.length}</div>
+    <div class="flags">
       ${flagsArr.map(f => {
-        const text = typeof f === 'string' ? f : (f.issue || f.title || JSON.stringify(f));
-        return `<div class="flag-item"><span class="flag-icon">❌</span><span>${esc(text)}</span></div>`;
+        const txt = typeof f === 'string' ? f : (f.issue || f.title || JSON.stringify(f));
+        return `<div class="flag-row"><span class="flag-x">✕</span><span>${esc(txt)}</span></div>`;
       }).join('')}
     </div>
   </div>` : ''}
+
 </div>`;
 
+  /* ─── AFTER TAB ─────────────────────────────────────────────────── */
   const afterTab = `
-<div class="tab-content" id="tab-after">
-  <div class="section-card">
-    <div class="section-title">✅ Rebuilt Subject Line</div>
-    <div class="subject-box rebuilt" style="border-color:${accent};">${esc(rebuiltSubject)}</div>
-    ${previewText ? `<div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px;font-style:italic;">Preview text: ${esc(previewText)}</div>` : ''}
+<div class="tab-panel" id="tab-after" style="display:none">
+
+  <div class="card">
+    <div class="card-label">Rebuilt Subject Line</div>
+    <div class="subject-rebuilt" style="border-color:${accent};background:${accent}14;">${esc(rebuiltSubject)}</div>
+    ${previewText ? `<div class="preview-text">Preview: ${esc(previewText)}</div>` : ''}
   </div>
-  ${hookHeadline ? `
-  <div class="section-card">
-    <div class="section-title">Hook</div>
-    <div class="hook-card">
-      <div class="hook-headline">${esc(hookHeadline)}</div>
-      ${hookLead ? `<div class="hook-lead">${mdToHtml(hookLead)}</div>` : ''}
-    </div>
-  </div>` : ''}
-  ${bodyParaArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Rebuilt Body</div>
-    ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-label">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`}</div><p>${mdToHtml(p)}</p></div>`).join('')}
-  </div>` : ''}
-  ${featureCardsArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Feature Cards</div>
-    ${featureCardsArr.map(card => `
-    <div class="fc">
-      <div class="fc-top">
-        <div class="fc-lbl">${esc(card.title || '')}</div>
-        <div class="fc-txt">${mdToHtml(card.body || '')}</div>
+
+  ${emailBodyHtml ? `
+  <div class="card email-card">
+    <div class="card-label">Rebuilt Newsletter</div>
+    <div class="email-shell">
+      <div class="email-frame">
+        ${emailBodyHtml}
       </div>
-      ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;display:block;border-radius:0 0 8px 8px" alt="${esc(card.title || '')}">` : ''}
-    </div>`).join('')}
-  </div>` : ''}
-  ${ctaText ? `
-  <div class="section-card">
-    <div class="section-title">CTA</div>
-    <div style="text-align:center;padding:16px 0;">
-      <a href="${esc(ctaUrl || '#')}" style="display:inline-block;padding:14px 36px;background:${accent};color:#0a0f1e;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;">${esc(ctaText)}</a>
     </div>
-  </div>` : ''}
-  ${(origScore || rebScore) ? `
-  <div class="section-card">
-    <div class="section-title">Conversion Score</div>
-    <div class="scores-grid">
+  </div>` : (hookHeadline || bodyParaArr.length ? `
+  <div class="card">
+    <div class="card-label">Rebuilt Content</div>
+    ${hookHeadline ? `<div class="hook-headline">${esc(hookHeadline)}</div>` : ''}
+    ${hookLead ? `<div class="hook-lead">${mdToHtml(hookLead)}</div>` : ''}
+    ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-lbl">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i]||`P${i+1}`}</div><p>${mdToHtml(p)}</p></div>`).join('')}
+  </div>` : '')}
+
+  ${origScore || rebScore ? `
+  <div class="card">
+    <div class="card-label">Conversion Score</div>
+    <div class="score-grid">
       <div class="score-col">
-        <div class="score-label">Original</div>
-        <div class="score-num" style="color:rgba(255,255,255,0.5);">${origScore}<span class="score-denom">/10</span></div>
-        ${scoreBar(origScore, 10)}
+        <div class="score-head">Original</div>
+        <div class="score-num muted">${origScore}<span class="score-den">/10</span></div>
+        ${scoreBar(origScore, 10, 'rgba(255,255,255,0.25)')}
       </div>
       <div class="score-col">
-        <div class="score-label" style="color:${accent};">Rebuilt</div>
-        <div class="score-num" style="color:${accent};">${rebScore}<span class="score-denom">/10</span></div>
-        ${scoreBar(rebScore, 10)}
+        <div class="score-head" style="color:${accent};">Strategic Flow</div>
+        <div class="score-num" style="color:${accent};">${rebScore}<span class="score-den">/10</span></div>
+        ${scoreBar(rebScore, 10, accent)}
       </div>
     </div>
-    ${scoreImprv > 0 ? `<div style="text-align:center;margin-top:12px;font-size:13px;color:${accent};font-weight:600;">+${scoreImprv} point improvement</div>` : ''}
-    ${scoreReason ? `<div style="font-size:13px;color:rgba(255,255,255,0.55);margin-top:10px;line-height:1.5;">${esc(scoreReason)}</div>` : ''}
+    ${scoreImprv > 0 ? `<div class="score-delta" style="color:${accent};">+${scoreImprv} point improvement</div>` : ''}
+    ${scoreReason ? `<div class="score-reason">${esc(scoreReason)}</div>` : ''}
   </div>` : ''}
+
   ${abArr.length ? `
-  <div class="section-card">
-    <div class="section-title">A/B Subject Variants</div>
+  <div class="card">
+    <div class="card-label">A/B Subject Variants</div>
     ${abArr.map(v => `
     <div class="ab-card">
       <div class="ab-subject">${esc(v.subject || '')}</div>
       <div class="ab-meta">
-        <span class="ab-angle">${esc(v.angle || '')}</span>
+        ${v.angle ? `<span class="ab-angle">${esc(v.angle)}</span>` : ''}
         ${v.predicted_lift ? `<span class="ab-lift" style="color:${accent};">↑ ${esc(v.predicted_lift)}</span>` : ''}
       </div>
       ${v.reasoning ? `<div class="ab-reason">${esc(v.reasoning)}</div>` : ''}
     </div>`).join('')}
   </div>` : ''}
+
   ${calArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Follow-up Calendar</div>
+  <div class="card">
+    <div class="card-label">30-Day Content Calendar</div>
     ${calArr.map((c, i) => `
     <div class="cal-card">
-      <div class="cal-week" style="color:${accent};">Week ${i+1}${c.timing ? ` · ${esc(c.timing)}` : ''}</div>
+      <div class="cal-week" style="color:${accent};">Week ${i + 1}${c.timing ? ` &middot; ${esc(c.timing)}` : ''}</div>
       <div class="cal-subject">${esc(c.subject_line || c.topic || '')}</div>
       ${c.why_now ? `<div class="cal-why">${esc(c.why_now)}</div>` : ''}
     </div>`).join('')}
   </div>` : ''}
+
 </div>`;
 
-  const whatChangedTab = `
-<div class="tab-content" id="tab-changed">
-  ${changedArr.length ? `
-  <div class="section-card">
-    <div class="section-title">Strategic Upgrades</div>
-    ${changedArr.map((item, i) => `
-    <div class="upgrade-card">
-      <div class="upgrade-num" style="background:${accent};color:#0a0f1e;">${i + 1}</div>
-      <div class="upgrade-body">
-        <div class="upgrade-title">${esc(item.title || item)}</div>
-        ${item.body ? `<div class="upgrade-desc">${esc(item.body)}</div>` : ''}
-      </div>
-    </div>`).join('')}
-  </div>` : `
-  <div class="section-card">
-    <div style="color:rgba(255,255,255,0.45);font-size:14px;">Strategic upgrade details unavailable for this audit.</div>
+  /* ─── WHAT CHANGED TAB ──────────────────────────────────────────── */
+  const changedTab = `
+<div class="tab-panel" id="tab-changed" style="display:none">
+
+  ${changedArr.length ? changedArr.map((item, i) => `
+  <div class="change-card">
+    <div class="ch-num" style="background:${accent};color:#07090f;">${i + 1}</div>
+    <div class="ch-body-wrap">
+      <div class="ch-title">${esc(item.title || item)}</div>
+      ${item.body ? `<div class="ch-body">${esc(item.body)}</div>` : ''}
+    </div>
+  </div>`).join('') : `
+  <div class="card" style="color:rgba(255,255,255,0.4);font-size:14px;">
+    Strategic upgrade details unavailable for this audit.
   </div>`}
-  <div class="section-card methodology">
-    <div class="section-title">Strategic Flow Methodology</div>
-    <p>Every rebuild follows the same 5-criterion framework: subject curiosity, hook strength, feature-to-outcome translation, social proof specificity, and CTA ownership language.</p>
-    <p>Each criterion is scored 0-2 points for a max of 10. Rebuilds target a minimum of 8/10 before delivery.</p>
+
+  <div class="card methodology-card">
+    <div class="card-label">Strategic Flow Methodology</div>
+    <p class="meth-p">Every rebuild follows the same 5-criterion framework: subject curiosity, hook strength, feature-to-outcome translation, social proof specificity, and CTA ownership language.</p>
+    <p class="meth-p">Each criterion is scored 0&ndash;2 points for a maximum of 10. Rebuilds target a minimum of 8/10 before delivery.</p>
   </div>
-  <div class="cta-card">
-    <h2>This is a free preview.</h2>
-    <p>Want A/B subject lines, audience segments &amp; content calendar for every send?</p>
-    <a href="https://strategic-flow-pro.replit.app">See Pro Plans &rarr;</a>
+
+  <div class="upgrade-cta">
+    <h2 class="ucta-h">This is a free preview.</h2>
+    <p class="ucta-p">Want full A/B subject lines, audience segments &amp; content calendar for every send?</p>
+    <a href="https://strategic-flow-audit.replit.app" class="ucta-btn" style="background:${accent};color:#07090f;">See Pro Plans &rarr;</a>
   </div>
+
 </div>`;
 
+  /* ─── FULL HTML ─────────────────────────────────────────────────── */
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Strategic Flow &mdash; ${esc(companyName)} Showcase</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Strategic Flow &mdash; ${esc(companyName)} Audit</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0f1e;color:#fff;min-height:100vh;line-height:1.6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:${BG};color:#fff;min-height:100vh;line-height:1.6}
 a{color:${accent}}
-.header{background:linear-gradient(135deg,#0f1729 0%,#0a0f1e 100%);border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0}
-.header-inner{max-width:900px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-logo{width:36px;height:36px;object-fit:contain;border-radius:6px}
-.brand-name{font-size:18px;font-weight:800;color:#fff}
-.brand-name span{color:${accent}}
-.company-tag{font-size:13px;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.06);padding:4px 12px;border-radius:100px;border:1px solid rgba(255,255,255,0.1)}
-.main{max-width:900px;margin:0 auto;padding:32px 24px 64px}
-.page-title{font-size:28px;font-weight:900;margin-bottom:6px}
-.page-title span{color:${accent}}
-.page-sub{font-size:14px;color:rgba(255,255,255,0.45);margin-bottom:32px}
-${sourceUrl ? `.source-link{font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:32px;display:block}.source-link a{color:${accent}}` : ''}
-.tabs{display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:28px}
-.tab-btn{padding:10px 20px;font-size:14px;font-weight:600;color:rgba(255,255,255,0.45);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;margin-bottom:-1px}
-.tab-btn:hover{color:rgba(255,255,255,0.8)}
+/* ── Header ── */
+.hdr{background:#09111e;border-bottom:1px solid ${BORDER};padding:18px 0}
+.hdr-inner{max-width:960px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:32px;height:32px;object-fit:contain;border-radius:6px}
+.brand-name{font-size:17px;font-weight:800;color:#fff}
+.brand-name em{color:${accent};font-style:normal}
+.company-tag{font-size:12px;color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.05);padding:4px 12px;border-radius:100px;border:1px solid ${BORDER};white-space:nowrap}
+/* ── Layout ── */
+.main{max-width:960px;margin:0 auto;padding:36px 24px 80px}
+.page-title{font-size:30px;font-weight:900;margin-bottom:4px}
+.page-title em{color:${accent};font-style:normal}
+.page-meta{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:28px}
+.src-link{font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:24px;display:block}
+.src-link a{color:${accent};text-decoration:none}
+/* ── Tabs ── */
+.tabs{display:flex;gap:2px;border-bottom:1px solid ${BORDER};margin-bottom:28px;overflow-x:auto}
+.tab-btn{padding:10px 22px;font-size:13px;font-weight:600;color:rgba(255,255,255,0.4);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px;white-space:nowrap;transition:color .15s,border-color .15s}
+.tab-btn:hover{color:rgba(255,255,255,0.75)}
 .tab-btn.active{color:${accent};border-bottom-color:${accent}}
-.tab-content{display:none}
-.tab-content.active{display:block}
-.section-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin-bottom:20px}
-.section-title{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:14px}
-.subject-box{font-size:20px;font-weight:800;padding:16px 20px;border-radius:8px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);line-height:1.3}
-.subject-box.rebuilt{border-color:${accent};background:${accent}18}
-.body-text{font-size:14px;color:rgba(255,255,255,0.7);line-height:1.7;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto}
-.body-text p{margin-bottom:12px}
-.flags-list{display:flex;flex-direction:column;gap:10px}
-.flag-item{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:rgba(255,255,255,0.7);padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px}
-.flag-icon{flex-shrink:0;font-size:16px}
-.hook-card{padding:16px;background:${accent}12;border-radius:8px;border-left:3px solid ${accent}}
-.hook-headline{font-size:18px;font-weight:800;margin-bottom:8px;color:#fff}
-.hook-lead{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6}
-.body-para{margin-bottom:16px;padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:2px solid rgba(255,255,255,0.1)}
+/* ── Card ── */
+.card{background:${CARD_BG};border:1px solid ${BORDER};border-radius:14px;padding:24px;margin-bottom:18px}
+.card-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:14px}
+/* ── Before ── */
+.subject-orig{font-size:19px;font-weight:800;padding:14px 18px;border-radius:8px;border:2px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);line-height:1.3}
+.orig-body{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.75;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow-y:auto}
+.orig-body p,.ob-p{margin-bottom:10px}
+.img-grid{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.prod-img{max-width:100%;max-height:380px;object-fit:contain;border-radius:8px;display:block}
+.tbl-wrap{overflow-x:auto;margin-top:10px;font-size:13px;color:rgba(255,255,255,0.7)}
+.flags{display:flex;flex-direction:column;gap:8px}
+.flag-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:rgba(255,255,255,0.65);background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:8px;padding:10px 14px}
+.flag-x{color:#ef4444;flex-shrink:0;font-weight:700;font-size:11px;margin-top:2px}
+/* ── After ── */
+.subject-rebuilt{font-size:19px;font-weight:800;padding:14px 18px;border-radius:8px;border:2px solid;line-height:1.3}
+.preview-text{font-size:12px;color:rgba(255,255,255,0.38);margin-top:8px;font-style:italic}
+.email-card{padding:20px}
+.email-shell{background:#f0f0f0;border-radius:10px;padding:20px;overflow-x:auto}
+.email-frame{background:#ffffff;max-width:640px;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
+.hook-headline{font-size:20px;font-weight:800;margin-bottom:10px;color:#fff}
+.hook-lead{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.65;margin-bottom:16px}
+.body-para{margin-bottom:14px;padding:12px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:2px solid rgba(255,255,255,0.1)}
 .body-para:last-child{margin-bottom:0}
-.para-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${accent};margin-bottom:6px}
+.para-lbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${accent};margin-bottom:5px}
 .body-para p{font-size:14px;color:rgba(255,255,255,0.75);line-height:1.6}
-.scores-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .score-col{text-align:center;padding:16px;background:rgba(255,255,255,0.04);border-radius:10px}
-.score-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px}
-.score-num{font-size:42px;font-weight:900;line-height:1}
-.score-denom{font-size:18px;font-weight:600;opacity:0.6}
-.ab-card{padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid rgba(255,255,255,0.08);margin-bottom:10px}
+.score-head{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.38);margin-bottom:8px}
+.score-num{font-size:44px;font-weight:900;line-height:1}
+.score-num.muted{color:rgba(255,255,255,0.4)}
+.score-den{font-size:18px;opacity:0.55;font-weight:600}
+.score-bar-track{background:rgba(255,255,255,0.07);border-radius:100px;height:6px;width:100%;margin-top:10px}
+.score-bar-fill{height:6px;border-radius:100px;transition:width .4s}
+.score-delta{text-align:center;margin-top:12px;font-size:13px;font-weight:700}
+.score-reason{font-size:13px;color:rgba(255,255,255,0.45);margin-top:10px;line-height:1.55}
+.ab-card{padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid ${BORDER};border-radius:10px;margin-bottom:10px}
 .ab-card:last-child{margin-bottom:0}
-.ab-subject{font-size:15px;font-weight:700;margin-bottom:8px}
-.ab-meta{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.ab-angle{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.07);padding:2px 8px;border-radius:4px}
+.ab-subject{font-size:15px;font-weight:700;margin-bottom:8px;color:#fff}
+.ab-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ab-angle{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px}
 .ab-lift{font-size:13px;font-weight:700}
-.ab-reason{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5}
-.cal-card{padding:14px 16px;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid rgba(255,255,255,0.08);margin-bottom:10px}
+.ab-reason{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.5}
+.cal-card{padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid ${BORDER};border-radius:10px;margin-bottom:10px}
 .cal-card:last-child{margin-bottom:0}
-.cal-week{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px}
-.cal-subject{font-size:15px;font-weight:700;margin-bottom:6px}
-.cal-why{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5}
-.upgrade-card{display:flex;align-items:flex-start;gap:14px;padding:16px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:12px}
-.upgrade-card:last-child{margin-bottom:0}
-.upgrade-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-top:2px}
-.upgrade-body{flex:1}
-.upgrade-title{font-size:15px;font-weight:700;margin-bottom:6px}
-.upgrade-desc{font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6}
-.methodology{border-left:3px solid rgba(255,255,255,0.15)}
-.methodology p{font-size:13px;color:rgba(255,255,255,0.55);line-height:1.65;margin-bottom:10px}
-.methodology p:last-child{margin-bottom:0}
-.fc{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;margin-bottom:12px}
-.fc:last-child{margin-bottom:0}
-.fc-top{padding:14px 16px}
-.fc-lbl{font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:${accent};margin-bottom:6px}
-.fc-txt{font-size:14px;color:rgba(255,255,255,0.75);line-height:1.6}
-.cta-card{background:${accent}0e;border:2px solid ${accent};border-radius:16px;padding:40px 32px;text-align:center;margin:32px 0}
-.cta-card h2{font-size:24px;font-weight:900;color:#fff;margin:0 0 12px}
-.cta-card p{font-size:15px;color:rgba(255,255,255,0.6);margin:0 0 24px;line-height:1.6}
-.cta-card a{display:inline-block;padding:14px 32px;background:${accent};color:#0a0f1e;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;letter-spacing:0.3px}
-.footer{text-align:center;padding:32px 24px;border-top:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.25);font-size:12px}
-.footer a{color:${accent};text-decoration:none}
-@media(max-width:600px){.scores-grid{grid-template-columns:1fr}.tabs{overflow-x:auto}.tab-btn{padding:10px 14px;font-size:13px}.page-title{font-size:22px}}
+.cal-week{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px}
+.cal-subject{font-size:15px;font-weight:700;color:#fff;margin-bottom:5px}
+.cal-why{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.5}
+/* ── What Changed ── */
+.change-card{display:flex;align-items:flex-start;gap:14px;background:${CARD_BG};border:1px solid ${BORDER};border-radius:14px;padding:20px 22px;margin-bottom:14px}
+.ch-num{flex-shrink:0;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-top:1px}
+.ch-body-wrap{flex:1}
+.ch-title{font-size:15px;font-weight:800;margin-bottom:6px;color:#fff}
+.ch-body{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65}
+.methodology-card{border-left:3px solid rgba(255,255,255,0.12)}
+.meth-p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:10px}
+.meth-p:last-child{margin-bottom:0}
+.upgrade-cta{background:${accent}0d;border:2px solid ${accent};border-radius:16px;padding:40px 32px;text-align:center;margin:28px 0}
+.ucta-h{font-size:24px;font-weight:900;color:#fff;margin-bottom:12px}
+.ucta-p{font-size:15px;color:rgba(255,255,255,0.55);margin-bottom:24px;line-height:1.6}
+.ucta-btn{display:inline-block;padding:14px 32px;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;letter-spacing:.3px}
+/* ── Footer ── */
+.ftr{text-align:center;padding:28px 24px;border-top:1px solid ${BORDER};color:rgba(255,255,255,0.2);font-size:12px}
+.ftr a{color:${accent};text-decoration:none}
+/* ── Responsive ── */
+@media(max-width:620px){
+  .score-grid{grid-template-columns:1fr}
+  .tabs{overflow-x:auto}
+  .tab-btn{padding:10px 14px;font-size:12px}
+  .page-title{font-size:22px}
+  .email-shell{padding:10px}
+}
 </style>
 </head>
 <body>
-<header class="header">
-  <div class="header-inner">
+
+<header class="hdr">
+  <div class="hdr-inner">
     <div class="brand">
       ${logoUrl ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" class="brand-logo">` : ''}
-      <span class="brand-name">Strategic<span>Flow</span></span>
+      <span class="brand-name">Strategic<em>Flow</em></span>
     </div>
-    <span class="company-tag">${esc(companyName)} &mdash; Newsletter Teardown</span>
+    <span class="company-tag">${esc(companyName)} &mdash; Email Audit</span>
   </div>
 </header>
+
 <main class="main">
-  <h1 class="page-title">Newsletter <span>Teardown</span></h1>
-  <p class="page-sub">Audit generated by Strategic Flow &mdash; ${new Date().toLocaleDateString('en-US', {month:'long',day:'numeric',year:'numeric'})}</p>
-  ${sourceUrl ? `<a href="${esc(sourceUrl)}" target="_blank" class="source-link">Source: <a href="${esc(sourceUrl)}" style="color:${accent}">${esc(sourceUrl)}</a></a>` : ''}
+  <h1 class="page-title">Email <em>Teardown</em></h1>
+  <p class="page-meta">Audit by Strategic Flow &mdash; ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
+  ${sourceUrl ? `<span class="src-link">Source: <a href="${esc(sourceUrl)}" target="_blank" rel="noopener">${esc(sourceUrl)}</a></span>` : ''}
+
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('before',this)">Before</button>
-    <button class="tab-btn" onclick="switchTab('after',this)">After</button>
-    <button class="tab-btn" onclick="switchTab('changed',this)">What Changed</button>
+    <button class="tab-btn active" onclick="show('before',this)">Before</button>
+    <button class="tab-btn" onclick="show('after',this)">After &mdash; Strategic Flow</button>
+    <button class="tab-btn" onclick="show('changed',this)">What Changed &amp; Why</button>
   </div>
+
   ${beforeTab}
   ${afterTab}
-  ${whatChangedTab}
+  ${changedTab}
 </main>
-<footer class="footer">
-  Rebuilt by <a href="https://strategic-flow-pro.replit.app" target="_blank">Strategic Flow</a> &mdash; the conversion email platform for B2B newsletters.
+
+<footer class="ftr">
+  Rebuilt by <a href="https://strategic-flow-audit.replit.app" target="_blank" rel="noopener">Strategic Flow</a> &mdash; conversion email platform for B2B newsletters.
 </footer>
+
 <script>
-function switchTab(id, btn) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById('tab-' + id).classList.add('active');
+function show(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(function(el){ el.style.display='none'; });
+  document.querySelectorAll('.tab-btn').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById('tab-' + id).style.display = '';
   btn.classList.add('active');
 }
 </script>

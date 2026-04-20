@@ -2465,9 +2465,10 @@ async function handleGenerate(req, res) {
         abSubjects:     result.ab_subjects  || [],
         contentCalendar: result.follow_ups  || [],
         whatChanged:    result.whatChanged  || [],
-        originalImages: _imgs,
-        originalGifs:   _gifs,
-        originalTables: _tbls
+        originalImages:  _imgs,
+        originalGifs:    _gifs,
+        originalTables:  _tbls,
+        rebuiltEmailHtml: downloadHtml
       });
     } catch (_se) { console.error('[showcase-gen]', _se.message); }
 
