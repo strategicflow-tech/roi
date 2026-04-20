@@ -930,32 +930,44 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const _bTheme  = brandDNA?.theme || 'light';
   const _isDark  = _bTheme === 'dark' || brandDNA?.isDarkTheme === true;
   let isLightBrand = !_isDark;
-  // Force light theme when the primary color is visually light/pastel (e.g. Mailsuite's mint green).
-  // Light primaries (HSL lightness > 60%) on a dark background are illegible — always use white bg.
+
+  // List-based light-brand override: known light primary colors always use white backgrounds
+  const isBrandLight = (hex) => {
+    const c = (hex || '').replace('#', '').toLowerCase();
+    return ['3df2b6','4fe0b0','f8a21f','00b67a','ff6b35'].some(x => c.includes(x));
+  };
+  if (isBrandLight(primaryColor)) isLightBrand = true;
+
+  // HSL-based override: pastel primaries (L > 60%) also get white backgrounds
   try {
     const _primaryHSL = hexToHSL(primaryColor);
     if (_primaryHSL.l > 60) isLightBrand = true;
   } catch (_) {}
 
-  const bgColor      = isLightBrand ? '#f5f5f5'  : '#0a0a0a';
-  const containerBg  = isLightBrand ? '#ffffff'   : '#111111';
-  const textColor    = isLightBrand ? '#1a1a18'   : '#e0e0e0';
-  const mutedText    = isLightBrand ? '#555555'   : '#999999';
-  const cardBg       = isLightBrand ? '#f0f0f0'   : '#1e1e1e';
-  const dividerColor = isLightBrand ? '#e0e0e0'   : '#2a2a2a';
+  const emailBg         = isLightBrand ? '#ffffff'               : '#111111';
+  const emailHeaderBg   = isLightBrand ? '#ffffff'               : '#0a0a0a';
+  const emailTextColor  = isLightBrand ? '#1a1a18'               : '#ffffff';
+  const emailMutedColor = isLightBrand ? '#6b6b66'               : 'rgba(255,255,255,0.65)';
+
+  const bgColor      = emailBg;
+  const containerBg  = emailHeaderBg;
+  const textColor    = emailTextColor;
+  const mutedText    = emailMutedColor;
+  const cardBg       = isLightBrand ? '#f0f0f0'              : '#1e1e1e';
+  const dividerColor = isLightBrand ? '#e0e0e0'              : '#2a2a2a';
   // Header band: light brands use their primary color as accent strip
   const headerBg   = primaryColor;
   const headerText = primaryText;
-  const footerBg   = isLightBrand ? '#eeeeee'   : '#0d0d0d';
+  const footerBg   = isLightBrand ? '#eeeeee'                : '#0d0d0d';
   // Derived adaptive tokens for v2 template (dark vs light readable equivalents)
-  const borderMuted   = isLightBrand ? 'rgba(0,0,0,0.10)'  : 'rgba(255,255,255,0.10)';
-  const borderStrong  = isLightBrand ? 'rgba(0,0,0,0.08)'  : 'rgba(255,255,255,0.08)';
-  const textStrong    = isLightBrand ? textColor            : '#ffffff';
-  const textMedium    = isLightBrand ? mutedText            : 'rgba(255,255,255,0.65)';
-  const textBody      = isLightBrand ? textColor            : 'rgba(255,255,255,0.85)';
-  const footerOverlay = isLightBrand ? 'rgba(0,0,0,0.03)'  : 'rgba(0,0,0,0.25)';
-  const footerTxtMuted = isLightBrand ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.35)';
-  const footerTxtDim   = isLightBrand ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.20)';
+  const borderMuted   = isLightBrand ? 'rgba(0,0,0,0.10)'   : 'rgba(255,255,255,0.10)';
+  const borderStrong  = isLightBrand ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.08)';
+  const textStrong    = isLightBrand ? textColor             : '#ffffff';
+  const textMedium    = isLightBrand ? mutedText             : 'rgba(255,255,255,0.65)';
+  const textBody      = isLightBrand ? textColor             : 'rgba(255,255,255,0.85)';
+  const footerOverlay = isLightBrand ? 'rgba(0,0,0,0.03)'   : 'rgba(0,0,0,0.25)';
+  const footerTxtMuted = isLightBrand ? 'rgba(0,0,0,0.40)'  : 'rgba(255,255,255,0.35)';
+  const footerTxtDim   = isLightBrand ? 'rgba(0,0,0,0.25)'  : 'rgba(255,255,255,0.20)';
 
   // Logo: icon (36×36, rounded) beside brand name text — always shows name for readability.
   // apple-touch-icon / PNG favicon → img; nothing found → name only.
@@ -2125,13 +2137,34 @@ async function handleGenerate(req, res) {
     }
     // ── END PROMO GRID BYPASS ─────────────────────────────────────────────────
 
+    // Extract visual assets before the Claude call so they can be injected into the prompt
+    // for product_update emails. Also used later for hero image + showcase.
+    const { images: _pageImgs, gifs: _pageGifs, tables: _tbls } = (() => {
+      try { return extractVisualAssets(_pageRawHtml, pageUrl || ''); }
+      catch (_) { return { images: [], gifs: [], tables: [] }; }
+    })();
+    const { images: _bodyImgs, gifs: _bodyGifs } = (() => {
+      try { return extractVisualAssets(body || '', pageUrl || ''); }
+      catch (_) { return { images: [], gifs: [] }; }
+    })();
+    // Merge: page assets first, then body assets not already present (dedup by URL)
+    const _isProductImg = u => u && !/logo|typelogo|symbol|favicon|avatar|gravatar|icon|badge|youtube|youtu\.be/i.test(u);
+    const _imgs = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
+    const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
+
     // ── PROMPT DISPATCH: single Claude rebuild call ──────────────────────────────
     let result;
     if (promoGridResult) {
       result = promoGridResult;
     } else {
       const priorExamples = await getIndustryExamples(effectiveBrandDNA?.industry || null);
-      const prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis: { weaknesses: [], directives: [] } });
+      let prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis: { weaknesses: [], directives: [] } });
+      // For product_update/announcement emails, inject feature card instructions + image list
+      const _isProductEmailType = /product.?update|product.?announcement|feature.?launch/i.test(detectedType || '');
+      if (_isProductEmailType) {
+        const _pImgList = _imgs.filter(img => _isProductImg(img.url)).map(i => i.url).slice(0, 6).join('\n');
+        prompt += `\n\nPRODUCT UPDATE INSTRUCTION — MANDATORY: Return a "featureCards" array in your JSON:\n"featureCards":[{"title":"FEATURE NAME — max 4 words","body":"one outcome sentence for this feature","imageUrl":"pick one URL from the list below or null"}]\nAvailable product image URLs:\n${_pImgList || 'none'}\nFor product_update type, featureCards replaces the body[] paragraphs — do not also return a body array.`;
+      }
       if (!effectiveBrandDNA) {
         // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
         const slug = (company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -2364,21 +2397,6 @@ async function handleGenerate(req, res) {
         || knownUrl
         || 'https://strategic-flow-audit.replit.app');
 
-    // Extract visual assets early so productImages is available for the hero image fallback
-    // (before buildNewsletterHTML, which uses the first product image when og:image is absent)
-    // Extract from page rawHtml AND from the email body (covers pasted HTML email case).
-    const { images: _pageImgs, gifs: _pageGifs, tables: _tbls } = (() => {
-      try { return extractVisualAssets(_pageRawHtml, pageUrl || ''); }
-      catch (_) { return { images: [], gifs: [], tables: [] }; }
-    })();
-    const { images: _bodyImgs, gifs: _bodyGifs } = (() => {
-      try { return extractVisualAssets(body || '', pageUrl || ''); }
-      catch (_) { return { images: [], gifs: [] }; }
-    })();
-    // Merge: page assets first, then body assets not already present (dedup by URL)
-    const _imgs = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
-    const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
-
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
@@ -2451,7 +2469,7 @@ async function handleGenerate(req, res) {
         logoUrl:        effectiveBrandDNA?.logoUrl || '',
         sourceUrl:      pageUrl || '',
         originalSubject: subject || '',
-        originalBody:   _pastedBody || body || '',
+        originalBody:   (() => { const _ob = _pastedBody || body || ''; return _ob.length > 600 ? _ob.slice(0, 600) + '...' : _ob; })(),
         rebuiltSubject: result.rebuilt_subject || '',
         previewText:    result.preheader || result._flatFields?.preheader || '',
         hookHeadline:   result.headline  || result._flatFields?.headline  || '',
@@ -2494,7 +2512,8 @@ async function handleGenerate(req, res) {
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: body });
+    const _origBodyClient = body.length > 600 ? body.slice(0, 600) + '...' : body;
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient });
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
