@@ -687,6 +687,7 @@ textarea{resize:vertical;line-height:1.7;}
           <button class="btn btn-secondary btn-sm" onclick="downloadHTML()">↓ Download HTML</button>
           <button class="btn btn-secondary btn-sm" onclick="downloadAuditReport()">↓ Download Audit</button>
           <button id="showcaseBtn" class="btn btn-secondary btn-sm" style="display:none;" onclick="generateShowcase()">✨ Showcase</button>
+          <button id="downloadShowcaseBtn" class="btn btn-secondary btn-sm" style="display:none;" onclick="downloadShowcase()">↓ Showcase HTML</button>
           <button id="downloadNewsletterBtn" class="btn btn-secondary btn-sm" style="display:none;" onclick="downloadRebuiltNewsletter()">↓ Newsletter HTML</button>
           <button class="btn btn-ghost btn-sm" onclick="restart()">← New Rebuild</button>
         </div>
@@ -948,6 +949,7 @@ let currentCompany = '', currentOrigSubject = '', currentOrigBody = '';
 let currentResult = null, currentBrandDNA = null, currentVoiceProfile = null;
 let uploadedHtmlBrandDNA = null;
 let downloadHtmlContent = '';
+let showcaseHtmlContent = '';
 let selectedAdminTier = 'high_impact';
 
 const ADMIN_TIER_COLORS = { lite: '#3b82f6', growth: '#00d4c8', high_impact: '#10b981' };
@@ -1065,7 +1067,9 @@ function resetState() {
   downloadHtmlContent='';
   window.lastAuditInput = null;
   window.lastAuditResult = null;
-  const _sb = document.getElementById('showcaseBtn'); if (_sb) _sb.style.display = 'none';
+  showcaseHtmlContent = '';
+  const _sb  = document.getElementById('showcaseBtn');          if (_sb)  _sb.style.display  = 'none';
+  const _dsb = document.getElementById('downloadShowcaseBtn');  if (_dsb) _dsb.style.display = 'none';
   const _dnb = document.getElementById('downloadNewsletterBtn'); if (_dnb) _dnb.style.display = 'none';
   // Reset HTML upload UI
   const uploadTxt = document.getElementById('htmlUploadText');
@@ -1321,7 +1325,9 @@ async function submitGenerate() {
 
     window.lastAuditInput = { emailBody: currentOrigBody, brandName: currentCompany };
     window.lastAuditResult = { ...gen, newsletterHtml: gen.downloadHtml || '' };
+    showcaseHtmlContent = gen.showcaseHtml || '';
     document.getElementById('showcaseBtn').style.display = 'inline-block';
+    if (showcaseHtmlContent) document.getElementById('downloadShowcaseBtn').style.display = 'inline-block';
     document.getElementById('downloadNewsletterBtn').style.display = 'inline-block';
 
   } catch (e) {
@@ -1942,6 +1948,16 @@ async function api(path, body) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('emailInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
+
+function downloadShowcase() {
+  if (!showcaseHtmlContent) return;
+  const blob = new Blob([showcaseHtmlContent], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `strategic-flow-${(currentCompany||'showcase').replace(/\s+/g,'-').toLowerCase()}-showcase.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 // ─── SHOWCASE ────────────────────────────────────────────────────────────────
 async function generateShowcase() {

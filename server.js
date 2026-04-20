@@ -13,6 +13,7 @@ const {
   getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
+const { generateShowcaseHtml } = require('./showcase-generator.js');
 
 const app    = express();
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -2382,11 +2383,39 @@ async function handleGenerate(req, res) {
     }
     // ── END NUCLEAR STRIP ──────────────────────────────────────────────────────
 
+    // Generate static showcase HTML from audit data (no extra Claude call)
+    let showcaseHtml = '';
+    try {
+      const { primaryColor: _showcaseAccent } = getEmailColors(effectiveBrandDNA);
+      showcaseHtml = generateShowcaseHtml({
+        companyName:    company || 'Your Company',
+        primaryColor:   _showcaseAccent,
+        logoUrl:        effectiveBrandDNA?.logoUrl || '',
+        sourceUrl:      pageUrl || '',
+        originalSubject: subject || '',
+        originalBody:   body || '',
+        rebuiltSubject: result.rebuilt_subject || '',
+        previewText:    result.preheader || result._flatFields?.preheader || '',
+        hookHeadline:   result.headline  || result._flatFields?.headline  || '',
+        hookLead:       result.lead      || result._flatFields?.lead      || '',
+        bodyParagraphs: result.body      || result._flatFields?.body      || [],
+        ctaText:        result.ctaText   || result._flatFields?.ctaText   || '',
+        ctaUrl:         ctaHref || '',
+        originalScore:  result.conversion_score?.original_score || 0,
+        rebuiltScore:   result.conversion_score?.rebuilt_score  || 0,
+        scoreReason:    result.conversion_score?.rebuilt_explanation || '',
+        flags:          result.key_changes  || [],
+        abSubjects:     result.ab_subjects  || [],
+        contentCalendar: result.follow_ups  || [],
+        whatChanged:    result.whatChanged  || []
+      });
+    } catch (_se) { console.error('[showcase-gen]', _se.message); }
+
     // BUG 1 — Send the success response IMMEDIATELY after HTML is built.
     // All side-effect work (DB save, email, notifications) runs AFTER in isolated try/catch
     // blocks so they can never cause "Generation failed" even if they error out.
     let newsletterId = null;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined });
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml });
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
