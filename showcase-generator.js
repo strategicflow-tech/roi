@@ -10,6 +10,12 @@ function generateShowcaseHtml({
   const accent  = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#2dd4bf';
   const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const safeArr = a => Array.isArray(a) ? a : [];
+  const mdToHtml = t => esc(t).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  const PARA_LABELS = new Set(['THE PROBLEM','THE SHIFT','THE CONSEQUENCE','P1','P2','P3','P4','P5']);
+  const isProductImage = url => {
+    const skip = ['logo','favicon','avatar','gravatar','icon','badge','keyboard-shortcuts','typelogo'];
+    return !skip.some(s => url.toLowerCase().includes(s));
+  };
   const origScore  = Number(originalScore) || 0;
   const rebScore   = Number(rebuiltScore)  || 0;
   const scoreImprv = rebScore - origScore;
@@ -19,10 +25,10 @@ function generateShowcaseHtml({
   const calArr      = safeArr(contentCalendar);
   const changedArr      = safeArr(whatChanged);
   const bodyParaArr     = safeArr(bodyParagraphs);
-  const featureCardsArr = safeArr(featureCards);
-  const imgsArr         = safeArr(originalImages);
-  const gifsArr         = safeArr(originalGifs);
   const tablesArr       = safeArr(originalTables);
+  const imgsArr         = safeArr(originalImages).filter(img => isProductImage(img.url));
+  const gifsArr         = safeArr(originalGifs).filter(gif => isProductImage(gif.url));
+  const featureCardsArr = safeArr(featureCards).filter(c => c.title && !PARA_LABELS.has(c.title.trim().toUpperCase()));
 
   function scoreBar(val, max) {
     const pct = Math.min(100, Math.round((val / max) * 100));
@@ -43,12 +49,12 @@ function generateShowcaseHtml({
   ${imgsArr.length ? `
   <div class="section-card">
     <div class="section-title">Original Images</div>
-    ${imgsArr.map(img => `<img src="${img.url}" alt="${esc(img.alt)}" style="width:100%;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
+    ${imgsArr.map(img => `<img src="${img.url}" alt="${esc(img.alt)}" style="max-width:100%;max-height:400px;object-fit:contain;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
   </div>` : ''}
   ${gifsArr.length ? `
   <div class="section-card">
     <div class="section-title">Original GIFs</div>
-    ${gifsArr.map(gif => `<img src="${gif.url}" alt="${esc(gif.alt)}" style="width:100%;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
+    ${gifsArr.map(gif => `<img src="${gif.url}" alt="${esc(gif.alt)}" style="max-width:100%;max-height:400px;object-fit:contain;border-radius:8px;margin:12px 0;display:block" loading="lazy">`).join('')}
   </div>` : ''}
   ${tablesArr.length ? `
   <div class="section-card">
@@ -79,13 +85,13 @@ function generateShowcaseHtml({
     <div class="section-title">Hook</div>
     <div class="hook-card">
       <div class="hook-headline">${esc(hookHeadline)}</div>
-      ${hookLead ? `<div class="hook-lead">${esc(hookLead)}</div>` : ''}
+      ${hookLead ? `<div class="hook-lead">${mdToHtml(hookLead)}</div>` : ''}
     </div>
   </div>` : ''}
   ${bodyParaArr.length ? `
   <div class="section-card">
     <div class="section-title">Rebuilt Body</div>
-    ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-label">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`}</div><p>${esc(p)}</p></div>`).join('')}
+    ${bodyParaArr.map((p, i) => `<div class="body-para"><div class="para-label">${['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`}</div><p>${mdToHtml(p)}</p></div>`).join('')}
   </div>` : ''}
   ${featureCardsArr.length ? `
   <div class="section-card">
@@ -94,7 +100,7 @@ function generateShowcaseHtml({
     <div class="fc">
       <div class="fc-top">
         <div class="fc-lbl">${esc(card.title || '')}</div>
-        <div class="fc-txt">${esc(card.body || '')}</div>
+        <div class="fc-txt">${mdToHtml(card.body || '')}</div>
       </div>
       ${card.imageUrl ? `<img src="${card.imageUrl}" style="width:100%;display:block;border-radius:0 0 8px 8px" alt="${esc(card.title || '')}">` : ''}
     </div>`).join('')}
