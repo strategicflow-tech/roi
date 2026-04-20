@@ -1317,19 +1317,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   if (isNewFormat) {
     // ── V2 TEMPLATE ─────────────────────────────────────────────────────────
     const finalCtaUrl = cleanCTAUrl(p_ctaUrl, ctaHref);
-    const calendarSection = calendarRowsHtml ? `
-        <!-- 30-DAY CONTENT CALENDAR -->
-        <tr>
-          <td style="padding:0 32px 36px;">
-            <div style="border:1px solid rgba(255,255,255,0.10);border-left:4px solid ${primaryColor};border-radius:10px;overflow:hidden;">
-              <div style="padding:16px 20px;background:rgba(255,255,255,0.05);">
-                <div style="font-size:10px;font-weight:800;color:${primaryColor};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">30-Day Content Calendar</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.65);">Follow-up email topics to extend this campaign</div>
-              </div>
-              ${calendarRowsHtml}
-            </div>
-          </td>
-        </tr>` : '';
+    // Calendar belongs only in the audit report and showcase — never in the newsletter HTML.
+    const calendarSection = '';
 
     // Enforce body limits before inserting into HTML template
     const bodyParagraphs = enforceBodyLimits([p_insight, p_proof, p_cost]);
@@ -2450,7 +2439,23 @@ async function handleGenerate(req, res) {
         hookHeadline:   result.headline  || result._flatFields?.headline  || '',
         hookLead:       result.lead      || result._flatFields?.lead      || '',
         bodyParagraphs: result.body      || result._flatFields?.body      || [],
-        featureCards:   result._flatFields?.body ? result._flatFields.body.map((b, i) => ({ title: ['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`, body: b, imageUrl: null })) : [],
+        featureCards:   (() => {
+          // For Product Announcement emails: use whatChanged items (real feature titles) + product screenshots
+          const _isProductUpdate = /product|announcement|feature|update/i.test(finalEmailType || '');
+          const _wcArr = Array.isArray(result.whatChanged) ? result.whatChanged.filter(w => w?.title) : [];
+          const _pImgs = Array.isArray(_imgs) ? _imgs : [];
+          if (_isProductUpdate && _wcArr.length > 0) {
+            return _wcArr.map((wc, i) => ({
+              title:    wc.title || `Feature ${i + 1}`,
+              body:     wc.body  || '',
+              imageUrl: _pImgs[i]?.url || (_pImgs.length ? _pImgs[i % _pImgs.length]?.url : null) || null
+            }));
+          }
+          // Fallback for other types: body paragraphs (PARA_LABELS filter drops them in showcase)
+          return result._flatFields?.body
+            ? result._flatFields.body.map((b, i) => ({ title: ['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`, body: b, imageUrl: null }))
+            : [];
+        })(),
         ctaText:        result.ctaText   || result._flatFields?.ctaText   || '',
         ctaUrl:         ctaHref || '',
         originalScore:  result.conversion_score?.original_score || 0,
