@@ -926,26 +926,37 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (_brandKey === k || _brandKey.startsWith(k + ' ')) { primaryColor = v; break; }
   }
 
-  // ── ALWAYS-DARK PALETTE ─────────────────────────────────────────────────────
-  // The template is dark-first regardless of brand theme.
-  // Only primaryColor / accentColor vary per brand — all backgrounds are fixed dark.
-  const bgColor      = '#0a0a0a';
-  const containerBg  = '#111111';
-  const textColor    = '#e0e0e0';
-  const mutedText    = '#999999';
-  const cardBg       = '#1e1e1e';
-  const dividerColor = '#2a2a2a';
-  // Header band uses the brand's primary color (creates visual identity at a glance)
+  // ── THEME DETECTION — light brands get white backgrounds ───────────────────
+  const _bTheme  = brandDNA?.theme || 'light';
+  const _isDark  = _bTheme === 'dark' || brandDNA?.isDarkTheme === true;
+  const isLightBrand = !_isDark;
+
+  const bgColor      = isLightBrand ? '#f5f5f5'  : '#0a0a0a';
+  const containerBg  = isLightBrand ? '#ffffff'   : '#111111';
+  const textColor    = isLightBrand ? '#1a1a18'   : '#e0e0e0';
+  const mutedText    = isLightBrand ? '#555555'   : '#999999';
+  const cardBg       = isLightBrand ? '#f0f0f0'   : '#1e1e1e';
+  const dividerColor = isLightBrand ? '#e0e0e0'   : '#2a2a2a';
+  // Header band: light brands use their primary color as accent strip
   const headerBg   = primaryColor;
   const headerText = primaryText;
-  const footerBg   = '#0d0d0d';
+  const footerBg   = isLightBrand ? '#eeeeee'   : '#0d0d0d';
+  // Derived adaptive tokens for v2 template (dark vs light readable equivalents)
+  const borderMuted   = isLightBrand ? 'rgba(0,0,0,0.10)'  : 'rgba(255,255,255,0.10)';
+  const borderStrong  = isLightBrand ? 'rgba(0,0,0,0.08)'  : 'rgba(255,255,255,0.08)';
+  const textStrong    = isLightBrand ? textColor            : '#ffffff';
+  const textMedium    = isLightBrand ? mutedText            : 'rgba(255,255,255,0.65)';
+  const textBody      = isLightBrand ? textColor            : 'rgba(255,255,255,0.85)';
+  const footerOverlay = isLightBrand ? 'rgba(0,0,0,0.03)'  : 'rgba(0,0,0,0.25)';
+  const footerTxtMuted = isLightBrand ? 'rgba(0,0,0,0.40)' : 'rgba(255,255,255,0.35)';
+  const footerTxtDim   = isLightBrand ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.20)';
 
   // Logo: icon (36×36, rounded) beside brand name text — always shows name for readability.
   // apple-touch-icon / PNG favicon → img; nothing found → name only.
   const logoUrl = brandDNA?.logo || null;
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" /><span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
-    : `<span style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">${company}</span>`;
+    : `<span style="font-size:20px;font-weight:900;color:${textStrong};letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -1325,24 +1336,24 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <!-- PREHEADER -->
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${p_preheader}&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;</div>
 
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#0a0f1e;min-width:100%;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${bgColor};min-width:100%;">
   <tr>
     <td align="center" style="padding:40px 16px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background:#111111;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.10);">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background:${containerBg};border-radius:16px;overflow:hidden;border:1px solid ${borderMuted};">
 
         ${tierLabelRow}
 
         <!-- HEADER -->
         <tr>
-          <td style="padding:22px 32px 18px;background:#0a0f1e;border-bottom:3px solid ${primaryColor};">
+          <td style="padding:22px 32px 18px;background:${bgColor};border-bottom:3px solid ${primaryColor};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
                   ${logoHtml}
-                  ${(() => { const headerTagline = p_brandTagline && p_brandTagline.length > 10 ? p_brandTagline : `${company} · ${new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'})}`; return `<div style="font-size:10px;color:rgba(255,255,255,0.70);margin-top:3px;font-family:monospace;letter-spacing:.04em;">${headerTagline}</div>`; })()}
+                  ${(() => { const headerTagline = p_brandTagline && p_brandTagline.length > 10 ? p_brandTagline : `${company} · ${new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'})}`; return `<div style="font-size:10px;color:${textMedium};margin-top:3px;font-family:monospace;letter-spacing:.04em;">${headerTagline}</div>`; })()}
                 </td>
                 <td align="right" style="vertical-align:top;">
-                  <div style="font-size:10px;color:rgba(255,255,255,0.40);font-family:monospace;white-space:nowrap;">${today}</div>
+                  <div style="font-size:10px;color:${mutedText};font-family:monospace;white-space:nowrap;">${today}</div>
                 </td>
               </tr>
             </table>
@@ -1354,9 +1365,9 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HOOK + TENSION + STAT CARDS -->
         <tr>
-          <td style="padding:36px 32px 28px;border-bottom:1px solid rgba(255,255,255,0.10);">
-            <h1 style="margin:0 0 16px;font-size:26px;font-weight:900;color:#ffffff;line-height:1.2;letter-spacing:-0.4px;">${p_hook}</h1>
-            <p style="margin:0 0 28px;font-size:16px;color:rgba(255,255,255,0.65);line-height:1.75;">${p_tension}</p>
+          <td style="padding:36px 32px 28px;border-bottom:1px solid ${borderMuted};">
+            <h1 style="margin:0 0 16px;font-size:26px;font-weight:900;color:${textStrong};line-height:1.2;letter-spacing:-0.4px;">${p_hook}</h1>
+            <p style="margin:0 0 28px;font-size:16px;color:${textMedium};line-height:1.75;">${p_tension}</p>
             ${statCardsHtml}
           </td>
         </tr>
@@ -1366,11 +1377,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- INSIGHT + PROOF + COST -->
         <tr><td style="padding:32px 32px 28px;">
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[0] || ''}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[0] || ''}</p>
 
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[1] || ''}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[1] || ''}</p>
 
-          <p style="margin:0 0 20px;font-size:15px;color:rgba(255,255,255,0.85);line-height:1.8;">${bodyParagraphs[2] || ''}</p>
+          <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[2] || ''}</p>
         </td></tr>
 
         ${conversionElementHtml ? `<tr><td style="padding:0 32px 28px;">${conversionElementHtml}</td></tr>` : ''}
@@ -1378,8 +1389,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <!-- CTA -->
         <tr>
           <td style="padding:0 32px 36px;">
-            <div style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,#0a0f1e 100%);border-radius:12px;">
-              <div style="background:#111111;border-radius:10px;padding:28px 32px;text-align:center;">
+            <div style="padding:3px;background:linear-gradient(135deg,${primaryColor} 0%,${bgColor} 100%);border-radius:12px;">
+              <div style="background:${containerBg};border-radius:10px;padding:28px 32px;text-align:center;">
                 <a href="${(()=>{ const _u=finalCtaUrl||''; if(!_u.includes('resend-clicks.com'))return _u; try{const _p=_u.split(/\/CL\d+\//)[1];if(_p)return decodeURIComponent(_p.split('/')[0]);}catch(e){} return _u; })()}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
               </div>
             </div>
@@ -1390,10 +1401,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- FOOTER -->
         <tr>
-          <td style="padding:28px 40px 32px;border-top:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.25);text-align:center;">
-            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.35);">${company}</p>
-            ${p_brandDesc ? `<p style="margin:8px 0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">${p_brandDesc}</p>` : ''}
-            <p style="margin:8px 0 0;font-size:11px;color:rgba(255,255,255,0.20);"><a href="#" style="color:rgba(255,255,255,0.25);text-decoration:none;">Unsubscribe</a></p>
+          <td style="padding:28px 40px 32px;border-top:1px solid ${borderStrong};background:${footerOverlay};text-align:center;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${footerTxtMuted};">${company}</p>
+            ${p_brandDesc ? `<p style="margin:8px 0;font-size:12px;color:${footerTxtMuted};line-height:1.7;">${p_brandDesc}</p>` : ''}
+            <p style="margin:8px 0 0;font-size:11px;color:${footerTxtDim};"><a href="#" style="color:${footerTxtMuted};text-decoration:none;">Unsubscribe</a></p>
           </td>
         </tr>
 
@@ -1955,6 +1966,20 @@ async function handleGenerate(req, res) {
       }
     }
 
+    // Fix 1: If a pageUrl was provided but og:image wasn't captured yet (body was long
+    // enough that the full URL fetch was skipped), do a lightweight fetch now so we
+    // can use the real hero image instead of a generic Unsplash fallback.
+    if (pageUrl && !req.body._ogImage) {
+      try {
+        const _ogPage = await fetchWithCache(pageUrl);
+        if (_ogPage?.ogImage) {
+          req.body._ogImage = _ogPage.ogImage;
+          if (!_pageRawHtml && _ogPage.rawHtml) _pageRawHtml = _ogPage.rawHtml;
+          console.log('[og:image] late-fetched from pageUrl:', req.body._ogImage);
+        }
+      } catch (_) {}
+    }
+
     if (effectiveBody.length < 100) {
       return res.status(400).json({
         error: 'content_too_short',
@@ -2243,6 +2268,15 @@ async function handleGenerate(req, res) {
 
     // Clean up any stray markdown that Claude may have included
     result.rebuilt_body = stripMarkdown(result.rebuilt_body);
+    // Also strip markdown from flat-fields body array and prose fields
+    if (result._flatFields) {
+      if (Array.isArray(result._flatFields.body))
+        result._flatFields.body = result._flatFields.body.map(p => stripMarkdown(p));
+      if (result._flatFields.lead)
+        result._flatFields.lead = stripMarkdown(result._flatFields.lead);
+      if (result._flatFields.headline)
+        result._flatFields.headline = stripMarkdown(result._flatFields.headline);
+    }
 
     // Verify logo URL — if it returns a non-200 or times out, strip it so only
     // company name text is shown in the header (never a broken <img> src).
