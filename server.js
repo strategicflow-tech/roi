@@ -929,7 +929,13 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // ── THEME DETECTION — light brands get white backgrounds ───────────────────
   const _bTheme  = brandDNA?.theme || 'light';
   const _isDark  = _bTheme === 'dark' || brandDNA?.isDarkTheme === true;
-  const isLightBrand = !_isDark;
+  let isLightBrand = !_isDark;
+  // Force light theme when the primary color is visually light/pastel (e.g. Mailsuite's mint green).
+  // Light primaries (HSL lightness > 60%) on a dark background are illegible — always use white bg.
+  try {
+    const _primaryHSL = hexToHSL(primaryColor);
+    if (_primaryHSL.l > 60) isLightBrand = true;
+  } catch (_) {}
 
   const bgColor      = isLightBrand ? '#f5f5f5'  : '#0a0a0a';
   const containerBg  = isLightBrand ? '#ffffff'   : '#111111';
@@ -1048,11 +1054,16 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Hero image priority: 1) og:image from the fetched URL (always the real cover)
   // 2) first extracted product image (from page HTML) — only when og:image is absent
   // 3) Unsplash topic/industry fallback — last resort only
+  // Never use a logo image as the hero — logos make terrible hero banners.
+  const _isLogoUrl = u => /logo|typelogo|symbol|favicon/i.test(u || '');
   const _firstProductImg = (() => {
     const imgs = Array.isArray(options.productImages) ? options.productImages : [];
-    return imgs.length ? imgs[0].url : null;
+    const nonLogo = imgs.filter(img => img.url && !_isLogoUrl(img.url));
+    return nonLogo.length ? nonLogo[0].url : null;
   })();
-  const heroSrc = options.heroImageUrl || _firstProductImg || buildHeroSrc(company, brandDNA, options.heroKeyword);
+  const _rawHeroUrl = options.heroImageUrl || null;
+  const _heroCandidate = (_rawHeroUrl && !_isLogoUrl(_rawHeroUrl)) ? _rawHeroUrl : null;
+  const heroSrc = _heroCandidate || _firstProductImg || buildHeroSrc(company, brandDNA, options.heroKeyword);
 
   // Footer colors — always dark (template is dark-first)
   const footerBorder = '#1e1e1e';
@@ -1402,7 +1413,6 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
           </td>
         </tr>
 
-        ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
 
       </table>
     </td>
@@ -1446,7 +1456,6 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       ? `<p style="font-size:11px;color:${footerMuted};margin:8px 0 0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
       : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p><p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a></p>`}
   </td></tr>
-  ${['lite','growth','high_impact'].includes(tier) ? `<tr><td style="padding:10px 24px;background:#f0fdf4;border-top:1px solid #bbf7d0;text-align:center;font-size:11px;color:#15803d;font-weight:600;">&#10003; This draft is queued for manual technical review (Human-Check Guarantee)</td></tr>` : ''}
 </table></td></tr></table></body></html>`;
   return finalizeEmailHtml(_legacyHtml);
 }

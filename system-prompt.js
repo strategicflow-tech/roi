@@ -347,6 +347,8 @@ Logical result of NOT having the paragraph 2 solution. Specific to reader's role
 
 COHERENCE RULE: All 3 paragraphs must be about the SAME topic. If source is about shared mailboxes → all 3 paragraphs are about shared mailboxes. NEVER introduce unrelated features in paragraph 3.
 
+BODY-HOOK SEPARATION RULE: Never begin any body paragraph with the same words, phrases, or sentence structure as the hook headline. Never repeat any exact phrase from the hook headline inside the body paragraphs. The body must extend and deepen the tension — not echo or restate it.
+
 CTA COHERENCE RULE — NON-NEGOTIABLE:
 The ctaText must directly resolve the tension opened in the headline.
 
