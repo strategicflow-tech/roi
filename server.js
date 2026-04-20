@@ -895,7 +895,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   body    = safeVal(body);
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null, sourceHtml = '' } = options;
 
   // Extract ONLY brand accent colors — the template always uses its own dark palette.
   const { primaryColor: rawPrimary, accentColor: rawAccent, primaryText, accentText } = getEmailColors(brandDNA);
@@ -931,12 +931,20 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const _isDark  = _bTheme === 'dark' || brandDNA?.isDarkTheme === true;
   let isLightBrand = !_isDark;
 
-  // List-based light-brand override: known light primary colors always use white backgrounds
-  const isBrandLight = (hex) => {
+  // Multi-signal light-brand detection:
+  // Check 1: known light-brand primary colors (whitelist)
+  // Check 2: source page HTML contains white/light background declarations
+  const _detectBrandLight = (hex, pageHtml) => {
+    const lightColors = ['3df2b6','4fe0b0','f8a21f','00b67a','ff6b35','0070f3','0037ff','3f3cdc','1d1b98'];
     const c = (hex || '').replace('#', '').toLowerCase();
-    return ['3df2b6','4fe0b0','f8a21f','00b67a','ff6b35'].some(x => c.includes(x));
+    const isLightColor = lightColors.some(x => c.includes(x));
+    const hasWhiteBg = (pageHtml || '').includes('background:#fff')
+                    || (pageHtml || '').includes('background-color:#fff')
+                    || (pageHtml || '').includes('background: #fff')
+                    || (pageHtml || '').includes('background:white');
+    return isLightColor || hasWhiteBg;
   };
-  if (isBrandLight(primaryColor)) isLightBrand = true;
+  if (_detectBrandLight(primaryColor, sourceHtml)) isLightBrand = true;
 
   // HSL-based override: pastel primaries (L > 60%) also get white backgrounds
   try {
@@ -944,13 +952,15 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (_primaryHSL.l > 60) isLightBrand = true;
   } catch (_) {}
 
-  const emailBg         = isLightBrand ? '#ffffff'               : '#111111';
-  const emailHeaderBg   = isLightBrand ? '#ffffff'               : '#0a0a0a';
-  const emailTextColor  = isLightBrand ? '#1a1a18'               : '#ffffff';
-  const emailMutedColor = isLightBrand ? '#6b6b66'               : 'rgba(255,255,255,0.65)';
+  const emailOuterBg       = isLightBrand ? '#f5f5f5'              : '#111111';
+  const emailInnerBg       = isLightBrand ? '#ffffff'              : '#0a0a0a';
+  const emailHeaderBg      = isLightBrand ? '#ffffff'              : '#111111';
+  const emailTextColor     = isLightBrand ? '#1a1a18'              : '#ffffff';
+  const emailMutedColor    = isLightBrand ? '#6b6b66'              : 'rgba(255,255,255,0.65)';
+  const emailBodyTextColor = isLightBrand ? '#3a3a35'              : 'rgba(255,255,255,0.85)';
 
-  const bgColor      = emailBg;
-  const containerBg  = emailHeaderBg;
+  const bgColor      = emailOuterBg;
+  const containerBg  = emailInnerBg;
   const textColor    = emailTextColor;
   const mutedText    = emailMutedColor;
   const cardBg       = isLightBrand ? '#f0f0f0'              : '#1e1e1e';
@@ -964,7 +974,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const borderStrong  = isLightBrand ? 'rgba(0,0,0,0.08)'   : 'rgba(255,255,255,0.08)';
   const textStrong    = isLightBrand ? textColor             : '#ffffff';
   const textMedium    = isLightBrand ? mutedText             : 'rgba(255,255,255,0.65)';
-  const textBody      = isLightBrand ? textColor             : 'rgba(255,255,255,0.85)';
+  const textBody      = emailBodyTextColor;
   const footerOverlay = isLightBrand ? 'rgba(0,0,0,0.03)'   : 'rgba(0,0,0,0.25)';
   const footerTxtMuted = isLightBrand ? 'rgba(0,0,0,0.40)'  : 'rgba(255,255,255,0.35)';
   const footerTxtDim   = isLightBrand ? 'rgba(0,0,0,0.25)'  : 'rgba(255,255,255,0.20)';
@@ -2148,7 +2158,7 @@ async function handleGenerate(req, res) {
       catch (_) { return { images: [], gifs: [] }; }
     })();
     // Merge: page assets first, then body assets not already present (dedup by URL)
-    const _isProductImg = u => u && !/logo|typelogo|symbol|favicon|avatar|gravatar|icon|badge|youtube|youtu\.be/i.test(u);
+    const _isProductImg = u => u && !/avatar|author|gravatar|profile|headshot|logo|typelogo|symbol|favicon|keyboard-shortcuts|salesforce|hubspot|google|rmode=crop|width=40|height=40|width=96|height=96/i.test(u);
     const _imgs = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
@@ -2164,6 +2174,11 @@ async function handleGenerate(req, res) {
       if (_isProductEmailType) {
         const _pImgList = _imgs.filter(img => _isProductImg(img.url)).map(i => i.url).slice(0, 6).join('\n');
         prompt += `\n\nPRODUCT UPDATE INSTRUCTION — MANDATORY: Return a "featureCards" array in your JSON:\n"featureCards":[{"title":"FEATURE NAME — max 4 words","body":"one outcome sentence for this feature","imageUrl":"pick one URL from the list below or null"}]\nAvailable product image URLs:\n${_pImgList || 'none'}\nFor product_update type, featureCards replaces the body[] paragraphs — do not also return a body array.`;
+      }
+      // For thought_leadership emails, inject insight card instructions
+      const _isThoughtLeadership = /thought.?leadership/i.test(detectedType || '');
+      if (_isThoughtLeadership) {
+        prompt += `\n\nTHOUGHT LEADERSHIP EMAIL BODY — MANDATORY:\nGenerate 3 insight cards. Each card:\n- "title": the insight in 3-5 words (ALL CAPS)\n- "body": 1-2 sentences explaining the insight with specific evidence or example from the article\nDo NOT generate paragraph body text for thought_leadership type.\nReturn as featureCards array:\n"featureCards":[{"title":"INSIGHT IN CAPS","body":"1-2 sentences with specific evidence","imageUrl":null}]`;
       }
       if (!effectiveBrandDNA) {
         // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
@@ -2386,16 +2401,27 @@ async function handleGenerate(req, res) {
     const normalizedCompany = (company || '').toLowerCase().trim();
     const knownUrl = Object.entries(KNOWN_BRANDS)
       .find(([key]) => normalizedCompany.includes(key))?.[1] || null;
-    // Priority: blog/article URL always wins as CTA destination (it's the article itself);
-    // otherwise: explicit primaryCtaUrl → pageUrl → brand url → known brand → fallback
-    const isBlogUrl = pageUrl && /\/(blog|news|resources|article|post|changelog)\//i.test(pageUrl);
-    const ctaHref = isBlogUrl
-      ? pageUrl
-      : (effectiveBrandDNA?.primaryCtaUrl
-        || (pageUrl && pageUrl.trim())
-        || effectiveBrandDNA?.url
-        || knownUrl
-        || 'https://strategic-flow-audit.replit.app');
+    // Extract a proper CTA URL from source HTML — prefer product/signup/demo paths, fall back to origin.
+    // Never use the raw article/blog URL as the CTA destination.
+    const _extractCtaUrl = (srcHtml, srcUrl) => {
+      try {
+        const origin = new URL(srcUrl).origin;
+        const productPaths = ['/get-started','/signup','/free-trial','/demo','/plans','/pricing','/install','/download','/try'];
+        const linkMatches = [...(srcHtml || '').matchAll(/href=["']([^"']+)["']/gi)];
+        for (const m of linkMatches) {
+          const href = m[1];
+          if (productPaths.some(p => href.includes(p))) {
+            return href.startsWith('http') ? href : origin + href;
+          }
+        }
+        return origin;
+      } catch (_) { return srcUrl; }
+    };
+    const ctaHref = effectiveBrandDNA?.primaryCtaUrl
+      || _extractCtaUrl(_pageRawHtml || '', pageUrl || '')
+      || effectiveBrandDNA?.url
+      || knownUrl
+      || 'https://strategic-flow-audit.replit.app';
 
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
@@ -2404,7 +2430,8 @@ async function handleGenerate(req, res) {
         layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
         promotionalItems, heroImageUrl: req.body._ogImage || null,
         productImages: _imgs,
-        flatFields: result._flatFields || null });
+        flatFields: result._flatFields || null,
+        sourceHtml: _pageRawHtml || '' });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
