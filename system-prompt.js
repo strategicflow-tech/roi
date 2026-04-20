@@ -209,7 +209,7 @@ CONVERSION COPY RULES — apply to every sentence:
 - Every sentence must answer: "so what does the reader NOT have to do anymore?"
 - The hook must name a specific daily frustration, not a category of problem
 - Paragraph 2 must contain one real named person OR one specific number — not both, not neither
-- Paragraph 3 — THE CONSEQUENCE: Write 2 sentences describing what happens if the reader does NOT act. MUST start with "Without [a specific solution/tool/approach]..." naming the SOLUTION — never copy any phrase from the hook headline or subject line. Example good: "Without a problem-first deployment framework, your agents will keep solving the wrong friction." Example bad: "Without [hook text repeating headline], your team..." — never echo the headline.
+- Paragraph 3 — THE CONSEQUENCE: Start with "Without [NAME THE SPECIFIC SOLUTION OR TOOL], " using a NOUN solution name — NEVER the hook headline text, NEVER "Without Your". Example good: "Without conversational intelligence, your reps will keep missing intent signals." Example bad: "Without [anything from the headline], your team..."
 
 BRAND PRESERVATION RULE:
 You are improving this company's communication — NOT replacing their identity. Preserve their brand voice, their terminology, their audience relationship. Upgrade the structure, clarity, and conversion mechanics. The reader should feel this is a better version of the brand they know — not a different brand. Match their existing tone: if they write formally, improve formally. If casually, improve casually. Use their existing CTA verb patterns. Mirror their industry language and terminology.
@@ -342,13 +342,14 @@ Describe the specific operational friction the reader experiences TODAY. Second 
 Paragraph 2 — THE SHIFT:
 Introduce the specific product change from the source. Connect directly to paragraph 1 pain. One concrete example. Max 2 sentences. Bold the product name once.
 
-CONSEQUENCE PARAGRAPH (body paragraph 3):
-Write a 2-sentence consequence that describes what happens if the reader does NOT act.
-Rules:
-- Start with "Without [a specific solution/tool/approach]..." naming the SOLUTION, not the hook headline
-- NEVER copy any phrase from the hook headline or subject line
-- Example good: "Without a problem-first deployment framework, your agents will keep solving the wrong friction."
-- Example bad: "Without Your AI agents aren't broken, your team..." — never repeat the headline words
+BODY PARAGRAPH 3 — CONSEQUENCE:
+Write exactly 2 sentences. Describe the cost of NOT solving the problem.
+Rules that cannot be broken:
+- Start with "Without [NAME THE SPECIFIC SOLUTION OR TOOL], " — fill in the solution name, NOT the hook headline
+- The solution name must be a noun (e.g. "Without a problem-first framework", "Without saved mailing lists", "Without conversational intelligence") — never a sentence fragment
+- NEVER copy any word or phrase from the hook headline or subject line into this paragraph
+- NEVER start with "Without Your" — always "Without a..." or "Without [ToolName]..."
+- Test: if the sentence reads naturally as a cost/consequence, it is correct. If it reads like a broken sentence, rewrite.
 
 COHERENCE RULE: All 3 paragraphs must be about the SAME topic. If source is about shared mailboxes → all 3 paragraphs are about shared mailboxes. NEVER introduce unrelated features in paragraph 3.
 

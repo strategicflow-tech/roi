@@ -1362,7 +1362,16 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     const calendarSection = '';
 
     // Enforce body limits before inserting into HTML template
-    const bodyParagraphs = enforceBodyLimits([p_insight, p_proof, p_cost]);
+    // Safeguard: catch broken "Without [hook]" fragments where Claude echoed the headline
+    const _sanitizeParagraph = t => {
+      if (!t) return t;
+      // Regex: "Without " followed immediately by a capital letter = sentence fragment from hook
+      if (/^Without [A-Z]/.test(t)) {
+        return t.replace(/^Without [^,]+,\s*/, 'Without the right solution, ');
+      }
+      return t;
+    };
+    const bodyParagraphs = enforceBodyLimits([p_insight, p_proof, p_cost]).map(_sanitizeParagraph);
 
     // Feature cards block: rendered for thought_leadership and product_update instead of prose paragraphs
     const featureCardsHtml = (() => {
@@ -2184,16 +2193,38 @@ async function handleGenerate(req, res) {
       catch (_) { return { images: [], gifs: [] }; }
     })();
     // Merge: page assets first, then body assets not already present (dedup by URL)
-    const _isProductImg = u => u && !/avatar|author|gravatar|profile|headshot|logo|typelogo|symbol|favicon|keyboard-shortcuts|salesforce|hubspot|google|microsoft|1646653490249|rmode=crop|width=40|height=40|width=96|height=96/i.test(u);
+    const _isProductImg = u => {
+      if (!u) return false;
+      const l = u.toLowerCase();
+      const skipPatterns = [
+        'width=40','height=40','width=96','height=96','width=32','height=32',
+        'rmode=crop','1646653490249','630c6d4e',
+        'gravatar','avatar','author','profile','headshot',
+        'logo','typelogo','symbol','favicon','keyboard-shortcuts',
+        'salesforce','hubspot','google','microsoft','adobe'
+      ];
+      if (skipPatterns.some(p => l.includes(p))) return false;
+      if (l.endsWith('.svg')) return false;
+      const wm = u.match(/[?&]width=(\d+)/i);
+      if (wm && parseInt(wm[1]) < 100) return false;
+      return true;
+    };
     const _imgs = (() => {
       const merged = [..._pageImgs, ..._bodyImgs.filter(bi => !_pageImgs.some(pi => pi.url === bi.url))];
-      const seen = new Set();
-      return merged.filter(img => {
+      // Deduplicate: same base URL (strip query params) → keep entry with largest width param
+      const baseMap = new Map();
+      for (const img of merged) {
         const base = (img.url || '').split('?')[0];
-        if (seen.has(base)) return false;
-        seen.add(base);
-        return true;
-      });
+        const existing = baseMap.get(base);
+        if (!existing) {
+          baseMap.set(base, img);
+        } else {
+          const existW = parseInt((existing.url.match(/width=(\d+)/i) || [])[1] || '0');
+          const newW   = parseInt((img.url.match(/width=(\d+)/i) || [])[1] || '0');
+          if (newW > existW) baseMap.set(base, img);
+        }
+      }
+      return Array.from(baseMap.values());
     })();
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 

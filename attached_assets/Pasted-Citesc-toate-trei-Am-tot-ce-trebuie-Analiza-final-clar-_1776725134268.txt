@@ -1,0 +1,151 @@
+Citesc toate trei.
+
+Am tot ce trebuie. Analiza finală clară:
+
+---
+
+**CE MERGE BINE ✅**
+- Audit: company "Optimizely" ✅
+- Audit: original body prezent ✅
+- Showcase: 3 tab-uri funcționale ✅
+- Showcase: newsletter randat direct în email shell ✅
+- Newsletter: light theme `#ffffff` ✅
+- Newsletter: stat card labels vizibile `#6b6b66` ✅
+- Newsletter: CTA gradient corect `#3f3cdc → #548dff` ✅
+- Newsletter: quote text color `#1a1a18` vizibil ✅
+- Newsletter: logo favicon.ico ✅
+
+---
+
+**3 PROBLEME RĂMASE — toate în `server.js` App Audit:**
+
+**1. Broken string "Without Your AI agents aren't" persistent** ❌
+Linia 61 newsletter + linia 91 audit: `"Without Your AI agents aren't, your team continues..."` — apare din nou. Claude injectează hook-ul în template-ul de consecință. Fix-ul **nu a fost aplicat corect** — instrucțiunea pentru Claude există în prompt dar nu e suficient de tare.
+
+**2. Imagini aiurea în showcase** ❌
+Linia 144 showcase: tot apar `width=40&rmode=crop`, duplicate `opaluniversity` în două dimensiuni (960x540 și 300x300), SVG logo Optimizely. `isProductImage()` nu filtrează aceste URL-uri.
+
+**3. Audit Before/After body** ❌
+Linia 86: `<div class="ba-body">—</div>` — corpul original lipsește din before column în audit. E prezent în showcase dar nu în fișierul de audit HTML.
+
+---
+
+**PROMPT DEFINITIV App Audit — `server.js` only:**
+
+---
+
+In `server.js`, make exactly these 3 surgical changes and nothing else.
+
+**Change 1 — Kill the broken "Without [hook]" string permanently.**
+
+Find the part of the code where the third body paragraph is generated or where the Claude prompt instructs Claude to write a consequence paragraph. The broken output is always: `"Without [HOOK HEADLINE], your team continues..."`.
+
+Replace the consequence paragraph instruction in the Claude system prompt with this exact text — copy word for word:
+
+```
+BODY PARAGRAPH 3 — CONSEQUENCE:
+Write exactly 2 sentences. Describe the cost of NOT solving the problem.
+Rules that cannot be broken:
+- Start with "Without [NAME THE SPECIFIC SOLUTION OR TOOL], " — fill in the solution name, NOT the hook headline
+- The solution name must be a noun (e.g. "Without a problem-first framework", "Without saved mailing lists", "Without conversational intelligence") — never a sentence fragment
+- NEVER copy any word or phrase from the hook headline or subject line into this paragraph
+- NEVER start with "Without Your" — always "Without a..." or "Without [ToolName]..."
+- Test: if the sentence reads naturally as a cost/consequence, it is correct. If it reads like a broken sentence, rewrite.
+```
+
+Also find where body paragraphs are assembled into HTML and add this safeguard:
+
+```js
+// After generating body paragraphs, before inserting into HTML:
+function sanitizeBodyParagraph(text) {
+  // Fix broken "Without [hook]" pattern
+  if (text && text.match(/^Without [A-Z]/)) {
+    // Starts with "Without" + capital letter = broken fragment from hook
+    // Replace with a safe fallback consequence
+    return text.replace(/^Without [^,]+,/, 'Without the right deployment framework,')
+  }
+  return text
+}
+// Apply to every body paragraph before HTML insertion
+bodyParagraphs = bodyParagraphs.map(sanitizeBodyParagraph)
+```
+
+**Change 2 — Fix isProductImage to filter Optimizely-specific junk.**
+
+Find the `isProductImage` function in `server.js` or `showcase-generator.js`. Replace its entire body with:
+
+```js
+function isProductImage(url) {
+  if (!url) return false
+  const u = url.toLowerCase()
+  
+  // Filter by URL patterns
+  const skipPatterns = [
+    // Size-specific avatar crops
+    'width=40', 'height=40', 'width=96', 'height=96', 'width=32', 'height=32',
+    'rmode=crop',
+    // Known author/avatar image IDs
+    '1646653490249',
+    '630c6d4e', // gravatar hash
+    // Generic skip words
+    'gravatar', 'avatar', 'author', 'profile', 'headshot',
+    'logo', 'typelogo', 'symbol',
+    'favicon',
+    'keyboard-shortcuts',
+    // Partner logos
+    'salesforce', 'hubspot', 'google', 'microsoft', 'adobe',
+    // SVG icons (usually UI icons, not product screenshots)
+  ]
+  
+  if (skipPatterns.some(p => u.includes(p))) return false
+  
+  // Filter SVGs unless they are clearly product screenshots
+  if (u.endsWith('.svg')) return false
+  
+  // Filter tiny images by URL size params
+  const widthMatch = url.match(/[?&]width=(\d+)/i)
+  if (widthMatch && parseInt(widthMatch[1]) < 100) return false
+  
+  return true
+}
+```
+
+Also deduplicate images — if the same base URL appears multiple times with different size params, keep only the one with the largest `width` param or the one without size params:
+
+```js
+function deduplicateImages(images) {
+  const baseMap = new Map()
+  for (const img of images) {
+    const base = img.url.split('?')[0]
+    const existing = baseMap.get(base)
+    if (!existing) {
+      baseMap.set(base, img)
+    } else {
+      // Keep the one with larger width param, or the original without params
+      const existingWidth = parseInt((existing.url.match(/width=(\d+)/i) || [])[1] || '0')
+      const newWidth = parseInt((img.url.match(/width=(\d+)/i) || [])[1] || '0')
+      if (newWidth > existingWidth) baseMap.set(base, img)
+    }
+  }
+  return Array.from(baseMap.values())
+}
+// Apply: images = deduplicateImages(images.filter(img => isProductImage(img.url)))
+```
+
+**Change 3 — Pass originalBody to audit HTML Before column.**
+
+Find where the audit HTML string is built in `server.js`. Find the Before column with `<div class="ba-body">—</div>`. Replace with:
+
+```js
+// originalBody should already be available as a variable — it's the cleaned text extracted from sourceHtml
+// Truncate to 400 characters to fit the audit layout
+const originalBodyPreview = (originalBody || '').substring(0, 400).trim()
+const originalBodyHtml = originalBodyPreview 
+  ? `${originalBodyPreview}${originalBody.length > 400 ? '...' : ''}`
+  : '—'
+
+// In the HTML string:
+`<div class="ba-body">${originalBodyHtml}</div>`
+```
+
+Apply only these 3 changes in `server.js`. Do not touch any other file.
