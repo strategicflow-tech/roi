@@ -1439,7 +1439,17 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- INSIGHT + PROOF + COST (or feature cards for thought_leadership / product_update) -->
         <tr><td style="padding:32px 32px 28px;">
-          ${featureCardsHtml || `
+          ${Array.isArray(featureCards) && featureCards.length > 0
+            ? featureCards.map(card => `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+  style="margin-bottom:16px;border:1px solid rgba(0,0,0,0.10);border-radius:10px;overflow:hidden;border-collapse:separate;">
+  <tr><td style="padding:16px 20px;background:#f9f9f9;">
+    <div style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;">${card.title || ''}</div>
+    ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;">` : ''}
+    <div style="font-size:14px;color:#3a3a35;line-height:1.6;">${card.body || card.text || card.content || ''}</div>
+  </td></tr>
+</table>`).join('')
+            : `
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[0] || ''}</p>
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[1] || ''}</p>
           <p style="margin:0 0 20px;font-size:15px;color:${textBody};line-height:1.8;">${bodyParagraphs[2] || ''}</p>
@@ -2515,7 +2525,18 @@ async function handleGenerate(req, res) {
         productImages: _imgs,
         flatFields: result._flatFields || null,
         sourceHtml: _pageRawHtml || '',
-        featureCards: result.featureCards || null,
+        featureCards: (() => {
+          if (Array.isArray(result.featureCards) && result.featureCards.length > 0) return result.featureCards;
+          if (/thought.?leadership/i.test(detectedType || '')) {
+            const _b = result.body || result._flatFields?.body || [];
+            return _b.slice(0, 3).map((b, i) => ({
+              title: `INSIGHT ${i + 1}`,
+              body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
+              imageUrl: null
+            }));
+          }
+          return null;
+        })(),
         emailType: result.emailType || detectedType || '' });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
