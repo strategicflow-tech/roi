@@ -361,7 +361,7 @@ Examples:
 BANNED generic CTAs: "Learn more", "Get started", "Discover", "See what's new", "Read more"
 The CTA verb must promise resolution of the exact pain named in paragraph 1.
 
-STATS RULE: Use only metrics that appear verbatim in the source with a number, unit, or date (e.g. "50 themes", "30%", "Nov 10"). NEVER use a standalone year, a generic category name, or any invented number. Leave stat fields empty ("") when fewer than 3 genuine metrics exist.
+STATS RULE: Use only metrics that appear verbatim in the source with a number, unit, or date (e.g. "50 themes", "30%", "Nov 10"). NEVER use a standalone year, a generic category name, or any invented number. CRITICALLY: never extract narrative numbers from article examples or stories (e.g. "12 clients", "3 deals closed", "2 meetings booked") — these are anecdotes, not product metrics. Valid stats are: product feature counts (e.g. "50 email templates"), performance benchmarks (e.g. "40% open rate"), or published industry statistics (e.g. "78% of buyers trust peer reviews"). If fewer than 3 genuine product metrics exist in the source, leave all stat fields empty ("").
 
 CTA URL RULE: Use the exact article, report, or page URL from the source content. Never the brand homepage or signup page.
 

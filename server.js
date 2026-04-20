@@ -1045,9 +1045,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     }
     return `https://images.unsplash.com/${photoId}?w=620&h=300&fit=crop`;
   };
-  // Use og:image from the fetched URL when available — it's always the article's real cover.
-  // Fall back to the topic/industry keyword-matched Unsplash image otherwise.
-  const heroSrc = options.heroImageUrl || buildHeroSrc(company, brandDNA, options.heroKeyword);
+  // Hero image priority: 1) og:image from the fetched URL (always the real cover)
+  // 2) first extracted product image (from page HTML) — only when og:image is absent
+  // 3) Unsplash topic/industry fallback — last resort only
+  const _firstProductImg = (() => {
+    const imgs = Array.isArray(options.productImages) ? options.productImages : [];
+    return imgs.length ? imgs[0].url : null;
+  })();
+  const heroSrc = options.heroImageUrl || _firstProductImg || buildHeroSrc(company, brandDNA, options.heroKeyword);
 
   // Footer colors — always dark (template is dark-first)
   const footerBorder = '#1e1e1e';
@@ -2289,19 +2294,21 @@ async function handleGenerate(req, res) {
     }
 
     // Dark theme detection from plain text body signals.
-    // Condition: theme is not already confirmed dark — overrides the default 'light' set by inferBrandFromContent.
-    // Previously used !effectiveBrandDNA.theme which was always false because inferBrandFromContent
-    // always sets theme:'light' as default — that was a dead branch. Fixed to !== 'dark'.
-    if (effectiveBrandDNA && effectiveBrandDNA.theme !== 'dark' && body) {
+    // Guard: only check when theme isn't already confirmed dark AND primary color isn't
+    // visibly light (L > 60% means the accent is bright/pastel — almost always a light brand).
+    const _primaryForDark = (() => { try { return getEmailColors(effectiveBrandDNA).primaryColor; } catch (_) { return '#888888'; } })();
+    const _primaryIsLight = (() => { try { const h = hexToHSL(_primaryForDark); return h.l > 60; } catch (_) { return false; } })();
+    if (effectiveBrandDNA && effectiveBrandDNA.theme !== 'dark' && !_primaryIsLight && body) {
+      // Require background-specific signals only — not any hex color (which could be body text)
       const textDarkSignals = [
-        /#[01][0-9a-fA-F]{5}/gi,
-        /background.{0,20}#1[0-9a-fA-F]{5}/gi,
-        /color.{0,20}white/gi,
+        /background.{0,30}#[01][0-9a-fA-F]{5}/gi,
+        /bgcolor.{0,20}#[01][0-9a-fA-F]{5}/gi,
+        /background.{0,20}black/gi,
         /dark.{0,10}theme/gi,
-        /background.{0,20}black/gi
+        /background.{0,20}#[23][0-9a-fA-F]{5}/gi,
       ];
       const darkHits = textDarkSignals.filter(p => { p.lastIndex = 0; return p.test(body); }).length;
-      if (darkHits >= 1) {
+      if (darkHits >= 2) {
         effectiveBrandDNA = { ...effectiveBrandDNA, theme: 'dark' };
         console.log(`[dark-detect] text body dark signals: ${darkHits} → theme set to dark`);
       }
@@ -2358,12 +2365,20 @@ async function handleGenerate(req, res) {
         || knownUrl
         || 'https://strategic-flow-audit.replit.app');
 
+    // Extract visual assets early so productImages is available for the hero image fallback
+    // (before buildNewsletterHTML, which uses the first product image when og:image is absent)
+    const { images: _imgs, gifs: _gifs, tables: _tbls } = (() => {
+      try { return extractVisualAssets(_pageRawHtml, pageUrl || ''); }
+      catch (_) { return { images: [], gifs: [], tables: [] }; }
+    })();
+
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '',
         layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
         promotionalItems, heroImageUrl: req.body._ogImage || null,
+        productImages: _imgs,
         flatFields: result._flatFields || null });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
@@ -2423,7 +2438,6 @@ async function handleGenerate(req, res) {
     let showcaseHtml = '';
     try {
       const { primaryColor: _showcaseAccent } = getEmailColors(effectiveBrandDNA);
-      const { images: _imgs, gifs: _gifs, tables: _tbls } = extractVisualAssets(_pageRawHtml, pageUrl || '');
       showcaseHtml = generateShowcaseHtml({
         companyName:    company || 'Your Company',
         primaryColor:   _showcaseAccent,
