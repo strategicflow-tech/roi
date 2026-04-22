@@ -2094,8 +2094,8 @@ async function handleGenerate(req, res) {
     const ownerTierOverride = adminAccess && req.body.ownerTier && ALLOWED_TIERS.has(req.body.ownerTier) ? req.body.ownerTier : null;
     const tier = adminAccess ? (ownerTierOverride || 'high_impact') : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
     if (!tier) return res.status(403).json({ error: 'no_tier' });
-    // free_trial generates at single-tier quality
-    const promptTier = tier === 'free_trial' ? 'single' : tier;
+    // free_trial generates at high_impact quality — best output on the one free use
+    const promptTier = tier === 'free_trial' ? 'high_impact' : tier;
 
     if (!adminAccess) {
       const lim = checkLimit(user);

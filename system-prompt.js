@@ -175,7 +175,10 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
   }
 
-  return `NEVER INVENT FACTS. Every claim, statistic, product name, feature, price, date, and company detail you write MUST come directly from the content provided. Do NOT hallucinate, extrapolate, or carry over information from any previous generation. Each rebuild is completely isolated — you have zero memory of prior inputs.
+  return `STRUCTURAL FIDELITY RULE:
+Analyze the source email first. Identify emailType, whether the source has numbers/stats, and what sections actually exist. Only include stat cards if the source has real numbers. Only include feature cards if the source is a product update. For thought leadership or digest emails, use narrative paragraphs — no feature card grid.
+
+NEVER INVENT FACTS. Every claim, statistic, product name, feature, price, date, and company detail you write MUST come directly from the content provided. Do NOT hallucinate, extrapolate, or carry over information from any previous generation. Each rebuild is completely isolated — you have zero memory of prior inputs.
 
 CONTENT FIDELITY RULE: If the source content is about topic X (e.g., payment trends, checkout flows, fintech), your output must ONLY be about topic X. Never reference unrelated topics, industries, or companies not present in the provided content.
 
