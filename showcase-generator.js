@@ -208,7 +208,7 @@ function generateShowcaseHtml({
   <div class="upgrade-cta">
     <h2 class="ucta-h">This is a free preview.</h2>
     <p class="ucta-p">Want full A/B subject lines, audience segments &amp; content calendar for every send?</p>
-    <a href="https://strategic-flow-audit.replit.app" class="ucta-btn" style="background:${accent};color:#07090f;">See Pro Plans &rarr;</a>
+    <a href="https://strategic-flow-pro.replit.app/packages" class="ucta-btn" style="background:${accent};color:#07090f;">See Pro Plans &rarr;</a>
   </div>
 
 </div>`;

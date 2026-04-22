@@ -542,29 +542,48 @@ function finalizeEmailHtml(html) {
 
 // Decode a Resend-wrapped CTA URL and verify it is a full HTTP URL with length > 20.
 // Falls back immediately to sourceUrl when Resend decoding fails or yields a short/domain-only result.
+// Validates whether a Claude-returned ctaUrl is legitimate to use, or should fall back to sourceUrl.
+// Priority: same domain → known resource domain → reject UTM/promo cross-domain links → fallback sourceUrl.
+function isValidCtaUrl(ctaUrl, sourceUrl) {
+  try {
+    const cta = new URL(ctaUrl);
+    const src = new URL(sourceUrl);
+    // Same hostname = always valid
+    if (cta.hostname === src.hostname) return true;
+    // Known Salesforce resource subdomains = valid (help, trailhead, trust, status)
+    const knownResourceDomains = [
+      'help.salesforce.com', 'trailhead.salesforce.com',
+      'status.salesforce.com', 'trust.salesforce.com',
+      'sandbox-preview-prd-24f76e67b11e.herokuapp.com'
+    ];
+    if (knownResourceDomains.some(d => cta.hostname === d || cta.hostname.endsWith('.' + d))) return true;
+    // Different domain with UTM / tracking params = discard (event/promo redirect)
+    if (cta.searchParams.has('d') || cta.searchParams.has('utm_source') ||
+        cta.searchParams.has('utm_medium') || cta.searchParams.has('utm_campaign')) return false;
+    // Different domain, no tracking params — discard (cross-domain links are almost always wrong)
+    return false;
+  } catch { return false; }
+}
+
 function cleanCTAUrl(rawUrl, sourceUrl) {
   if (!rawUrl) return sourceUrl;
+  // Decode Resend click-tracking wrappers first
   if (rawUrl.includes('resend-clicks.com')) {
     try {
       const part = rawUrl.split('/CL0/')[1];
       const encoded = part.split('/')[0];
       const decoded = decodeURIComponent(encoded);
-      if (decoded.startsWith('http') && decoded.length > 20) return decoded;
-    } catch(e) {}
-    return sourceUrl;
-  }
-  if (rawUrl.startsWith('http') && rawUrl.length > 20) {
-    // Final safety: if ctaUrl doesn't start with sourceUrl's path, use sourceUrl
-    try {
-      const ctaPath = new URL(rawUrl).pathname;
-      const sourcePath = new URL(sourceUrl).pathname;
-      if (!ctaPath.startsWith(sourcePath.substring(0, sourcePath.length - 5))) {
+      if (decoded.startsWith('http') && decoded.length > 20) {
+        rawUrl = decoded; // unwrap and continue to validation below
+      } else {
         return sourceUrl;
       }
     } catch(e) {
       return sourceUrl;
     }
-    return rawUrl;
+  }
+  if (rawUrl.startsWith('http') && rawUrl.length > 20) {
+    return isValidCtaUrl(rawUrl, sourceUrl) ? rawUrl : (sourceUrl || rawUrl);
   }
   return sourceUrl;
 }
@@ -1350,10 +1369,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // ── FIX 1: TEMPLATE ROUTER ────────────────────────────────────────────────
   // New-format generations use the v2 template; everything else falls back to legacy.
 
-  const tierLabels = { single: 'SINGLE — One-time rebuild', lite: 'LITE — Standard Delivery', growth: 'GROWTH — Premium', high_impact: 'HIGH-IMPACT — Full Stack' };
-  const tierLabelRow = tierLabels[tier]
-    ? `<tr><td style="padding:7px 24px;background:#16a34a;color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">${tierLabels[tier]}</td></tr>`
-    : '';
+  // Tier label row removed — internal debug banner must never appear in delivered email HTML
+  const tierLabelRow = '';
 
   if (isNewFormat) {
     // ── V2 TEMPLATE ─────────────────────────────────────────────────────────
@@ -1475,7 +1492,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <tr>
           <td style="padding:28px 40px 32px;border-top:1px solid ${borderStrong};background:${footerOverlay};text-align:center;">
             <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${footerTxtMuted};">${company}</p>
-            ${p_brandDesc ? `<p style="margin:8px 0;font-size:12px;color:${footerTxtMuted};line-height:1.7;">${p_brandDesc}</p>` : ''}
+            <p style="margin:8px 0;font-size:12px;color:${footerTxtMuted};line-height:1.7;">You're receiving this because you subscribed to ${company} product updates.</p>
             <p style="margin:8px 0 0;font-size:11px;color:${footerTxtDim};"><a href="#" style="color:${footerTxtMuted};text-decoration:none;">Unsubscribe</a></p>
           </td>
         </tr>
@@ -2228,7 +2245,11 @@ async function handleGenerate(req, res) {
         'gravatar','avatar','author','profile','headshot',
         'logo','typelogo','symbol','favicon','keyboard-shortcuts',
         'salesforce','hubspot','google','microsoft','adobe',
-        'promoengine','300x300','200x200','150x150','128x128'
+        'promoengine','300x300','200x200','150x150','128x128',
+        // social footer icons and logo variants
+        'sf-footer-','-logo-home.','xlogo.',
+        // generic icon/UI patterns
+        'sprite','badge','pixel','blank','1x1','tracking','button','arrow'
       ];
       if (skipPatterns.some(p => l.includes(p))) return false;
       if (l.endsWith('.svg')) return false;
@@ -2251,8 +2272,10 @@ async function handleGenerate(req, res) {
           if (newW > existW) baseMap.set(base, img);
         }
       }
-      // Apply _isProductImg filter HERE so _imgs is always clean
-      return Array.from(baseMap.values()).filter(img => _isProductImg(img.url));
+      // Apply _isProductImg filter, then reject thumbnails (NNNxNNN pattern) except hero (index 0), cap at 4
+      const thumbRe = /-\d{2,4}x\d{2,4}\./i;
+      const filtered = Array.from(baseMap.values()).filter(img => _isProductImg(img.url));
+      return filtered.filter((img, idx) => idx === 0 || !thumbRe.test(img.url)).slice(0, 4);
     })();
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
@@ -2968,14 +2991,14 @@ BRAND: ${brandName}
 Generate a complete, self-contained HTML page that shows a professional Before/After newsletter teardown. The page must include:
 1. Two-column Before/After layout — original left (with ❌ red flag annotations), rebuilt right (with ✅ green improvement annotations)
 2. "Title Transformation" section — before/after subject line with explanation
-3. Dark background (#0a0f1e), teal accent (#2dd4bf), clean typography
+3. Dark background (#0a0f1e), teal accent (#00e5a0), clean typography
 4. Strategic Flow branding + link to strategic-flow-pro.replit.app at bottom
 
 Include this CSS in the <style> block:
-.cta-card{background:rgba(45,212,191,0.06);border:2px solid #2dd4bf;border-radius:16px;padding:40px 32px;text-align:center;margin:48px 0 32px;}
+.cta-card{background:rgba(0,229,160,0.06);border:2px solid #00e5a0;border-radius:16px;padding:40px 32px;text-align:center;margin:48px 0 32px;}
 .cta-card h2{font-size:24px;font-weight:900;color:#fff;margin:0 0 12px;}
 .cta-card p{font-size:15px;color:rgba(255,255,255,0.65);margin:0 0 24px;line-height:1.6;}
-.cta-card a{display:inline-block;padding:14px 32px;background:#2dd4bf;color:#0a0f1e;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;}
+.cta-card a{display:inline-block;padding:14px 32px;background:#00e5a0;color:#0a0f1e;font-weight:800;font-size:15px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;}
 
 After the "Rebuilt Newsletter" section, you MUST include these two sections before </body>:
 
