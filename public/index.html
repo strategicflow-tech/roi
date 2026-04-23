@@ -1508,10 +1508,32 @@ function showResults(gen) {
         `<p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:rgba(255,255,255,0.80);">${p}</p>`
       ).join('');
     } else {
-      // Fall back: strip HTML tags from previewBody/rebuilt_body and split into readable paragraphs
-      const rawText = (gen.previewBody || gen.rebuilt_body || '')
-        .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      bodyEl.innerHTML = renderBodyParagraphs(rawText);
+      // Path 2: fallback — split raw text into readable paragraphs
+      const raw = (gen.rebuilt_body || gen.previewBody || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!raw) {
+        bodyEl.innerHTML = '';
+      } else {
+        // Split on double newlines first
+        let paras = raw.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+
+        // If still one block, split every 3 sentences
+        if (paras.length <= 1) {
+          const sentences = raw.match(/[^.!?]+[.!?]+["']?\s*/g) || [raw];
+          paras = [];
+          for (let i = 0; i < sentences.length; i += 3) {
+            const chunk = sentences.slice(i, i + 3).join('').trim();
+            if (chunk) paras.push(chunk);
+          }
+        }
+
+        bodyEl.innerHTML = paras
+          .map(p => `<p style="margin:0 0 16px;font-size:15px;line-height:1.8;color:rgba(255,255,255,0.80);">${p}</p>`)
+          .join('');
+      }
     }
   })();
   document.getElementById('resChanges').innerHTML = (gen.key_changes || []).map(c => `<div class="change-item">${c}</div>`).join('');
