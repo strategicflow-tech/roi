@@ -548,19 +548,33 @@ function isValidCtaUrl(ctaUrl, sourceUrl) {
   try {
     const cta = new URL(ctaUrl);
     const src = new URL(sourceUrl);
-    // Same hostname = always valid
-    if (cta.hostname === src.hostname) return true;
-    // Known Salesforce resource subdomains = valid (help, trailhead, trust, status)
-    const knownResourceDomains = [
-      'help.salesforce.com', 'trailhead.salesforce.com',
-      'status.salesforce.com', 'trust.salesforce.com',
-      'sandbox-preview-prd-24f76e67b11e.herokuapp.com'
+
+    // Rule 1: exact same origin = always valid
+    if (cta.origin === src.origin) return true;
+
+    // Rule 2: known Salesforce resource subdomains = valid
+    const validSfHosts = [
+      'help.salesforce.com',
+      'trailhead.salesforce.com',
+      'status.salesforce.com',
+      'trust.salesforce.com',
+      'sandbox-preview-prd-24f76e67b11e.herokuapp.com',
+      'admin.salesforce.com',
+      'developer.salesforce.com'
     ];
-    if (knownResourceDomains.some(d => cta.hostname === d || cta.hostname.endsWith('.' + d))) return true;
-    // Different domain with UTM / tracking params = discard (event/promo redirect)
-    if (cta.searchParams.has('d') || cta.searchParams.has('utm_source') ||
-        cta.searchParams.has('utm_medium') || cta.searchParams.has('utm_campaign')) return false;
-    // Different domain, no tracking params — discard (cross-domain links are almost always wrong)
+    if (validSfHosts.includes(cta.hostname)) return true;
+
+    // Rule 3: different subdomain on same base domain = NOT valid
+    // (Claude fabricates URLs like www.salesforce.com/blog/...
+    //  when source is admin.salesforce.com/blog/...)
+    const srcBase = src.hostname.split('.').slice(-2).join('.');
+    const ctaBase = cta.hostname.split('.').slice(-2).join('.');
+    if (srcBase === ctaBase && cta.hostname !== src.hostname) return false;
+
+    // Rule 4: has UTM/tracking params = discard
+    if (cta.searchParams.has('d') || cta.searchParams.has('utm_source'))
+      return false;
+
     return false;
   } catch { return false; }
 }
