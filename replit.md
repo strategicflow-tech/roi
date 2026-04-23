@@ -56,6 +56,17 @@ Multi-tier SaaS email rebuild platform. Analyzes and rebuilds SaaS newsletters u
 - `RESEND_API_KEY` — Email sending key
 - `ADMIN_PASSWORD` — Protects /update-system-prompt webhook (default: sfadmin2026)
 
+## Email Type Detection + Specialised Rendering
+
+Claude classifies every submission into one of 8 types: `product_update`, `retention_campaign`, `promotional_offer`, `onboarding`, `reengagement`, `feature_launch`, `brand_announcement`, `event_announcement`.
+
+### event_announcement (Task #1 — implemented)
+- Claude prompted to return `featureCards[]` where each card = one dated milestone / agenda item / phase (min 3, max 8, chronological).
+- `featureCardsHtml` gate in `buildNewsletterHTML` now passes `_isEA` so timeline cards render in the HTML output.
+- `_imgsCtx` (computed after `_imgs`): attaches `headingContext` to every product image by finding the nearest preceding `<h1>–<h4>` in the scraped page HTML.
+- `matchImageToCard(card, images, usedUrls)`: module-level function that matches a feature card to an image by overlapping non-stop-word title tokens against heading context; each image used at most once; hero URL pre-seeded in `usedUrls`.
+- Applied in all three featureCards build paths: `downloadHtml`, showcase, and the thought_leadership/product_update fallback path.
+
 ## Model
 `claude-sonnet-4-5-20250929` — do not change without testing all tier prompts.
 

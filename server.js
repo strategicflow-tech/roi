@@ -602,6 +602,27 @@ function cleanCTAUrl(rawUrl, sourceUrl) {
   return sourceUrl;
 }
 
+// Match an extracted image to a feature card by comparing heading-context words to card title words.
+// Each image is used at most once — caller passes a usedUrls Set; hero URL must be pre-seeded.
+function matchImageToCard(card, images, usedUrls) {
+  const stopWords = new Set(['the','that','this','with','from','have','will','your','their',
+                             'when','what','before','and','for','not','are','was','has','been','which']);
+  const cardWords = (card.title || '').toLowerCase()
+    .split(/\W+/)
+    .filter(w => w.length > 3 && !stopWords.has(w));
+  if (!cardWords.length) return null;
+  for (const img of (images || [])) {
+    if (!img.headingContext || usedUrls.has(img.url)) continue;
+    const ctxWords = img.headingContext.toLowerCase().split(/\W+/);
+    const overlap = cardWords.filter(w => ctxWords.includes(w));
+    if (overlap.length >= 1) {
+      usedUrls.add(img.url);
+      return img.url;
+    }
+  }
+  return null;
+}
+
 // Strip dynamic/non-static elements from an HTML email before brand-DNA extraction.
 // Returns { cleaned, wasComplex, gifCount } so callers know what was removed.
 function cleanEmailHTML(html) {
@@ -1410,7 +1431,8 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       if (!_fc.length) return '';
       const _isTL = /thought.?leadership/i.test(htmlEmailType || '');
       const _isPU = /product.?update|product.?announcement|feature.?launch/i.test(htmlEmailType || '');
-      if (!_isTL && !_isPU) return '';
+      const _isEA = /event.?announcement/i.test(htmlEmailType || '');
+      if (!_isTL && !_isPU && !_isEA) return '';
       return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">` +
         _fc.slice(0, 6).map((card, idx) =>
           `<tr><td style="padding:${idx === 0 ? '0' : '16px'} 0 16px;${idx > 0 ? `border-top:1px solid ${dividerColor};padding-top:16px;` : ''}">
@@ -2293,6 +2315,25 @@ async function handleGenerate(req, res) {
     })();
     const _gifs = [..._pageGifs, ..._bodyGifs.filter(bg => !_pageGifs.some(pg => pg.url === bg.url))];
 
+    // Attach headingContext to each image: nearest preceding <h1>–<h4> in raw page HTML.
+    // Used by matchImageToCard() to allocate images to feature cards by topic overlap.
+    const _imgsCtx = (() => {
+      if (!_pageRawHtml || !_imgs.length) return _imgs.map(img => ({ ...img, headingContext: img.alt || '' }));
+      const headings = [];
+      const _hRe = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+      let _hm;
+      while ((_hm = _hRe.exec(_pageRawHtml)) !== null) {
+        headings.push({ pos: _hm.index, text: _hm[1].replace(/<[^>]+>/g, '').trim() });
+      }
+      return _imgs.map(img => {
+        const imgPos = _pageRawHtml.indexOf(img.url);
+        if (imgPos === -1) return { ...img, headingContext: img.alt || '' };
+        const prev = headings.filter(h => h.pos < imgPos);
+        const nearest = prev[prev.length - 1];
+        return { ...img, headingContext: nearest?.text || img.alt || '' };
+      });
+    })();
+
     // ── PROMPT DISPATCH: single Claude rebuild call ──────────────────────────────
     let result;
     if (promoGridResult) {
@@ -2310,6 +2351,11 @@ async function handleGenerate(req, res) {
       const _isThoughtLeadership = /thought.?leadership/i.test(detectedType || '');
       if (_isThoughtLeadership) {
         prompt += `\n\nTHOUGHT LEADERSHIP EMAIL — MANDATORY JSON STRUCTURE:\nThis is a thought_leadership email. You MUST return a top-level "featureCards" array.\nDo NOT return a "body" array. Do NOT return bodyParagraphs. The "body" key must be absent or empty [].\n\nReturn exactly 3 featureCards in this format:\n"featureCards":[\n  {"title":"MISTAKE 1: [SHORT LABEL IN CAPS]","body":"2 sentences max. Cite a specific stat, quote, or example from the source.","imageUrl":null},\n  {"title":"MISTAKE 2: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null},\n  {"title":"MISTAKE 3: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null}\n]\n\nIf the article covers 6 mistakes, distill the 3 most impactful ones. Subject line should say "3 mistakes" if you reduce.\nVIOLATION: returning a "body" array instead of "featureCards" for thought_leadership is a critical error.`;
+      }
+      // For event_announcement emails, inject timeline feature card structure
+      const _isEventAnnouncement = /event.?announcement/i.test(detectedType || '');
+      if (_isEventAnnouncement) {
+        prompt += `\n\nevent_announcement — RENDER AS TIMELINE — MANDATORY:\nThe source contains dated milestones, agenda items, or deadline sequences. Do NOT summarize into narrative paragraphs.\n\nReturn "featureCards" where each card = one milestone:\n[{"title":"date or deadline label (e.g. \\"April 16\\", \\"May 7 — 5pm PT\\", \\"Week 1\\")","body":"1–2 sentences: what happens and what the reader must do","imageUrl":null}]\n\nExtraction rules:\n- One card per distinct date, deadline, agenda item, or phase\n- Headings → one card each; numbered list items → one card each; bold inline dates → one card each\n- Minimum 3 cards, maximum 8 cards, in chronological order from source\n\nStat cards (stat1/stat2/stat3): use the 3 most urgent/actionable dates from featureCards — earliest hard deadlines.\nVIOLATION: returning a "body" array instead of "featureCards" for event_announcement is a critical error.`;
       }
       if (!effectiveBrandDNA) {
         // No brand DNA yet — run extractBrandDNA and Claude in parallel to save ~4s
@@ -2569,8 +2615,16 @@ async function handleGenerate(req, res) {
         flatFields: result._flatFields || null,
         sourceHtml: _pageRawHtml || '',
         featureCards: (() => {
-          if (Array.isArray(result.featureCards) && result.featureCards.length > 0) return result.featureCards;
-          if (/thought.?leadership/i.test(result.emailType || detectedType || '')) {
+          const _fcType = result.emailType || detectedType || '';
+          const _heroUrl = req.body._ogImage || _imgsCtx[0]?.url || null;
+          const _usedUrls = new Set(_heroUrl ? [_heroUrl] : []);
+          if (Array.isArray(result.featureCards) && result.featureCards.length > 0) {
+            return result.featureCards.map(c => ({
+              ...c,
+              imageUrl: c.imageUrl || matchImageToCard(c, _imgsCtx.slice(1), _usedUrls) || null
+            }));
+          }
+          if (/thought.?leadership/i.test(_fcType)) {
             const _b = result.body || result._flatFields?.body || [];
             return _b.slice(0, 3).map((b, i) => ({
               title: `INSIGHT ${i + 1}`,
@@ -2654,8 +2708,27 @@ async function handleGenerate(req, res) {
         featureCards:   (() => {
           const _isTL = /thought.?leadership/i.test(finalEmailType || '');
           const _isProductUpdate = /product|announcement|feature|update/i.test(finalEmailType || '');
+          const _isEA2 = /event.?announcement/i.test(finalEmailType || '');
           const _wcArr = Array.isArray(result.whatChanged) ? result.whatChanged.filter(w => w?.title) : [];
-          const _pImgs = Array.isArray(_imgs) ? _imgs : [];
+          const _heroUrl2 = req.body._ogImage || _imgsCtx[0]?.url || null;
+          const _usedUrls2 = new Set(_heroUrl2 ? [_heroUrl2] : []);
+
+          // event_announcement: timeline cards — Claude returns featureCards directly
+          if (_isEA2) {
+            const _direct = Array.isArray(result.featureCards) && result.featureCards.length > 0
+              ? result.featureCards
+              : null;
+            if (_direct) return _direct.map(c => ({
+              ...c,
+              imageUrl: c.imageUrl || matchImageToCard(c, _imgsCtx.slice(1), _usedUrls2) || null
+            }));
+            const _body = result.body || result._flatFields?.body || [];
+            return _body.slice(0, 8).map((b, i) => ({
+              title: `MILESTONE ${i + 1}`,
+              body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
+              imageUrl: null
+            }));
+          }
 
           // thought_leadership: Claude is instructed to return featureCards directly — use them first
           if (_isTL) {
@@ -2677,7 +2750,8 @@ async function handleGenerate(req, res) {
             return _wcArr.map((wc, i) => ({
               title:    wc.title || `Feature ${i + 1}`,
               body:     wc.body  || '',
-              imageUrl: _pImgs[i]?.url || (_pImgs.length ? _pImgs[i % _pImgs.length]?.url : null) || null
+              imageUrl: matchImageToCard({ title: wc.title || '' }, _imgsCtx.slice(1), _usedUrls2)
+                        || _imgsCtx[i + 1]?.url || null
             }));
           }
           // Fallback for other types: body paragraphs (PARA_LABELS filter drops them in showcase)

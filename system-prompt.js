@@ -16,7 +16,8 @@ const EMAIL_TYPE_STRATEGIES = {
   onboarding:          'Reduce to ONE action. Remove all optional information. The email is a runway, not a guide.',
   reengagement:        'Acknowledge the gap directly. "You haven\'t [action] in [time]" is more honest and converts better.',
   feature_launch:      'Open with a user problem this feature solves, not the feature name.',
-  brand_announcement:  'Connect brand change to reader benefit. "What this means for you" before "what we\'ve changed".'
+  brand_announcement:  'Connect brand change to reader benefit. "What this means for you" before "what we\'ve changed".',
+  event_announcement:  'Extract all dated milestones and deadline sequences as timeline feature cards — one card per date or phase. Never collapse into narrative paragraphs.'
 };
 
 // Returns a goal-specific strategy block that visibly changes hook, CTA, tone, and structure.
@@ -176,7 +177,7 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
   }
 
   return `STRUCTURAL FIDELITY RULE:
-Analyze the source email first. Identify emailType, whether the source has numbers/stats, and what sections actually exist. Only include stat cards if the source has real numbers. Only include feature cards if the source is a product update. For thought leadership or digest emails, use narrative paragraphs — no feature card grid.
+Analyze the source email first. Identify emailType, whether the source has numbers/stats, and what sections actually exist. Only include stat cards if the source has real numbers. Only include feature cards if the source is a product update or event_announcement. For event_announcement, render as timeline feature cards (one per date or milestone) — never narrative paragraphs. For thought leadership or digest emails, use narrative paragraphs — no feature card grid.
 
 NEVER INVENT FACTS. Every claim, statistic, product name, feature, price, date, and company detail you write MUST come directly from the content provided. Do NOT hallucinate, extrapolate, or carry over information from any previous generation. Each rebuild is completely isolated — you have zero memory of prior inputs.
 
@@ -501,7 +502,7 @@ Return ONLY valid JSON:
 }
 
 function getEmailTypePrompt(subject, body) {
-  return `Classify this email into exactly ONE category: product_update, retention_campaign, promotional_offer, onboarding, reengagement, feature_launch, brand_announcement
+  return `Classify this email into exactly ONE category: product_update, retention_campaign, promotional_offer, onboarding, reengagement, feature_launch, brand_announcement, event_announcement
 
 Subject: "${subject}"
 Body: ${body.slice(0, 500)}
