@@ -11,7 +11,7 @@ function generateShowcaseHtml({
   const BG        = '#07090f';
   const CARD_BG   = '#0f1119';
   const BORDER    = 'rgba(255,255,255,0.08)';
-  const accent    = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#2dd4bf';
+  const accent    = (primaryColor && /^#[0-9a-fA-F]{6}$/.test(primaryColor)) ? primaryColor : '#00e5a0';
   const esc       = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const safeArr   = a => Array.isArray(a) ? a : [];
   const mdToHtml  = t => esc(t).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
