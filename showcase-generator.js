@@ -40,6 +40,51 @@ function generateShowcaseHtml({
     });
   }
 
+  // Fix Before/After comparison block for white email frame —
+  // the block is built with dark-theme rgba colors; adapt them for light-bg rendering.
+  function adaptEmailBodyForShowcase(html) {
+    if (!html) return html;
+    return html
+      // Outer comparison table border
+      .replace(/border:1px solid rgba\(255,255,255,0\.10\)/g,
+               'border:1px solid rgba(0,0,0,0.10)')
+      // Before cell: fix border-right + add light grey background
+      .replace(
+        'border-right:1px solid rgba(255,255,255,0.10);vertical-align:top;"',
+        'border-right:1px solid rgba(0,0,0,0.10);vertical-align:top;background:#f9f9f7;"'
+      )
+      // After cell: add light-blue background
+      .replace(
+        'style="width:50%;padding:16px 20px;vertical-align:top;"',
+        'style="width:50%;padding:16px 20px;vertical-align:top;background:#f0f7ff;"'
+      )
+      // "BEFORE" label text
+      .replace(/color:rgba\(255,255,255,0\.30\)/g, 'color:rgba(0,0,0,0.35)')
+      // Before body text
+      .replace(/color:rgba\(255,255,255,0\.60\)/g, 'color:#6b6b66')
+      // After body text
+      .replace(/color:rgba\(255,255,255,0\.85\)/g, 'color:#1a1a18');
+  }
+
+  // Decode already-escaped HTML entities before re-encoding —
+  // originalBody from the scraper may contain &#039; &#8217; &vert; etc.
+  // Applying esc() directly would double-escape them to &amp;#039; etc.
+  function prepareBodyText(text) {
+    if (!text) return '';
+    const decoded = text
+      .replace(/&amp;/g,  '&')
+      .replace(/&lt;/g,   '<')
+      .replace(/&gt;/g,   '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      .replace(/&vert;/g, '|')
+      .replace(/&[a-z]+;/gi, ' ');
+    return decoded
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   const origScore  = Number(originalScore) || 0;
   const rebScore   = Number(rebuiltScore)  || 0;
   const scoreImprv = rebScore - origScore;
@@ -65,7 +110,7 @@ function generateShowcaseHtml({
     return m ? m[1] : html;
   }
 
-  const emailBodyHtml = extractEmailBody(rebuiltEmailHtml);
+  const emailBodyHtml = adaptEmailBodyForShowcase(extractEmailBody(rebuiltEmailHtml));
 
   /* ─── BEFORE TAB ────────────────────────────────────────────────── */
   const beforeTab = `
@@ -78,7 +123,7 @@ function generateShowcaseHtml({
 
   <div class="card">
     <div class="card-label">Original Email Body</div>
-    <div class="orig-body">${esc(originalBody || '').replace(/\n{2,}/g,'</p><p class="ob-p">').replace(/\n/g,'<br>')}</div>
+    <div class="orig-body">${prepareBodyText(originalBody || '').replace(/\n{2,}/g,'</p><p class="ob-p">').replace(/\n/g,'<br>')}</div>
   </div>
 
   ${imgsArr.length || gifsArr.length ? `
