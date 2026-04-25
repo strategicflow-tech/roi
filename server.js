@@ -1265,14 +1265,14 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       </td></tr></table>`;
     }
     if (p_beforeState || p_afterState) {
-      return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.10);border-radius:8px;margin:0;"><tr>
-        <td style="width:50%;padding:16px 20px;border-right:1px solid rgba(255,255,255,0.10);vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.30);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Before</p>
-          <p style="font-size:13px;color:rgba(255,255,255,0.60);margin:0;line-height:1.5;">${p_beforeState}</p>
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(0,0,0,0.08);border-radius:8px;margin:0;"><tr>
+        <td style="width:50%;padding:16px 20px;border-right:1px solid rgba(0,0,0,0.08);vertical-align:top;">
+          <p style="font-size:10px;font-weight:700;color:#999999;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Before</p>
+          <p style="font-size:13px;color:#555555;margin:0;line-height:1.5;">${p_beforeState}</p>
         </td>
         <td style="width:50%;padding:16px 20px;vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">After</p>
-          <p style="font-size:13px;color:rgba(255,255,255,0.85);margin:0;line-height:1.5;">${p_afterState}</p>
+          <p style="font-size:10px;font-weight:700;color:#3c91dc;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">After</p>
+          <p style="font-size:13px;color:#1a1a18;margin:0;line-height:1.5;">${p_afterState}</p>
         </td>
       </tr></table>`;
     }

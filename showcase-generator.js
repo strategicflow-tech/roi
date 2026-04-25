@@ -40,30 +40,21 @@ function generateShowcaseHtml({
     });
   }
 
-  // Fix Before/After comparison block for white email frame —
-  // the block is built with dark-theme rgba colors; adapt them for light-bg rendering.
+  // Adapt the Before/After comparison block for the showcase white email frame —
+  // adds cell background tints; source colors are already dark-on-white from buildNewsletterHTML.
   function adaptEmailBodyForShowcase(html) {
     if (!html) return html;
     return html
-      // Outer comparison table border
-      .replace(/border:1px solid rgba\(255,255,255,0\.10\)/g,
-               'border:1px solid rgba(0,0,0,0.10)')
-      // Before cell: fix border-right + add light grey background
+      // Before cell: add light grey background (source already has rgba(0,0,0,0.08) border)
       .replace(
-        'border-right:1px solid rgba(255,255,255,0.10);vertical-align:top;"',
-        'border-right:1px solid rgba(0,0,0,0.10);vertical-align:top;background:#f9f9f7;"'
+        'border-right:1px solid rgba(0,0,0,0.08);vertical-align:top;"',
+        'border-right:1px solid rgba(0,0,0,0.08);vertical-align:top;background:#f9f9f7;"'
       )
       // After cell: add light-blue background
       .replace(
         'style="width:50%;padding:16px 20px;vertical-align:top;"',
         'style="width:50%;padding:16px 20px;vertical-align:top;background:#f0f7ff;"'
-      )
-      // "BEFORE" label text
-      .replace(/color:rgba\(255,255,255,0\.30\)/g, 'color:rgba(0,0,0,0.35)')
-      // Before body text
-      .replace(/color:rgba\(255,255,255,0\.60\)/g, 'color:#6b6b66')
-      // After body text
-      .replace(/color:rgba\(255,255,255,0\.85\)/g, 'color:#1a1a18');
+      );
   }
 
   // Decode already-escaped HTML entities before re-encoding —
@@ -367,7 +358,6 @@ a{color:${accent}}
 <header class="hdr">
   <div class="hdr-inner">
     <div class="brand">
-      ${logoUrl ? `<img src="${esc(logoUrl)}" alt="${esc(companyName)}" class="brand-logo">` : ''}
       <span class="brand-name">Strategic<em>Flow</em></span>
     </div>
     <span class="company-tag">${esc(companyName)} &mdash; Email Audit</span>
