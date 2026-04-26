@@ -1149,6 +1149,19 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   const _heroCandidate = (_rawHeroUrl && !_isLogoUrl(_rawHeroUrl)) ? _rawHeroUrl : null;
   const heroSrc = _heroCandidate || _firstProductImg || buildHeroSrc(company, brandDNA, options.heroKeyword);
 
+  // Image feature cards: if productImages has 2–4 items, images 2–N become cards below the stat row.
+  // If 1 image: hero only. If 5+: hero only, rest ignored.
+  const _imgFeatureCardsHtml = (() => {
+    const allImgs = Array.isArray(options.productImages) ? options.productImages.filter(img => img && img.url && !_isLogoUrl(img.url)) : [];
+    if (allImgs.length < 2 || allImgs.length > 4) return '';
+    const extras = allImgs.slice(1);
+    if (!extras.length) return '';
+    return extras.map(img => {
+      const caption = img.alt ? `<tr><td style="padding:6px 0 0;font-size:12px;color:${textMedium};line-height:1.4;font-style:italic;">${img.alt}</td></tr>` : '';
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;"><tr><td style="padding:0;line-height:0;"><img src="${img.url}" alt="${img.alt || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:block;border:0;" /></td></tr>${caption}</table>`;
+    }).join('');
+  })();
+
   // Footer colors — always dark (template is dark-first)
   const footerBorder = '#1e1e1e';
   const footerText   = '#888888';
@@ -1484,6 +1497,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
             <h1 style="margin:0 0 16px;font-size:26px;font-weight:900;color:${textStrong};line-height:1.2;letter-spacing:-0.4px;">${p_hook}</h1>
             <p style="margin:0 0 28px;font-size:16px;color:${textMedium};line-height:1.75;">${p_tension}</p>
             ${statCardsHtml}
+            ${_imgFeatureCardsHtml}
           </td>
         </tr>
 
@@ -2280,7 +2294,6 @@ async function handleGenerate(req, res) {
         'rmode=crop','1646653490249','630c6d4e',
         'gravatar','avatar','author','profile','headshot',
         'logo','typelogo','symbol','favicon','keyboard-shortcuts',
-        'salesforce','hubspot','google','microsoft','adobe',
         'promoengine','300x300','200x200','150x150','128x128',
         // social footer icons and logo variants
         'sf-footer-','-logo-home.','xlogo.',

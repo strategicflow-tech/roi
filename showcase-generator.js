@@ -402,18 +402,59 @@ function extractVisualAssets(rawHtml, baseUrl) {
   const tables = [];
   if (!rawHtml || typeof rawHtml !== 'string') return { images, gifs, tables };
 
-  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi;
+  const AD_TRACKING_DOMAINS = [
+    'doubleclick.net','googlesyndication.com','googleadservices.com',
+    'adnxs.com','adsrvr.org','adsafeprotected.com','moatads.com',
+    'scorecardresearch.com','quantserve.com','omtrdc.net',
+    'demdex.net','trk.email','go2cloud.org','impactradius.com',
+    'pxf.io','sjv.io','tk-ads.','cdn.branch.io','app.link'
+  ];
+
+  const imgRegex = /<img([^>]*)>/gi;
+  const seen = new Set();
   let match;
   while ((match = imgRegex.exec(rawHtml)) !== null) {
-    let url = match[1] || '';
-    const alt = match[2] || '';
+    const attrs = match[1] || '';
+
+    const srcM = attrs.match(/\bsrc=["']([^"']+)["']/i);
+    if (!srcM) continue;
+    let url = srcM[1] || '';
     if (!url) continue;
     if (!url.startsWith('http')) {
       try { url = new URL(url, baseUrl).href; } catch (_) { continue; }
     }
+
+    // Skip SVG files (icon sprites, logos — not content images); strip fragment too
+    if (url.split('?')[0].split('#')[0].toLowerCase().endsWith('.svg')) continue;
+
+    // Deduplicate by base URL (strip query string and fragment)
+    const baseKey = url.split('?')[0].split('#')[0];
+    if (seen.has(baseKey)) continue;
+    seen.add(baseKey);
+
+    const altM = attrs.match(/\balt=["']([^"']*)["']/i);
+    const alt = altM ? altM[1] : '';
+
+    // Extract explicit width/height attributes (handle both quoted and unquoted)
+    const wAttrM = attrs.match(/\bwidth=["']?(\d+)["']?/i);
+    const hAttrM = attrs.match(/\bheight=["']?(\d+)["']?/i);
+    const wAttr = wAttrM ? parseInt(wAttrM[1]) : null;
+    const hAttr = hAttrM ? parseInt(hAttrM[1]) : null;
+
+    // Filter tracking pixels: explicit dimension < 10px
+    if ((wAttr !== null && wAttr < 10) || (hAttr !== null && hAttr < 10)) continue;
+
+    // Filter content images: keep if no explicit width, or width >= 200px
+    // Icons/thumbnails with explicit width 10–199 are excluded
+    if (wAttr !== null && wAttr < 200) continue;
+
+    // Filter ad/tracking domains
+    const urlLower = url.toLowerCase();
+    if (AD_TRACKING_DOMAINS.some(d => urlLower.includes(d))) continue;
+
     if (url.includes('.gif')) {
       gifs.push({ url, alt });
-    } else if (/\.(jpg|jpeg|png|webp|svg)(\?|$)/i.test(url) || url.startsWith('https://')) {
+    } else if (/\.(jpg|jpeg|png|webp)(\?|$)/i.test(url) || url.startsWith('https://')) {
       images.push({ url, alt });
     }
   }
