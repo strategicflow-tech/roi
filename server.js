@@ -2445,7 +2445,7 @@ async function handleGenerate(req, res) {
         const p3Words    = result.body[2].toLowerCase();
         const topicDrift = p1Keywords.filter(kw => p3Words.includes(kw)).length;
         if (topicDrift < 2) {
-          result.body[2] = 'Without a structured approach, your team continues facing the same friction — and the gap between teams that act and teams that wait compounds with every sprint.';
+          result.body[2] = 'Admins who skip sandbox preview don\'t find out what broke until their users do. By the time the ticket comes in, the release is live and the fix window has closed. The May 7 deadline exists precisely to prevent that conversation.';
           console.log('[coherence] P3 topic drift detected — replaced with on-topic consequence');
         }
       }
