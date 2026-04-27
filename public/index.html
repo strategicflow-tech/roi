@@ -571,256 +571,96 @@ textarea{resize:vertical;line-height:1.7;}
 
       <div class="error-msg" id="errForm"></div>
 
-      <!-- ============================================================
-     STRATEGIC FLOW — ONBOARDING CAROUSEL
-     ============================================================ -->
+      <!-- STRATEGIC FLOW CAROUSEL -->
 <style>
-#sf-carousel {
-  width: 100%;
-  max-width: 620px;
-  margin: 0 auto 32px auto;
-  position: relative;
-  font-family: 'Inter', sans-serif;
-  transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.5s ease;
-  overflow: hidden;
-}
-#sf-carousel.dismissed {
-  opacity: 0;
-  transform: translateY(-10px);
-  max-height: 0 !important;
-  margin-bottom: 0;
-  pointer-events: none;
-}
-.sf-track-outer {
-  overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 212, 200, 0.18);
-  background: #080f1e;
-  box-shadow: 0 0 0 1px rgba(0,212,200,0.07), 0 8px 40px rgba(0,0,0,0.5);
-}
-.sf-track {
-  display: flex;
-  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
-}
-.sf-slide {
-  min-width: 100%;
-  padding: 36px 32px 28px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 210px;
-  justify-content: center;
-}
-@media (max-width: 480px) {
-  .sf-slide { padding: 28px 20px 22px; min-height: 190px; }
-}
-.sf-eyebrow {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #00d4c8;
-  opacity: 0.7;
-  margin-bottom: 2px;
-}
-.sf-headline {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: #f0f4ff;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-.sf-headline em { font-style: normal; color: #00d4c8; }
-.sf-sub {
-  font-size: 13px;
-  color: rgba(180,195,230,0.7);
-  line-height: 1.5;
-  margin: 0;
-}
-.sf-score-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(0,212,200,0.07);
-  border: 1px solid rgba(0,212,200,0.22);
-  border-radius: 100px;
-  padding: 6px 16px 6px 8px;
-  width: fit-content;
-  margin-top: 4px;
-}
-.sf-score-dot {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: linear-gradient(135deg, #1a2540, #0d1a30);
-  border: 1.5px solid rgba(0,212,200,0.3);
-  display: flex; align-items: center; justify-content: center;
-}
-.sf-score-q { font-family: 'DM Mono', monospace; font-size: 13px; color: #f59e0b; font-weight: 700; }
-.sf-score-label { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(180,195,230,0.6); letter-spacing: 0.05em; }
-.sf-ab-row { display: flex; gap: 10px; margin-top: 6px; }
-.sf-ab-card { flex: 1; border-radius: 10px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.06); }
-.sf-ab-card.before { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.18); }
-.sf-ab-card.after  { background: rgba(0,212,200,0.06);  border-color: rgba(0,212,200,0.22); }
-.sf-ab-tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 5px; display: block; }
-.before .sf-ab-tag { color: #f59e0b; } .after .sf-ab-tag { color: #00d4c8; }
-.sf-ab-subject { font-size: 11.5px; color: rgba(200,215,245,0.85); line-height: 1.4; margin-bottom: 8px; }
-.sf-ab-rate { font-family: 'DM Mono', monospace; font-weight: 700; }
-.before .sf-ab-rate { font-size: 20px; color: rgba(245,158,11,0.6); }
-.after  .sf-ab-rate { font-size: 20px; color: #00d4c8; }
-.sf-ab-rate-label { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(160,175,210,0.5); margin-left: 2px; }
-.sf-bugs { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.sf-bug-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: rgba(190,205,240,0.8); line-height: 1.35; }
-.sf-bug-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
-.sf-stat-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
-.sf-stat-num { font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 700; color: #00d4c8; line-height: 1; }
-.sf-stat-label { font-size: 13px; color: rgba(160,175,210,0.65); }
-.sf-brands { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.sf-brand-chip { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 5px 10px 5px 6px; }
-.sf-brand-logo { width: 16px; height: 16px; border-radius: 3px; object-fit: contain; }
-.sf-brand-name { font-family: 'DM Mono', monospace; font-size: 10.5px; color: rgba(190,205,240,0.75); letter-spacing: 0.02em; }
-.sf-cta-mono { font-family: 'DM Mono', monospace; font-size: 13px; color: rgba(0,212,200,0.8); letter-spacing: 0.04em; margin-top: 6px; }
-.sf-cta-hint { font-size: 12px; color: rgba(160,175,210,0.45); margin-top: 4px; }
-.sf-progress-bar { height: 2px; background: rgba(255,255,255,0.06); border-radius: 0 0 14px 14px; overflow: hidden; }
-.sf-progress-fill { height: 100%; background: linear-gradient(90deg, #00d4c8, #5E6AD2); border-radius: 2px; transition: width 0.42s cubic-bezier(0.4,0,0.2,1); }
-.sf-controls { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
-.sf-arrow { background: none; border: 1px solid rgba(0,212,200,0.2); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(0,212,200,0.6); transition: border-color 0.2s, color 0.2s, opacity 0.2s; padding: 0; }
-.sf-arrow:hover { border-color: rgba(0,212,200,0.5); color: #00d4c8; }
-.sf-arrow:disabled { opacity: 0.2; cursor: default; }
-.sf-dots { display: flex; gap: 6px; align-items: center; }
-.sf-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); cursor: pointer; transition: background 0.25s, transform 0.25s; border: none; padding: 0; }
-.sf-dot.active { background: #00d4c8; transform: scale(1.4); }
-.sf-skip { text-align: center; margin-top: 8px; }
-.sf-skip a { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(160,175,210,0.35); text-decoration: none; letter-spacing: 0.08em; cursor: pointer; transition: color 0.2s; }
-.sf-skip a:hover { color: rgba(160,175,210,0.65); }
+#sf-carousel{width:100%;max-width:540px;margin:0 auto 32px auto;position:relative;transition:opacity 0.4s ease,transform 0.4s ease,max-height 0.5s ease;overflow:hidden;}
+#sf-carousel.dismissed{opacity:0;transform:translateY(-10px);max-height:0!important;margin-bottom:0;pointer-events:none;}
+.sf-track-outer{overflow:hidden;border-radius:14px;border:1px solid rgba(0,212,200,0.18);box-shadow:0 8px 40px rgba(0,0,0,0.5);}
+.sf-track{display:flex;transition:transform 0.42s cubic-bezier(0.4,0,0.2,1);will-change:transform;}
+.sf-slide{min-width:100%;box-sizing:border-box;}
+.sf-slide img{width:100%;height:auto;display:block;border-radius:14px;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+.sf-progress-bar{height:2px;background:rgba(255,255,255,0.06);}
+.sf-progress-fill{height:100%;background:linear-gradient(90deg,#00d4c8,#5E6AD2);transition:width 0.42s cubic-bezier(0.4,0,0.2,1);}
+.sf-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;}
+.sf-arrow{background:none;border:1px solid rgba(0,212,200,0.2);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(0,212,200,0.6);transition:border-color 0.2s,color 0.2s,opacity 0.2s;padding:0;}
+.sf-arrow:hover{border-color:rgba(0,212,200,0.5);color:#00d4c8;}
+.sf-arrow:disabled{opacity:0.2;cursor:default;}
+.sf-dots{display:flex;gap:6px;align-items:center;}
+.sf-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.15);cursor:pointer;transition:background 0.25s,transform 0.25s;border:none;padding:0;}
+.sf-dot.active{background:#00d4c8;transform:scale(1.4);}
+.sf-skip{text-align:center;margin-top:8px;}
+.sf-skip a{font-family:'DM Mono',monospace;font-size:10px;color:rgba(160,175,210,0.35);text-decoration:none;letter-spacing:0.08em;cursor:pointer;transition:color 0.2s;}
+.sf-skip a:hover{color:rgba(160,175,210,0.65);}
 </style>
 
 <div id="sf-carousel">
   <div class="sf-track-outer">
     <div class="sf-track" id="sfTrack">
-      <div class="sf-slide">
-        <div class="sf-eyebrow">Strategic Flow · Audit</div>
-        <h2 class="sf-headline">Architecture score:<br><em>unknown.</em></h2>
-        <p class="sf-sub">Every newsletter has structural bugs killing open rates.<br>Most founders have no idea they exist.</p>
-        <div class="sf-score-pill">
-          <div class="sf-score-dot"><span class="sf-score-q">?</span></div>
-          <span class="sf-score-label">Your score: not yet analyzed</span>
-        </div>
-      </div>
-      <div class="sf-slide">
-        <div class="sf-eyebrow">Subject line · Real example</div>
-        <h2 class="sf-headline">One rewrite.<br><em>+17 points</em> open rate.</h2>
-        <div class="sf-ab-row">
-          <div class="sf-ab-card before">
-            <span class="sf-ab-tag">Before</span>
-            <p class="sf-ab-subject">"Product Update — June 2024"</p>
-            <span class="sf-ab-rate">17%<span class="sf-ab-rate-label">open</span></span>
-          </div>
-          <div class="sf-ab-card after">
-            <span class="sf-ab-tag">After</span>
-            <p class="sf-ab-subject">"The feature your team keeps skipping"</p>
-            <span class="sf-ab-rate">34%<span class="sf-ab-rate-label">open</span></span>
-          </div>
-        </div>
-      </div>
-      <div class="sf-slide">
-        <div class="sf-eyebrow">Structural bugs · Detected</div>
-        <h2 class="sf-headline">5 bugs.<br><em>Every email.</em></h2>
-        <div class="sf-bugs">
-          <div class="sf-bug-row"><span class="sf-bug-icon">⚠</span><span>Feature-first subject line — no outcome signal</span></div>
-          <div class="sf-bug-row"><span class="sf-bug-icon">⚠</span><span>Hook buried below fold — reader exits before tension</span></div>
-          <div class="sf-bug-row"><span class="sf-bug-icon">⚠</span><span>Body leads with company news, not reader consequence</span></div>
-          <div class="sf-bug-row"><span class="sf-bug-icon">⚠</span><span>3 CTAs — none ownership-framed, all compete</span></div>
-          <div class="sf-bug-row"><span class="sf-bug-icon">⚠</span><span>No preheader — 40% of open decision wasted</span></div>
-        </div>
-      </div>
-      <div class="sf-slide">
-        <div class="sf-eyebrow">Teardowns completed</div>
-        <div class="sf-stat-row">
-          <span class="sf-stat-num">22</span>
-          <span class="sf-stat-label">rebuilds · avg score lift <strong style="color:#00d4c8">3→9</strong></span>
-        </div>
-        <div class="sf-brands">
-          <div class="sf-brand-chip"><img class="sf-brand-logo" src="https://www.revolut.com/favicon.ico" alt="" onerror="this.style.display='none'"><span class="sf-brand-name">Revolut</span></div>
-          <div class="sf-brand-chip"><img class="sf-brand-logo" src="https://www.notion.so/favicon.ico" alt="" onerror="this.style.display='none'"><span class="sf-brand-name">Notion</span></div>
-          <div class="sf-brand-chip"><img class="sf-brand-logo" src="https://www.wiz.io/favicon.ico" alt="" onerror="this.style.display='none'"><span class="sf-brand-name">Wiz</span></div>
-          <div class="sf-brand-chip"><img class="sf-brand-logo" src="https://www.hubspot.com/favicon.ico" alt="" onerror="this.style.display='none'"><span class="sf-brand-name">HubSpot</span></div>
-          <div class="sf-brand-chip"><img class="sf-brand-logo" src="https://www.atlassian.com/favicon.ico" alt="" onerror="this.style.display='none'"><span class="sf-brand-name">Atlassian</span></div>
-        </div>
-      </div>
-      <div class="sf-slide">
-        <div class="sf-eyebrow">You're up</div>
-        <h2 class="sf-headline">Paste your email.<br><em>60 seconds.</em> Free.</h2>
-        <p class="sf-cta-mono">→ Structural score out of 10<br>→ Subject line rewrite<br>→ Top 3 fixes, ranked by impact</p>
-        <p class="sf-cta-hint">No account. No credit card. One rebuild, done right.</p>
-      </div>
+      <div class="sf-slide"><img src="/slide1.jpg" alt="Slide 1" draggable="false"></div>
+      <div class="sf-slide"><img src="/slide2.jpg" alt="Slide 2" draggable="false"></div>
+      <div class="sf-slide"><img src="/slide3.jpg" alt="Slide 3" draggable="false"></div>
+      <div class="sf-slide"><img src="/slide4.jpg" alt="Slide 4" draggable="false"></div>
+      <div class="sf-slide"><img src="/slide5.jpg" alt="Slide 5" draggable="false"></div>
     </div>
-    <div class="sf-progress-bar">
-      <div class="sf-progress-fill" id="sfProgressFill" style="width:20%"></div>
-    </div>
+    <div class="sf-progress-bar"><div class="sf-progress-fill" id="sfProgressFill" style="width:20%"></div></div>
   </div>
   <div class="sf-controls">
-    <button class="sf-arrow" id="sfPrev" onclick="sfNav(-1)" aria-label="Previous">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
+    <button class="sf-arrow" id="sfPrev" onclick="sfNav(-1)" aria-label="Previous"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <div class="sf-dots" id="sfDots"></div>
-    <button class="sf-arrow" id="sfNext" onclick="sfNav(1)" aria-label="Next">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>
+    <button class="sf-arrow" id="sfNext" onclick="sfNav(1)" aria-label="Next"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
   </div>
   <div class="sf-skip"><a onclick="sfDismiss()" role="button" tabindex="0">skip intro</a></div>
 </div>
 
 <script>
-(function() {
-  const TOTAL = 5;
-  let current = 0, startX = 0, isDragging = false, dismissed = false;
-  const track = document.getElementById('sfTrack');
-  const fill = document.getElementById('sfProgressFill');
-  const dotsEl = document.getElementById('sfDots');
-  const prevBtn = document.getElementById('sfPrev');
-  const nextBtn = document.getElementById('sfNext');
-  const carousel = document.getElementById('sf-carousel');
-  for (let i = 0; i < TOTAL; i++) {
-    const d = document.createElement('button');
-    d.className = 'sf-dot' + (i === 0 ? ' active' : '');
-    d.setAttribute('aria-label', 'Slide ' + (i+1));
-    d.onclick = () => sfGoTo(i);
+(function(){
+  const TOTAL=5;
+  let current=0,startX=0,isDragging=false,dismissed=false;
+  const track=document.getElementById('sfTrack');
+  const fill=document.getElementById('sfProgressFill');
+  const dotsEl=document.getElementById('sfDots');
+  const prevBtn=document.getElementById('sfPrev');
+  const nextBtn=document.getElementById('sfNext');
+  const carousel=document.getElementById('sf-carousel');
+  for(let i=0;i<TOTAL;i++){
+    const d=document.createElement('button');
+    d.className='sf-dot'+(i===0?' active':'');
+    d.setAttribute('aria-label','Slide '+(i+1));
+    d.onclick=()=>sfGoTo(i);
     dotsEl.appendChild(d);
   }
-  function sfGoTo(idx) {
-    current = Math.max(0, Math.min(TOTAL - 1, idx));
-    track.style.transform = 'translateX(-' + (current * 100) + '%)';
-    fill.style.width = ((current + 1) / TOTAL * 100) + '%';
-    document.querySelectorAll('.sf-dot').forEach((d, i) => d.classList.toggle('active', i === current));
-    prevBtn.disabled = current === 0;
-    nextBtn.disabled = current === TOTAL - 1;
+  function sfGoTo(idx){
+    current=Math.max(0,Math.min(TOTAL-1,idx));
+    track.style.transform='translateX(-'+(current*100)+'%)';
+    fill.style.width=((current+1)/TOTAL*100)+'%';
+    document.querySelectorAll('.sf-dot').forEach((d,i)=>d.classList.toggle('active',i===current));
+    prevBtn.disabled=current===0;
+    nextBtn.disabled=current===TOTAL-1;
   }
-  window.sfNav = function(dir) { sfGoTo(current + dir); };
-  window.sfDismiss = function() {
-    if (dismissed) return;
-    dismissed = true;
-    carousel.style.maxHeight = carousel.offsetHeight + 'px';
-    requestAnimationFrame(() => carousel.classList.add('dismissed'));
+  window.sfNav=function(dir){sfGoTo(current+dir);};
+  window.sfDismiss=function(){
+    if(dismissed)return;
+    dismissed=true;
+    carousel.style.maxHeight=carousel.offsetHeight+'px';
+    requestAnimationFrame(()=>carousel.classList.add('dismissed'));
   };
-  document.addEventListener('focusin', function(e) {
-    if (!dismissed && e.target.matches('input, textarea, [contenteditable]')) sfDismiss();
+  document.addEventListener('focusin',function(e){
+    if(!dismissed&&e.target.matches('input,textarea,[contenteditable]'))sfDismiss();
   });
-  const trackOuter = document.querySelector('.sf-track-outer');
-  trackOuter.addEventListener('touchstart', e => { startX = e.touches[0].clientX; isDragging = true; }, { passive: true });
-  trackOuter.addEventListener('touchend', e => {
-    if (!isDragging) return;
-    const diff = startX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) sfNav(diff > 0 ? 1 : -1);
-    isDragging = false;
-  }, { passive: true });
-  trackOuter.addEventListener('mousedown', e => { startX = e.clientX; isDragging = true; });
-  trackOuter.addEventListener('mouseup', e => {
-    if (!isDragging) return;
-    const diff = startX - e.clientX;
-    if (Math.abs(diff) > 40) sfNav(diff > 0 ? 1 : -1);
-    isDragging = false;
+  const to=document.querySelector('.sf-track-outer');
+  to.addEventListener('touchstart',e=>{startX=e.touches[0].clientX;isDragging=true;},{passive:true});
+  to.addEventListener('touchend',e=>{
+    if(!isDragging)return;
+    const diff=startX-e.changedTouches[0].clientX;
+    if(Math.abs(diff)>40)sfNav(diff>0?1:-1);
+    isDragging=false;
+  },{passive:true});
+  to.addEventListener('mousedown',e=>{startX=e.clientX;isDragging=true;});
+  to.addEventListener('mouseup',e=>{
+    if(!isDragging)return;
+    const diff=startX-e.clientX;
+    if(Math.abs(diff)>40)sfNav(diff>0?1:-1);
+    isDragging=false;
   });
   sfGoTo(0);
 })();
