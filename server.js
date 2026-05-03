@@ -189,7 +189,10 @@ app.get('/auth/verify/:token', async (req, res) => {
   }
 
   console.log('[auth/verify] Signed in:', data.email);
-  res.redirect('/index.html');
+  req.session.save((err) => {
+    if (err) console.error('[auth/verify] session save error:', err);
+    res.redirect('/index.html');
+  });
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
@@ -408,10 +411,19 @@ async function getUser(email) {
 
 async function upsertUser(email, fields) {
   const e = email.toLowerCase().trim();
-  const sets = Object.entries(fields).map(([k, v], i) => `${k} = $${i + 2}`).join(', ');
-  const vals = Object.values(fields);
+  // Strip last_used_at — always appended via NOW() in the query to avoid duplicate column
+  const clean = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'last_used_at'));
+  if (Object.keys(clean).length === 0) {
+    await pool.query(
+      `INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO UPDATE SET last_used_at = NOW()`,
+      [e]
+    );
+    return;
+  }
+  const sets = Object.entries(clean).map(([k], i) => `${k} = $${i + 2}`).join(', ');
+  const vals = Object.values(clean);
   await pool.query(
-    `INSERT INTO users (email, ${Object.keys(fields).join(', ')}) VALUES ($1, ${vals.map((_, i) => `$${i + 2}`).join(', ')})
+    `INSERT INTO users (email, ${Object.keys(clean).join(', ')}) VALUES ($1, ${vals.map((_, i) => `$${i + 2}`).join(', ')})
      ON CONFLICT (email) DO UPDATE SET ${sets}, last_used_at = NOW()`,
     [e, ...vals]
   );
