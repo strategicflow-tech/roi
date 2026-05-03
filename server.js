@@ -3680,14 +3680,13 @@ app.post('/api/demo', async (req, res) => {
 
   (async () => {
     try {
-      const diagnosticPrompt = `You are the Strategic Flow diagnostic engine. Analyse this SaaS email for structural failures.
+      const combinedPrompt = `You are the Strategic Flow diagnostic and rebuild engine.
 
 Company: ${company || 'Unknown'}
 Subject: ${subject}
-Body:
-${body.slice(0, 3000)}
+Body: ${body.slice(0, 2500)}
 
-Run the complete 7-bug diagnostic. Check ALL 7 structural bugs:
+Do BOTH diagnostic and rebuild in one response. Check ALL 7 structural bugs:
 1. Filing label subject — subject announces the product, not the reader's problem
 2. Caveat opener — email opens with disclaimer/rollout notice before value
 3. Feature-first language — describes architecture not reader outcome
@@ -3696,36 +3695,13 @@ Run the complete 7-bug diagnostic. Check ALL 7 structural bugs:
 6. Weak or missing CTA — no ownership language ("Learn more" vs "Fix my X")
 7. Buried contrast — before/after comparison hidden in fine print or absent
 
-Score 1-10:
-1-3 = 5+ bugs present
-4-6 = 3-4 bugs present
-7-8 = 1-2 bugs present
-9-10 = consequence-first throughout
-
 Return ONLY valid JSON:
 {
   "score": <number 1-10>,
   "bugs": [
     { "name": "<bug name>", "description": "<specific problem in THIS email, one sentence>" }
   ],
-  "currentOpenRate": <estimated open rate as decimal e.g. 0.18>
-}`;
-
-      const diagnostic = await claudeJSON(diagnosticPrompt, 1500);
-      if (!diagnostic) throw new Error('Diagnostic failed');
-
-      const rebuildPrompt = `You are the Strategic Flow rebuild engine.
-
-Company: ${company || 'Unknown'}
-Original subject: ${subject}
-Original body:
-${body.slice(0, 2000)}
-
-Diagnostic score: ${diagnostic.score}/10
-Bugs: ${(diagnostic.bugs || []).map(b => b.name).join(', ')}
-
-Apply Strategic Flow fixes and return ONLY valid JSON:
-{
+  "currentOpenRate": <decimal e.g. 0.18>,
   "rebuiltScore": <number 7-10>,
   "projectedOpenRate": <decimal e.g. 0.29>,
   "abSubjects": [
@@ -3736,13 +3712,16 @@ Apply Strategic Flow fixes and return ONLY valid JSON:
   "whatChanged": [
     { "fix": "Fix 1 — Subject line", "before": "<original subject>", "after": "<rebuilt subject>", "why": "<one sentence>" },
     { "fix": "Fix 2 — Preview text", "before": "<original or inferred>", "after": "<rebuilt>", "why": "<one sentence>" },
-    { "fix": "Fix 3 — Hook", "before": "<original first line>", "after": "<rebuilt first line>", "why": "<one sentence>" },
+    { "fix": "Fix 3 — Hook", "before": "<original first line>", "after": "<rebuilt>", "why": "<one sentence>" },
     { "fix": "Fix 4 — CTA", "before": "<original CTA>", "after": "<rebuilt CTA with ownership language>", "why": "<one sentence>" }
   ]
 }`;
 
-      const rebuild = await claudeJSON(rebuildPrompt, 1500);
-      if (!rebuild) throw new Error('Rebuild failed');
+      const combined = await claudeJSON(combinedPrompt, 2000);
+      if (!combined) throw new Error('Assessment failed');
+
+      const diagnostic = combined;
+      const rebuild = combined;
 
       try {
         await notify(
