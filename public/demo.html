@@ -708,11 +708,15 @@ async function runDemo() {
 
     // Animate progress while waiting for job
     const steps = [
-      { pct: 25, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
-      { pct: 45, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
-      { pct: 60, label: 'Rebuilding subject line...', log: 'Applying consequence-first architecture' },
-      { pct: 75, label: 'Generating A/B variants...', log: 'Creating 3 subject line variants with open rate predictions' },
-      { pct: 88, label: 'Calculating ROI...', log: 'Computing reader delta for ' + subscribers.toLocaleString() + ' subscribers' },
+      { pct: 20, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
+      { pct: 38, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
+      { pct: 52, label: 'Rebuilding subject line...', log: 'Applying consequence-first architecture' },
+      { pct: 65, label: 'Generating A/B variants...', log: 'Creating 3 subject line variants with open rate predictions' },
+      { pct: 76, label: 'Calculating ROI...', log: 'Computing reader delta for ' + subscribers.toLocaleString() + ' subscribers' },
+      { pct: 84, label: 'Finalising rebuild...', log: 'Applying ownership language to CTA' },
+      { pct: 90, label: 'Almost done...', log: 'Assembling full diagnostic report' },
+      { pct: 94, label: 'Still working...', log: 'Claude is processing — this can take 60–90 seconds' },
+      { pct: 97, label: 'Nearly there...', log: 'Waiting for final response from AI engine' },
     ];
 
     let stepIdx = 0;
@@ -722,7 +726,7 @@ async function runDemo() {
         setProgress(s.pct, s.label);
         addLog(s.log);
       }
-    }, 5000);
+    }, 8000);
 
     // Poll for job result
     const jobId = data.jobId;
@@ -741,10 +745,14 @@ async function runDemo() {
           addLog('Assessment complete', 'done');
           await new Promise(r => setTimeout(r, 500));
           renderResults(d.result, subscribers);
-        } else if (d.status === 'failed' || attempts > 60) {
+        } else if (d.status === 'failed') {
           clearInterval(poll);
           clearInterval(stepTimer);
-          throw new Error('Assessment timed out');
+          throw new Error(d.error || 'Assessment failed — please try again.');
+        } else if (attempts > 90) {
+          clearInterval(poll);
+          clearInterval(stepTimer);
+          throw new Error('Assessment timed out after 4 minutes. Please try again.');
         }
       } catch (e) {
         clearInterval(poll);

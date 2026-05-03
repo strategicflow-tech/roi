@@ -3768,9 +3768,11 @@ Apply Strategic Flow fixes and return ONLY valid JSON:
         originalSubject: subject
       };
 
+      clearTimeout(jobTimer);
       jobs.set(jobId, { status: 'complete', result, created: Date.now() });
 
     } catch (err) {
+      clearTimeout(jobTimer);
       console.error('[api/demo] job failed:', err.message);
       jobs.set(jobId, { status: 'failed', error: err.message, created: Date.now() });
     }
