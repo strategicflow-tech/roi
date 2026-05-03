@@ -5,6 +5,8 @@ const express    = require('express');
 const { Pool }   = require('pg');
 const Anthropic  = require('@anthropic-ai/sdk');
 const { Resend } = require('resend');
+const Stripe = require('stripe');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const session = require('express-session');
 const crypto  = require('crypto');
 
@@ -51,6 +53,7 @@ setInterval(() => {
   for (const [id, job] of jobs) { if (job.created < cutoff) jobs.delete(id); }
 }, 10 * 60 * 1000);
 
+app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
 
 // SESSION MIDDLEWARE
