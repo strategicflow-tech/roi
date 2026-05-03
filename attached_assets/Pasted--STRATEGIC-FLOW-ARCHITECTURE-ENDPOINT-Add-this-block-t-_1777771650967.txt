@@ -1,0 +1,139 @@
+// ─── STRATEGIC FLOW ARCHITECTURE ENDPOINT ────────────────────────────────────
+// Add this block to server.js, before the final app.listen() call
+// Uses existing: claudeJSON(), storeLearning(), jobs Map, makeJobId()
+
+app.post('/api/architecture', async (req, res) => {
+  const { subject, body, company, subscribers, industry, emailsPerMonth } = req.body;
+
+  if (!subject || !body) {
+    return res.status(400).json({ error: 'subject and body are required' });
+  }
+
+  // Create async job (same pattern as existing audit jobs)
+  const jobId = makeJobId();
+  jobs.set(jobId, { status: 'pending', created: Date.now() });
+  res.json({ jobId });
+
+  // Run assessment async
+  (async () => {
+    try {
+      // ── STEP 1: DIAGNOSTIC ─────────────────────────────────────────────────
+      const diagnosticPrompt = `You are the Strategic Flow diagnostic engine. Analyse this SaaS email for structural failures.
+
+Company: ${company || 'Unknown'}
+Subject: ${subject}
+Body:
+${body.slice(0, 3000)}
+
+Run the 7-bug diagnostic. For each bug found, return it in the bugs array.
+
+The 7 structural bugs to check:
+1. Filing label subject — subject announces the product, not the reader's problem
+2. Caveat opener — email opens with disclaimer/rollout notice before value
+3. Feature-first language — describes architecture not reader outcome
+4. Flat visual hierarchy — major and minor updates at same visual weight
+5. Zero quantified claims — no numbers, benchmarks, or time-saved data
+6. Weak or missing CTA — no ownership language ("Learn more" vs "Fix my X")
+7. Buried contrast — before/after comparison hidden in fine print
+
+Also assign a Strategic Flow score from 1-10 where:
+1-3 = 5+ bugs present
+4-6 = 3-4 bugs present  
+7-8 = 1-2 bugs present
+9-10 = 0 bugs, consequence-first architecture throughout
+
+Return ONLY valid JSON:
+{
+  "score": <number 1-10>,
+  "bugs": [
+    { "name": "<bug name>", "description": "<one sentence explaining the specific problem in this email>" }
+  ],
+  "currentOpenRate": <estimated current open rate as decimal e.g. 0.18>,
+  "assessment": "<two sentence overall diagnostic>"
+}`;
+
+      const diagnostic = await claudeJSON(diagnosticPrompt, 1500);
+      if (!diagnostic) throw new Error('Diagnostic failed');
+
+      // ── STEP 2: REBUILD ────────────────────────────────────────────────────
+      const rebuildPrompt = `You are the Strategic Flow rebuild engine. Apply the Strategic Flow Method to rebuild this email.
+
+Company: ${company || 'Unknown'}
+Industry: ${industry || 'saas'}
+Original subject: ${subject}
+Original body:
+${body.slice(0, 3000)}
+
+Diagnostic score: ${diagnostic.score}/10
+Bugs found: ${(diagnostic.bugs || []).map(b => b.name).join(', ')}
+
+Apply all 5 Strategic Flow fixes:
+Fix 1: Consequence-first subject line — announces reader's problem, not the product
+Fix 2: Preview text that completes the subject thought
+Fix 3: Hook that names the consequence the reader is already experiencing
+Fix 4: Single CTA with ownership language ("Fix my X →" not "Learn more")
+Fix 5: Remove everything that doesn't move the decision
+
+Return ONLY valid JSON:
+{
+  "rebuiltScore": <number 7-10>,
+  "projectedOpenRate": <decimal e.g. 0.29>,
+  "abSubjects": [
+    { "subject": "<variant 1 — curiosity gap>", "openRate": "<e.g. 29%>" },
+    { "subject": "<variant 2 — consequence-first>", "openRate": "<e.g. 31%>" },
+    { "subject": "<variant 3 — specific number or name>", "openRate": "<e.g. 28%>" }
+  ],
+  "rebuiltBody": "<full rebuilt email body as plain HTML, consequence-first>",
+  "whatChanged": [
+    { "fix": "Fix 1 — Subject line", "before": "<original>", "after": "<rebuilt>", "why": "<one sentence diagnostic reason>" },
+    { "fix": "Fix 2 — Preview text", "before": "<original or inferred>", "after": "<rebuilt>", "why": "<reason>" },
+    { "fix": "Fix 3 — Hook", "before": "<original first line>", "after": "<rebuilt first line>", "why": "<reason>" },
+    { "fix": "Fix 4 — CTA", "before": "<original CTA>", "after": "<rebuilt CTA>", "why": "<reason>" }
+  ]
+}`;
+
+      const rebuild = await claudeJSON(rebuildPrompt, 2000);
+      if (!rebuild) throw new Error('Rebuild failed');
+
+      // ── STEP 3: STORE LEARNING ─────────────────────────────────────────────
+      try {
+        await storeLearning({
+          company: company || null,
+          industry: industry || null,
+          audienceType: null,
+          origSubject: subject,
+          origBody: body.slice(0, 500),
+          rebuiltSubject: (rebuild.abSubjects || [])[1]?.subject || null,
+          rebuiltBody: rebuild.rebuiltBody || null,
+          whatChanged: rebuild.whatChanged || null,
+          tier: 'architecture',
+          rebuildPath: null
+        });
+      } catch (e) {
+        console.error('[architecture] storeLearning failed:', e.message);
+      }
+
+      // ── ASSEMBLE RESULT ────────────────────────────────────────────────────
+      const result = {
+        score: diagnostic.score,
+        rebuiltScore: rebuild.rebuiltScore || 9,
+        bugs: diagnostic.bugs || [],
+        currentOpenRate: diagnostic.currentOpenRate || 0.18,
+        projectedOpenRate: rebuild.projectedOpenRate || 0.30,
+        abSubjects: rebuild.abSubjects || [],
+        rebuiltBody: rebuild.rebuiltBody || '',
+        whatChanged: rebuild.whatChanged || [],
+        assessment: diagnostic.assessment || '',
+        subscribers: subscribers || 10000,
+        emailsPerMonth: emailsPerMonth || 4
+      };
+
+      jobs.set(jobId, { status: 'complete', result, created: Date.now() });
+
+    } catch (err) {
+      console.error('[architecture] job failed:', err.message);
+      jobs.set(jobId, { status: 'failed', error: err.message, created: Date.now() });
+    }
+  })();
+});
+// ─── END ARCHITECTURE ENDPOINT ────────────────────────────────────────────────
