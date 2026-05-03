@@ -1036,7 +1036,7 @@ async function pollForResults(jobId) {
     pollInterval = setInterval(async () => {
       attempts++;
       try {
-        const r = await fetch('/api/job/' + jobId);
+        const r = await fetch('/generate/status/' + jobId);
         const d = await r.json();
 
         if (d.status === 'complete') {
