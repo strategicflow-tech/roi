@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border);
+    background: rgba(10,10,8,0.95);
+    padding: 48px 40px;
+    animation: fadeUp 0.5s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    margin-bottom: 40px;
+  }
+
+  .logo span { color: var(--signal); }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  h1 em { font-style: italic; color: var(--signal); }
+
+  .sub {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.7;
+    margin-bottom: 36px;
+  }
+
+  label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  input[type="email"] {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 16px;
+    -webkit-appearance: none;
+  }
+
+  input[type="email"]:focus {
+    border-color: rgba(74,143,231,0.5);
+  }
+
+  button {
+    width: 100%;
+    background: var(--signal);
+    color: var(--white);
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 15px 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover { background: var(--signal-dim); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .error {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--noise);
+    margin-top: 12px;
+    display: none;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 32px 0;
+  }
+
+  .note {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.7;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Strategic Flow <span>Architecture</span></div>
+
+  <h1>Sign in to<br><em>your workspace.</em></h1>
+  <p class="sub">Enter your email and we'll send you a secure sign-in link. No password required.</p>
+
+  <label>Work email</label>
+  <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email">
+  <button id="submitBtn" onclick="sendMagicLink()">Send Sign-In Link →</button>
+  <div class="error" id="errorMsg"></div>
+
+  <div class="divider"></div>
+  <p class="note">Access is by invitation only.<br>Contact <a href="mailto:strategicflow@proton.me" style="color:var(--signal);text-decoration:none;">strategicflow@proton.me</a> to request access.</p>
+</div>
+
+<script>
+async function sendMagicLink() {
+  const email = document.getElementById('emailInput').value.trim();
+  const btn = document.getElementById('submitBtn');
+  const err = document.getElementById('errorMsg');
+
+  if (!email || !email.includes('@')) {
+    showError('Please enter a valid email address.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('/auth/magic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.ok) {
+      window.location.href = '/magic.html?email=' + encodeURIComponent(email);
+    } else {
+      showError(data.error || 'Something went wrong. Try again.');
+      btn.disabled = false;
+      btn.textContent = 'Send Sign-In Link →';
+    }
+  } catch (e) {
+    showError('Connection error. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Send Sign-In Link →';
+  }
+}
+
+function showError(msg) {
+  const err = document.getElementById('errorMsg');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+document.getElementById('emailInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMagicLink();
+});
+</script>
+</body>
+</html>

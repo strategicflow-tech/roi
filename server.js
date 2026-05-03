@@ -5,6 +5,8 @@ const express    = require('express');
 const { Pool }   = require('pg');
 const Anthropic  = require('@anthropic-ai/sdk');
 const { Resend } = require('resend');
+const session = require('express-session');
+const crypto  = require('crypto');
 
 const {
   TIER_CONFIGS, getAuditPrompt,
@@ -50,7 +52,185 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 app.use(express.json({ limit: '2mb' }));
+
+// SESSION MIDDLEWARE
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  }
+}));
+
+// In-memory magic token store — { token: { email, expires } }
+const magicTokens = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of magicTokens) {
+    if (data.expires < now) magicTokens.delete(token);
+  }
+}, 30 * 60 * 1000);
+
+// ── AUTH MIDDLEWARE ────────────────────────────────────────────────────────────
+const PROTECTED_PATHS = [
+  '/index.html',
+  '/architecture.html',
+  '/generate',
+  '/api/architecture'
+];
+
+function requireAuth(req, res, next) {
+  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout'];
+  if (open.some(p => req.path.startsWith(p))) return next();
+
+  const needsAuth = PROTECTED_PATHS.some(p => req.path === p || req.path.startsWith(p));
+  if (!needsAuth) return next();
+
+  if (req.session && req.session.userEmail) return next();
+
+  if (req.path.endsWith('.html') || req.path === '/') {
+    return res.redirect('/login.html');
+  }
+  return res.status(401).json({ error: 'Unauthorised' });
+}
+
+app.use(requireAuth);
 app.use(express.static('public'));
+
+// ── REDIRECT ROOT ─────────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  if (req.session && req.session.userEmail) {
+    return res.redirect('/index.html');
+  }
+  return res.redirect('/login.html');
+});
+
+// ── POST /auth/magic — send magic link ───────────────────────────────────────
+app.post('/auth/magic', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+
+  let hasAccess = isAdmin(email);
+
+  if (!hasAccess) {
+    try {
+      const user = await getUser(email);
+      hasAccess = !!user;
+    } catch (e) {
+      console.error('[auth/magic] getUser error:', e.message);
+    }
+  }
+
+  if (!hasAccess) {
+    console.log('[auth/magic] Access denied for:', email);
+    return res.json({ ok: true });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = Date.now() + 15 * 60 * 1000;
+  magicTokens.set(token, { email, expires });
+
+  const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+  const magicLink = `${baseUrl}/auth/verify/${token}`;
+
+  try {
+    await resend.emails.send({
+      from: SENDER,
+      to: email,
+      subject: 'Your Strategic Flow sign-in link',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a0a08;color:#f4f2ed;padding:40px 32px;border:1px solid rgba(255,255,255,0.1);">
+          <p style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin:0 0 32px;">Strategic Flow Architecture</p>
+          <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your sign-in link</h2>
+          <p style="font-size:15px;color:#a8a39b;margin:0 0 32px;line-height:1.6;">Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
+          <a href="${magicLink}" style="display:inline-block;background:#4A8FE7;color:#ffffff;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;">Sign in to Strategic Flow →</a>
+          <p style="font-size:12px;color:#6b6760;margin:0;line-height:1.6;">If you didn't request this, ignore this email. Your account is safe.<br>Link expires: ${new Date(expires).toUTCString()}</p>
+        </div>
+      `
+    });
+    console.log('[auth/magic] Magic link sent to:', email);
+  } catch (e) {
+    console.error('[auth/magic] Resend error:', e.message);
+    return res.status(500).json({ error: 'Failed to send email. Try again.' });
+  }
+
+  res.json({ ok: true });
+});
+
+// ── GET /auth/verify/:token ───────────────────────────────────────────────────
+app.get('/auth/verify/:token', async (req, res) => {
+  const token = req.params.token;
+  const data = magicTokens.get(token);
+
+  if (!data) return res.redirect('/login.html?error=invalid');
+  if (data.expires < Date.now()) {
+    magicTokens.delete(token);
+    return res.redirect('/login.html?error=expired');
+  }
+
+  magicTokens.delete(token);
+  req.session.userEmail = data.email;
+  req.session.signedInAt = Date.now();
+
+  try {
+    await upsertUser(data.email, { last_used_at: new Date() });
+  } catch (e) {
+    console.error('[auth/verify] upsertUser error:', e.message);
+  }
+
+  console.log('[auth/verify] Signed in:', data.email);
+  res.redirect('/index.html');
+});
+
+// ── POST /auth/logout ─────────────────────────────────────────────────────────
+app.post('/auth/logout', (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+// ── GET /auth/me ──────────────────────────────────────────────────────────────
+app.get('/auth/me', (req, res) => {
+  if (req.session && req.session.userEmail) {
+    return res.json({ email: req.session.userEmail, signedIn: true });
+  }
+  res.json({ signedIn: false });
+});
+
+// ── ADMIN: add user ───────────────────────────────────────────────────────────
+app.post('/admin/users', async (req, res) => {
+  if (!isAdmin(req.session?.userEmail)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { email, tier } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+  try {
+    await upsertUser(email, { tier: tier || 'architecture' });
+    res.json({ ok: true, email, tier: tier || 'architecture' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ADMIN: list users ─────────────────────────────────────────────────────────
+app.get('/admin/users', async (req, res) => {
+  if (!isAdmin(req.session?.userEmail)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  try {
+    const r = await pool.query('SELECT email, tier, created_at, last_used_at FROM users ORDER BY created_at DESC');
+    res.json({ users: r.rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── END AUTH BLOCK ───────────────────────────────────────────────────────────
 
 const fs = require('fs');
 const path = require('path');

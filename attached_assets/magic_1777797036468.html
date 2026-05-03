@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Check Your Email</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border);
+    background: rgba(10,10,8,0.95);
+    padding: 48px 40px;
+    text-align: center;
+    animation: fadeUp 0.5s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .icon {
+    font-size: 40px;
+    margin-bottom: 24px;
+    display: block;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    margin-bottom: 40px;
+  }
+
+  .logo span { color: var(--signal); }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .email-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--signal);
+    background: rgba(74,143,231,0.08);
+    border: 1px solid rgba(74,143,231,0.2);
+    padding: 10px 16px;
+    margin: 16px 0 24px;
+    display: inline-block;
+  }
+
+  p {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  .resend-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--signal);
+    background: transparent;
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: auto;
+  }
+
+  .resend-btn:hover { background: rgba(74,143,231,0.1); }
+  .resend-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .back-link {
+    display: block;
+    margin-top: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+  }
+
+  .back-link:hover { color: var(--white); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Strategic Flow <span>Architecture</span></div>
+
+  <span class="icon">✉️</span>
+  <h1>Check your email</h1>
+
+  <p>We sent a sign-in link to</p>
+  <div class="email-display" id="emailDisplay">your email</div>
+
+  <p>Click the link in the email to sign in. The link expires in <strong style="color:var(--white)">15 minutes</strong>.</p>
+  <p>Check your spam folder if you don't see it.</p>
+
+  <div class="divider"></div>
+
+  <button class="resend-btn" id="resendBtn" onclick="resend()">Resend link</button>
+  <a href="/login.html" class="back-link">← Use a different email</a>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const email = params.get('email') || '';
+if (email) document.getElementById('emailDisplay').textContent = email;
+
+async function resend() {
+  if (!email) return;
+  const btn = document.getElementById('resendBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    await fetch('/auth/magic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    btn.textContent = 'Sent ✓';
+    setTimeout(() => {
+      btn.textContent = 'Resend link';
+      btn.disabled = false;
+    }, 5000);
+  } catch (e) {
+    btn.textContent = 'Error — try again';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
