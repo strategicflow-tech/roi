@@ -9,6 +9,7 @@ const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const session = require('express-session');
 const crypto  = require('crypto');
+const pgSession = require('connect-pg-simple')(session);
 
 const {
   TIER_CONFIGS, getAuditPrompt,
@@ -58,11 +59,16 @@ app.use(express.json({ limit: '2mb' }));
 
 // SESSION MIDDLEWARE
 app.use(session({
+  store: new pgSession({
+    pool: pool,
+    tableName: 'session',
+    createTableIfMissing: true
+  }),
   secret: process.env.SESSION_SECRET,
-  resave: true,
+  resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000
