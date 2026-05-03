@@ -691,12 +691,32 @@ async function runDemo() {
     setProgress(15, 'Checking access...');
     addLog('Verifying email address...');
 
-    const res = await fetch('/api/demo', {
+    // Animate progress while Claude processes
+    const steps = [
+      { pct: 20, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
+      { pct: 40, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
+      { pct: 58, label: 'Rebuilding subject line...', log: 'Applying consequence-first architecture' },
+      { pct: 74, label: 'Generating A/B variants...', log: 'Creating 3 subject line variants with open rate predictions' },
+      { pct: 86, label: 'Calculating ROI...', log: 'Computing reader delta for ' + subscribers.toLocaleString() + ' subscribers' },
+      { pct: 94, label: 'Finalising rebuild...', log: 'Applying ownership language to CTA' },
+    ];
+    let stepIdx = 0;
+    const stepTimer = setInterval(() => {
+      if (stepIdx < steps.length) {
+        const s = steps[stepIdx++];
+        setProgress(s.pct, s.label);
+        addLog(s.log);
+      }
+    }, 5000);
+
+    const res = await fetch('/api/demo-sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, subject, body, company, subscribers })
+      body: JSON.stringify({ email, subject, body, company, subscribers }),
+      signal: AbortSignal.timeout(120000)
     });
 
+    clearInterval(stepTimer);
     const data = await res.json();
 
     if (data.alreadyUsed) {
@@ -706,60 +726,10 @@ async function runDemo() {
 
     if (!res.ok) throw new Error(data.error || 'Assessment failed');
 
-    // Animate progress while waiting for job
-    const steps = [
-      { pct: 20, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
-      { pct: 38, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
-      { pct: 52, label: 'Rebuilding subject line...', log: 'Applying consequence-first architecture' },
-      { pct: 65, label: 'Generating A/B variants...', log: 'Creating 3 subject line variants with open rate predictions' },
-      { pct: 76, label: 'Calculating ROI...', log: 'Computing reader delta for ' + subscribers.toLocaleString() + ' subscribers' },
-      { pct: 84, label: 'Finalising rebuild...', log: 'Applying ownership language to CTA' },
-      { pct: 90, label: 'Almost done...', log: 'Assembling full diagnostic report' },
-      { pct: 94, label: 'Still working...', log: 'Claude is processing — this can take 60–90 seconds' },
-      { pct: 97, label: 'Nearly there...', log: 'Waiting for final response from AI engine' },
-    ];
-
-    let stepIdx = 0;
-    const stepTimer = setInterval(() => {
-      if (stepIdx < steps.length) {
-        const s = steps[stepIdx++];
-        setProgress(s.pct, s.label);
-        addLog(s.log);
-      }
-    }, 8000);
-
-    // Poll for job result
-    const jobId = data.jobId;
-    let attempts = 0;
-
-    const poll = setInterval(async () => {
-      attempts++;
-      try {
-        const r = await fetch('/generate/status/' + jobId);
-        const d = await r.json();
-
-        if (d.status === 'complete') {
-          clearInterval(poll);
-          clearInterval(stepTimer);
-          setProgress(100, 'Complete');
-          addLog('Assessment complete', 'done');
-          await new Promise(r => setTimeout(r, 500));
-          renderResults(d.result, subscribers);
-        } else if (d.status === 'failed') {
-          clearInterval(poll);
-          clearInterval(stepTimer);
-          throw new Error(d.error || 'Assessment failed — please try again.');
-        } else if (attempts > 90) {
-          clearInterval(poll);
-          clearInterval(stepTimer);
-          throw new Error('Assessment timed out after 4 minutes. Please try again.');
-        }
-      } catch (e) {
-        clearInterval(poll);
-        clearInterval(stepTimer);
-        addLog('Error: ' + e.message, 'error');
-      }
-    }, 3000);
+    setProgress(100, 'Complete');
+    addLog('Assessment complete', 'done');
+    await new Promise(r => setTimeout(r, 500));
+    renderResults(data.result, subscribers);
 
   } catch (err) {
     addLog('Error: ' + err.message, 'error');

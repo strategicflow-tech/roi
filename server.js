@@ -3809,6 +3809,53 @@ app.get('/checkout', async (req, res) => {
   }
 });
 
+app.post('/api/demo-sync', async (req, res) => {
+  const { email, subject, body, company, subscribers } = req.body;
+  if (!email || !subject || !body) return res.status(400).json({ error: 'Missing fields' });
+  const emailLower = email.toLowerCase().trim();
+  const bypass = isAdmin(emailLower);
+  if (!bypass) {
+    try {
+      const r = await pool.query('SELECT audit_count FROM audit_usage WHERE email = $1', [emailLower]);
+      if (r.rows.length > 0 && r.rows[0].audit_count >= 1) return res.json({ alreadyUsed: true });
+    } catch(e) {}
+    try {
+      await pool.query(`INSERT INTO audit_usage (email, audit_count, first_audit_at, last_audit_at) VALUES ($1, 1, NOW(), NOW()) ON CONFLICT (email) DO UPDATE SET audit_count = audit_usage.audit_count + 1, last_audit_at = NOW()`, [emailLower]);
+    } catch(e) {}
+  }
+  try {
+    const prompt = `You are the Strategic Flow diagnostic and rebuild engine.
+Company: ${company || 'Unknown'}
+Subject: ${subject}
+Body: ${(body || '').slice(0, 1000)}
+Return ONLY valid JSON:
+{
+  "score": <1-10>,
+  "rebuiltScore": <7-10>,
+  "currentOpenRate": <decimal>,
+  "projectedOpenRate": <decimal>,
+  "bugs": [{"name":"<name>","description":"<one sentence>"}],
+  "abSubjects": [
+    {"subject":"<variant 1>","openRate":"<e.g. 29%>"},
+    {"subject":"<variant 2>","openRate":"<e.g. 31%>"},
+    {"subject":"<variant 3>","openRate":"<e.g. 28%>"}
+  ],
+  "whatChanged": [
+    {"fix":"Fix 1 — Subject line","before":"<original>","after":"<rebuilt>","why":"<one sentence>"},
+    {"fix":"Fix 2 — Hook","before":"<original first line>","after":"<rebuilt>","why":"<one sentence>"},
+    {"fix":"Fix 3 — CTA","before":"<original CTA>","after":"<rebuilt>","why":"<one sentence>"}
+  ]
+}`;
+    const result = await claudeJSON(prompt, 1000);
+    if (!result) throw new Error('Claude returned null');
+    try { await notify('Demo — ' + emailLower, `<p>${emailLower} · ${company} · score ${result.score}→${result.rebuiltScore}</p>`); } catch(e) {}
+    res.json({ result });
+  } catch(err) {
+    console.error('[api/demo-sync]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
