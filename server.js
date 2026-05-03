@@ -36,6 +36,30 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 const jobs = new Map();
 function makeJobId() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
 
+async function setJob(id, data) {
+  jobs.set(id, data);
+  try {
+    await pool.query(`
+      INSERT INTO jobs (id, status, result, error, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        status = $2, result = $3, error = $4
+    `, [id, data.status, data.result ? JSON.stringify(data.result) : null, data.error || null]);
+  } catch(e) { console.error('[setJob]', e.message); }
+}
+
+async function getJob(id) {
+  if (jobs.has(id)) return jobs.get(id);
+  try {
+    const r = await pool.query('SELECT * FROM jobs WHERE id = $1', [id]);
+    if (r.rows.length > 0) {
+      const row = r.rows[0];
+      return { status: row.status, result: row.result ? JSON.parse(row.result) : null, error: row.error };
+    }
+  } catch(e) { console.error('[getJob]', e.message); }
+  return null;
+}
+
 // ── URL content cache — 30-min TTL avoids repeat 12s fetches for the same article ──
 const urlCache = new Map();
 const CACHE_TTL = 1000 * 60 * 30;
@@ -333,6 +357,15 @@ async function setupDB() {
     );
     CREATE INDEX IF NOT EXISTS idx_rl_industry ON rebuild_learning(industry);
   `).catch(e => console.error('[DB] rebuild_learning:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS jobs (
+      id VARCHAR(50) PRIMARY KEY,
+      status VARCHAR(20) NOT NULL,
+      result TEXT,
+      error TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] jobs:', e.message));
   // Add new columns to existing tables without breaking existing rows
   await pool.query(`
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS key_changes JSONB;
@@ -3099,8 +3132,8 @@ app.post('/generate/start', async (req, res) => {
   });
 });
 
-app.get('/generate/status/:jobId', (req, res) => {
-  const job = jobs.get(req.params.jobId);
+app.get('/generate/status/:jobId', async (req, res) => {
+  const job = await getJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found or expired' });
   if (job.status === 'complete') return res.json({ status: 'complete', result: job.result });
   if (job.status === 'failed')   return res.json({ status: 'failed',   error:  job.error  });
@@ -3675,7 +3708,7 @@ app.post('/api/demo', async (req, res) => {
   }
 
   const jobId = makeJobId();
-  jobs.set(jobId, { status: 'pending', created: Date.now() });
+  await setJob(jobId, { status: 'pending' });
   res.json({ jobId });
 
   (async () => {
@@ -3748,12 +3781,12 @@ Return ONLY valid JSON:
       };
 
       clearTimeout(jobTimer);
-      jobs.set(jobId, { status: 'complete', result, created: Date.now() });
+      await setJob(jobId, { status: 'complete', result });
 
     } catch (err) {
       clearTimeout(jobTimer);
       console.error('[api/demo] job failed:', err.message);
-      jobs.set(jobId, { status: 'failed', error: err.message, created: Date.now() });
+      await setJob(jobId, { status: 'failed', error: err.message });
     }
   })();
 });
