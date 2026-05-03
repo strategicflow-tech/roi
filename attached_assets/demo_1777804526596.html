@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow Architecture — Free Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+  }
+  .nav-logo span { color: var(--signal); }
+
+  .nav-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--signal);
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 4px 10px;
+    text-transform: uppercase;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  /* PANELS */
+  .panel { display: none; animation: fadeUp 0.4s ease forwards; }
+  .panel.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .panel-title em { font-style: italic; color: var(--signal); }
+
+  .panel-sub {
+    font-size: 15px;
+    color: var(--mid);
+    margin-bottom: 32px;
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* FORM */
+  .form-group { margin-bottom: 20px; }
+
+  label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: rgba(74,143,231,0.5);
+  }
+
+  textarea { min-height: 160px; resize: vertical; line-height: 1.6; }
+  select option { background: #1a1a18; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 14px 28px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary { background: var(--signal); color: var(--white); }
+  .btn-primary:hover { background: var(--signal-dim); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 32px 0; }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .progress-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+  }
+
+  .progress-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+  }
+
+  .progress-bar { height: 2px; background: var(--border); position: relative; overflow: hidden; }
+
+  .progress-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    background: var(--signal);
+    transition: width 0.6s ease;
+    width: 0%;
+  }
+
+  .status-log {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    background: var(--card);
+    min-height: 100px;
+  }
+
+  .log-line {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeUp 0.3s ease forwards;
+  }
+
+  .log-line.done { color: var(--signal); }
+  .log-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* RESULTS */
+  .score-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .score-cell { background: var(--black); padding: 24px; }
+
+  .score-cell-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .score-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 44px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .score-num.low { color: var(--noise); }
+  .score-num.high { color: var(--signal); }
+
+  .score-note { font-size: 12px; color: var(--mid); line-height: 1.5; }
+
+  /* BUG LIST */
+  .section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    margin-top: 32px;
+  }
+
+  .bug-list { border: 1px solid var(--border); margin-bottom: 32px; }
+
+  .bug-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .bug-item:last-child { border-bottom: none; }
+  .bug-icon { font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+  .bug-title { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 4px; }
+  .bug-desc { font-size: 12px; color: var(--mid); line-height: 1.6; }
+
+  /* REBUILD PREVIEW */
+  .rebuild-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .rebuild-cell { background: var(--black); padding: 24px; }
+
+  .rebuild-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rebuild-tag.before { color: var(--noise); }
+  .rebuild-tag.after { color: var(--signal); }
+  .rebuild-tag::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .rebuild-text { font-size: 13px; line-height: 1.7; color: var(--white); }
+
+  /* SUBJECT VARIANTS */
+  .variant-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+
+  .variant-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    background: rgba(74,143,231,0.04);
+  }
+
+  .variant-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--signal);
+    letter-spacing: 0.1em;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .variant-text { font-size: 13px; color: var(--white); line-height: 1.5; flex: 1; }
+  .variant-rate { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); flex-shrink: 0; }
+
+  /* ROI */
+  .roi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .roi-cell { background: var(--black); padding: 20px 24px; }
+  .roi-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--mid); text-transform: uppercase; margin-bottom: 8px; }
+  .roi-value { font-family: 'DM Serif Display', serif; font-size: 32px; line-height: 1; margin-bottom: 4px; }
+  .roi-value.positive { color: var(--signal); }
+  .roi-value.negative { color: var(--noise); }
+  .roi-note { font-size: 11px; color: var(--mid); line-height: 1.5; }
+
+  /* LOCKED SECTION */
+  .locked-section {
+    border: 1px solid var(--border);
+    padding: 32px;
+    margin-bottom: 32px;
+    position: relative;
+    background: rgba(74,143,231,0.03);
+  }
+
+  .locked-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .locked-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    filter: blur(4px);
+    pointer-events: none;
+    user-select: none;
+    margin-bottom: 20px;
+  }
+
+  .locked-item {
+    font-size: 13px;
+    color: var(--mid);
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  .locked-overlay {
+    text-align: center;
+  }
+
+  .locked-msg {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    margin-bottom: 16px;
+  }
+
+  /* CTA SECTION */
+  .cta-block {
+    border: 1px solid rgba(74,143,231,0.3);
+    background: rgba(74,143,231,0.05);
+    padding: 40px;
+    text-align: center;
+    margin-top: 40px;
+  }
+
+  .cta-block-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+
+  .cta-block-title em { font-style: italic; color: var(--signal); }
+
+  .cta-block-sub {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.7;
+    margin-bottom: 24px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-block-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    margin-top: 16px;
+  }
+
+  .cta-block-price strong { color: var(--white); }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-badge { display: none; }
+    main { padding: 80px 16px 60px; }
+    .form-row { grid-template-columns: 1fr; }
+    .score-row { grid-template-columns: 1fr; }
+    .rebuild-grid { grid-template-columns: 1fr; }
+    .roi-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">Strategic Flow <span>Architecture</span></span>
+  <span class="nav-badge">Free Demo</span>
+</nav>
+
+<main>
+
+  <!-- PANEL 1: INPUT -->
+  <div class="panel active" id="panel-1">
+    <div class="panel-label">// Free Demo — One-time assessment</div>
+    <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em></h1>
+    <p class="panel-sub">Paste any SaaS product email. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt subject lines, hook rewrite, and ROI projection. One time, free, no card.</p>
+
+    <div class="form-group">
+      <label>Your work email</label>
+      <input type="email" id="demoEmail" placeholder="you@company.com">
+    </div>
+
+    <div class="form-group">
+      <label>Email subject line</label>
+      <input type="text" id="demoSubject" placeholder="e.g. New dashboard features available">
+    </div>
+
+    <div class="form-group">
+      <label>Email body — paste raw text or HTML</label>
+      <textarea id="demoBody" placeholder="Paste the full email body here..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Company name</label>
+        <input type="text" id="demoCompany" placeholder="e.g. Acme SaaS">
+      </div>
+      <div class="form-group">
+        <label>Subscriber count</label>
+        <input type="number" id="demoSubscribers" placeholder="e.g. 25000" min="100">
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px;margin-top:8px;">
+      <button class="btn btn-primary" id="runBtn" onclick="runDemo()">Run Free Assessment →</button>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);">60 seconds · one-time only</span>
+    </div>
+
+    <div id="inputError" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);margin-top:12px;display:none;"></div>
+  </div>
+
+  <!-- PANEL 2: PROCESSING -->
+  <div class="panel" id="panel-2">
+    <div class="panel-label">// Running assessment...</div>
+    <h2 class="panel-title">Diagnosing your<br><em>email architecture.</em></h2>
+
+    <div class="progress-wrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Initialising...</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="status-log" id="statusLog"></div>
+  </div>
+
+  <!-- PANEL 3: RESULTS -->
+  <div class="panel" id="panel-3">
+    <div class="panel-label">// Assessment complete</div>
+    <h2 class="panel-title">Here's what we<br><em>found and fixed.</em></h2>
+
+    <!-- SCORES -->
+    <div class="score-row">
+      <div class="score-cell">
+        <div class="score-cell-label">Original score</div>
+        <div class="score-num low" id="origScore">—</div>
+        <div class="score-note">Before rebuild</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Rebuilt score</div>
+        <div class="score-num high" id="newScore">—</div>
+        <div class="score-note">After Strategic Flow</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Bugs found</div>
+        <div class="score-num" style="color:var(--noise)" id="bugsFound">—</div>
+        <div class="score-note">Out of 7 structural checks</div>
+      </div>
+    </div>
+
+    <!-- ALL 7 BUGS -->
+    <div class="section-title">// The 7-bug diagnostic — full results</div>
+    <div class="bug-list" id="bugList"></div>
+
+    <!-- SUBJECT LINE REBUILD -->
+    <div class="section-title">// Subject line — rebuilt</div>
+    <div class="rebuild-grid" id="subjectRebuild"></div>
+
+    <!-- A/B VARIANTS -->
+    <div class="section-title">// 3 A/B subject line variants</div>
+    <div class="variant-list" id="variantList"></div>
+
+    <!-- HOOK REBUILD -->
+    <div class="section-title">// Hook — rebuilt consequence-first</div>
+    <div class="rebuild-grid" id="hookRebuild"></div>
+
+    <!-- CTA REBUILD -->
+    <div class="section-title">// CTA — ownership language applied</div>
+    <div class="rebuild-grid" id="ctaRebuild"></div>
+
+    <!-- ROI -->
+    <div class="section-title">// ROI projection</div>
+    <div class="roi-grid">
+      <div class="roi-cell">
+        <div class="roi-label">Current open rate</div>
+        <div class="roi-value negative" id="roiCurrent">—</div>
+        <div class="roi-note" id="roiCurrentReaders">—</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Projected open rate</div>
+        <div class="roi-value positive" id="roiProjected">—</div>
+        <div class="roi-note" id="roiProjectedReaders">—</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Monthly delta</div>
+        <div class="roi-value positive" id="roiDelta">—</div>
+        <div class="roi-note" id="roiDeltaNote">—</div>
+      </div>
+    </div>
+
+    <!-- LOCKED: HTML OUTPUT -->
+    <div class="locked-section">
+      <div class="locked-title">// What Architecture subscribers also receive</div>
+      <div class="locked-items">
+        <div class="locked-item">Full rebuilt HTML — ready to paste into Mailchimp, HubSpot, or Braze</div>
+        <div class="locked-item">Audience segment breakdown — two versions per email: power users vs new activations</div>
+        <div class="locked-item">Onboarding sequence audit — every email in your flow scored and rebuilt</div>
+        <div class="locked-item">Monthly diagnostic call — 45 minutes with Alex, what ships next month</div>
+        <div class="locked-item">Direct Slack access — same-day responses, no tickets</div>
+        <div class="locked-item">Score tracking — your company's average over time vs 21 benchmark rebuilds</div>
+      </div>
+      <div class="locked-overlay">
+        <div class="locked-msg">This runs on every email your company sends — automatically.</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-block">
+      <h3 class="cta-block-title">Get this for every email<br><em>your company sends.</em></h3>
+      <p class="cta-block-sub">This was one email, once. Architecture runs the full diagnostic and rebuild on every product update, release note, and onboarding email — every month, automatically.</p>
+      <button class="btn btn-primary" onclick="window.location.href='https://strategic-flow-audit.replit.app/checkout'">
+        Start Architecture →
+      </button>
+      <div class="cta-block-price"><strong>$2,500/mo</strong> · Unlimited rebuilds · Cancel anytime</div>
+    </div>
+
+  </div>
+
+  <!-- PANEL 4: ALREADY USED -->
+  <div class="panel" id="panel-4">
+    <div class="panel-label">// Demo already used</div>
+    <h2 class="panel-title">You've already run<br><em>the free demo.</em></h2>
+    <p class="panel-sub">Each email address can run the demo once. You've already seen what Strategic Flow Architecture does to your emails.</p>
+
+    <div class="cta-block" style="margin-top:32px;">
+      <h3 class="cta-block-title">Ready to run this<br><em>every month?</em></h3>
+      <p class="cta-block-sub">Architecture runs the full diagnostic and rebuild on every email your company sends — automatically, every month.</p>
+      <button class="btn btn-primary" onclick="window.location.href='https://strategic-flow-audit.replit.app/checkout'">
+        Start Architecture →
+      </button>
+      <div class="cta-block-price"><strong>$2,500/mo</strong> · Unlimited rebuilds · Cancel anytime</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+function addLog(text, type = '') {
+  const log = document.getElementById('statusLog');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.innerHTML = `<span class="log-dot"></span>${text}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function showPanel(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showError(msg) {
+  const el = document.getElementById('inputError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function runDemo() {
+  const email = document.getElementById('demoEmail').value.trim();
+  const subject = document.getElementById('demoSubject').value.trim();
+  const body = document.getElementById('demoBody').value.trim();
+  const company = document.getElementById('demoCompany').value.trim() || 'Your Company';
+  const subscribers = parseInt(document.getElementById('demoSubscribers').value) || 10000;
+
+  if (!email || !email.includes('@')) return showError('Please enter a valid email address.');
+  if (!subject) return showError('Please enter the email subject line.');
+  if (!body) return showError('Please paste the email body.');
+
+  document.getElementById('inputError').style.display = 'none';
+  document.getElementById('runBtn').disabled = true;
+
+  showPanel(2);
+  setProgress(0, 'Initialising...');
+  addLog('Assessment engine initialised');
+  addLog('Email received: "' + subject.slice(0, 55) + (subject.length > 55 ? '...' : '') + '"');
+
+  try {
+    setProgress(15, 'Checking access...');
+    addLog('Verifying email address...');
+
+    const res = await fetch('/api/demo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, subject, body, company, subscribers })
+    });
+
+    const data = await res.json();
+
+    if (data.alreadyUsed) {
+      showPanel(4);
+      return;
+    }
+
+    if (!res.ok) throw new Error(data.error || 'Assessment failed');
+
+    // Animate progress while waiting for job
+    const steps = [
+      { pct: 25, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
+      { pct: 45, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
+      { pct: 60, label: 'Rebuilding subject line...', log: 'Applying consequence-first architecture' },
+      { pct: 75, label: 'Generating A/B variants...', log: 'Creating 3 subject line variants with open rate predictions' },
+      { pct: 88, label: 'Calculating ROI...', log: 'Computing reader delta for ' + subscribers.toLocaleString() + ' subscribers' },
+    ];
+
+    let stepIdx = 0;
+    const stepTimer = setInterval(() => {
+      if (stepIdx < steps.length) {
+        const s = steps[stepIdx++];
+        setProgress(s.pct, s.label);
+        addLog(s.log);
+      }
+    }, 5000);
+
+    // Poll for job result
+    const jobId = data.jobId;
+    let attempts = 0;
+
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const r = await fetch('/generate/status/' + jobId);
+        const d = await r.json();
+
+        if (d.status === 'complete') {
+          clearInterval(poll);
+          clearInterval(stepTimer);
+          setProgress(100, 'Complete');
+          addLog('Assessment complete', 'done');
+          await new Promise(r => setTimeout(r, 500));
+          renderResults(d.result, subscribers);
+        } else if (d.status === 'failed' || attempts > 60) {
+          clearInterval(poll);
+          clearInterval(stepTimer);
+          throw new Error('Assessment timed out');
+        }
+      } catch (e) {
+        clearInterval(poll);
+        clearInterval(stepTimer);
+        addLog('Error: ' + e.message, 'error');
+      }
+    }, 3000);
+
+  } catch (err) {
+    addLog('Error: ' + err.message, 'error');
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+function renderResults(result, subscribers) {
+  const score = result.score || result.originalScore || 3;
+  const rebuilt = result.rebuiltScore || result.newScore || 9;
+  const bugs = result.bugs || [];
+
+  // Scores
+  document.getElementById('origScore').textContent = score + '/10';
+  document.getElementById('newScore').textContent = rebuilt + '/10';
+  document.getElementById('bugsFound').textContent = bugs.length + '/7';
+
+  // Bugs
+  const bugList = document.getElementById('bugList');
+  bugList.innerHTML = bugs.length > 0 ? bugs.map(b => `
+    <div class="bug-item">
+      <span class="bug-icon">⚠</span>
+      <div>
+        <div class="bug-title">${esc(b.name || b.title || 'Structural bug')}</div>
+        <div class="bug-desc">${esc(b.description || b.desc || '')}</div>
+      </div>
+    </div>
+  `).join('') : `<div class="bug-item"><div><div class="bug-desc" style="color:var(--signal)">No critical bugs detected.</div></div></div>`;
+
+  // Subject rebuild
+  const origSubject = result.originalSubject || document.getElementById('demoSubject').value;
+  const newSubject = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
+  document.getElementById('subjectRebuild').innerHTML = `
+    <div class="rebuild-cell">
+      <div class="rebuild-tag before">Before</div>
+      <div class="rebuild-text">${esc(origSubject)}</div>
+    </div>
+    <div class="rebuild-cell">
+      <div class="rebuild-tag after">After</div>
+      <div class="rebuild-text">${esc(newSubject)}</div>
+    </div>
+  `;
+
+  // Variants
+  const variants = result.abSubjects || [];
+  document.getElementById('variantList').innerHTML = variants.length > 0 ? variants.map((v, i) => `
+    <div class="variant-item">
+      <span class="variant-tag">V${i+1}</span>
+      <span class="variant-text">${esc(typeof v === 'string' ? v : v.subject || v)}</span>
+      <span class="variant-rate">${typeof v === 'object' && v.openRate ? v.openRate : '~' + (27 + i*2) + '%'}</span>
+    </div>
+  `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--mid);padding:16px;">Variants not available.</div>';
+
+  // Hook rebuild
+  const changes = result.whatChanged || [];
+  const hookChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('hook')) || changes[2] || null;
+  const ctaChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[3] || null;
+
+  document.getElementById('hookRebuild').innerHTML = hookChange ? `
+    <div class="rebuild-cell">
+      <div class="rebuild-tag before">Before</div>
+      <div class="rebuild-text">${esc(hookChange.before || '—')}</div>
+    </div>
+    <div class="rebuild-cell">
+      <div class="rebuild-tag after">After</div>
+      <div class="rebuild-text">${esc(hookChange.after || '—')}</div>
+    </div>
+  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--mid)">Hook rebuild not available.</div></div>';
+
+  document.getElementById('ctaRebuild').innerHTML = ctaChange ? `
+    <div class="rebuild-cell">
+      <div class="rebuild-tag before">Before</div>
+      <div class="rebuild-text">${esc(ctaChange.before || '—')}</div>
+    </div>
+    <div class="rebuild-cell">
+      <div class="rebuild-tag after">After</div>
+      <div class="rebuild-text">${esc(ctaChange.after || '—')}</div>
+    </div>
+  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--mid)">CTA rebuild not available.</div></div>';
+
+  // ROI
+  const currentRate = result.currentOpenRate || 0.18;
+  const projectedRate = result.projectedOpenRate || 0.31;
+  const currentReaders = Math.round(subscribers * currentRate);
+  const projectedReaders = Math.round(subscribers * projectedRate);
+  const delta = (projectedReaders - currentReaders) * 4;
+
+  document.getElementById('roiCurrent').textContent = Math.round(currentRate * 100) + '%';
+  document.getElementById('roiCurrentReaders').textContent = currentReaders.toLocaleString() + ' readers/email';
+  document.getElementById('roiProjected').textContent = Math.round(projectedRate * 100) + '%';
+  document.getElementById('roiProjectedReaders').textContent = projectedReaders.toLocaleString() + ' readers/email';
+  document.getElementById('roiDelta').textContent = '+' + delta.toLocaleString();
+  document.getElementById('roiDeltaNote').textContent = 'Additional readers/month (4 emails)';
+
+  showPanel(3);
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
