@@ -15,7 +15,8 @@ const {
   TIER_CONFIGS, getAuditPrompt,
   getEmailTypePrompt, getVoiceAnalysisPrompt,
   getEmailScorePrompt, getMicroImprovementsPrompt,
-  getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt
+  getWeaknessVerifyPrompt, getSectionPatchPrompt, getPromoGridSubjectHeroPrompt,
+  getContentCalendarPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
@@ -3377,7 +3378,7 @@ app.post('/api/architecture', async (req, res) => {
   }
 
   const jobId = makeJobId();
-  jobs.set(jobId, { status: 'pending', created: Date.now() });
+  await setJob(jobId, { status: 'pending' });
   res.json({ jobId });
 
   (async () => {
@@ -3458,6 +3459,14 @@ Return ONLY valid JSON:
       const rebuild = await claudeJSON(rebuildPrompt, 2000);
       if (!rebuild) throw new Error('Rebuild failed');
 
+      // STEP 3: CONTENT CALENDAR
+      const calendarPrompt = getContentCalendarPrompt(
+        company || 'Unknown',
+        rebuild.abSubjects?.[0]?.subject || subject,
+        rebuild.rebuiltBody || body
+      );
+      const calendar = await claudeJSON(calendarPrompt, 800);
+
       try {
         await storeLearning({
           company: company || null,
@@ -3486,14 +3495,21 @@ Return ONLY valid JSON:
         whatChanged: rebuild.whatChanged || [],
         assessment: diagnostic.assessment || '',
         subscribers: subscribers || 10000,
-        emailsPerMonth: emailsPerMonth || 4
+        emailsPerMonth: emailsPerMonth || 4,
+        contentCalendar: calendar?.follow_ups || [],
+        calendarWeeks: {
+          week1: rebuild.calendarWeek1 || '',
+          week2: rebuild.calendarWeek2 || '',
+          week3: rebuild.calendarWeek3 || '',
+          week4: rebuild.calendarWeek4 || ''
+        }
       };
 
-      jobs.set(jobId, { status: 'complete', result, created: Date.now() });
+      await setJob(jobId, { status: 'complete', result });
 
     } catch (err) {
       console.error('[architecture] job failed:', err.message);
-      jobs.set(jobId, { status: 'failed', error: err.message, created: Date.now() });
+      await setJob(jobId, { status: 'failed', error: err.message });
     }
   })();
 });
