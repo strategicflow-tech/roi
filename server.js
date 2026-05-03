@@ -4216,4 +4216,13 @@ setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => console.log(`[server] Strategic Flow ready on :${PORT} — model: ${MODEL}`));
+
+  // Keep-alive ping every 4 minutes
+  if (process.env.APP_URL) {
+    setInterval(async () => {
+      try {
+        await fetch(process.env.APP_URL + '/auth/me');
+      } catch(e) {}
+    }, 4 * 60 * 1000);
+  }
 }).catch(e => { console.error('[startup]', e); process.exit(1); });

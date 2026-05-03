@@ -51,3 +51,4 @@ integrations = ["resend:1.0.0"]
 [userenv.shared]
 RESEND_FROM = "onboarding@resend.dev"
 RESEND_TO = "consultantcalatorii@gmail.com"
+APP_URL = "https://strategic-flow-audit.replit.app"
