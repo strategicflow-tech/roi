@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Content Calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+  }
+  .nav-logo span { color: var(--signal); }
+
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .nav-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--signal); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  .page-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .page-title em { font-style: italic; color: var(--signal); }
+
+  .page-sub {
+    font-size: 15px;
+    color: var(--mid);
+    margin-bottom: 48px;
+    line-height: 1.7;
+  }
+
+  /* LOADING */
+  .loading {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    padding: 48px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--signal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CALENDAR ENTRY */
+  .calendar-entry {
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+    transition: border-color 0.2s;
+  }
+
+  .calendar-entry:hover { border-color: rgba(74,143,231,0.3); }
+
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+  }
+
+  .entry-subject {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .entry-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--mid);
+    letter-spacing: 0.06em;
+  }
+
+  .entry-score {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .score-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .score-pill.before {
+    color: var(--noise);
+    border: 1px solid rgba(255,77,46,0.3);
+  }
+
+  .score-pill.after {
+    color: var(--signal);
+    border: 1px solid rgba(74,143,231,0.3);
+  }
+
+  .entry-arrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    margin-left: 8px;
+    transition: transform 0.2s;
+  }
+
+  .entry-arrow.open { transform: rotate(180deg); }
+
+  /* ENTRY BODY */
+  .entry-body {
+    display: none;
+    padding: 24px;
+  }
+
+  .entry-body.open { display: block; }
+
+  /* WEEKS GRID */
+  .weeks-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .week-cell {
+    background: var(--black);
+    padding: 16px;
+  }
+
+  .week-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .week-text {
+    font-size: 12px;
+    color: var(--white);
+    line-height: 1.6;
+  }
+
+  /* FOLLOW-UPS */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    margin-top: 24px;
+  }
+
+  .followup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .followup-item {
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+    background: var(--card);
+  }
+
+  .followup-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .followup-timing {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--signal);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .followup-angle {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--mid);
+  }
+
+  .followup-subject {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .followup-topic {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.6;
+    margin-bottom: 6px;
+  }
+
+  .followup-why {
+    font-size: 11px;
+    color: var(--signal);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    border: 1px solid var(--border);
+  }
+
+  .empty-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .empty-sub {
+    font-size: 14px;
+    color: var(--mid);
+    margin-bottom: 24px;
+    line-height: 1.7;
+  }
+
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 12px 24px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .btn-primary { background: var(--signal); color: var(--white); }
+  .btn-primary:hover { background: var(--signal-dim); }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    main { padding: 80px 16px 60px; }
+    .weeks-grid { grid-template-columns: 1fr 1fr; }
+    .entry-header { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">Strategic Flow <span>Architecture</span></span>
+  <div class="nav-links">
+    <a href="/architecture.html" class="nav-link">Assessment</a>
+    <a href="/calendar.html" class="nav-link active">Calendar</a>
+    <a href="/index.html" class="nav-link">Audit</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-label">// Content Calendar — Full History</div>
+  <h1 class="page-title">Every calendar<br><em>you've generated.</em></h1>
+  <p class="page-sub">All content calendars from your Architecture assessments — 4-week arcs and follow-up sequences, ordered by most recent.</p>
+
+  <div id="calendarContainer">
+    <div class="loading">
+      <div class="spinner"></div>
+      Loading calendars...
+    </div>
+  </div>
+</main>
+
+<script>
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleEntry(id) {
+  const body = document.getElementById('body-' + id);
+  const arrow = document.getElementById('arrow-' + id);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+async function loadCalendars() {
+  const container = document.getElementById('calendarContainer');
+
+  try {
+    const res = await fetch('/api/calendar');
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    const data = await res.json();
+    const entries = data.entries || [];
+
+    if (entries.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-title">No calendars yet.</div>
+          <div class="empty-sub">Run an assessment in Architecture to generate your first content calendar.</div>
+          <a href="/architecture.html" class="btn btn-primary">Run Assessment →</a>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = entries.map((entry, idx) => {
+      const weeks = entry.calendarWeeks || {};
+      const followUps = entry.contentCalendar || [];
+      const date = entry.createdAt ? new Date(entry.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+      return `
+        <div class="calendar-entry">
+          <div class="entry-header" onclick="toggleEntry(${idx})">
+            <div>
+              <div class="entry-subject">${esc(entry.originalSubject || 'Assessment ' + (idx + 1))}</div>
+              <div class="entry-meta">${esc(entry.company || 'Unknown company')} · ${date}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="entry-score">
+                <span class="score-pill before">${entry.score || '?'}/10</span>
+                <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);">→</span>
+                <span class="score-pill after">${entry.rebuiltScore || '?'}/10</span>
+              </div>
+              <span class="entry-arrow" id="arrow-${idx}">▼</span>
+            </div>
+          </div>
+
+          <div class="entry-body" id="body-${idx}">
+
+            ${(weeks.week1 || weeks.week2 || weeks.week3 || weeks.week4) ? `
+              <div class="section-label">// 4-Week Arc</div>
+              <div class="weeks-grid">
+                ${[1,2,3,4].map(i => `
+                  <div class="week-cell">
+                    <div class="week-label">Week ${i}</div>
+                    <div class="week-text">${esc(weeks['week'+i] || '—')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            ${followUps.length > 0 ? `
+              <div class="section-label">// Follow-up Sequence</div>
+              <div class="followup-list">
+                ${followUps.map((f, i) => `
+                  <div class="followup-item">
+                    <div class="followup-meta">
+                      <span class="followup-timing">Email ${i+1} — ${esc(f.timing || '')}</span>
+                      <span class="followup-angle">${esc(f.angle || '')}</span>
+                    </div>
+                    <div class="followup-subject">${esc(f.subject_line || '')}</div>
+                    <div class="followup-topic">${esc(f.topic || '')}</div>
+                    ${f.why_now ? `<div class="followup-why">→ ${esc(f.why_now)}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    container.innerHTML = `
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);padding:24px;">
+        Error loading calendars: ${esc(err.message)}
+      </div>
+    `;
+  }
+}
+
+loadCalendars();
+</script>
+</body>
+</html>
