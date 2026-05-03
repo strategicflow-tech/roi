@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+  }
+  .nav-logo span { color: var(--signal); }
+
+  .nav-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--signal);
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 4px 10px;
+    text-transform: uppercase;
+  }
+
+  /* MAIN LAYOUT */
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  /* STEP INDICATOR */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--mid);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .step-dot.active {
+    border-color: var(--signal);
+    background: rgba(74,143,231,0.15);
+    color: var(--signal);
+  }
+
+  .step-dot.done {
+    border-color: var(--signal);
+    background: var(--signal);
+    color: var(--black);
+  }
+
+  .step-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+
+  .step.active .step-label { color: var(--white); }
+  .step.done .step-label { color: var(--signal); }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin: 0 8px;
+    max-width: 40px;
+  }
+
+  /* PANELS */
+  .panel {
+    display: none;
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  .panel.active { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* PANEL HEADER */
+  .panel-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .panel-title em {
+    font-style: italic;
+    color: var(--signal);
+  }
+
+  .panel-sub {
+    font-size: 15px;
+    color: var(--mid);
+    margin-bottom: 32px;
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* FORM */
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  textarea, input, select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  textarea:focus, input:focus, select:focus {
+    border-color: rgba(74,143,231,0.5);
+  }
+
+  textarea {
+    min-height: 180px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+
+  select option { background: #1a1a18; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    padding: 14px 28px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--signal);
+    color: var(--white);
+  }
+
+  .btn-primary:hover { background: var(--signal-dim); }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--mid);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { color: var(--white); border-color: rgba(244,242,237,0.3); }
+
+  /* PROGRESS */
+  .progress-wrap {
+    margin: 32px 0;
+  }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .progress-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+  }
+
+  .progress-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    background: var(--signal);
+    transition: width 0.6s ease;
+    width: 0%;
+  }
+
+  .progress-fill.indeterminate {
+    width: 40%;
+    animation: slide 1.4s ease-in-out infinite;
+  }
+
+  @keyframes slide {
+    0% { left: -40%; }
+    100% { left: 100%; }
+  }
+
+  /* STATUS LOG */
+  .status-log {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    background: var(--card);
+    min-height: 120px;
+  }
+
+  .log-line {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeUp 0.3s ease forwards;
+  }
+
+  .log-line.done { color: var(--signal); }
+  .log-line.error { color: var(--noise); }
+
+  .log-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  /* DIAGNOSTIC RESULTS */
+  .diagnostic-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .diag-cell {
+    background: var(--black);
+    padding: 20px 24px;
+  }
+
+  .diag-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .diag-score {
+    font-family: 'DM Serif Display', serif;
+    font-size: 40px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .diag-score.low { color: var(--noise); }
+  .diag-score.mid-score { color: #f59e0b; }
+  .diag-score.high { color: var(--signal); }
+
+  .diag-note {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* BUG LIST */
+  .bug-list {
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .bug-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .bug-item:last-child { border-bottom: none; }
+
+  .bug-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .bug-content { flex: 1; }
+
+  .bug-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .bug-desc {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.6;
+  }
+
+  /* REBUILD OUTPUT */
+  .rebuild-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+
+  .tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .tab.active {
+    color: var(--signal);
+    border-bottom-color: var(--signal);
+  }
+
+  .tab-panel {
+    display: none;
+    border: 1px solid var(--border);
+    border-top: none;
+    padding: 24px;
+    background: var(--card);
+  }
+
+  .tab-panel.active { display: block; }
+
+  .subject-variants {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .subject-variant {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    background: rgba(74,143,231,0.04);
+  }
+
+  .variant-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--signal);
+    letter-spacing: 0.1em;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .variant-text {
+    font-size: 13px;
+    color: var(--white);
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .variant-rate {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .html-output {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  /* ROI SECTION */
+  .roi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  .roi-cell {
+    background: var(--black);
+    padding: 24px;
+  }
+
+  .roi-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .roi-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .roi-value.positive { color: var(--signal); }
+  .roi-value.negative { color: var(--noise); }
+  .roi-value.neutral { color: var(--white); }
+
+  .roi-note {
+    font-size: 11px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* COPY BUTTON */
+  .copy-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--signal);
+    background: transparent;
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { background: rgba(74,143,231,0.1); }
+
+  /* WHAT CHANGED */
+  .changes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .change-item {
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+
+  .change-fix {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--signal);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .change-before {
+    font-size: 12px;
+    color: var(--noise);
+    margin-bottom: 4px;
+    line-height: 1.5;
+  }
+
+  .change-after {
+    font-size: 12px;
+    color: var(--signal);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .change-why {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.6;
+  }
+
+  /* ACTION ROW */
+  .action-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  /* SCORE BADGE */
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .score-badge-num { color: var(--signal); font-size: 18px; }
+  .score-badge-label { color: var(--mid); }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-badge { display: none; }
+    main { padding: 80px 16px 60px; }
+    .form-row { grid-template-columns: 1fr; }
+    .diagnostic-grid { grid-template-columns: 1fr; }
+    .roi-grid { grid-template-columns: 1fr; }
+    .steps { gap: 4px; }
+    .step-label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">Strategic Flow <span>Architecture</span></span>
+  <span class="nav-badge">Enterprise Assessment</span>
+</nav>
+
+<main>
+
+  <!-- STEP INDICATOR -->
+  <div class="steps" id="stepIndicator">
+    <div class="step active" id="si-1">
+      <div class="step-dot active">01</div>
+      <span class="step-label">Input</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="si-2">
+      <div class="step-dot">02</div>
+      <span class="step-label">Diagnostic</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="si-3">
+      <div class="step-dot">03</div>
+      <span class="step-label">Rebuild</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="si-4">
+      <div class="step-dot">04</div>
+      <span class="step-label">ROI Report</span>
+    </div>
+  </div>
+
+  <!-- PANEL 1: INPUT -->
+  <div class="panel active" id="panel-1">
+    <div class="panel-label">// Step 01 — Input</div>
+    <h1 class="panel-title">Paste the email.<br><em>We do the rest.</em></h1>
+    <p class="panel-sub">Paste any SaaS product email, release note, or onboarding sequence. The engine diagnoses every structural failure and rebuilds it using the Strategic Flow Method.</p>
+
+    <div class="form-group">
+      <label>Email subject line</label>
+      <input type="text" id="inputSubject" placeholder="e.g. New dashboard features available">
+    </div>
+
+    <div class="form-group">
+      <label>Email body — paste raw text or HTML</label>
+      <textarea id="inputBody" placeholder="Paste the full email body here..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Company name</label>
+        <input type="text" id="inputCompany" placeholder="e.g. Acme SaaS">
+      </div>
+      <div class="form-group">
+        <label>Subscriber count</label>
+        <input type="number" id="inputSubscribers" placeholder="e.g. 25000" min="100">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Industry</label>
+        <select id="inputIndustry">
+          <option value="">Select industry</option>
+          <option value="saas">SaaS / Software</option>
+          <option value="fintech">Fintech / Payments</option>
+          <option value="security">Cybersecurity</option>
+          <option value="marketing">Marketing Tech</option>
+          <option value="hr">HR / Recruitment</option>
+          <option value="analytics">Analytics / BI</option>
+          <option value="devtools">Developer Tools</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Emails per month</label>
+        <input type="number" id="inputEmailsPerMonth" placeholder="e.g. 4" min="1" max="30" value="4">
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" onclick="startAssessment()">
+        Run Assessment →
+      </button>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);">Takes 60–90 seconds</span>
+    </div>
+  </div>
+
+  <!-- PANEL 2: PROCESSING -->
+  <div class="panel" id="panel-2">
+    <div class="panel-label">// Step 02 — Diagnostic</div>
+    <h2 class="panel-title">Running the<br><em>7-bug diagnostic.</em></h2>
+    <p class="panel-sub">The Strategic Flow engine is scanning your email for every structural failure — subject line, hook, hierarchy, CTA, and more.</p>
+
+    <div class="progress-wrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Initialising...</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="status-log" id="statusLog"></div>
+  </div>
+
+  <!-- PANEL 3: RESULTS -->
+  <div class="panel" id="panel-3">
+    <div class="panel-label">// Step 03 — Diagnostic Results</div>
+    <h2 class="panel-title">Here's what's<br><em>broken.</em></h2>
+
+    <div class="diagnostic-grid">
+      <div class="diag-cell">
+        <div class="diag-label">Strategic Flow Score</div>
+        <div class="diag-score low" id="scoreDisplay">—</div>
+        <div class="diag-note" id="scoreNote">Before rebuild</div>
+      </div>
+      <div class="diag-cell">
+        <div class="diag-label">Bugs detected</div>
+        <div class="diag-score" id="bugsDisplay" style="color:var(--noise)">—</div>
+        <div class="diag-note">Out of 7 structural checks</div>
+      </div>
+    </div>
+
+    <div class="bug-list" id="bugList">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" onclick="showPanel(4)">
+        See the Rebuild →
+      </button>
+    </div>
+  </div>
+
+  <!-- PANEL 4: REBUILD -->
+  <div class="panel" id="panel-4">
+    <div class="panel-label">// Step 04 — Rebuild</div>
+    <h2 class="panel-title">Rebuilt.<br><em>Ready to ship.</em></h2>
+
+    <div class="rebuild-tabs" id="rebuildTabs">
+      <div class="tab active" onclick="switchTab('subjects')">Subject Lines</div>
+      <div class="tab" onclick="switchTab('html')">HTML Output</div>
+      <div class="tab" onclick="switchTab('changes')">What Changed</div>
+    </div>
+
+    <!-- SUBJECTS TAB -->
+    <div class="tab-panel active" id="tab-subjects">
+      <div class="subject-variants" id="subjectVariants">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- HTML TAB -->
+    <div class="tab-panel" id="tab-html">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);">HTML ready to paste into your ESP</span>
+        <button class="copy-btn" onclick="copyHtml()">Copy HTML</button>
+      </div>
+      <div class="html-output" id="htmlOutput"><!-- populated by JS --></div>
+    </div>
+
+    <!-- CHANGES TAB -->
+    <div class="tab-panel" id="tab-changes">
+      <div class="changes-list" id="changesList">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" onclick="showPanel(5)">
+        See ROI Report →
+      </button>
+      <div class="score-badge">
+        <span class="score-badge-num" id="rebuiltScore">—</span>
+        <span class="score-badge-label">/ 10 after rebuild</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 5: ROI REPORT -->
+  <div class="panel" id="panel-5">
+    <div class="panel-label">// Step 05 — ROI Report</div>
+    <h2 class="panel-title">The number for<br><em>your leadership.</em></h2>
+    <p class="panel-sub">Based on your subscriber count and the open rate delta between your original email and the rebuilt version.</p>
+
+    <div class="roi-grid">
+      <div class="roi-cell">
+        <div class="roi-label">Current open rate</div>
+        <div class="roi-value negative" id="roiCurrentRate">—</div>
+        <div class="roi-note" id="roiCurrentReaders">— readers per email</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Projected open rate</div>
+        <div class="roi-value positive" id="roiProjectedRate">—</div>
+        <div class="roi-note" id="roiProjectedReaders">— readers per email</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Monthly delta</div>
+        <div class="roi-value positive" id="roiDelta">—</div>
+        <div class="roi-note" id="roiDeltaNote">Additional readers per month</div>
+      </div>
+    </div>
+
+    <div class="roi-grid" style="margin-bottom:0">
+      <div class="roi-cell">
+        <div class="roi-label">Score lift</div>
+        <div class="roi-value neutral" id="roiScoreLift">—</div>
+        <div class="roi-note">Strategic Flow score</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Emails per month</div>
+        <div class="roi-value neutral" id="roiEmailsMonth">—</div>
+        <div class="roi-note">Compounded exposure</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-label">Annual delta</div>
+        <div class="roi-value positive" id="roiAnnual">—</div>
+        <div class="roi-note">Total additional readers/year</div>
+      </div>
+    </div>
+
+    <div class="action-row" style="margin-top:32px;">
+      <button class="btn btn-primary" onclick="startNew()">
+        Run Another Assessment →
+      </button>
+      <button class="btn btn-ghost" onclick="window.location.href='mailto:strategicflow@proton.me?subject=Architecture Assessment — Ready to discuss'">
+        Book a Call →
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let assessmentData = {};
+let currentJobId = null;
+let pollInterval = null;
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPanel(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  updateStepIndicator(n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepIndicator(active) {
+  const map = { 1: 1, 2: 2, 3: 2, 4: 3, 5: 4 };
+  const step = map[active] || active;
+  for (let i = 1; i <= 4; i++) {
+    const si = document.getElementById('si-' + i);
+    const dot = si.querySelector('.step-dot');
+    si.classList.remove('active', 'done');
+    dot.classList.remove('active', 'done');
+    if (i < step) {
+      si.classList.add('done');
+      dot.classList.add('done');
+      dot.textContent = '✓';
+    } else if (i === step) {
+      si.classList.add('active');
+      dot.classList.add('active');
+      dot.textContent = '0' + i;
+    } else {
+      dot.textContent = '0' + i;
+    }
+  }
+}
+
+// ─── TAB SWITCHING ───────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── LOG HELPER ──────────────────────────────────────────────────────────────
+function addLog(text, type = '') {
+  const log = document.getElementById('statusLog');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.innerHTML = `<span class="log-dot"></span>${text}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(pct, label) {
+  const fill = document.getElementById('progressFill');
+  fill.classList.remove('indeterminate');
+  fill.style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+// ─── ASSESSMENT START ─────────────────────────────────────────────────────────
+async function startAssessment() {
+  const subject = document.getElementById('inputSubject').value.trim();
+  const body = document.getElementById('inputBody').value.trim();
+  const company = document.getElementById('inputCompany').value.trim() || 'Your Company';
+  const subscribers = parseInt(document.getElementById('inputSubscribers').value) || 10000;
+  const industry = document.getElementById('inputIndustry').value || 'saas';
+  const emailsPerMonth = parseInt(document.getElementById('inputEmailsPerMonth').value) || 4;
+
+  if (!subject || !body) {
+    alert('Please paste both a subject line and email body.');
+    return;
+  }
+
+  assessmentData = { subject, body, company, subscribers, industry, emailsPerMonth };
+
+  showPanel(2);
+  document.getElementById('statusLog').innerHTML = '';
+  setProgress(0, 'Connecting...');
+
+  addLog('Assessment engine initialised');
+  addLog('Subject line received: "' + subject.slice(0, 60) + (subject.length > 60 ? '...' : '') + '"');
+
+  // Try /api/architecture first, fall back to mock for demo
+  try {
+    await runArchitectureAssessment();
+  } catch (err) {
+    console.error('Assessment error:', err);
+    addLog('Using demonstration mode — connect server for live results', 'error');
+    await runMockAssessment();
+  }
+}
+
+// ─── LIVE ASSESSMENT via server.js ───────────────────────────────────────────
+async function runArchitectureAssessment() {
+  setProgress(10, 'Sending to assessment engine...');
+  addLog('Connecting to Strategic Flow engine...');
+
+  const res = await fetch('/api/architecture', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subject: assessmentData.subject,
+      body: assessmentData.body,
+      company: assessmentData.company,
+      subscribers: assessmentData.subscribers,
+      industry: assessmentData.industry,
+      emailsPerMonth: assessmentData.emailsPerMonth
+    })
+  });
+
+  if (!res.ok) throw new Error('Server returned ' + res.status);
+
+  const data = await res.json();
+
+  if (data.jobId) {
+    // Async job — poll for results
+    currentJobId = data.jobId;
+    addLog('Job queued: ' + data.jobId);
+    await pollForResults(data.jobId);
+  } else if (data.result) {
+    // Sync response
+    handleResults(data.result);
+  } else {
+    throw new Error('Unexpected response format');
+  }
+}
+
+// ─── POLLING ─────────────────────────────────────────────────────────────────
+async function pollForResults(jobId) {
+  const steps = [
+    { pct: 20, label: 'Extracting brand DNA...', log: 'Analysing brand voice and tone patterns' },
+    { pct: 40, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
+    { pct: 60, label: 'Rebuilding email architecture...', log: 'Applying Strategic Flow Method — consequence-first' },
+    { pct: 75, label: 'Generating subject variants...', log: 'Creating 3 A/B subject line variants with open rate predictions' },
+    { pct: 88, label: 'Calculating ROI projection...', log: 'Computing reader delta for ' + assessmentData.subscribers.toLocaleString() + ' subscribers' },
+    { pct: 95, label: 'Finalising report...', log: 'Assembling complete assessment report' }
+  ];
+
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    if (stepIdx < steps.length) {
+      const s = steps[stepIdx++];
+      setProgress(s.pct, s.label);
+      addLog(s.log);
+    }
+  }, 6000);
+
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const r = await fetch('/api/job/' + jobId);
+        const d = await r.json();
+
+        if (d.status === 'complete') {
+          clearInterval(pollInterval);
+          clearInterval(stepTimer);
+          setProgress(100, 'Complete');
+          addLog('Assessment complete', 'done');
+          handleResults(d.result);
+          resolve();
+        } else if (d.status === 'failed') {
+          clearInterval(pollInterval);
+          clearInterval(stepTimer);
+          reject(new Error(d.error || 'Job failed'));
+        } else if (attempts > 60) {
+          clearInterval(pollInterval);
+          clearInterval(stepTimer);
+          reject(new Error('Timeout'));
+        }
+      } catch (e) {
+        clearInterval(pollInterval);
+        clearInterval(stepTimer);
+        reject(e);
+      }
+    }, 3000);
+  });
+}
+
+// ─── HANDLE RESULTS ───────────────────────────────────────────────────────────
+function handleResults(result) {
+  assessmentData.result = result;
+
+  // Score
+  const score = result.score || result.originalScore || 3;
+  const rebuiltScore = result.rebuiltScore || result.newScore || 9;
+
+  // Populate diagnostic panel
+  const scoreEl = document.getElementById('scoreDisplay');
+  scoreEl.textContent = score + '/10';
+  scoreEl.className = 'diag-score ' + (score <= 3 ? 'low' : score <= 6 ? 'mid-score' : 'high');
+  document.getElementById('scoreNote').textContent = 'Before rebuild — ' + getScoreLabel(score);
+
+  const bugs = result.bugs || [];
+  document.getElementById('bugsDisplay').textContent = bugs.length + '/7';
+
+  // Bug list
+  const bugList = document.getElementById('bugList');
+  bugList.innerHTML = bugs.map(bug => `
+    <div class="bug-item">
+      <span class="bug-icon">⚠</span>
+      <div class="bug-content">
+        <div class="bug-title">${escHtml(bug.name || bug.title || 'Structural bug')}</div>
+        <div class="bug-desc">${escHtml(bug.description || bug.desc || '')}</div>
+      </div>
+    </div>
+  `).join('') || '<div class="bug-item"><div class="bug-content"><div class="bug-desc" style="color:var(--signal)">No critical bugs detected — email has strong structural foundation.</div></div></div>';
+
+  // Subject variants
+  const variants = result.abSubjects || result.subjects || [];
+  document.getElementById('subjectVariants').innerHTML = variants.map((v, i) => `
+    <div class="subject-variant">
+      <span class="variant-tag">V${i+1}</span>
+      <span class="variant-text">${escHtml(typeof v === 'string' ? v : v.subject || v.text || v)}</span>
+      <span class="variant-rate">${typeof v === 'object' && v.openRate ? v.openRate : '~' + (28 + i*2) + '%'}</span>
+    </div>
+  `).join('') || '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--mid)">Subject variants will appear here after rebuild.</div>';
+
+  // HTML output
+  const html = result.rebuiltBody || result.html || result.rebuiltHtml || '';
+  document.getElementById('htmlOutput').textContent = html || '<!-- Rebuilt HTML will appear here -->';
+
+  // What changed
+  const changes = result.whatChanged || result.changes || [];
+  document.getElementById('changesList').innerHTML = changes.map(c => `
+    <div class="change-item">
+      <div class="change-fix">${escHtml(c.fix || c.name || 'Fix applied')}</div>
+      ${c.before ? `<div class="change-before">❌ Before: ${escHtml(c.before)}</div>` : ''}
+      ${c.after ? `<div class="change-after">✓ After: ${escHtml(c.after)}</div>` : ''}
+      <div class="change-why">${escHtml(c.why || c.reason || '')}</div>
+    </div>
+  `).join('') || '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--mid)">Change explanations will appear here.</div>';
+
+  // Rebuilt score badge
+  document.getElementById('rebuiltScore').textContent = rebuiltScore;
+
+  // ROI calculation
+  const subs = assessmentData.subscribers;
+  const emailsPerMonth = assessmentData.emailsPerMonth;
+  const currentRate = result.currentOpenRate || 0.18;
+  const projectedRate = result.projectedOpenRate || 0.31;
+  const currentReaders = Math.round(subs * currentRate);
+  const projectedReaders = Math.round(subs * projectedRate);
+  const deltaPerEmail = projectedReaders - currentReaders;
+  const monthlyDelta = deltaPerEmail * emailsPerMonth;
+  const annualDelta = monthlyDelta * 12;
+
+  document.getElementById('roiCurrentRate').textContent = Math.round(currentRate * 100) + '%';
+  document.getElementById('roiCurrentReaders').textContent = currentReaders.toLocaleString() + ' readers per email';
+  document.getElementById('roiProjectedRate').textContent = Math.round(projectedRate * 100) + '%';
+  document.getElementById('roiProjectedReaders').textContent = projectedReaders.toLocaleString() + ' readers per email';
+  document.getElementById('roiDelta').textContent = '+' + monthlyDelta.toLocaleString();
+  document.getElementById('roiDeltaNote').textContent = 'Additional readers per month (' + emailsPerMonth + ' emails)';
+  document.getElementById('roiScoreLift').textContent = score + ' → ' + rebuiltScore;
+  document.getElementById('roiEmailsMonth').textContent = emailsPerMonth + 'x/mo';
+  document.getElementById('roiAnnual').textContent = '+' + annualDelta.toLocaleString();
+
+  // Show diagnostic panel
+  showPanel(3);
+}
+
+// ─── MOCK ASSESSMENT (demo/fallback) ─────────────────────────────────────────
+async function runMockAssessment() {
+  const steps = [
+    { pct: 15, label: 'Extracting brand DNA...', log: 'Analysing brand voice and tone patterns', delay: 1200 },
+    { pct: 30, label: 'Running 7-bug diagnostic...', log: 'Checking subject line — filing label detected', delay: 1500 },
+    { pct: 45, label: 'Scanning hook architecture...', log: 'Hook opens with feature announcement — not consequence', delay: 1200 },
+    { pct: 60, label: 'Analysing CTA structure...', log: 'CTA reads "Learn more" — ownership language missing', delay: 1400 },
+    { pct: 75, label: 'Rebuilding email...', log: 'Applying Strategic Flow Method — consequence-first architecture', delay: 1800 },
+    { pct: 88, label: 'Generating subject variants...', log: 'Creating 3 A/B subject line variants', delay: 1200 },
+    { pct: 95, label: 'Calculating ROI projection...', log: 'Computing reader delta for ' + assessmentData.subscribers.toLocaleString() + ' subscribers', delay: 1000 },
+    { pct: 100, label: 'Complete', log: 'Assessment complete', delay: 800 }
+  ];
+
+  for (const step of steps) {
+    await delay(step.delay);
+    setProgress(step.pct, step.label);
+    addLog(step.log, step.pct === 100 ? 'done' : '');
+  }
+
+  await delay(400);
+
+  const mockResult = {
+    score: 3,
+    rebuiltScore: 9,
+    currentOpenRate: 0.18,
+    projectedOpenRate: 0.31,
+    bugs: [
+      { name: 'Filing label subject', description: 'Subject announces the product update, not the reader\'s problem. "New features available" tells them what exists, not why it matters to them.' },
+      { name: 'Caveat opener', description: 'Email opens with company news or a rollout disclaimer before delivering any value to the reader.' },
+      { name: 'Feature-first language', description: 'Body describes what was built rather than what the reader can now do differently. Architecture over outcome.' },
+      { name: 'Flat visual hierarchy', description: 'Major releases and minor fixes share the same visual weight. Reader cannot identify what matters most.' },
+      { name: 'Zero quantified claims', description: 'No numbers, benchmarks, or time-saved claims. Every feature statement is unverifiable.' },
+      { name: 'Weak CTA language', description: '"Learn more" — no ownership. Reader has no sense the action belongs to them.' }
+    ],
+    abSubjects: [
+      { subject: assessmentData.subject.replace(/new |update/gi, '').trim() + ' — here\'s what changed for your workflow', openRate: '29%' },
+      { subject: 'Your team has been losing time on this — we fixed it', openRate: '31%' },
+      { subject: 'What ' + (assessmentData.company || 'your team') + ' can do today that wasn\'t possible yesterday', openRate: '28%' }
+    ],
+    rebuiltBody: `<!-- Strategic Flow Architecture — Rebuilt HTML -->
+<!-- Subject: Your team has been losing time on this — we fixed it -->
+<!-- Preview: Here's what changed in your account this week. -->
+
+<p style="font-size:18px;font-weight:700;margin:0 0 8px;">Your team is losing time on a problem we just solved.</p>
+<p style="font-size:15px;color:#555;margin:0 0 24px;">Here's what changed in your account — and what it means for your workflow.</p>
+
+<!-- What changed section -->
+<p style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#888;margin:0 0 12px;">What's different</p>
+
+<!-- Feature rebuilt with consequence-first language -->
+<p style="font-size:15px;margin:0 0 16px;">
+  [Feature name] now [specific outcome for user]. Previously, your team had to [old workflow]. That's gone.
+</p>
+
+<!-- CTA with ownership language -->
+<a href="#" style="display:inline-block;background:#000;color:#fff;padding:12px 24px;font-weight:600;text-decoration:none;margin:8px 0 24px;">
+  See what changed in my account →
+</a>`,
+    whatChanged: [
+      { fix: 'Fix 1 — Subject line', before: assessmentData.subject || 'New features available', after: 'Your team has been losing time on this — we fixed it', why: 'Consequence-first subject creates a curiosity gap. Reader must open to understand what problem was solved.' },
+      { fix: 'Fix 2 — Preview text', before: 'View this email in your browser', after: 'Here\'s what changed in your account this week.', why: 'Preview text completes the subject\'s thought — it doesn\'t repeat it or default to a browser link.' },
+      { fix: 'Fix 3 — Hook', before: 'We\'re excited to announce our latest features.', after: 'Your team is losing time on a problem we just solved.', why: 'Hook names the consequence the reader is already experiencing. They recognise their own situation immediately.' },
+      { fix: 'Fix 4 — CTA', before: '"Learn more"', after: '"See what changed in my account →"', why: 'Ownership language makes the action feel like it already belongs to the reader. Conversion rate improves.' }
+    ]
+  };
+
+  handleResults(mockResult);
+}
+
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getScoreLabel(score) {
+  if (score <= 2) return 'critical structural failures';
+  if (score <= 4) return 'multiple bugs present';
+  if (score <= 6) return 'partial architecture';
+  if (score <= 8) return 'minor improvements needed';
+  return 'strong architecture';
+}
+
+function copyHtml() {
+  const html = document.getElementById('htmlOutput').textContent;
+  navigator.clipboard.writeText(html).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = 'Copy HTML', 2000);
+  });
+}
+
+function startNew() {
+  assessmentData = {};
+  document.getElementById('inputSubject').value = '';
+  document.getElementById('inputBody').value = '';
+  document.getElementById('inputCompany').value = '';
+  document.getElementById('inputSubscribers').value = '';
+  document.getElementById('statusLog').innerHTML = '';
+  showPanel(1);
+}
+</script>
+</body>
+</html>
