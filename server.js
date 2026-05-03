@@ -3279,32 +3279,143 @@ app.post('/update-system-prompt', async (req, res) => {
 
 // ── MONTHLY CONVERSION AUDIT (auto on 1st of month) ──
 async function runMonthlyAudit() {
-  try {
-    if (new Date().getDate() !== 1) return;
-    const mk = currentMonthKey();
-    const sent = await pool.query(`SELECT value FROM system_config WHERE key = 'last_monthly_audit'`);
-    if (sent.rows[0]?.value === mk) return;
+  console.log('[scheduler] Running monthly audit...');
 
-    const hiUsers = await pool.query(
-      `SELECT email, company FROM users WHERE tier = 'high_impact' AND email != $1 AND email != $2`,
-      [...BYPASS_EMAILS]
+  try {
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const last = await pool.query(
+      "SELECT value FROM system_config WHERE key = 'last_monthly_audit'",
     );
-    for (const u of hiUsers.rows) {
-      const nls = await pool.query(
-        `SELECT rebuilt_subject, rebuilt_body, created_at FROM newsletters WHERE email=$1 ORDER BY created_at DESC LIMIT 3`, [u.email]);
-      if (!nls.rows.length) continue;
-      const nlHtml = nls.rows.map(n =>
-        `<h3>${n.rebuilt_subject}</h3><p>${(n.rebuilt_body||'').slice(0,300)}…</p><p><em>${new Date(n.created_at).toLocaleDateString()}</em></p>`
-      ).join('<hr>');
-      await notify(`HI AUDIT — ${u.company || u.email} — ${mk}`,
-        `<h2>Monthly Conversion Audit — ${u.company || u.email}</h2><p>Email: ${u.email}</p><hr>${nlHtml}<hr>
-        <h3>UI/UX Checklist</h3><ul><li>Mobile preview checked?</li><li>CTA above fold?</li><li>Social proof specific?</li><li>Subject under 50 chars?</li></ul>`);
+    if (last.rows[0]?.value === thisMonth) {
+      console.log('[scheduler] Monthly audit already sent this month, skipping.');
+      return;
     }
 
-    await pool.query(`INSERT INTO system_config (key, value) VALUES ('last_monthly_audit', $1)
-      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`, [mk]);
-    console.log('[audit] Monthly audit complete for', mk);
-  } catch (err) { console.error('[monthly-audit]', err.message); }
+    const users = await pool.query(`
+      SELECT email FROM users
+      WHERE tier IN ('architecture', 'high_impact')
+        AND last_used_at >= NOW() - INTERVAL '60 days'
+    `);
+
+    console.log(`[scheduler] Sending monthly report to ${users.rows.length} users`);
+
+    for (const user of users.rows) {
+      try {
+        await sendMonthlyReportEmail(user.email);
+      } catch (e) {
+        console.error(`[scheduler] Failed for ${user.email}:`, e.message);
+      }
+    }
+
+    await pool.query(`
+      INSERT INTO system_config (key, value) VALUES ('last_monthly_audit', $1)
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+    `, [thisMonth]);
+
+    console.log('[scheduler] Monthly audit complete.');
+
+  } catch (err) {
+    console.error('[scheduler] Monthly audit failed:', err.message);
+  }
+}
+
+async function sendMonthlyReportEmail(email) {
+  const r = await pool.query(`
+    SELECT original_subject, rebuilt_subject, conversion_score, created_at
+    FROM newsletters
+    WHERE email = $1
+      AND created_at >= NOW() - INTERVAL '30 days'
+    ORDER BY created_at DESC
+    LIMIT 20
+  `, [email]);
+
+  const rows = r.rows;
+  if (rows.length === 0) return;
+
+  const scored = rows.map(row => {
+    try {
+      const cs = typeof row.conversion_score === 'string'
+        ? JSON.parse(row.conversion_score) : row.conversion_score;
+      return {
+        subject: row.original_subject,
+        before: cs?.score || cs?.originalScore || null,
+        after: cs?.rebuiltScore || cs?.newScore || null,
+        date: new Date(row.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      };
+    } catch (e) { return null; }
+  }).filter(Boolean);
+
+  const avgBefore = scored.length > 0
+    ? (scored.reduce((a, b) => a + (b.before || 0), 0) / scored.length).toFixed(1)
+    : '—';
+  const avgAfter = scored.length > 0
+    ? (scored.reduce((a, b) => a + (b.after || 0), 0) / scored.length).toFixed(1)
+    : '—';
+
+  const emailRows = scored.slice(0, 5).map(s => `
+    <tr>
+      <td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#f4f2ed;">${s.subject || '—'}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:monospace;font-size:12px;color:#ff4d2e;text-align:center;">${s.before || '—'}/10</td>
+      <td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:monospace;font-size:12px;color:#4A8FE7;text-align:center;">${s.after || '—'}/10</td>
+      <td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:monospace;font-size:11px;color:#a8a39b;text-align:right;">${s.date}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a08;color:#f4f2ed;padding:48px 40px;border:1px solid rgba(255,255,255,0.1);">
+      <p style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin:0 0 40px;">Strategic Flow Architecture — Monthly Report</p>
+
+      <h2 style="font-size:28px;margin:0 0 8px;font-weight:600;">Your email performance<br>this month.</h2>
+      <p style="font-size:14px;color:#a8a39b;margin:0 0 40px;">${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.1);margin-bottom:32px;">
+        <tr>
+          <td style="padding:24px;border-right:1px solid rgba(255,255,255,0.1);text-align:center;">
+            <div style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin-bottom:8px;">Emails rebuilt</div>
+            <div style="font-size:40px;font-weight:700;color:#4A8FE7;">${scored.length}</div>
+          </td>
+          <td style="padding:24px;border-right:1px solid rgba(255,255,255,0.1);text-align:center;">
+            <div style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin-bottom:8px;">Avg score before</div>
+            <div style="font-size:40px;font-weight:700;color:#ff4d2e;">${avgBefore}</div>
+          </td>
+          <td style="padding:24px;text-align:center;">
+            <div style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin-bottom:8px;">Avg score after</div>
+            <div style="font-size:40px;font-weight:700;color:#4A8FE7;">${avgAfter}</div>
+          </td>
+        </tr>
+      </table>
+
+      ${emailRows ? `
+        <p style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin:0 0 12px;">This month's rebuilds</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.1);margin-bottom:32px;">
+          <tr style="background:rgba(255,255,255,0.04);">
+            <th style="padding:10px 16px;text-align:left;font-size:10px;letter-spacing:0.08em;color:#a8a39b;text-transform:uppercase;font-weight:400;">Subject</th>
+            <th style="padding:10px 16px;text-align:center;font-size:10px;letter-spacing:0.08em;color:#a8a39b;text-transform:uppercase;font-weight:400;">Before</th>
+            <th style="padding:10px 16px;text-align:center;font-size:10px;letter-spacing:0.08em;color:#a8a39b;text-transform:uppercase;font-weight:400;">After</th>
+            <th style="padding:10px 16px;text-align:right;font-size:10px;letter-spacing:0.08em;color:#a8a39b;text-transform:uppercase;font-weight:400;">Date</th>
+          </tr>
+          ${emailRows}
+        </table>
+      ` : ''}
+
+      <a href="https://strategic-flow-audit.replit.app/report.html" style="display:inline-block;background:#4A8FE7;color:#ffffff;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;">
+        View Full Report →
+      </a>
+
+      <p style="font-size:12px;color:#6b6760;margin:0;line-height:1.6;">
+        Strategic Flow Architecture · strategicflow@proton.me
+      </p>
+    </div>
+  `;
+
+  await resend.emails.send({
+    from: SENDER,
+    to: email,
+    subject: `Your Strategic Flow report — ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
+    html
+  });
+
+  console.log(`[scheduler] Monthly report sent to ${email}`);
 }
 
 // ─── BOOT ───────────────────────────────────────────────────────────────────
@@ -3915,6 +4026,105 @@ Return ONLY valid JSON:
   }
 });
 // ─── END BATCH SINGLE ENDPOINT ───────────────────────────────────────────────
+
+// ─── MONTHLY REPORT ENDPOINT ─────────────────────────────────────────────────
+app.get('/api/monthly-report', async (req, res) => {
+  if (!req.session || !req.session.userEmail) {
+    return res.status(401).json({ error: 'Unauthorised' });
+  }
+
+  const email = req.session.userEmail;
+
+  try {
+    const r = await pool.query(`
+      SELECT
+        original_subject,
+        rebuilt_subject,
+        company,
+        conversion_score,
+        ab_subjects,
+        content_calendar,
+        created_at
+      FROM newsletters
+      WHERE email = $1
+        AND created_at >= NOW() - INTERVAL '60 days'
+      ORDER BY created_at DESC
+      LIMIT 100
+    `, [email]);
+
+    const rows = r.rows;
+
+    if (rows.length === 0) {
+      return res.json({ hasData: false });
+    }
+
+    const scores = rows.map(row => {
+      try {
+        const cs = typeof row.conversion_score === 'string'
+          ? JSON.parse(row.conversion_score)
+          : row.conversion_score;
+        return {
+          before: cs?.score || cs?.originalScore || cs?.before || null,
+          after: cs?.rebuiltScore || cs?.newScore || cs?.after || null,
+          subject: row.original_subject,
+          rebuiltSubject: row.rebuilt_subject,
+          date: row.created_at,
+          company: row.company
+        };
+      } catch (e) {
+        return { before: null, after: null, subject: row.original_subject, date: row.created_at };
+      }
+    }).filter(s => s.before !== null);
+
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const thisMonth = scores.filter(s => new Date(s.date) >= thisMonthStart);
+    const lastMonth = scores.filter(s => new Date(s.date) >= lastMonthStart && new Date(s.date) < thisMonthStart);
+
+    const avg = arr => arr.length > 0 ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : null;
+
+    const thisAvgBefore = avg(thisMonth.map(s => s.before));
+    const thisAvgAfter = avg(thisMonth.map(s => s.after).filter(Boolean));
+    const lastAvgBefore = avg(lastMonth.map(s => s.before));
+    const lastAvgAfter = avg(lastMonth.map(s => s.after).filter(Boolean));
+
+    const worstThisMonth = [...thisMonth].sort((a, b) => (a.before || 10) - (b.before || 10))[0] || null;
+    const bestThisMonth = [...thisMonth].sort((a, b) => ((b.after || 0) - (b.before || 0)) - ((a.after || 0) - (a.before || 0)))[0] || null;
+
+    res.json({
+      hasData: true,
+      thisMonth: {
+        count: thisMonth.length,
+        avgScoreBefore: thisAvgBefore,
+        avgScoreAfter: thisAvgAfter,
+        scores: thisMonth.slice(0, 10)
+      },
+      lastMonth: {
+        count: lastMonth.length,
+        avgScoreBefore: lastAvgBefore,
+        avgScoreAfter: lastAvgAfter
+      },
+      trend: {
+        direction: thisAvgAfter && lastAvgAfter
+          ? parseFloat(thisAvgAfter) > parseFloat(lastAvgAfter) ? 'up' : 'down'
+          : 'neutral',
+        delta: thisAvgAfter && lastAvgAfter
+          ? (parseFloat(thisAvgAfter) - parseFloat(lastAvgAfter)).toFixed(1)
+          : null
+      },
+      worstThisMonth,
+      bestThisMonth,
+      totalRebuilds: rows.length
+    });
+
+  } catch (err) {
+    console.error('[api/monthly-report]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END MONTHLY REPORT ENDPOINT ─────────────────────────────────────────────
 
 // ─── CALENDAR ENDPOINT ────────────────────────────────────────────────────────
 app.get('/api/calendar', async (req, res) => {
