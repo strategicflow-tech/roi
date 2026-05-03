@@ -3447,6 +3447,174 @@ Return ONLY valid JSON:
 });
 // ─── END ARCHITECTURE ENDPOINT ────────────────────────────────────────────────
 
+// ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
+
+// POST /stripe/checkout — creează Stripe Checkout Session
+app.post('/stripe/checkout', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const sessionParams = {
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{
+        price: process.env.STRIPE_PRICE_ID,
+        quantity: 1
+      }],
+      success_url: 'https://strategic-flow-audit.replit.app/stripe/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://strategicflow-tech.github.io/showcase/enterprise.html',
+      metadata: { source: 'architecture' }
+    };
+
+    if (email && email.includes('@')) {
+      sessionParams.customer_email = email.toLowerCase().trim();
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    res.json({ url: session.url });
+
+  } catch (err) {
+    console.error('[stripe/checkout] error:', err.message);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// GET /stripe/success — post-payment redirect page
+app.get('/stripe/success', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Successful — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a08;
+    color: #f4f2ed;
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 480px;
+    width: 100%;
+    border: 1px solid rgba(244,242,237,0.12);
+    padding: 48px 40px;
+    text-align: center;
+  }
+  .icon { font-size: 40px; margin-bottom: 24px; display: block; }
+  h1 { font-family: 'DM Serif Display', serif; font-size: 32px; margin-bottom: 16px; }
+  h1 em { font-style: italic; color: #4A8FE7; }
+  p { font-size: 13px; color: #a8a39b; line-height: 1.8; margin-bottom: 12px; }
+  p strong { color: #f4f2ed; }
+  .divider { height: 1px; background: rgba(244,242,237,0.12); margin: 28px 0; }
+  .note { font-size: 12px; color: #6b6760; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="icon">✓</span>
+  <h1>You're in.<br><em>Welcome.</em></h1>
+  <p>Payment confirmed. Your Strategic Flow Architecture workspace is being set up.</p>
+  <p><strong>Check your email</strong> — you'll receive a sign-in link within the next 2 minutes.</p>
+  <div class="divider"></div>
+  <p class="note">strategicflow@proton.me · strategic-flow-audit.replit.app</p>
+</div>
+</body>
+</html>`);
+});
+
+// POST /stripe/webhook — handle Stripe events
+app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('[stripe/webhook] signature verification failed:', err.message);
+    return res.status(400).send('Webhook signature verification failed');
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const email = session.customer_email || session.customer_details?.email;
+
+    if (!email) {
+      console.error('[stripe/webhook] No email in session:', session.id);
+      return res.json({ received: true });
+    }
+
+    console.log('[stripe/webhook] New Architecture subscriber:', email);
+
+    try {
+      await upsertUser(email, {
+        tier: 'architecture',
+        vip: true,
+        company: session.customer_details?.name || null
+      });
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = Date.now() + 24 * 60 * 60 * 1000;
+      magicTokens.set(token, { email, expires });
+
+      const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+      const magicLink = `${baseUrl}/auth/verify/${token}`;
+
+      await resend.emails.send({
+        from: SENDER,
+        to: email,
+        subject: 'Welcome to Strategic Flow Architecture — here\'s your access link',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#0a0a08;color:#f4f2ed;padding:48px 40px;border:1px solid rgba(255,255,255,0.1);">
+            <p style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin:0 0 40px;">Strategic Flow Architecture</p>
+            <h2 style="font-size:28px;margin:0 0 20px;font-weight:600;line-height:1.2;">Your workspace is ready.</h2>
+            <p style="font-size:15px;color:#a8a39b;margin:0 0 12px;line-height:1.7;">Click below to sign in. This link is valid for 24 hours.</p>
+            <a href="${magicLink}" style="display:inline-block;background:#4A8FE7;color:#ffffff;padding:16px 32px;text-decoration:none;font-size:14px;font-weight:600;margin:24px 0 32px;">
+              Access my workspace →
+            </a>
+            <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:28px;margin-top:8px;">
+              <p style="font-size:13px;color:#a8a39b;margin:0 0 8px;line-height:1.7;"><strong style="color:#f4f2ed;">What happens next:</strong></p>
+              <p style="font-size:13px;color:#a8a39b;margin:0 0 6px;line-height:1.7;">→ Sign in and run your first assessment today</p>
+              <p style="font-size:13px;color:#a8a39b;margin:0 0 6px;line-height:1.7;">→ Alex will reach out within 24 hours to schedule your onboarding call</p>
+              <p style="font-size:13px;color:#a8a39b;margin:0 0 24px;line-height:1.7;">→ Slack access will be set up during onboarding</p>
+            </div>
+            <p style="font-size:12px;color:#6b6760;margin:0;line-height:1.6;">
+              Questions? Reply to this email or reach out at strategicflow@proton.me
+            </p>
+          </div>
+        `
+      });
+
+      await notify(
+        'New Architecture subscriber — ' + email,
+        `<p>New paying client: <strong>${email}</strong></p>
+         <p>Stripe session: ${session.id}</p>
+         <p>Amount: $${(session.amount_total / 100).toFixed(2)}</p>
+         <p>Magic link sent automatically.</p>`
+      );
+
+      console.log('[stripe/webhook] Welcome email sent to:', email);
+
+    } catch (err) {
+      console.error('[stripe/webhook] post-payment processing failed:', err.message);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// ─── END STRIPE BLOCK ─────────────────────────────────────────────────────────
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
