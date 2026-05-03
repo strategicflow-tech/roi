@@ -19,6 +19,7 @@
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   html { scroll-behavior: smooth; }
 
   body {
@@ -30,6 +31,7 @@
     overflow-x: hidden;
   }
 
+  /* GRID BACKGROUND */
   body::before {
     content: '';
     position: fixed;
@@ -42,6 +44,7 @@
     z-index: 0;
   }
 
+  /* NAV */
   nav {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -86,6 +89,7 @@
 
   .nav-cta:hover { background: var(--signal-dim); }
 
+  /* HERO */
   .hero {
     position: relative;
     min-height: 100vh;
@@ -118,7 +122,10 @@
     animation: fadeUp 0.7s ease forwards 0.4s;
   }
 
-  .hero-title em { font-style: italic; color: var(--signal); }
+  .hero-title em {
+    font-style: italic;
+    color: var(--signal);
+  }
 
   .hero-sub {
     font-size: 18px;
@@ -152,7 +159,10 @@
     display: inline-block;
   }
 
-  .btn-primary:hover { background: var(--signal-dim); transform: translateY(-1px); }
+  .btn-primary:hover {
+    background: var(--signal-dim);
+    transform: translateY(-1px);
+  }
 
   .btn-ghost {
     font-family: 'DM Mono', monospace;
@@ -167,6 +177,7 @@
 
   .btn-ghost:hover { color: var(--white); }
 
+  /* SCORE TICKER */
   .score-ticker {
     position: absolute;
     right: 48px;
@@ -180,7 +191,11 @@
     animation: fadeIn 1s ease forwards 1.2s;
   }
 
-  .score-item { display: flex; align-items: center; gap: 12px; }
+  .score-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
   .score-label {
     font-family: 'DM Mono', monospace;
@@ -190,7 +205,12 @@
     text-transform: uppercase;
   }
 
-  .score-bar { width: 120px; height: 2px; background: rgba(244,242,237,0.1); position: relative; }
+  .score-bar {
+    width: 120px;
+    height: 2px;
+    background: rgba(244,242,237,0.1);
+    position: relative;
+  }
 
   .score-fill {
     position: absolute;
@@ -212,8 +232,16 @@
   @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  .divider { height: 1px; background: var(--border); margin: 0 48px; position: relative; z-index: 1; }
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 48px;
+    position: relative;
+    z-index: 1;
+  }
 
+  /* STAT BAR */
   .stat-bar {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -222,7 +250,11 @@
     z-index: 1;
   }
 
-  .stat-item { padding: 40px 48px; border-right: 1px solid var(--border); }
+  .stat-item {
+    padding: 40px 48px;
+    border-right: 1px solid var(--border);
+  }
+
   .stat-item:last-child { border-right: none; }
 
   .stat-num {
@@ -233,9 +265,18 @@
     margin-bottom: 8px;
   }
 
-  .stat-desc { font-size: 13px; color: var(--mid); line-height: 1.5; }
+  .stat-desc {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
 
-  section { position: relative; z-index: 1; padding: 100px 48px; }
+  /* SECTION */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 48px;
+  }
 
   .section-label {
     font-family: 'DM Mono', monospace;
@@ -257,9 +298,16 @@
 
   .section-title em { font-style: italic; color: var(--signal); }
 
-  .section-body { font-size: 17px; color: var(--mid); max-width: 560px; line-height: 1.8; }
+  .section-body {
+    font-size: 17px;
+    color: var(--mid);
+    max-width: 560px;
+    line-height: 1.8;
+  }
+
   .section-body strong { color: var(--white); font-weight: 500; }
 
+  /* PROBLEM SECTION */
   .problem-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -269,7 +317,11 @@
     border: 1px solid var(--border);
   }
 
-  .problem-cell { background: var(--black); padding: 48px; }
+  .problem-cell {
+    background: var(--black);
+    padding: 48px;
+  }
+
   .problem-cell.highlight { background: rgba(74,143,231,0.06); }
 
   .cell-tag {
@@ -294,18 +346,30 @@
     background: currentColor;
   }
 
-  .cell-content { font-family: 'DM Mono', monospace; font-size: 14px; line-height: 1.8; color: var(--mid); }
+  .cell-content {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--mid);
+  }
+
   .cell-content strong { color: var(--white); font-weight: 500; }
   .cell-content .highlight-text { color: var(--signal); }
   .cell-content .noise-text { color: var(--noise); }
 
+  /* ENGINE SECTION */
   .engine-section {
     background: rgba(244,242,237,0.02);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
   }
 
-  .engine-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 48px; margin-top: 64px; }
+  .engine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 48px;
+    margin-top: 64px;
+  }
 
   .engine-card {
     padding: 40px;
@@ -324,10 +388,22 @@
     margin-bottom: 24px;
   }
 
-  .engine-title { font-family: 'DM Serif Display', serif; font-size: 24px; margin-bottom: 16px; line-height: 1.2; }
-  .engine-body { font-size: 14px; color: var(--mid); line-height: 1.8; }
+  .engine-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+
+  .engine-body {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.8;
+  }
+
   .engine-body strong { color: var(--white); font-weight: 500; }
 
+  /* ASSESSMENT FLOW */
   .flow-section { padding: 100px 48px; }
 
   .flow-steps {
@@ -339,7 +415,11 @@
     margin-top: 64px;
   }
 
-  .flow-step { background: var(--black); padding: 40px 32px; position: relative; }
+  .flow-step {
+    background: var(--black);
+    padding: 40px 32px;
+    position: relative;
+  }
 
   .flow-step::after {
     content: '→';
@@ -361,10 +441,23 @@
     margin-bottom: 20px;
   }
 
-  .step-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 12px; line-height: 1.2; }
-  .step-body { font-size: 13px; color: var(--mid); line-height: 1.7; }
+  .step-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
 
-  .roi-section { border-top: 1px solid var(--border); }
+  .step-body {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
+  /* ROI SECTION */
+  .roi-section {
+    border-top: 1px solid var(--border);
+  }
 
   .roi-calculator {
     margin-top: 64px;
@@ -395,9 +488,17 @@
     letter-spacing: 0.08em;
   }
 
-  .roi-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); }
+  .roi-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
 
-  .roi-cell { background: var(--black); padding: 40px 48px; }
+  .roi-cell {
+    background: var(--black);
+    padding: 40px 48px;
+  }
 
   .roi-cell-label {
     font-family: 'DM Mono', monospace;
@@ -407,20 +508,61 @@
     margin-bottom: 12px;
   }
 
-  .roi-cell-value { font-family: 'DM Serif Display', serif; font-size: 36px; line-height: 1; margin-bottom: 8px; }
+  .roi-cell-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
   .roi-cell-value.positive { color: var(--signal); }
   .roi-cell-value.negative { color: var(--noise); }
-  .roi-cell-note { font-size: 12px; color: var(--mid); line-height: 1.5; }
 
-  .proof-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px; margin-top: 64px; }
+  .roi-cell-note {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
 
-  .proof-card { padding: 40px; border: 1px solid var(--border); transition: border-color 0.3s; }
+  /* PROOF */
+  .proof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-top: 64px;
+  }
+
+  .proof-card {
+    padding: 40px;
+    border: 1px solid var(--border);
+    transition: border-color 0.3s;
+  }
+
   .proof-card:hover { border-color: rgba(74,143,231,0.3); }
 
-  .proof-score { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-  .score-before { font-family: 'DM Mono', monospace; font-size: 28px; color: var(--noise); }
-  .score-arrow { font-size: 18px; color: var(--mid); }
-  .score-after { font-family: 'DM Mono', monospace; font-size: 28px; color: var(--signal); }
+  .proof-score {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .score-before {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    color: var(--noise);
+  }
+
+  .score-arrow {
+    font-size: 18px;
+    color: var(--mid);
+  }
+
+  .score-after {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    color: var(--signal);
+  }
 
   .proof-company {
     font-family: 'DM Mono', monospace;
@@ -431,10 +573,18 @@
     text-transform: uppercase;
   }
 
-  .proof-issue { font-size: 13px; color: var(--mid); line-height: 1.7; }
+  .proof-issue {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
   .proof-issue strong { color: var(--white); font-weight: 500; }
 
-  .pricing-section { border-top: 1px solid var(--border); }
+  /* PRICING */
+  .pricing-section {
+    border-top: 1px solid var(--border);
+  }
 
   .pricing-card {
     margin-top: 64px;
@@ -444,7 +594,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .pricing-left { padding: 64px; border-right: 1px solid var(--border); }
+  .pricing-left {
+    padding: 64px;
+    border-right: 1px solid var(--border);
+  }
 
   .pricing-price {
     font-family: 'DM Serif Display', serif;
@@ -462,7 +615,13 @@
     margin-bottom: 40px;
   }
 
-  .pricing-desc { font-size: 16px; color: var(--mid); line-height: 1.8; margin-bottom: 48px; }
+  .pricing-desc {
+    font-size: 16px;
+    color: var(--mid);
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+
   .pricing-desc strong { color: var(--white); font-weight: 500; }
 
   .pricing-cta {
@@ -477,9 +636,14 @@
     transition: all 0.2s;
   }
 
-  .pricing-cta:hover { background: var(--signal-dim); transform: translateY(-1px); }
+  .pricing-cta:hover {
+    background: var(--signal-dim);
+    transform: translateY(-1px);
+  }
 
-  .pricing-right { padding: 64px; }
+  .pricing-right {
+    padding: 64px;
+  }
 
   .includes-title {
     font-family: 'DM Mono', monospace;
@@ -490,9 +654,20 @@
     margin-bottom: 32px;
   }
 
-  .includes-list { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+  .includes-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 
-  .includes-item { display: flex; gap: 16px; font-size: 14px; color: var(--mid); line-height: 1.6; }
+  .includes-item {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.6;
+  }
 
   .includes-item::before {
     content: '→';
@@ -505,7 +680,12 @@
 
   .includes-item strong { color: var(--white); font-weight: 500; }
 
-  .compare-table { margin-top: 64px; border: 1px solid var(--border); overflow: hidden; }
+  /* COMPARISON */
+  .compare-table {
+    margin-top: 64px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
 
   .compare-header {
     display: grid;
@@ -560,7 +740,12 @@
     letter-spacing: 0.04em;
   }
 
-  .cta-section { border-top: 1px solid var(--border); padding: 120px 48px; text-align: center; }
+  /* CTA SECTION */
+  .cta-section {
+    border-top: 1px solid var(--border);
+    padding: 120px 48px;
+    text-align: center;
+  }
 
   .cta-title {
     font-family: 'DM Serif Display', serif;
@@ -572,7 +757,12 @@
   }
 
   .cta-title em { font-style: italic; color: var(--signal); }
-  .cta-sub { font-size: 16px; color: var(--mid); margin-bottom: 48px; }
+
+  .cta-sub {
+    font-size: 16px;
+    color: var(--mid);
+    margin-bottom: 48px;
+  }
 
   .cta-note {
     font-family: 'DM Mono', monospace;
@@ -582,6 +772,7 @@
     margin-top: 24px;
   }
 
+  /* FOOTER */
   footer {
     border-top: 1px solid var(--border);
     padding: 32px 48px;
@@ -592,7 +783,13 @@
     z-index: 1;
   }
 
-  .footer-logo { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--mid); letter-spacing: 0.08em; }
+  .footer-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+  }
+
   .footer-logo span { color: var(--signal); }
 
   .footer-link {
@@ -621,6 +818,7 @@
     footer { flex-direction: column; gap: 16px; text-align: center; }
     .divider { margin: 0 24px; }
 
+    /* COMPARE TABLE MOBILE — stack each row as a card */
     .compare-header { display: none; }
 
     .compare-row {
@@ -660,12 +858,14 @@
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <a href="#" class="nav-logo">Strategic Flow <span>Architecture</span></a>
   <span class="nav-tag">Enterprise · $2,500/mo</span>
   <a href="#" onclick="startCheckout(); return false;" class="nav-cta">Book Assessment →</a>
 </nav>
 
+<!-- HERO -->
 <section class="hero">
   <div class="hero-label">// Strategic Flow Architecture — Enterprise Assessment Engine</div>
   <h1 class="hero-title">
@@ -715,6 +915,7 @@
   </div>
 </section>
 
+<!-- STAT BAR -->
 <div class="stat-bar">
   <div class="stat-item">
     <div class="stat-num">21</div>
@@ -734,6 +935,7 @@
   </div>
 </div>
 
+<!-- PROBLEM SECTION -->
 <section>
   <div class="section-label">// The diagnosis</div>
   <h2 class="section-title">Your CRM knows <em>who</em> to reach.<br>Your emails don't know <em>what</em> to say.</h2>
@@ -768,6 +970,7 @@
   </div>
 </section>
 
+<!-- ENGINE SECTION -->
 <section class="engine-section" id="how">
   <div class="section-label">// The engine</div>
   <h2 class="section-title">Three systems.<br><em>One assessment.</em></h2>
@@ -801,6 +1004,7 @@
   </div>
 </section>
 
+<!-- FLOW STEPS -->
 <section class="flow-section">
   <div class="section-label">// The process</div>
   <h2 class="section-title">Audit → Rebuild →<br><em>Test → Ship.</em></h2>
@@ -829,6 +1033,7 @@
   </div>
 </section>
 
+<!-- ROI SECTION -->
 <section class="roi-section">
   <div class="section-label">// The business case</div>
   <h2 class="section-title">The maths your<br><em>leadership needs.</em></h2>
@@ -861,6 +1066,7 @@
   </div>
 </section>
 
+<!-- PROOF -->
 <section>
   <div class="section-label">// The showcase</div>
   <h2 class="section-title">21 rebuilds.<br><em>Same result every time.</em></h2>
@@ -896,6 +1102,7 @@
   </div>
 </section>
 
+<!-- COMPARISON -->
 <section>
   <div class="section-label">// The difference</div>
   <h2 class="section-title">They distribute.<br><em>We convert.</em></h2>
@@ -939,6 +1146,7 @@
   </div>
 </section>
 
+<!-- PRICING -->
 <section class="pricing-section" id="pricing">
   <div class="section-label">// The investment</div>
   <h2 class="section-title">One system.<br><em>Every email your company sends.</em></h2>
@@ -974,6 +1182,7 @@
   </div>
 </section>
 
+<!-- CTA -->
 <section class="cta-section">
   <h2 class="cta-title">Start with <em>one email.</em><br>Free.</h2>
   <p class="cta-sub">Paste any email your company has sent. Get the full diagnostic in 60 seconds — score, bugs, rebuilt subject line. No card. No call required.</p>
@@ -981,6 +1190,7 @@
   <div class="cta-note">strategic-flow-audit.replit.app · No account required</div>
 </section>
 
+<!-- FOOTER -->
 <footer>
   <span class="footer-logo">Strategic Flow <span>Architecture</span></span>
   <a href="https://strategicflow.carrd.co" class="footer-link">strategicflow.carrd.co</a>

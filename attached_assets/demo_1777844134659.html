@@ -55,7 +55,12 @@
     backdrop-filter: blur(16px);
   }
 
-  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); }
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+  }
   .nav-logo span { color: var(--signal); }
 
   .nav-badge {
@@ -76,6 +81,7 @@
     padding: 100px 24px 80px;
   }
 
+  /* PANELS */
   .panel { display: none; animation: fadeUp 0.4s ease forwards; }
   .panel.active { display: block; }
 
@@ -111,6 +117,7 @@
     line-height: 1.7;
   }
 
+  /* FORM */
   .form-group { margin-bottom: 20px; }
 
   label {
@@ -136,12 +143,16 @@
     -webkit-appearance: none;
   }
 
-  input:focus, textarea:focus, select:focus { border-color: rgba(74,143,231,0.5); }
+  input:focus, textarea:focus, select:focus {
+    border-color: rgba(74,143,231,0.5);
+  }
+
   textarea { min-height: 160px; resize: vertical; line-height: 1.6; }
   select option { background: #1a1a18; }
 
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+  /* BUTTONS */
   .btn {
     font-family: 'DM Mono', monospace;
     font-size: 13px;
@@ -159,12 +170,26 @@
   .btn-primary:hover { background: var(--signal-dim); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+  /* PROGRESS */
   .progress-wrap { margin: 32px 0; }
 
-  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
 
-  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); }
-  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); }
+  .progress-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+  }
+
+  .progress-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+  }
 
   .progress-bar { height: 2px; background: var(--border); position: relative; overflow: hidden; }
 
@@ -199,6 +224,7 @@
   .log-line.done { color: var(--signal); }
   .log-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
+  /* RESULTS */
   .score-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -228,8 +254,10 @@
 
   .score-num.low { color: var(--noise); }
   .score-num.high { color: var(--signal); }
+
   .score-note { font-size: 12px; color: var(--mid); line-height: 1.5; }
 
+  /* BUG LIST */
   .section-title {
     font-family: 'DM Mono', monospace;
     font-size: 11px;
@@ -255,6 +283,7 @@
   .bug-title { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 4px; }
   .bug-desc { font-size: 12px; color: var(--mid); line-height: 1.6; }
 
+  /* REBUILD PREVIEW */
   .rebuild-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -283,6 +312,7 @@
 
   .rebuild-text { font-size: 13px; line-height: 1.7; color: var(--white); }
 
+  /* SUBJECT VARIANTS */
   .variant-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
 
   .variant-item {
@@ -306,6 +336,7 @@
   .variant-text { font-size: 13px; color: var(--white); line-height: 1.5; flex: 1; }
   .variant-rate { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); flex-shrink: 0; }
 
+  /* ROI */
   .roi-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -322,6 +353,7 @@
   .roi-value.negative { color: var(--noise); }
   .roi-note { font-size: 11px; color: var(--mid); line-height: 1.5; }
 
+  /* LOCKED SECTION */
   .locked-section {
     border: 1px solid var(--border);
     padding: 32px;
@@ -339,7 +371,24 @@
     margin-bottom: 16px;
   }
 
-  .locked-overlay { text-align: center; }
+  .locked-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .locked-item {
+    font-size: 13px;
+    color: var(--mid);
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  .locked-overlay {
+    text-align: center;
+  }
 
   .locked-msg {
     font-family: 'DM Mono', monospace;
@@ -348,6 +397,7 @@
     margin-bottom: 16px;
   }
 
+  /* CTA SECTION */
   .cta-block {
     border: 1px solid rgba(74,143,231,0.3);
     background: rgba(74,143,231,0.05);
@@ -467,6 +517,7 @@
     <div class="panel-label">// Assessment complete</div>
     <h2 class="panel-title">Here's what we<br><em>found and fixed.</em></h2>
 
+    <!-- SCORES -->
     <div class="score-row">
       <div class="score-cell">
         <div class="score-cell-label">Original score</div>
@@ -485,21 +536,27 @@
       </div>
     </div>
 
+    <!-- ALL 7 BUGS -->
     <div class="section-title">// The 7-bug diagnostic — full results</div>
     <div class="bug-list" id="bugList"></div>
 
+    <!-- SUBJECT LINE REBUILD -->
     <div class="section-title">// Subject line — rebuilt</div>
     <div class="rebuild-grid" id="subjectRebuild"></div>
 
+    <!-- A/B VARIANTS -->
     <div class="section-title">// 3 A/B subject line variants</div>
     <div class="variant-list" id="variantList"></div>
 
+    <!-- HOOK REBUILD -->
     <div class="section-title">// Hook — rebuilt consequence-first</div>
     <div class="rebuild-grid" id="hookRebuild"></div>
 
+    <!-- CTA REBUILD -->
     <div class="section-title">// CTA — ownership language applied</div>
     <div class="rebuild-grid" id="ctaRebuild"></div>
 
+    <!-- ROI -->
     <div class="section-title">// ROI projection</div>
     <div class="roi-grid">
       <div class="roi-cell">
@@ -519,6 +576,7 @@
       </div>
     </div>
 
+    <!-- ARCHITECTURE VS PRO -->
     <div class="locked-section">
       <div class="locked-title">// Why Architecture is different from Pro</div>
 
@@ -554,6 +612,7 @@
       </div>
     </div>
 
+    <!-- CTA -->
     <div class="cta-block">
       <h3 class="cta-block-title">Get this for every email<br><em>your company sends.</em></h3>
       <p class="cta-block-sub">This was one email, once. Architecture runs the full diagnostic and rebuild on every product update, release note, and onboarding email — every month, automatically.</p>
@@ -649,6 +708,7 @@ async function runDemo() {
 
     if (!res.ok) throw new Error(data.error || 'Assessment failed');
 
+    // Animate progress while waiting for job
     const steps = [
       { pct: 25, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
       { pct: 45, label: 'Analysing brand voice...', log: 'Extracting tone and communication patterns' },
@@ -666,6 +726,7 @@ async function runDemo() {
       }
     }, 5000);
 
+    // Poll for job result
     const jobId = data.jobId;
     let attempts = 0;
 
@@ -705,10 +766,12 @@ function renderResults(result, subscribers) {
   const rebuilt = result.rebuiltScore || result.newScore || 9;
   const bugs = result.bugs || [];
 
+  // Scores
   document.getElementById('origScore').textContent = score + '/10';
   document.getElementById('newScore').textContent = rebuilt + '/10';
   document.getElementById('bugsFound').textContent = bugs.length + '/7';
 
+  // Bugs
   const bugList = document.getElementById('bugList');
   bugList.innerHTML = bugs.length > 0 ? bugs.map(b => `
     <div class="bug-item">
@@ -720,6 +783,7 @@ function renderResults(result, subscribers) {
     </div>
   `).join('') : `<div class="bug-item"><div><div class="bug-desc" style="color:var(--signal)">No critical bugs detected.</div></div></div>`;
 
+  // Subject rebuild
   const origSubject = result.originalSubject || document.getElementById('demoSubject').value;
   const newSubject = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
   document.getElementById('subjectRebuild').innerHTML = `
@@ -733,6 +797,7 @@ function renderResults(result, subscribers) {
     </div>
   `;
 
+  // Variants
   const variants = result.abSubjects || [];
   document.getElementById('variantList').innerHTML = variants.length > 0 ? variants.map((v, i) => `
     <div class="variant-item">
@@ -742,6 +807,7 @@ function renderResults(result, subscribers) {
     </div>
   `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--mid);padding:16px;">Variants not available.</div>';
 
+  // Hook rebuild
   const changes = result.whatChanged || [];
   const hookChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('hook')) || changes[2] || null;
   const ctaChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[3] || null;
@@ -768,6 +834,7 @@ function renderResults(result, subscribers) {
     </div>
   ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--mid)">CTA rebuild not available.</div></div>';
 
+  // ROI
   const currentRate = result.currentOpenRate || 0.18;
   const projectedRate = result.projectedOpenRate || 0.31;
   const currentReaders = Math.round(subscribers * currentRate);
