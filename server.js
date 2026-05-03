@@ -3615,6 +3615,22 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
 
 // ─── END STRIPE BLOCK ─────────────────────────────────────────────────────────
 
+app.get('/checkout', async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      success_url: 'https://strategic-flow-audit.replit.app/stripe/success',
+      cancel_url: 'https://strategicflow-tech.github.io/showcase/enterprise.html',
+    });
+    res.redirect(303, session.url);
+  } catch (err) {
+    console.error('[checkout]', err.message);
+    res.redirect('https://strategicflow-tech.github.io/showcase/enterprise.html');
+  }
+});
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
