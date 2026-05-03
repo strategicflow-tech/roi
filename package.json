@@ -12,6 +12,7 @@
     "express-session": "^1.19.0",
     "node-fetch": "^2.7.0",
     "pg": "^8.20.0",
-    "resend": "^6.10.0"
+    "resend": "^6.10.0",
+    "stripe": "^22.1.0"
   }
 }
