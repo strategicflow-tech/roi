@@ -888,13 +888,13 @@
     </p>
 
     <!-- WEEK OVERVIEW -->
-    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// 4-Week Arc</div>
+    <div class="section-label" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// 4-Week Arc</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:32px;" id="weekGrid">
       <!-- populated by JS -->
     </div>
 
     <!-- FOLLOW-UP SEQUENCES -->
-    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// Follow-up Sequence — 3 emails</div>
+    <div class="section-label" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// Follow-up Sequence — 3 emails</div>
     <div id="followUpList" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
       <!-- populated by JS -->
     </div>
@@ -1029,10 +1029,12 @@ async function runArchitectureAssessment() {
   const data = await res.json();
 
   if (data.jobId) {
+    // Async job — poll for results
     currentJobId = data.jobId;
     addLog('Job queued: ' + data.jobId);
     await pollForResults(data.jobId);
   } else if (data.result) {
+    // Sync response
     handleResults(data.result);
   } else {
     throw new Error('Unexpected response format');
@@ -1046,7 +1048,7 @@ async function pollForResults(jobId) {
     { pct: 40, label: 'Running 7-bug diagnostic...', log: 'Scanning subject line, hook, hierarchy, CTA' },
     { pct: 60, label: 'Rebuilding email architecture...', log: 'Applying Strategic Flow Method — consequence-first' },
     { pct: 75, label: 'Generating subject variants...', log: 'Creating 3 A/B subject line variants with open rate predictions' },
-    { pct: 88, label: 'Building content calendar...', log: 'Generating 4-week arc and follow-up sequences' },
+    { pct: 88, label: 'Calculating ROI projection...', log: 'Computing reader delta for ' + assessmentData.subscribers.toLocaleString() + ' subscribers' },
     { pct: 95, label: 'Finalising report...', log: 'Assembling complete assessment report' }
   ];
 
@@ -1096,10 +1098,11 @@ async function pollForResults(jobId) {
 function handleResults(result) {
   assessmentData.result = result;
 
+  // Score
   const score = result.score || result.originalScore || 3;
   const rebuiltScore = result.rebuiltScore || result.newScore || 9;
 
-  // Diagnostic panel
+  // Populate diagnostic panel
   const scoreEl = document.getElementById('scoreDisplay');
   scoreEl.textContent = score + '/10';
   scoreEl.className = 'diag-score ' + (score <= 3 ? 'low' : score <= 6 ? 'mid-score' : 'high');
@@ -1108,6 +1111,7 @@ function handleResults(result) {
   const bugs = result.bugs || [];
   document.getElementById('bugsDisplay').textContent = bugs.length + '/7';
 
+  // Bug list
   const bugList = document.getElementById('bugList');
   bugList.innerHTML = bugs.map(bug => `
     <div class="bug-item">
@@ -1144,6 +1148,7 @@ function handleResults(result) {
     </div>
   `).join('') || '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--mid)">Change explanations will appear here.</div>';
 
+  // Rebuilt score badge
   document.getElementById('rebuiltScore').textContent = rebuiltScore;
 
   // ROI calculation
@@ -1167,11 +1172,15 @@ function handleResults(result) {
   document.getElementById('roiEmailsMonth').textContent = emailsPerMonth + 'x/mo';
   document.getElementById('roiAnnual').textContent = '+' + annualDelta.toLocaleString();
 
+  // Show diagnostic panel
   showPanel(3);
+
+  // Pre-render calendar for panel 6
   renderCalendar(result);
 }
 
 function renderCalendar(result) {
+  // 4-week arc
   const weeks = result.calendarWeeks || {};
   const weekGrid = document.getElementById('weekGrid');
   if (weekGrid) {
@@ -1183,6 +1192,7 @@ function renderCalendar(result) {
     `).join('');
   }
 
+  // Follow-up sequences
   const followUps = result.contentCalendar || [];
   const followUpList = document.getElementById('followUpList');
   if (followUpList) {
@@ -1209,7 +1219,7 @@ async function runMockAssessment() {
     { pct: 60, label: 'Analysing CTA structure...', log: 'CTA reads "Learn more" — ownership language missing', delay: 1400 },
     { pct: 75, label: 'Rebuilding email...', log: 'Applying Strategic Flow Method — consequence-first architecture', delay: 1800 },
     { pct: 88, label: 'Generating subject variants...', log: 'Creating 3 A/B subject line variants', delay: 1200 },
-    { pct: 95, label: 'Building content calendar...', log: 'Generating 4-week arc and follow-up sequences', delay: 1000 },
+    { pct: 95, label: 'Calculating ROI projection...', log: 'Computing reader delta for ' + assessmentData.subscribers.toLocaleString() + ' subscribers', delay: 1000 },
     { pct: 100, label: 'Complete', log: 'Assessment complete', delay: 800 }
   ];
 
@@ -1246,12 +1256,15 @@ async function runMockAssessment() {
 <p style="font-size:18px;font-weight:700;margin:0 0 8px;">Your team is losing time on a problem we just solved.</p>
 <p style="font-size:15px;color:#555;margin:0 0 24px;">Here's what changed in your account — and what it means for your workflow.</p>
 
+<!-- What changed section -->
 <p style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#888;margin:0 0 12px;">What's different</p>
 
+<!-- Feature rebuilt with consequence-first language -->
 <p style="font-size:15px;margin:0 0 16px;">
   [Feature name] now [specific outcome for user]. Previously, your team had to [old workflow]. That's gone.
 </p>
 
+<!-- CTA with ownership language -->
 <a href="#" style="display:inline-block;background:#000;color:#fff;padding:12px 24px;font-weight:600;text-decoration:none;margin:8px 0 24px;">
   See what changed in my account →
 </a>`,
