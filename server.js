@@ -3717,7 +3717,7 @@ app.post('/api/demo', async (req, res) => {
 
 Company: ${company || 'Unknown'}
 Subject: ${subject}
-Body: ${body.slice(0, 2500)}
+Body: ${body.slice(0, 1000)}
 
 Do BOTH diagnostic and rebuild in one response. Check ALL 7 structural bugs:
 1. Filing label subject — subject announces the product, not the reader's problem
@@ -3750,7 +3750,7 @@ Return ONLY valid JSON:
   ]
 }`;
 
-      const combined = await claudeJSON(combinedPrompt, 2000);
+      const combined = await claudeJSON(combinedPrompt, 1200);
       if (!combined) throw new Error('Assessment failed');
 
       const diagnostic = combined;
