@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Competitor Benchmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); }
+  .nav-logo span { color: var(--signal); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--signal); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  .page-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: var(--signal); text-transform: uppercase; margin-bottom: 16px; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .page-title em { font-style: italic; color: var(--signal); }
+  .page-sub { font-size: 15px; color: var(--mid); margin-bottom: 40px; line-height: 1.7; }
+
+  label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--mid); text-transform: uppercase; margin-bottom: 8px; }
+  input, textarea, select { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--white); font-family: 'DM Mono', monospace; font-size: 13px; padding: 14px 16px; outline: none; transition: border-color 0.2s; margin-bottom: 16px; -webkit-appearance: none; }
+  input:focus, textarea:focus, select:focus { border-color: rgba(74,143,231,0.5); }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+  select option { background: #1a1a18; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .competitor-slots { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+
+  .competitor-slot { border: 1px solid var(--border); padding: 20px 24px; background: var(--card); }
+
+  .slot-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--signal); text-transform: uppercase; margin-bottom: 12px; }
+
+  .btn { font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.08em; padding: 14px 28px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--signal); color: var(--white); }
+  .btn-primary:hover { background: var(--signal-dim); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .progress-wrap { margin: 32px 0; display: none; }
+  .progress-wrap.active { display: block; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); }
+  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); }
+  .progress-bar { height: 2px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--signal); transition: width 0.4s ease; width: 0%; }
+
+  .results-wrap { display: none; }
+  .results-wrap.active { display: block; }
+
+  /* BENCHMARK TABLE */
+  .benchmark-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); margin-bottom: 32px; }
+  .benchmark-table th { padding: 12px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--mid); text-transform: uppercase; font-weight: 400; background: var(--card); border-bottom: 1px solid var(--border); text-align: left; }
+  .benchmark-table th.yours { color: var(--signal); }
+  .benchmark-table td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  .benchmark-table tr:last-child td { border-bottom: none; }
+  .benchmark-table .criteria { font-weight: 600; color: var(--white); }
+  .benchmark-table .score-cell { font-family: 'DM Mono', monospace; text-align: center; }
+  .score-good { color: var(--signal); }
+  .score-bad { color: var(--noise); }
+  .score-mid { color: #f59e0b; }
+
+  /* INSIGHTS */
+  .insight-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+  .insight-item { border: 1px solid var(--border); padding: 20px 24px; }
+  .insight-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  .insight-tag.gap { color: var(--signal); }
+  .insight-tag.risk { color: var(--noise); }
+  .insight-tag.opportunity { color: #f59e0b; }
+  .insight-title { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 6px; }
+  .insight-desc { font-size: 13px; color: var(--mid); line-height: 1.7; }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-links { display: none; }
+    main { padding: 80px 16px 60px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">Strategic Flow <span>Architecture</span></span>
+  <div class="nav-links">
+    <a href="/architecture.html" class="nav-link">Assessment</a>
+    <a href="/calendar.html" class="nav-link">Calendar</a>
+    <a href="/batch.html" class="nav-link">Batch</a>
+    <a href="/report.html" class="nav-link">Report</a>
+    <a href="/benchmark.html" class="nav-link active">Benchmark</a>
+    <a href="/index.html" class="nav-link">Audit</a>
+  </div>
+</nav>
+
+<main>
+
+  <!-- INPUT -->
+  <div id="inputSection">
+    <div class="page-label">// Competitor Benchmark</div>
+    <h1 class="page-title">See where you stand<br><em>against competitors.</em></h1>
+    <p class="page-sub">Paste your email and up to 3 competitor emails. The engine scores all of them on the same 7-point diagnostic and shows exactly where you're ahead, behind, and where the gap is.</p>
+
+    <div style="margin-bottom:32px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// Your email</div>
+      <div class="form-row" style="margin-bottom:0;">
+        <div>
+          <label>Your company name</label>
+          <input type="text" id="yourCompany" placeholder="e.g. Acme SaaS">
+        </div>
+        <div>
+          <label>Subject line</label>
+          <input type="text" id="yourSubject" placeholder="e.g. New dashboard features available">
+        </div>
+      </div>
+      <label>Email body</label>
+      <textarea id="yourBody" placeholder="Paste your email body here..."></textarea>
+    </div>
+
+    <div class="competitor-slots">
+      <div class="competitor-slot">
+        <div class="slot-num">// Competitor 01</div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div>
+            <label>Company name</label>
+            <input type="text" id="comp1-name" placeholder="e.g. Competitor A">
+          </div>
+          <div>
+            <label>Subject line</label>
+            <input type="text" id="comp1-subject" placeholder="Their subject line">
+          </div>
+        </div>
+        <label>Email body</label>
+        <textarea id="comp1-body" placeholder="Paste their email body..." style="min-height:80px;"></textarea>
+      </div>
+
+      <div class="competitor-slot">
+        <div class="slot-num">// Competitor 02 <span style="color:var(--mid);font-size:9px;">(optional)</span></div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div>
+            <label>Company name</label>
+            <input type="text" id="comp2-name" placeholder="e.g. Competitor B">
+          </div>
+          <div>
+            <label>Subject line</label>
+            <input type="text" id="comp2-subject" placeholder="Their subject line">
+          </div>
+        </div>
+        <label>Email body</label>
+        <textarea id="comp2-body" placeholder="Paste their email body..." style="min-height:80px;"></textarea>
+      </div>
+
+      <div class="competitor-slot">
+        <div class="slot-num">// Competitor 03 <span style="color:var(--mid);font-size:9px;">(optional)</span></div>
+        <div class="form-row" style="margin-bottom:0;">
+          <div>
+            <label>Company name</label>
+            <input type="text" id="comp3-name" placeholder="e.g. Competitor C">
+          </div>
+          <div>
+            <label>Subject line</label>
+            <input type="text" id="comp3-subject" placeholder="Their subject line">
+          </div>
+        </div>
+        <label>Email body</label>
+        <textarea id="comp3-body" placeholder="Paste their email body..." style="min-height:80px;"></textarea>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="runBtn" onclick="runBenchmark()">Run Benchmark →</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="page-label">// Running benchmark...</div>
+    <h2 style="font-family:'DM Serif Display',serif;font-size:32px;margin-bottom:24px;">Scoring all <em style="font-style:italic;color:var(--signal)" id="emailCount">0</em> emails...</h2>
+    <div class="progress-header">
+      <span class="progress-label" id="progressLabel">Initialising...</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div style="margin-top:16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);line-height:2;" id="progressLog"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-wrap" id="resultsWrap">
+    <div class="page-label">// Benchmark Results</div>
+    <h2 style="font-family:'DM Serif Display',serif;font-size:32px;margin-bottom:32px;">Here's where you <em style="font-style:italic;color:var(--signal)">stand.</em></h2>
+
+    <div id="benchmarkTable"></div>
+    <div id="insightsList"></div>
+
+    <button class="btn btn-primary" onclick="resetBenchmark()">Run New Benchmark →</button>
+  </div>
+
+</main>
+
+<script>
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+function addLog(text) {
+  document.getElementById('progressLog').innerHTML += `<div>→ ${esc(text)}</div>`;
+}
+
+async function runBenchmark() {
+  const yours = {
+    company: document.getElementById('yourCompany').value.trim() || 'Your Company',
+    subject: document.getElementById('yourSubject').value.trim(),
+    body: document.getElementById('yourBody').value.trim(),
+    isYours: true
+  };
+
+  if (!yours.subject || !yours.body) {
+    alert('Please add your email subject and body.');
+    return;
+  }
+
+  const competitors = [
+    { company: document.getElementById('comp1-name').value.trim() || 'Competitor 1', subject: document.getElementById('comp1-subject').value.trim(), body: document.getElementById('comp1-body').value.trim() },
+    { company: document.getElementById('comp2-name').value.trim() || 'Competitor 2', subject: document.getElementById('comp2-subject').value.trim(), body: document.getElementById('comp2-body').value.trim() },
+    { company: document.getElementById('comp3-name').value.trim() || 'Competitor 3', subject: document.getElementById('comp3-subject').value.trim(), body: document.getElementById('comp3-body').value.trim() },
+  ].filter(c => c.subject && c.body);
+
+  if (competitors.length === 0) {
+    alert('Please add at least one competitor email.');
+    return;
+  }
+
+  const allEmails = [yours, ...competitors];
+
+  document.getElementById('inputSection').style.display = 'none';
+  document.getElementById('progressWrap').classList.add('active');
+  document.getElementById('emailCount').textContent = allEmails.length;
+  setProgress(0, 'Starting benchmark...');
+
+  const results = [];
+
+  for (let i = 0; i < allEmails.length; i++) {
+    const email = allEmails[i];
+    setProgress(Math.round((i / allEmails.length) * 85), `Scoring ${email.company}...`);
+    addLog(`Scoring: ${email.company} — "${email.subject.slice(0, 50)}"`);
+
+    try {
+      const res = await fetch('/api/batch-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: email.subject, body: email.body }),
+        signal: AbortSignal.timeout(90000)
+      });
+      const data = await res.json();
+      if (data.result) {
+        results.push({ ...email, ...data.result });
+        addLog(`${email.company}: ${data.result.score}/10`);
+      }
+    } catch (e) {
+      addLog(`Error scoring ${email.company}: ${e.message}`);
+    }
+  }
+
+  setProgress(100, 'Complete');
+  addLog('Benchmark complete');
+
+  await new Promise(r => setTimeout(r, 500));
+  renderBenchmark(results);
+}
+
+function renderBenchmark(results) {
+  document.getElementById('progressWrap').classList.remove('active');
+  document.getElementById('resultsWrap').classList.add('active');
+
+  const yours = results.find(r => r.isYours);
+  const comps = results.filter(r => !r.isYours);
+
+  const headers = ['Criteria', `<span style="color:var(--signal)">${esc(yours?.company || 'You')}</span>`, ...comps.map(c => esc(c.company))].join('</th><th class="score-cell">');
+
+  const rows = [
+    { label: 'Overall score', your: yours?.score, comp: comps.map(c => c.score) },
+    { label: 'Rebuilt score', your: yours?.rebuiltScore, comp: comps.map(c => c.rebuiltScore) },
+    { label: 'Bugs found', your: yours?.bugs?.length, comp: comps.map(c => c.bugs?.length), invert: true },
+    { label: 'Est. open rate', your: yours?.currentOpenRate ? Math.round(yours.currentOpenRate * 100) + '%' : '—', comp: comps.map(c => c.currentOpenRate ? Math.round(c.currentOpenRate * 100) + '%' : '—'), isText: true },
+    { label: 'Projected open rate', your: yours?.projectedOpenRate ? Math.round(yours.projectedOpenRate * 100) + '%' : '—', comp: comps.map(c => c.projectedOpenRate ? Math.round(c.projectedOpenRate * 100) + '%' : '—'), isText: true },
+  ].map(row => {
+    const yourVal = row.your ?? '—';
+    const scoreClass = (val, invert) => {
+      if (typeof val !== 'number') return '';
+      if (invert) return val <= 2 ? 'score-good' : val <= 4 ? 'score-mid' : 'score-bad';
+      return val >= 8 ? 'score-good' : val >= 5 ? 'score-mid' : 'score-bad';
+    };
+
+    const cells = [
+      `<td class="criteria">${esc(row.label)}</td>`,
+      `<td class="score-cell"><span class="${scoreClass(yourVal, row.invert)}">${yourVal}</span></td>`,
+      ...row.comp.map(v => `<td class="score-cell"><span class="${scoreClass(v, row.invert)}">${v ?? '—'}</span></td>`)
+    ].join('');
+
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('benchmarkTable').innerHTML = `
+    <table class="benchmark-table">
+      <thead><tr><th>${headers}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  const insights = [];
+  const yourScore = yours?.score || 0;
+  const avgCompScore = comps.length > 0
+    ? comps.reduce((a, c) => a + (c.score || 0), 0) / comps.length
+    : 0;
+
+  if (yourScore < avgCompScore) {
+    insights.push({
+      type: 'risk',
+      title: 'Your emails score below the competitor average.',
+      desc: `Your average: ${yourScore}/10. Competitors: ${avgCompScore.toFixed(1)}/10. The gap is structural — subject line and hook are the most common differentiators.`
+    });
+  } else if (yourScore > avgCompScore) {
+    insights.push({
+      type: 'gap',
+      title: "You're ahead — but the gap can close.",
+      desc: `Your average: ${yourScore}/10. Competitors: ${avgCompScore.toFixed(1)}/10. After rebuild: ${yours?.rebuiltScore || '?'}/10. The rebuilt version widens the gap further.`
+    });
+  }
+
+  const worstComp = [...comps].sort((a, b) => (a.score || 10) - (b.score || 10))[0];
+  if (worstComp && worstComp.score < 4) {
+    insights.push({
+      type: 'opportunity',
+      title: `${worstComp.company} has the weakest email structure.`,
+      desc: `Score: ${worstComp.score}/10. Their readers are seeing the same filing labels and generic CTAs your rebuilt emails have already eliminated.`
+    });
+  }
+
+  const yourBugs = yours?.bugs?.length || 0;
+  const avgCompBugs = comps.length > 0
+    ? comps.reduce((a, c) => a + (c.bugs?.length || 0), 0) / comps.length
+    : 0;
+
+  if (yourBugs > avgCompBugs) {
+    insights.push({
+      type: 'risk',
+      title: 'You have more structural bugs than competitors.',
+      desc: `Your email has ${yourBugs} bugs. Competitor average: ${avgCompBugs.toFixed(1)}. Run a full rebuild in Architecture to close this gap.`
+    });
+  }
+
+  document.getElementById('insightsList').innerHTML = insights.length > 0 ? `
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// Key insights</div>
+    <div class="insight-list">
+      ${insights.map(i => `
+        <div class="insight-item">
+          <div class="insight-tag ${i.type}">${i.type === 'gap' ? "You're ahead" : i.type === 'risk' ? 'Risk' : 'Opportunity'}</div>
+          <div class="insight-title">${esc(i.title)}</div>
+          <div class="insight-desc">${esc(i.desc)}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+}
+
+function resetBenchmark() {
+  document.getElementById('resultsWrap').classList.remove('active');
+  document.getElementById('inputSection').style.display = 'block';
+  document.getElementById('progressLog').innerHTML = '';
+}
+</script>
+</body>
+</html>
