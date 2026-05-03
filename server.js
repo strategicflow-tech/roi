@@ -59,11 +59,12 @@ app.use(express.json({ limit: '2mb' }));
 // SESSION MIDDLEWARE
 app.use(session({
   secret: process.env.SESSION_SECRET,
-  resave: false,
+  resave: true,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000
   }
 }));
@@ -181,6 +182,9 @@ app.get('/auth/verify/:token', async (req, res) => {
   magicTokens.delete(token);
   req.session.userEmail = data.email;
   req.session.signedInAt = Date.now();
+  await new Promise((resolve, reject) => {
+    req.session.save(err => err ? reject(err) : resolve());
+  });
 
   try {
     await upsertUser(data.email, { last_used_at: new Date() });
@@ -189,10 +193,7 @@ app.get('/auth/verify/:token', async (req, res) => {
   }
 
   console.log('[auth/verify] Signed in:', data.email);
-  req.session.save((err) => {
-    if (err) console.error('[auth/verify] session save error:', err);
-    res.redirect('/index.html');
-  });
+  res.redirect('/index.html');
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
