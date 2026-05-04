@@ -4217,7 +4217,15 @@ app.get('/api/calendar', async (req, res) => {
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, '0.0.0.0', () => console.log(`[server] Strategic Flow ready on :${PORT} — model: ${MODEL}`));
+
+  app.use((req, res, next) => {
+    res.setTimeout(180000);
+    next();
+  });
+
+  const server = app.listen(PORT, '0.0.0.0', () => console.log(`[server] Strategic Flow ready on :${PORT} — model: ${MODEL}`));
+  server.timeout = 180000;
+  server.keepAliveTimeout = 180000;
 
   // Keep-alive ping every 4 minutes
   if (process.env.APP_URL) {
