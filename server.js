@@ -119,7 +119,7 @@ const PROTECTED_PATHS = [
 ];
 
 function requireAuth(req, res, next) {
-  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout'];
+  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo'];
   if (open.some(p => req.path.startsWith(p))) return next();
 
   const needsAuth = PROTECTED_PATHS.some(p => req.path === p || req.path.startsWith(p));
@@ -3909,11 +3909,9 @@ Return ONLY valid JSON:
         originalSubject: subject
       };
 
-      clearTimeout(jobTimer);
       await setJob(jobId, { status: 'complete', result });
 
     } catch (err) {
-      clearTimeout(jobTimer);
       console.error('[api/demo] job failed:', err.message);
       await setJob(jobId, { status: 'failed', error: err.message });
     }
