@@ -683,6 +683,7 @@ async function runDemo() {
           clearInterval(stepTimer);
           setProgress(100, 'Complete');
           addLog('Assessment complete', 'done');
+          window.history.replaceState(null, '', '/demo.html?job=' + jobId);
           await new Promise(r => setTimeout(r, 500));
           renderResults(d.result, subscribers);
         } else if (d.status === 'failed') {
@@ -794,6 +795,37 @@ function renderResults(result, subscribers) {
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// ── LOAD FROM URL ?job=jobId ──────────────────────
+(async function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get('job');
+  if (!jobId) return;
+
+  try {
+    showPanel(2);
+    setProgress(80, 'Loading saved result...');
+    addLog('Fetching saved assessment...');
+
+    const r = await fetch('/generate/status/' + jobId);
+    const d = await r.json();
+
+    if (d.status === 'complete') {
+      setProgress(100, 'Complete');
+      addLog('Assessment loaded', 'done');
+      await new Promise(r => setTimeout(r, 400));
+      renderResults(d.result, 0);
+    } else if (d.status === 'failed') {
+      addLog('Saved assessment failed — please run a new one', 'error');
+      showPanel(1);
+    } else {
+      addLog('Assessment not found or expired', 'error');
+      showPanel(1);
+    }
+  } catch (e) {
+    showPanel(1);
+  }
+})();
 </script>
 </body>
 </html>
