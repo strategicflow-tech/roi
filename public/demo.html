@@ -637,7 +637,8 @@ async function runDemo() {
     const res = await fetch('/api/demo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, subject, body, company, subscribers })
+      body: JSON.stringify({ email, subject, body, company, subscribers }),
+      signal: AbortSignal.timeout(180000)
     });
 
     const data = await res.json();
