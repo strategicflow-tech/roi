@@ -564,6 +564,8 @@ async function claudeJSON(prompt, maxTokens = 2000) {
         model: MODEL, max_tokens: maxTokens,
         system: JSON_SYSTEM_INSTRUCTION,
         messages: [{ role: 'user', content: prompt }]
+      }, {
+        timeout: 90000
       });
       const raw = msg.content[0].text.trim();
       return safeParseJSON(raw);
