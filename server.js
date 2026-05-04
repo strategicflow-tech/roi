@@ -3954,7 +3954,7 @@ app.post('/api/demo-sync', async (req, res) => {
     const prompt = `Strategic Flow diagnostic. Return ONLY JSON, no text.
 
 Subject: ${subject}
-Body: ${(body || '').slice(0, 500)}
+Body: ${(body || '').slice(0, 300)}
 Return ONLY valid JSON:
 {
   "score": <1-10>,
@@ -3973,7 +3973,7 @@ Return ONLY valid JSON:
     {"fix":"Fix 3 — CTA","before":"<original CTA>","after":"<rebuilt>","why":"<one sentence>"}
   ]
 }`;
-    const result = await claudeJSON(prompt, 700);
+    const result = await claudeJSON(prompt, 500);
     if (!result) throw new Error('Claude returned null');
     try { await notify('Demo — ' + emailLower, `<p>${emailLower} · ${company} · score ${result.score}→${result.rebuiltScore}</p>`); } catch(e) {}
     res.json({ result });
