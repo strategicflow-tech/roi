@@ -3483,7 +3483,15 @@ process.on('uncaughtException',  e => console.error('[uncaught]', e.message));
 process.on('unhandledRejection', e => console.error('[unhandled]', e));
 
 // ── SCORE SUBJECT LINE ────────────────────────────
+app.options('/api/score-subject', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
 app.post('/api/score-subject', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
   const { subject } = req.body;
   if (!subject) return res.status(400).json({ error: 'subject required' });
 
