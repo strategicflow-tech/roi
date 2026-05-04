@@ -637,8 +637,7 @@ async function runDemo() {
     const res = await fetch('/api/demo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, subject, body, company, subscribers }),
-      signal: AbortSignal.timeout(180000)
+      body: JSON.stringify({ email, subject, body, company, subscribers })
     });
 
     const data = await res.json();
@@ -686,10 +685,14 @@ async function runDemo() {
           addLog('Assessment complete', 'done');
           await new Promise(r => setTimeout(r, 500));
           renderResults(d.result, subscribers);
-        } else if (d.status === 'failed' || attempts > 60) {
+        } else if (d.status === 'failed') {
           clearInterval(poll);
           clearInterval(stepTimer);
-          throw new Error('Assessment timed out');
+          addLog('Error: ' + (d.error || 'Assessment failed'), 'error');
+        } else if (attempts > 90) {
+          clearInterval(poll);
+          clearInterval(stepTimer);
+          addLog('Error: Assessment timed out — please try again', 'error');
         }
       } catch (e) {
         clearInterval(poll);
