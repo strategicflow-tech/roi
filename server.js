@@ -122,6 +122,7 @@ setInterval(() => {
 const PROTECTED_PATHS = [
   '/index.html',
   '/architecture.html',
+  '/assessment.html',
   '/generate',
   '/api/architecture'
 ];
