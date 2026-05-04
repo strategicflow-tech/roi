@@ -223,6 +223,8 @@ app.get('/auth/verify/:token', async (req, res) => {
     console.error('[auth/verify] upsertUser error:', e.message);
   }
 
+  console.log('[auth/verify] session after save:', req.session);
+  console.log('[auth/verify] session ID:', req.sessionID);
   console.log('[auth/verify] Signed in:', data.email);
   res.redirect('/architecture.html');
 });
@@ -234,6 +236,8 @@ app.post('/auth/logout', (req, res) => {
 
 // ── GET /auth/me ──────────────────────────────────────────────────────────────
 app.get('/auth/me', (req, res) => {
+  console.log('[auth/me] cookies:', req.headers.cookie);
+  console.log('[auth/me] session:', req.session);
   if (req.session && req.session.userEmail) {
     return res.json({ email: req.session.userEmail, signedIn: true });
   }
