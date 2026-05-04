@@ -991,6 +991,20 @@
 function startCheckout() {
   window.location.href = 'https://strategic-flow-audit.replit.app/checkout';
 }
+
+// Auth guard — check session on load and every 5 minutes
+async function checkAuth() {
+  try {
+    const r = await fetch('/auth/me');
+    const d = await r.json();
+    if (!d.signedIn) {
+      window.location.href = '/login.html';
+    }
+  } catch(e) {}
+}
+
+checkAuth();
+setInterval(checkAuth, 5 * 60 * 1000);
 </script>
 
 </body>
