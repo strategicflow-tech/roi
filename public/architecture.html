@@ -459,7 +459,31 @@
     font-size: 12px;
     color: var(--mid);
     letter-spacing: 0.1em;
-    margin-bottom: 40px;
+    margin-bottom: 16px;
+  }
+
+  .pricing-value-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+    border-left: 2px solid var(--signal);
+    background: rgba(74,143,231,0.06);
+  }
+
+  .pricing-includes {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--signal);
+    letter-spacing: 0.04em;
+  }
+
+  .pricing-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.06em;
   }
 
   .pricing-desc { font-size: 16px; color: var(--mid); line-height: 1.8; margin-bottom: 48px; }
@@ -1164,6 +1188,10 @@
     <div class="pricing-left">
       <div class="pricing-price">$2,500</div>
       <div class="pricing-period">/ MONTH · STRATEGIC FLOW ARCHITECTURE</div>
+      <div class="pricing-value-stack">
+        <span class="pricing-includes">✓ Includes Strategic Flow Pro High-Impact ($899/mo value)</span>
+        <span class="pricing-total">Total value: $3,399/month</span>
+      </div>
       <p class="pricing-desc">
         For SaaS companies with <strong>5,000+ users</strong> sending product updates, release notes, or onboarding sequences. The assessment engine runs on every email before it ships.
         <br><br>
