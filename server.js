@@ -3482,6 +3482,29 @@ Return ONLY the complete HTML. No markdown, no explanation.`;
 process.on('uncaughtException',  e => console.error('[uncaught]', e.message));
 process.on('unhandledRejection', e => console.error('[unhandled]', e));
 
+// ── SCORE SUBJECT LINE ────────────────────────────
+app.post('/api/score-subject', async (req, res) => {
+  const { subject } = req.body;
+  if (!subject) return res.status(400).json({ error: 'subject required' });
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 100,
+      messages: [{
+        role: 'user',
+        content: `You are an email subject line auditor. Analyze this B2B SaaS email subject line and identify which of these 7 bugs are present. Return ONLY a JSON array of 7 booleans (true=bug present, false=bug absent), nothing else.\n\nBugs:\n1. Filing label subject - announces product not reader problem\n2. Caveat opener - starts with disclaimer or rollout notice\n3. Feature-first language - describes what was built not what reader can do\n4. Flat visual hierarchy - treats all info at same weight\n5. Zero quantified claims - no numbers or benchmarks\n6. Weak or missing CTA implication - no ownership language\n7. Buried contrast - no before/after comparison\n\nSubject line: ${subject}\n\nRespond with ONLY a JSON array like: [true,false,true,false,true,false,true]`
+      }]
+    });
+
+    const text = response.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const bugs = JSON.parse(text);
+    res.json({ bugs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── STRATEGIC FLOW ARCHITECTURE ENDPOINT ────────────────────────────────────
 app.post('/api/architecture', async (req, res) => {
   const { subject, body, company, subscribers, industry, emailsPerMonth } = req.body;
