@@ -3485,14 +3485,19 @@ process.on('unhandledRejection', e => console.error('[unhandled]', e));
 // ── SCORE SUBJECT LINE ────────────────────────────
 app.options('/api/score-subject', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Max-Age', '86400');
+  console.log('[score-subject] OPTIONS preflight from', req.headers.origin);
   res.sendStatus(200);
 });
 
 app.post('/api/score-subject', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   const { subject } = req.body;
+  console.log('[score-subject] POST received — subject:', subject ? subject.slice(0, 60) : 'MISSING');
   if (!subject) return res.status(400).json({ error: 'subject required' });
 
   try {
