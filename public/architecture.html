@@ -997,10 +997,11 @@ async function checkAuth() {
   try {
     const r = await fetch('/auth/me', { credentials: 'include' });
     const d = await r.json();
+    alert(JSON.stringify(d));
     if (!d.signedIn) {
       window.location.href = '/login.html';
     }
-  } catch(e) {}
+  } catch(e) { alert('error: ' + e); }
 }
 
 checkAuth();
