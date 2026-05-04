@@ -3952,37 +3952,31 @@ app.post('/api/demo-sync', async (req, res) => {
       await pool.query(`INSERT INTO audit_usage (email, audit_count, first_audit_at, last_audit_at) VALUES ($1, 1, NOW(), NOW()) ON CONFLICT (email) DO UPDATE SET audit_count = audit_usage.audit_count + 1, last_audit_at = NOW()`, [emailLower]);
     } catch(e) {}
   }
-  try {
-    const prompt = `Strategic Flow diagnostic. Return ONLY JSON, no text.
-
+  const jobId = makeJobId();
+  await setJob(jobId, { status: 'pending' });
+  res.json({ jobId });
+  (async () => {
+    try {
+      const prompt = `Strategic Flow diagnostic. Return ONLY JSON, no text.
 Subject: ${subject}
 Body: ${(body || '').slice(0, 300)}
 Return ONLY valid JSON:
 {
-  "score": <1-10>,
-  "rebuiltScore": <7-10>,
-  "currentOpenRate": <decimal>,
-  "projectedOpenRate": <decimal>,
+  "score": <1-10>, "rebuiltScore": <7-10>,
+  "currentOpenRate": <decimal>, "projectedOpenRate": <decimal>,
   "bugs": [{"name":"<name>","description":"<one sentence>"}],
-  "abSubjects": [
-    {"subject":"<variant 1>","openRate":"<e.g. 29%>"},
-    {"subject":"<variant 2>","openRate":"<e.g. 31%>"},
-    {"subject":"<variant 3>","openRate":"<e.g. 28%>"}
-  ],
-  "whatChanged": [
-    {"fix":"Fix 1 — Subject line","before":"<original>","after":"<rebuilt>","why":"<one sentence>"},
-    {"fix":"Fix 2 — Hook","before":"<original first line>","after":"<rebuilt>","why":"<one sentence>"},
-    {"fix":"Fix 3 — CTA","before":"<original CTA>","after":"<rebuilt>","why":"<one sentence>"}
-  ]
+  "abSubjects": [{"subject":"<v1>","openRate":"<e.g.29%>"},{"subject":"<v2>","openRate":"<e.g.31%>"},{"subject":"<v3>","openRate":"<e.g.28%>"}],
+  "whatChanged": [{"fix":"Subject line","before":"<orig>","after":"<rebuilt>","why":"<one sentence>"},{"fix":"Hook","before":"<orig>","after":"<rebuilt>","why":"<one sentence>"},{"fix":"CTA","before":"<orig>","after":"<rebuilt>","why":"<one sentence>"}]
 }`;
-    const result = await claudeJSON(prompt, 500);
-    if (!result) throw new Error('Claude returned null');
-    try { await notify('Demo — ' + emailLower, `<p>${emailLower} · ${company} · score ${result.score}→${result.rebuiltScore}</p>`); } catch(e) {}
-    res.json({ result });
-  } catch(err) {
-    console.error('[api/demo-sync]', err.message);
-    res.status(500).json({ error: err.message });
-  }
+      const result = await claudeJSON(prompt, 500);
+      if (!result) throw new Error('Claude returned null');
+      await setJob(jobId, { status: 'complete', result });
+      try { await notify('Demo — ' + emailLower, `<p>${emailLower} · score ${result.score}→${result.rebuiltScore}</p>`); } catch(e) {}
+    } catch(err) {
+      console.error('[api/demo-sync]', err.message);
+      await setJob(jobId, { status: 'failed', error: err.message });
+    }
+  })();
 });
 
 // ─── BATCH SINGLE ENDPOINT ────────────────────────────────────────────────────
