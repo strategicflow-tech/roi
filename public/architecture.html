@@ -656,9 +656,226 @@
       margin-bottom: 4px;
     }
   }
+
+  /* ── DASHBOARD ── */
+  #dashboard { display: none; }
+  body.signed-in #dashboard { display: block; }
+  body.signed-in #landing-content { display: none; }
+
+  .dash-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 48px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.92);
+    backdrop-filter: blur(12px);
+  }
+
+  .dash-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .dash-logo span { color: var(--signal); }
+
+  .dash-user {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.06em;
+  }
+
+  .dash-logout {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .dash-logout:hover { color: var(--white); border-color: rgba(244,242,237,0.4); }
+
+  .dash-body {
+    padding: 120px 48px 64px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .dash-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .dash-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 40px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin-bottom: 48px;
+    line-height: 1.15;
+  }
+  .dash-title em { font-style: italic; color: var(--signal); }
+
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .dash-card {
+    background: var(--black);
+    padding: 32px;
+    text-decoration: none;
+    color: var(--white);
+    transition: background 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dash-card:hover { background: rgba(244,242,237,0.04); }
+
+  .dash-card-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--signal);
+    text-transform: uppercase;
+  }
+
+  .dash-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .dash-card-desc {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .dash-card-arrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--signal);
+    margin-top: 8px;
+  }
+
+  .dash-pro {
+    border: 1px solid var(--border);
+    padding: 28px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .dash-pro-text { font-size: 14px; color: var(--mid); }
+  .dash-pro-text strong { color: var(--white); display: block; font-size: 16px; margin-bottom: 4px; }
+
+  .dash-pro-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    background: var(--signal);
+    border: none;
+    padding: 12px 24px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .dash-pro-btn:hover { background: var(--signal-dim); }
+
+  @media (max-width: 768px) {
+    .dash-nav { padding: 16px 20px; }
+    .dash-body { padding: 100px 20px 48px; }
+    .dash-grid { grid-template-columns: 1fr; }
+    .dash-title { font-size: 28px; }
+    .dash-pro { flex-direction: column; align-items: flex-start; }
+  }
 </style>
 </head>
 <body>
+
+<!-- ── DASHBOARD (visible when signed in) ── -->
+<div id="dashboard">
+  <nav class="dash-nav">
+    <a href="/architecture.html" class="dash-logo">Strategic Flow <span>Architecture</span></a>
+    <span class="dash-user" id="dashEmail"></span>
+    <button class="dash-logout" onclick="logout()">Sign out</button>
+  </nav>
+  <div class="dash-body">
+    <div class="dash-label">// Your workspace</div>
+    <h1 class="dash-title">Architecture <em>tools.</em></h1>
+    <div class="dash-grid">
+      <a href="/architecture.html#assessment" class="dash-card">
+        <div class="dash-card-label">Tool 01</div>
+        <div class="dash-card-title">Email Assessment</div>
+        <div class="dash-card-desc">Full 7-bug diagnostic + rebuild. Score, subject variants, before/after fixes.</div>
+        <div class="dash-card-arrow">Run assessment →</div>
+      </a>
+      <a href="/calendar.html" class="dash-card">
+        <div class="dash-card-label">Tool 02</div>
+        <div class="dash-card-title">Content Calendar</div>
+        <div class="dash-card-desc">Generate a 30-day email calendar aligned to your product and audience.</div>
+        <div class="dash-card-arrow">Open calendar →</div>
+      </a>
+      <a href="/batch.html" class="dash-card">
+        <div class="dash-card-label">Tool 03</div>
+        <div class="dash-card-title">Batch Assessment</div>
+        <div class="dash-card-desc">Diagnose up to 10 emails at once. Ranked by impact score.</div>
+        <div class="dash-card-arrow">Run batch →</div>
+      </a>
+      <a href="/report.html" class="dash-card">
+        <div class="dash-card-label">Tool 04</div>
+        <div class="dash-card-title">Monthly Report</div>
+        <div class="dash-card-desc">Score trends, rebuild history, and what to fix next. Auto-emailed monthly.</div>
+        <div class="dash-card-arrow">View report →</div>
+      </a>
+      <a href="/benchmark.html" class="dash-card">
+        <div class="dash-card-label">Tool 05</div>
+        <div class="dash-card-title">Competitor Benchmark</div>
+        <div class="dash-card-desc">Analyse competitor emails against your own. Find the structural gaps.</div>
+        <div class="dash-card-arrow">Run benchmark →</div>
+      </a>
+      <a href="/abtracker.html" class="dash-card">
+        <div class="dash-card-label">Tool 06</div>
+        <div class="dash-card-title">A/B Tracker</div>
+        <div class="dash-card-desc">Track subject line variants and open rate results across your sends.</div>
+        <div class="dash-card-arrow">Open tracker →</div>
+      </a>
+    </div>
+    <div class="dash-pro">
+      <div class="dash-pro-text">
+        <strong>Pro Rebuild Tool</strong>
+        Full newsletter rebuild — paste any email and get a complete rewrite with conversion architecture.
+      </div>
+      <a href="/index.html" class="dash-pro-btn">Open Pro Tool →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── LANDING (visible when signed out) ── -->
+<div id="landing-content">
 
 <nav>
   <a href="#" class="nav-logo">Strategic Flow <span>Architecture</span></a>
@@ -987,20 +1204,30 @@
   <a href="mailto:strategicflow@proton.me" class="footer-link">strategicflow@proton.me</a>
 </footer>
 
+</div><!-- /#landing-content -->
+
 <script>
 function startCheckout() {
   window.location.href = 'https://strategic-flow-audit.replit.app/checkout';
 }
 
-// Auth guard — check session on load and every 5 minutes
 async function checkAuth() {
   try {
     const r = await fetch('/auth/me', { credentials: 'include' });
     const d = await r.json();
-    if (!d.signedIn) {
-      window.location.href = '/login.html';
+    if (d.signedIn) {
+      document.body.classList.add('signed-in');
+      const el = document.getElementById('dashEmail');
+      if (el) el.textContent = d.email;
+    } else {
+      document.body.classList.remove('signed-in');
     }
   } catch(e) {}
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  document.body.classList.remove('signed-in');
 }
 
 checkAuth();
