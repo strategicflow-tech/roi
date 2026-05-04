@@ -3509,7 +3509,7 @@ app.post('/api/score-subject', async (req, res) => {
   if (!subject) return res.status(400).json({ error: 'subject required' });
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 100,
       messages: [{
