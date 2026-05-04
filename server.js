@@ -224,7 +224,7 @@ app.get('/auth/verify/:token', async (req, res) => {
   }
 
   console.log('[auth/verify] Signed in:', data.email);
-  res.redirect('/architecture.html');
+  res.redirect('/index.html');
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
