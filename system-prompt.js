@@ -176,7 +176,9 @@ Do not generate a generic rebuild — generate a DIRECT RESPONSE to this analysi
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
   }
 
-  return `STRUCTURAL FIDELITY RULE:
+  return `Detect the language of the email content provided by the user. Write ALL output — including subject lines, body copy, A/B variants, section labels, and any generated text — in that same language. If the email is in Romanian, output in Romanian. If in Spanish, output in Spanish. Default to English only if the language cannot be determined.
+
+STRUCTURAL FIDELITY RULE:
 Analyze the source email first. Identify emailType, whether the source has numbers/stats, and what sections actually exist. Only include stat cards if the source has real numbers. Only include feature cards if the source is a product update or event_announcement. For event_announcement, render as timeline feature cards (one per date or milestone) — never narrative paragraphs. For thought leadership or digest emails, use narrative paragraphs — no feature card grid.
 
 NEVER INVENT FACTS. Every claim, statistic, product name, feature, price, date, and company detail you write MUST come directly from the content provided. Do NOT hallucinate, extrapolate, or carry over information from any previous generation. Each rebuild is completely isolated — you have zero memory of prior inputs.
@@ -411,7 +413,9 @@ Return ONLY valid JSON:
 }
 
 function getABSubjectsPrompt(company, subject, body) {
-  return `Generate 3 A/B subject line variants using the Strategic Flow Method. Each must use a different angle.
+  return `Detect the language of the email content provided by the user. Write ALL output — including subject lines, body copy, A/B variants, section labels, and any generated text — in that same language. If the email is in Romanian, output in Romanian. If in Spanish, output in Spanish. Default to English only if the language cannot be determined.
+
+Generate 3 A/B subject line variants using the Strategic Flow Method. Each must use a different angle.
 
 Company: ${company}
 Original Subject: "${subject}"
@@ -451,7 +455,9 @@ Return ONLY valid JSON:
 }
 
 function getAudienceSegmentsPrompt(company, subject, body) {
-  return `Identify the 3 audience segments this email converts best with and explain exactly why.
+  return `Detect the language of the email content provided by the user. Write ALL output — including subject lines, body copy, A/B variants, section labels, and any generated text — in that same language. If the email is in Romanian, output in Romanian. If in Spanish, output in Spanish. Default to English only if the language cannot be determined.
+
+Identify the 3 audience segments this email converts best with and explain exactly why.
 
 Company: ${company}
 Email Subject: "${subject}"
@@ -464,7 +470,9 @@ Return ONLY valid JSON:
 }
 
 function getContentCalendarPrompt(company, subject, body) {
-  return `Suggest 3 follow-up email topics that build momentum from this newsletter.
+  return `Detect the language of the email content provided by the user. Write ALL output — including subject lines, body copy, A/B variants, section labels, and any generated text — in that same language. If the email is in Romanian, output in Romanian. If in Spanish, output in Spanish. Default to English only if the language cannot be determined.
+
+Suggest 3 follow-up email topics that build momentum from this newsletter.
 
 Company: ${company}
 Published Email Subject: "${subject}"
@@ -635,7 +643,9 @@ function getMicroImprovementsPrompt({ company, goal, subject, body, brandDNA, vo
     examplesBlock = `\nPRIOR SUCCESSFUL REFINEMENTS IN THIS INDUSTRY:\n${lines}\n`;
   }
 
-  return `You are applying 4 surgical improvements to a high-scoring email for ${company}. The email is strong — your job is to sharpen, not restructure.
+  return `Detect the language of the email content provided by the user. Write ALL output — including subject lines, body copy, A/B variants, section labels, and any generated text — in that same language. If the email is in Romanian, output in Romanian. If in Spanish, output in Spanish. Default to English only if the language cannot be determined.
+
+You are applying 4 surgical improvements to a high-scoring email for ${company}. The email is strong — your job is to sharpen, not restructure.
 
 ━━━ YOUR MANDATE — READ CAREFULLY ━━━
 This email scored well. That means:
