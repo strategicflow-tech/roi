@@ -506,7 +506,7 @@ function sanitizeForJSON(str) {
     .replace(/\u2013/g, '-')           // en dash → hyphen
     .replace(/\u2026/g, '...')         // ellipsis → triple dot
     .replace(/\u00A0/g, ' ')           // non-breaking space → regular space
-    .replace(/[^\x00-\x7F]/g, ' ');   // ALL remaining non-ASCII → space (not empty)
+    .replace(/[^\x00-\x7F\u00C0-\u024F\u1E00-\u1EFF]/g, ' ');   // preserve Latin Extended (diacritics) — strip only truly non-Latin unicode
 }
 
 // Sanitize human-supplied text fields before embedding in any Claude prompt.
