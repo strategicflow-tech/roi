@@ -1196,6 +1196,7 @@ function detectLanguage(text) {
   if (/[áéíóúüñ]/i.test(t) || /\b(está|son|para|pero|como|también|más|por|que|los|las|del)\b/i.test(t)) return 'es';
   if (/[éàèùâêîôûœæç]/i.test(t) || /\b(est|sont|avec|pour|dans|sur|par|pas|plus|vous|nous|les|des|une|que)\b/i.test(t)) return 'fr';
   if (/[äöüß]/i.test(t) || /\b(ist|sind|nicht|auch|aber|oder|und|für|mit|bei|dem|den|das|die|der)\b/i.test(t)) return 'de';
+  if (/[åäö]/i.test(t) || /\b(är|och|att|det|en|ett|som|på|för|med|av|om|han|hon|de|vi|till|från)\b/i.test(t)) return 'sv';
   return 'en';
 }
 
@@ -1205,6 +1206,7 @@ const UI_LABELS = {
   es: { before: 'Antes',   after: 'Después',  original: 'Original', rebuilt: 'Reconstruido',  whatChanged: 'Qué cambió y por qué' },
   fr: { before: 'Avant',   after: 'Après',    original: 'Original', rebuilt: 'Reconstruit',   whatChanged: 'Ce qui a changé et pourquoi' },
   de: { before: 'Vorher',  after: 'Nachher',  original: 'Original', rebuilt: 'Neu erstellt',  whatChanged: 'Was sich geändert hat und warum' },
+  sv: { before: 'Innan',   after: 'Efter',    original: 'Original', rebuilt: 'Återbyggd',     whatChanged: 'Vad som förändrades och varför' },
 };
 
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
