@@ -2383,17 +2383,12 @@ async function handleGenerate(req, res) {
         console.error('[generate] URL fetch failed:', fetchErr.message);
       }
 
-      // All fetch strategies failed — fall back to manually pasted fields
+      // All fetch strategies failed — return error immediately, do not call Claude
       if (effectiveBody.length < 100) {
-        const manualFallback = [
-          req.body.subject || '',
-          req.body.body    || '',
-          req.body.company ? `Company: ${req.body.company}` : '',
-        ].filter(s => s.trim().length > 0).join('\n\n');
-        if (manualFallback.length >= 50) {
-          effectiveBody = manualFallback;
-          console.log('[generate] URL unreachable — using manual fields as fallback');
-        }
+        console.log('[generate] all fetch strategies exhausted for:', pageUrl);
+        return res.status(422).json({
+          error: 'Could not fetch URL content. The site may be blocking automated requests.'
+        });
       }
     }
 
