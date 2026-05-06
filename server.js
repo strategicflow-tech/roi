@@ -2259,7 +2259,7 @@ async function fetchPageContent(rawUrl) {
 
   // Strategy 1: Direct fetch with realistic browser headers
   try {
-    const resp = await fetch(url, { timeout: 12000, headers: BROWSER_HEADERS });
+    const resp = await fetch(url, { signal: AbortSignal.timeout(12000), headers: BROWSER_HEADERS });
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
@@ -2270,7 +2270,7 @@ async function fetchPageContent(rawUrl) {
   // Strategy 2: Google Cache
   try {
     const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
-    const resp = await fetch(cacheUrl, { timeout: 8000, headers: BROWSER_HEADERS });
+    const resp = await fetch(cacheUrl, { signal: AbortSignal.timeout(8000), headers: BROWSER_HEADERS });
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
@@ -2282,7 +2282,7 @@ async function fetchPageContent(rawUrl) {
   try {
     const httpUrl = url.replace(/^https:\/\//i, 'http://');
     if (httpUrl !== url) {
-      const resp = await fetch(httpUrl, { timeout: 8000, headers: BROWSER_HEADERS });
+      const resp = await fetch(httpUrl, { signal: AbortSignal.timeout(8000), headers: BROWSER_HEADERS });
       if (resp.ok) {
         const html = await resp.text();
         const parsed = parseHtml(html);
