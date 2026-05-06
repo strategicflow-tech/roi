@@ -2046,8 +2046,8 @@ function generateAuditReportHtml() {
     .hook-box{background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.20);border-radius:8px;padding:16px;}
     .hook-label{font-size:10px;font-weight:700;color:#00e5a0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
     .hook-text{font-size:13px;color:#e2e8f0;line-height:1.7;}
-    .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    .ba-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;}
+    .ba-grid{display:block;}
+    .ba-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;width:100%;margin-bottom:16px;}
     .ba-label{font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
     .ba-subject{font-size:14px;font-weight:700;color:#00e5a0;margin-bottom:8px;}
     .ba-body{font-size:13px;color:rgba(255,255,255,0.60);line-height:1.6;}
@@ -2107,7 +2107,7 @@ function generateAuditReportHtml() {
           <div class="ba-subject">${currentOrigSubject || '—'}</div>
           <div class="ba-body">${origBodyPlain || '—'}</div>
         </div>
-        <div class="ba-box" style="border-color:rgba(0,229,160,0.30);">
+        <div class="ba-box" style="border-top:2px solid rgba(0,229,160,0.30);">
           <div class="ba-label" style="color:#00e5a0;">Rebuilt by Strategic Flow</div>
           <div class="ba-subject">${r.rebuilt_subject || '—'}</div>
           <div class="ba-body">${newBodyPlain || '—'}</div>
