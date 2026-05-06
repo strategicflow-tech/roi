@@ -1189,6 +1189,24 @@ function extractSection(html, tag) {
   return m ? m[1].trim() : null;
 }
 
+// ── LANGUAGE DETECTION + UI LABELS ───────────────────────────────────────────
+function detectLanguage(text) {
+  const t = (text || '').slice(0, 2000);
+  if (/[șțăîâ]/i.test(t) || /\b(și|sau|pentru|că|este|sunt|cu|la|de|în)\b/i.test(t)) return 'ro';
+  if (/[áéíóúüñ]/i.test(t) || /\b(está|son|para|pero|como|también|más|por|que|los|las|del)\b/i.test(t)) return 'es';
+  if (/[éàèùâêîôûœæç]/i.test(t) || /\b(est|sont|avec|pour|dans|sur|par|pas|plus|vous|nous|les|des|une|que)\b/i.test(t)) return 'fr';
+  if (/[äöüß]/i.test(t) || /\b(ist|sind|nicht|auch|aber|oder|und|für|mit|bei|dem|den|das|die|der)\b/i.test(t)) return 'de';
+  return 'en';
+}
+
+const UI_LABELS = {
+  en: { before: 'Before',  after: 'After',    original: 'Original', rebuilt: 'Rebuilt',       whatChanged: 'What changed &amp; why' },
+  ro: { before: 'Înainte', after: 'După',     original: 'Original', rebuilt: 'Reconstruit',   whatChanged: 'Ce s-a schimbat și de ce' },
+  es: { before: 'Antes',   after: 'Después',  original: 'Original', rebuilt: 'Reconstruido',  whatChanged: 'Qué cambió y por qué' },
+  fr: { before: 'Avant',   after: 'Après',    original: 'Original', rebuilt: 'Reconstruit',   whatChanged: 'Ce qui a changé et pourquoi' },
+  de: { before: 'Vorher',  after: 'Nachher',  original: 'Original', rebuilt: 'Neu erstellt',  whatChanged: 'Was sich geändert hat und warum' },
+};
+
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Guard all critical inputs — never render the string "undefined" or "null" in output HTML
   company = safeVal(company) || 'Your Company';
@@ -1196,7 +1214,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   body    = safeVal(body);
   // Abort immediately if either critical field is blank — caller should have already validated
   if (!subject && !body) return '<!-- buildNewsletterHTML: missing subject and body -->';
-  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null, sourceHtml = '', featureCards = null, emailType: htmlEmailType = '' } = options;
+  const { tier = 'free_trial', originalBody = '', ctaHref = 'https://strategic-flow-audit.replit.app', heroKeyword = '', contentStyle = '', flatFields = null, sourceHtml = '', featureCards = null, emailType: htmlEmailType = '', labelBefore = 'Before', labelAfter = 'After' } = options;
 
   // Extract ONLY brand accent colors — the template always uses its own dark palette.
   const { primaryColor: rawPrimary, accentColor: rawAccent, primaryText, accentText } = getEmailColors(brandDNA);
@@ -1527,11 +1545,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     if (p_beforeState || p_afterState) {
       return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(0,0,0,0.08);border-radius:8px;margin:0;"><tr>
         <td style="width:50%;padding:16px 20px;border-right:1px solid rgba(0,0,0,0.08);vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:#999999;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Before</p>
+          <p style="font-size:10px;font-weight:700;color:#999999;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelBefore}</p>
           <p style="font-size:13px;color:#555555;margin:0;line-height:1.5;">${p_beforeState}</p>
         </td>
         <td style="width:50%;padding:16px 20px;vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:#3c91dc;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">After</p>
+          <p style="font-size:10px;font-weight:700;color:#3c91dc;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelAfter}</p>
           <p style="font-size:13px;color:#1a1a18;margin:0;line-height:1.5;">${p_afterState}</p>
         </td>
       </tr></table>`;
@@ -1909,7 +1927,7 @@ function stripMarkdown(text) {
 }
 
 // Send the rebuilt newsletter to the user's email as an HTML attachment
-async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChanges, convHook, downloadHtml) {
+async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChanges, convHook, downloadHtml, labels = UI_LABELS.en) {
   const APP_URL = 'https://strategic-flow-audit.replit.app';
   const changesHtml = (keyChanges || []).map(c => `<li style="margin-bottom:6px;">${c}</li>`).join('');
   const html = `
@@ -1921,10 +1939,10 @@ async function sendResultEmail(to, company, origSubject, rebuiltSubject, keyChan
   <div style="background:#f9f9f9;padding:28px 32px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
     <p style="color:#444;line-height:1.7;">Here's what we rebuilt for <strong>${company || 'your company'}</strong>:</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-      <tr><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:12px;color:#888;width:110px;">Original</td><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:14px;color:#222;">${origSubject}</td></tr>
-      <tr><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:12px;color:#00a09a;width:110px;">Rebuilt</td><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:14px;font-weight:700;color:#007a75;">${rebuiltSubject}</td></tr>
+      <tr><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:12px;color:#888;width:110px;">${labels.original}</td><td style="padding:8px 12px;background:#fff;border:1px solid #e0e0e0;font-size:14px;color:#222;">${origSubject}</td></tr>
+      <tr><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:12px;color:#00a09a;width:110px;">${labels.rebuilt}</td><td style="padding:8px 12px;background:#e8fffe;border:1px solid #b2f0ee;font-size:14px;font-weight:700;color:#007a75;">${rebuiltSubject}</td></tr>
     </table>
-    ${changesHtml ? `<p style="color:#444;font-weight:600;margin-bottom:8px;">What changed &amp; why:</p><ul style="color:#444;line-height:1.8;margin:0 0 20px;padding-left:20px;">${changesHtml}</ul>` : ''}
+    ${changesHtml ? `<p style="color:#444;font-weight:600;margin-bottom:8px;">${labels.whatChanged}:</p><ul style="color:#444;line-height:1.8;margin:0 0 20px;padding-left:20px;">${changesHtml}</ul>` : ''}
     ${convHook ? `<p style="background:#fffbe6;border-left:3px solid #f0c040;padding:10px 14px;font-size:13px;color:#555;font-style:italic;margin:0 0 20px;">${convHook}</p>` : ''}
     <p style="color:#444;line-height:1.7;">The full rebuilt newsletter HTML is attached — paste it directly into your email platform (Mailchimp, ConvertKit, ActiveCampaign, etc.).</p>
     <table cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
@@ -2440,11 +2458,14 @@ async function handleGenerate(req, res) {
                 .replace(/CTAACCENTCOLOR/g, pac));
               const cachedOgImage = req.body._ogImage || n.og_image || null;
               console.log('[cache] ogImage:', cachedOgImage);
+              const _cachedLang   = detectLanguage((n.original_subject || '') + ' ' + (n.original_body || '').slice(0, 500));
+              const _cachedLabels = UI_LABELS[_cachedLang] || UI_LABELS.en;
               const downloadHtml = stripResendTracking(buildNewsletterHTML(
                 n.company || 'Your Company', n.rebuilt_subject, n.rebuilt_body, cachedDNA,
                 { tier: n.tier || 'free_trial', originalBody: n.original_body || '',
                   ctaHref: cachedDNA?.url || 'https://strategic-flow-audit.replit.app',
-                  heroImageUrl: cachedOgImage }
+                  heroImageUrl: cachedOgImage,
+                  labelBefore: _cachedLabels.before, labelAfter: _cachedLabels.after }
               ));
               return res.json({
                 rebuilt_subject:  n.rebuilt_subject,
@@ -2867,6 +2888,8 @@ async function handleGenerate(req, res) {
 
     // Build HTML first, then strip any Resend tracking links before returning to frontend,
     // saving to DB, or attaching to email — must happen before res.json() and sendResultEmail().
+    const _langDetect  = detectLanguage((subject || '') + ' ' + (body || '').slice(0, 500));
+    const _lang_labels = UI_LABELS[_langDetect] || UI_LABELS.en;
     let downloadHtml = buildNewsletterHTML(company || 'Your Company', result.rebuilt_subject, result.rebuilt_body, effectiveBrandDNA,
       { tier, originalBody: body, ctaHref, heroKeyword, contentStyle: result.contentStyle || '',
         layoutType: isPromoGrid && promotionalItems.length >= 2 ? 'promotional-grid' : '',
@@ -2894,7 +2917,8 @@ async function handleGenerate(req, res) {
           }
           return null;
         })(),
-        emailType: result.emailType || detectedType || '' });
+        emailType: result.emailType || detectedType || '',
+        labelBefore: _lang_labels.before, labelAfter: _lang_labels.after });
     downloadHtml = stripResendTracking(downloadHtml);
     console.log('STEP 4: HTML built');
 
@@ -3091,7 +3115,7 @@ async function handleGenerate(req, res) {
     // Email delivery
     const shouldEmailResult = e && !e.includes('@sf-session.com') && (!adminAccess || e === OWNER_EMAIL);
     if (shouldEmailResult) {
-      sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml)
+      sendResultEmail(e, company, subject, result.rebuilt_subject, result.key_changes, result.conversion_hook, downloadHtml, _lang_labels)
         .catch(mailErr => console.error('[email-send]', mailErr.message));
     }
     console.log('STEP 6: Email send attempted');
