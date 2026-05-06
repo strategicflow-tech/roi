@@ -1545,16 +1545,20 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
       </td></tr></table>`;
     }
     if (p_beforeState || p_afterState) {
-      return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(0,0,0,0.08);border-radius:8px;margin:0;"><tr>
-        <td style="width:50%;padding:16px 20px;border-right:1px solid rgba(0,0,0,0.08);vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:#999999;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelBefore}</p>
-          <p style="font-size:13px;color:#555555;margin:0;line-height:1.5;">${p_beforeState}</p>
-        </td>
-        <td style="width:50%;padding:16px 20px;vertical-align:top;">
-          <p style="font-size:10px;font-weight:700;color:#3c91dc;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelAfter}</p>
-          <p style="font-size:13px;color:#1a1a18;margin:0;line-height:1.5;">${p_afterState}</p>
-        </td>
-      </tr></table>`;
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(0,0,0,0.08);border-radius:8px;margin:0;">
+        <tr>
+          <td style="padding:16px 20px;vertical-align:top;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.10);">
+            <p style="font-size:10px;font-weight:700;color:#999999;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelBefore}</p>
+            <p style="font-size:13px;color:#555555;margin:0;line-height:1.5;">${p_beforeState}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 20px;vertical-align:top;background:${primaryColor}14;">
+            <p style="font-size:10px;font-weight:700;color:#3c91dc;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${labelAfter}</p>
+            <p style="font-size:13px;color:#1a1a18;margin:0;line-height:1.5;">${p_afterState}</p>
+          </td>
+        </tr>
+      </table>`;
     }
     return '';
   })();
@@ -1726,21 +1730,27 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
     const _v2Html = `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title>
+<style>
+@media only screen and (max-width:620px){
+  .email-outer-td { padding: 16px 8px !important; }
+  .email-section-pad { padding-left: 16px !important; padding-right: 16px !important; }
+}
+</style></head>
 <body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;">
 <!-- PREHEADER -->
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${p_preheader}&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;&nbsp;&#x200C;</div>
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${bgColor};min-width:100%;">
   <tr>
-    <td align="center" style="padding:40px 16px;">
+    <td align="center" class="email-outer-td" style="padding:40px 16px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;background:${containerBg};border-radius:16px;overflow:hidden;border:1px solid ${borderMuted};">
 
         ${tierLabelRow}
 
         <!-- HEADER -->
         <tr>
-          <td style="padding:22px 32px 18px;background:${emailHeaderBg};border-bottom:3px solid ${primaryColor};">
+          <td class="email-section-pad" style="padding:22px 32px 18px;background:${emailHeaderBg};border-bottom:3px solid ${primaryColor};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td>
@@ -1760,7 +1770,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HOOK + TENSION + STAT CARDS -->
         <tr>
-          <td style="padding:36px 32px 28px;border-bottom:1px solid ${borderMuted};">
+          <td class="email-section-pad" style="padding:36px 32px 28px;border-bottom:1px solid ${borderMuted};">
             <h1 style="margin:0 0 16px;font-size:26px;font-weight:900;color:${textStrong};line-height:1.2;letter-spacing:-0.4px;">${p_hook}</h1>
             <p style="margin:0 0 28px;font-size:16px;color:${textMedium};line-height:1.75;">${p_tension}</p>
             ${statCardsHtml}
@@ -1772,7 +1782,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <tr><td style="padding:0;line-height:0;height:3px;background:linear-gradient(to right,${primaryColor},rgba(94,106,210,0.3),transparent);font-size:0;">&nbsp;</td></tr>
 
         <!-- INSIGHT + PROOF + COST (or feature cards for thought_leadership / product_update) -->
-        <tr><td style="padding:32px 32px 28px;">
+        <tr><td class="email-section-pad" style="padding:32px 32px 28px;">
           ${Array.isArray(featureCards) && featureCards.length > 0
             ? featureCards.map(card => `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
@@ -1790,11 +1800,11 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
           `}
         </td></tr>
 
-        ${conversionElementHtml ? `<tr><td style="padding:0 32px 28px;">${conversionElementHtml}</td></tr>` : ''}
+        ${conversionElementHtml ? `<tr><td class="email-section-pad" style="padding:0 32px 28px;">${conversionElementHtml}</td></tr>` : ''}
 
         <!-- CTA -->
         <tr>
-          <td style="padding:0 32px 36px;">
+          <td class="email-section-pad" style="padding:0 32px 36px;">
             <div style="padding:3px;background:${ctaGradient};border-radius:12px;">
               <div style="background:${containerBg};border-radius:10px;padding:28px 32px;text-align:center;">
                 <a href="${(()=>{ const _u=finalCtaUrl||''; if(!_u.includes('resend-clicks.com'))return _u; try{const _p=_u.split(/\/CL\d+\//)[1];if(_p)return decodeURIComponent(_p.split('/')[0]);}catch(e){} return _u; })()}" style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:14px;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:8px;">${p_ctaText}</a>
