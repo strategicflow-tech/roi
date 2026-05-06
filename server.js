@@ -1195,8 +1195,8 @@ function detectLanguage(text) {
   if (/[șțăîâ]/i.test(t) || /\b(și|sau|pentru|că|este|sunt|cu|la|de|în)\b/i.test(t)) return 'ro';
   if (/[áéíóúüñ]/i.test(t) || /\b(está|son|para|pero|como|también|más|por|que|los|las|del)\b/i.test(t)) return 'es';
   if (/[éàèùâêîôûœæç]/i.test(t) || /\b(est|sont|avec|pour|dans|sur|par|pas|plus|vous|nous|les|des|une|que)\b/i.test(t)) return 'fr';
+  if (/[åäö]/i.test(t) || /\b(är|och|att|det|en|ett|som|på|för|med|av|om|han|hon|de|vi|till|från|du|din)\b/i.test(t)) return 'sv';
   if (/[äöüß]/i.test(t) || /\b(ist|sind|nicht|auch|aber|oder|und|für|mit|bei|dem|den|das|die|der)\b/i.test(t)) return 'de';
-  if (/[åäö]/i.test(t) || /\b(är|och|att|det|en|ett|som|på|för|med|av|om|han|hon|de|vi|till|från)\b/i.test(t)) return 'sv';
   return 'en';
 }
 
@@ -1407,19 +1407,27 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // 3) Unsplash topic/industry fallback — last resort only
   // Never use a logo image as the hero — logos make terrible hero banners.
   const _isLogoUrl = u => /logo|typelogo|symbol|favicon/i.test(u || '');
+  const _isJunkImg  = u => {
+    if (!u) return true;
+    if (/avatar|icon|sprite|pixel|track|beacon|1x1/i.test(u)) return true;
+    const wM = u.match(/[?&](?:width|w)=(\d+)/i);
+    const hM = u.match(/[?&](?:height|h)=(\d+)/i);
+    if (wM && hM && (parseInt(wM[1]) < 200 || parseInt(hM[1]) < 200)) return true;
+    return false;
+  };
   const _firstProductImg = (() => {
     const imgs = Array.isArray(options.productImages) ? options.productImages : [];
-    const nonLogo = imgs.filter(img => img.url && !_isLogoUrl(img.url));
+    const nonLogo = imgs.filter(img => img.url && !_isLogoUrl(img.url) && !_isJunkImg(img.url));
     return nonLogo.length ? nonLogo[0].url : null;
   })();
   const _rawHeroUrl = options.heroImageUrl || null;
-  const _heroCandidate = (_rawHeroUrl && !_isLogoUrl(_rawHeroUrl)) ? _rawHeroUrl : null;
+  const _heroCandidate = (_rawHeroUrl && !_isLogoUrl(_rawHeroUrl) && !_isJunkImg(_rawHeroUrl)) ? _rawHeroUrl : null;
   const heroSrc = _heroCandidate || _firstProductImg || buildHeroSrc(company, brandDNA, options.heroKeyword);
 
   // Image feature cards: if productImages has 2–4 items, images 2–N become cards below the stat row.
   // If 1 image: hero only. If 5+: hero only, rest ignored.
   const _imgFeatureCardsHtml = (() => {
-    const allImgs = Array.isArray(options.productImages) ? options.productImages.filter(img => img && img.url && !_isLogoUrl(img.url)) : [];
+    const allImgs = Array.isArray(options.productImages) ? options.productImages.filter(img => img && img.url && !_isLogoUrl(img.url) && !_isJunkImg(img.url)) : [];
     if (allImgs.length < 2 || allImgs.length > 4) return '';
     const extras = allImgs.slice(1);
     if (!extras.length) return '';
