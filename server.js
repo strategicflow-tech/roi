@@ -4338,10 +4338,20 @@ app.options('/changelog-audit', (req, res) => {
 });
 
 app.post('/changelog-audit', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  console.log('[changelog-audit] incoming request — body:', JSON.stringify({ url: req.body?.url, textLength: (req.body?.text || '').length }));
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
+  }
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  console.log('CHANGELOG AUDIT HIT - body:', JSON.stringify(req.body));
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.json({ error: 'No body received', received: req.body });
+  }
   const { url, text: rawText } = req.body;
   if (!url) {
     const errBody = { error: 'url is required' };
