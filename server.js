@@ -4290,6 +4290,91 @@ app.get('/api/calendar', async (req, res) => {
 });
 // ─── END CALENDAR ENDPOINT ────────────────────────────────────────────────────
 
+// ─── CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────────
+// CORS is handled globally (line ~86) for strategicflow-tech.github.io.
+// This endpoint is intentionally outside PROTECTED_PATHS — no session required.
+const CHANGELOG_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Changelog Audit engine. Analyze SaaS changelog pages and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
+
+JSON schema:
+{
+  "company": "string",
+  "original_score": number,
+  "rebuilt_score": number,
+  "bugs_found": number,
+  "original_title": "string",
+  "rebuilt_title": "string",
+  "original_lead": "string",
+  "rebuilt_lead": "string",
+  "entry1_title": "string",
+  "entry1_before": "string",
+  "entry1_after": "string",
+  "stat1_num": "string",
+  "stat1_label": "string",
+  "stat2_num": "string",
+  "stat2_label": "string",
+  "stat3_num": "string",
+  "stat3_label": "string",
+  "cta_before": "string",
+  "cta_after": "string",
+  "before_contrast": "string",
+  "after_contrast": "string",
+  "wc": [{"fix": "string", "before": "string", "after": "string"}],
+  "bugs": [{"number": 1, "title": "string", "body": "string"}],
+  "fixes": [{"number": 1, "title": "string", "body": "string"}]
+}
+
+The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.`;
+
+app.post('/changelog-audit', async (req, res) => {
+  const { url, text: rawText } = req.body;
+  if (!url) return res.status(400).json({ error: 'url is required' });
+
+  let content = (rawText || '').trim();
+
+  // If caller could not extract text, attempt server-side fetch
+  if (content.length < 100) {
+    console.log('[changelog-audit] text too short, fetching URL:', url);
+    try {
+      const page = await fetchWithCache(url);
+      if (page && page.text && page.text.length >= 100) {
+        content = [
+          page.title ? `Title: ${page.title}` : '',
+          page.meta  ? `Description: ${page.meta}` : '',
+          page.text,
+        ].filter(Boolean).join('\n\n');
+        console.log('[changelog-audit] fetched content length:', content.length);
+      }
+    } catch (fetchErr) {
+      console.error('[changelog-audit] fetch failed:', fetchErr.message);
+    }
+  }
+
+  if (content.length < 100) {
+    return res.status(422).json({ error: 'Could not fetch URL content. The site may be blocking automated requests.' });
+  }
+
+  try {
+    const response = await claude.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: CHANGELOG_AUDIT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
+    });
+
+    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const result = safeParseJSON(raw);
+    if (!result) {
+      console.error('[changelog-audit] JSON parse failed. Raw:', raw.slice(0, 300));
+      return res.status(500).json({ error: 'Claude returned invalid JSON' });
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('[changelog-audit] Claude error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;

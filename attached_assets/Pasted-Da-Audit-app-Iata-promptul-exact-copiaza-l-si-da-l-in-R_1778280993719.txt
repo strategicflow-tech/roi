@@ -1,0 +1,57 @@
+Da, Audit app. Iata promptul exact, copiaza-l si da-l in Replit AI sau lipeste-l direct in chat-ul din Replit:
+
+---
+
+Add a new POST endpoint to this server called `/changelog-audit`.
+
+The endpoint receives a JSON body with two fields:
+- `url` (string) — the changelog URL the user submitted
+- `text` (string) — the extracted page text (may be empty if fetch failed)
+
+If `text` is empty or less than 100 characters, the endpoint should attempt to fetch the URL server-side and extract the text content from the HTML body, removing scripts, styles, nav, and footer elements.
+
+Then send the text to the Anthropic Claude API using the existing API key already configured in this project. Use model `claude-sonnet-4-20250514`.
+
+Use this exact system prompt:
+
+```
+You are the Strategic Flow Changelog Audit engine. Analyze SaaS changelog pages and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
+
+JSON schema:
+{
+  "company": "string",
+  "original_score": number,
+  "rebuilt_score": number,
+  "bugs_found": number,
+  "original_title": "string",
+  "rebuilt_title": "string",
+  "original_lead": "string",
+  "rebuilt_lead": "string",
+  "entry1_title": "string",
+  "entry1_before": "string",
+  "entry1_after": "string",
+  "stat1_num": "string",
+  "stat1_label": "string",
+  "stat2_num": "string",
+  "stat2_label": "string",
+  "stat3_num": "string",
+  "stat3_label": "string",
+  "cta_before": "string",
+  "cta_after": "string",
+  "before_contrast": "string",
+  "after_contrast": "string",
+  "wc": [{"fix": "string", "before": "string", "after": "string"}],
+  "bugs": [{"number": 1, "title": "string", "body": "string"}],
+  "fixes": [{"number": 1, "title": "string", "body": "string"}]
+}
+```
+
+The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.
+
+Add CORS headers so the endpoint can be called from strategicflow-tech.github.io.
+
+Return the JSON response directly.
+
+---
+
+Dupa ce Replit adauga endpoint-ul, trimite-mi URL-ul complet al endpoint-ului (ex: `strategic-flow-audit.replit.app/changelog-audit`) si actualizez HTML-ul sa pointeze acolo.
