@@ -4353,16 +4353,14 @@ app.post('/changelog-audit', async (req, res) => {
     return res.json({ error: 'No body received', received: req.body });
   }
   const { url, text: rawText } = req.body;
-  if (!url) {
-    const errBody = { error: 'url is required' };
-    console.log('[changelog-audit] response (400):', JSON.stringify(errBody));
-    return res.status(400).json(errBody);
+  if (!rawText || rawText.length < 50) {
+    return res.status(400).json({ error: 'No text provided' });
   }
 
-  let content = (rawText || '').trim();
+  let content = rawText.trim();
 
-  // If caller could not extract text, attempt server-side fetch
-  if (content.length < 100) {
+  // If text is short and a URL was provided, attempt server-side fetch
+  if (content.length < 100 && url) {
     console.log('[changelog-audit] text too short, fetching URL:', url);
     try {
       const page = await fetchWithCache(url);
@@ -4379,7 +4377,8 @@ app.post('/changelog-audit', async (req, res) => {
     }
   }
 
-  if (content.length < 100) {
+  // Only block if URL was provided but fetch still failed to get enough content
+  if (content.length < 100 && url) {
     const errBody = { error: 'Could not fetch URL content. The site may be blocking automated requests.' };
     console.log('[changelog-audit] response (422):', JSON.stringify(errBody));
     return res.status(422).json(errBody);
