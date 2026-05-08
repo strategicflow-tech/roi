@@ -4325,6 +4325,11 @@ JSON schema:
 
 The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.`;
 
+app.get('/changelog-audit-test', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.json({ status: 'ok', message: 'changelog audit endpoint is live' });
+});
+
 app.options('/changelog-audit', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -4336,8 +4341,13 @@ app.post('/changelog-audit', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  console.log('[changelog-audit] incoming request — body:', JSON.stringify({ url: req.body?.url, textLength: (req.body?.text || '').length }));
   const { url, text: rawText } = req.body;
-  if (!url) return res.status(400).json({ error: 'url is required' });
+  if (!url) {
+    const errBody = { error: 'url is required' };
+    console.log('[changelog-audit] response (400):', JSON.stringify(errBody));
+    return res.status(400).json(errBody);
+  }
 
   let content = (rawText || '').trim();
 
@@ -4360,7 +4370,9 @@ app.post('/changelog-audit', async (req, res) => {
   }
 
   if (content.length < 100) {
-    return res.status(422).json({ error: 'Could not fetch URL content. The site may be blocking automated requests.' });
+    const errBody = { error: 'Could not fetch URL content. The site may be blocking automated requests.' };
+    console.log('[changelog-audit] response (422):', JSON.stringify(errBody));
+    return res.status(422).json(errBody);
   }
 
   try {
@@ -4377,6 +4389,7 @@ app.post('/changelog-audit', async (req, res) => {
       console.error('[changelog-audit] JSON parse failed. Raw:', raw.slice(0, 300));
       return res.status(500).json({ error: 'Claude returned invalid JSON' });
     }
+    console.log('[changelog-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
     res.json(result);
   } catch (err) {
     console.error('[changelog-audit] Claude error:', err.message);
