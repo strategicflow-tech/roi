@@ -406,6 +406,11 @@
     var gateInput = document.getElementById('gateEmailInput');
     var gateOverlay = document.getElementById('emailGate');
     var savedEmail = localStorage.getItem('sf_email');
+    var adminEmails = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
+    if (savedEmail && adminEmails.indexOf(savedEmail.toLowerCase()) !== -1) {
+      localStorage.setItem('sf_admin', 'true');
+      localStorage.removeItem('sf_used_audit');
+    }
     var auditUsed = localStorage.getItem('sf_used_audit');
     var isAdmin = localStorage.getItem('sf_admin') === 'true';
     if (isAdmin) {
@@ -443,6 +448,7 @@
           var adminEmails = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
           if (adminEmails.indexOf(email.toLowerCase()) !== -1 || data.allowed) {
             localStorage.setItem('sf_admin', 'true');
+            localStorage.removeItem('sf_used_audit');
           }
           if (gateOverlay) gateOverlay.style.display = 'none';
           gateBtn.textContent = 'Run Free Audit';
