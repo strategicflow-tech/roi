@@ -844,7 +844,7 @@
 
         setTimeout(function() {
           progressWrap.style.display = "none";
-          status.textContent = "Audit complete — " + (audit.company || companyName);
+          status.textContent = "Audit complete — " + (audit.company || companyName) + " · Score: " + (audit.original_score || "?") + " → " + (audit.rebuilt_score || "?");
           status.style.color = "#69F0AE";
           status.style.fontStyle = "normal";
           status.style.fontWeight = "600";
