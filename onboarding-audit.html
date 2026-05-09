@@ -771,15 +771,7 @@
 
 
 <script>
-  // ── EMAIL GATE — redirect check (runs immediately, no DOM needed) ──
-  (function(){
-    var _e = localStorage.getItem('sf_email');
-    var _u = localStorage.getItem('sf_used_audit');
-    var _a = localStorage.getItem('sf_admin') === 'true';
-    if (_e && _u && !_a) { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; }
-  })();
-
-window.onload = function() {
+window.addEventListener('load', function() {
   // ── EMAIL GATE ──
   var gateOverlay = document.getElementById('emailGate');
   var gateInput = document.getElementById('gateEmailInput');
@@ -1093,7 +1085,8 @@ window.onload = function() {
       });
     };
   }
-};
+
+}); // end window.addEventListener('load')
 </script>
 </body>
 </html>

@@ -4331,7 +4331,8 @@ app.get('/changelog-audit-test', (req, res) => {
 });
 
 app.get('/clear-test', (req, res) => {
-  res.send('<!DOCTYPE html><html><body><script>localStorage.clear();window.location.href="/changelog-audit-page";</script></body></html>');
+  const page = req.query.page === 'onboarding' ? '/onboarding-audit-page' : '/changelog-audit-page';
+  res.send(`<!DOCTYPE html><html><body><script>localStorage.clear();window.location.href="${page}";<\/script></body></html>`);
 });
 
 app.get('/changelog-audit-page', (req, res) => {
