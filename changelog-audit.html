@@ -390,6 +390,17 @@
 </head>
 <body id="body">
 
+<div id="emailGate" style="position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:420px;width:100%;text-align:center;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#FF694A;margin-bottom:16px;font-family:monospace;">Strategic Flow — Free Audit</div>
+    <h2 style="font-size:26px;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.2;">Enter your email to run your free audit</h2>
+    <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.6;">One free audit. Full results. No credit card required.</p>
+    <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;"/>
+    <button id="gateSubmitBtn" style="width:100%;padding:14px;background:#FF694A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;">Run Free Audit</button>
+    <p style="font-size:11px;color:rgba(255,255,255,.25);margin-top:12px;font-family:monospace;">No spam. Strategic Flow only.</p>
+  </div>
+</div>
+
 <!-- ── BRAND SCRAPER BAR ── -->
 <div class="scraper-bar" id="scraperBar">
 
@@ -760,6 +771,39 @@
 
 <script>
 
+  // ── EMAIL GATE — redirect check (runs immediately, no DOM needed) ──
+  (function(){
+    var _e = localStorage.getItem('sf_email');
+    var _u = localStorage.getItem('sf_used_audit');
+    var _a = localStorage.getItem('sf_admin') === 'true';
+    if (_e && _u && !_a) { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; }
+  })();
+
+  // ── EMAIL GATE — show/hide + submit wiring ──
+  (function(){
+    var ADMIN = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
+    var storedEmail = localStorage.getItem('sf_email');
+    var gate = document.getElementById('emailGate');
+    if (storedEmail) { if (gate) gate.style.display = 'none'; return; }
+    var submitBtn = document.getElementById('gateSubmitBtn');
+    var emailInput = document.getElementById('gateEmailInput');
+    if (!submitBtn || !emailInput) return;
+    function gateSubmit() {
+      var val = emailInput.value.trim();
+      if (!val || val.indexOf('@') < 0) { emailInput.focus(); return; }
+      localStorage.setItem('sf_email', val);
+      if (ADMIN.indexOf(val.toLowerCase()) !== -1) localStorage.setItem('sf_admin', 'true');
+      if (gate) gate.style.display = 'none';
+      fetch('/changelog-audit/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: val, source: 'audit_gate' })
+      }).catch(function(){});
+    }
+    submitBtn.addEventListener('click', gateSubmit);
+    emailInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') gateSubmit(); });
+  })();
+
   /* ═══════════════════════════════════════════════
      STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
      Claude API connector + brand injection + UI
@@ -934,6 +978,7 @@ CHANGELOG CONTENT:
 
       auditData = audit;
       populateTemplate(audit);
+      if (!localStorage.getItem('sf_admin')) localStorage.setItem('sf_used_audit', 'true');
 
       status.textContent = 'Audit complete — ' + audit.company + ' · Score: ' + audit.original_score + ' → ' + audit.rebuilt_score;
       btn.textContent = 'Re-run Audit';
