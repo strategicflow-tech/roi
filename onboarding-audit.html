@@ -840,6 +840,21 @@
 
 
 <script>
+document.getElementById('score-before').textContent = 'Original: —';
+document.getElementById('score-after').textContent = 'Rebuilt: —';
+var sb=document.getElementById('sb-score-before');var sa=document.getElementById('sb-score-after');
+if(sb)sb.textContent='— / 10';if(sa)sa.textContent='— / 10';
+var barB=document.getElementById('bar-before');var barA=document.getElementById('bar-after');
+if(barB)barB.style.width='0%';if(barA)barA.style.width='0%';
+['original-title','rebuilt-title','original-lead','rebuilt-lead','entry1-title','entry1-before','entry1-after','stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label','cta-before','cta-after','before-contrast','after-contrast'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
+var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
+var st=document.getElementById('scraperStatus');if(st){st.textContent='Paste text above and tap Run Audit';st.style.color='';st.style.fontWeight='';}
+var at=document.querySelector('.article-title');if(at)at.style.visibility='hidden';
+var bc=document.getElementById('bc-current');if(bc)bc.textContent='Onboarding Audit';
+document.querySelectorAll('.ann-title').forEach(function(el){el.textContent='';});
+document.querySelectorAll('.ann-body').forEach(function(el){el.textContent='';});
+document.querySelectorAll('.wc-b').forEach(function(el){el.textContent='';});
+document.querySelectorAll('.wc-a').forEach(function(el){el.textContent='';});
 var fieldsToClear = ['original-title','rebuilt-title','original-lead','rebuilt-lead','entry1-title','entry1-before','entry1-after','stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label','cta-before','cta-after'];
 fieldsToClear.forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
 var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
