@@ -770,9 +770,9 @@
 </div>
 
 <script>
+window.addEventListener('load', function() {
 
   // ── EMAIL GATE ──
-  window.addEventListener('load', function() {
     var gateOverlay = document.getElementById('emailGate');
     var gateInput = document.getElementById('gateEmailInput');
     var gateBtn = document.getElementById('gateSubmitBtn');
@@ -824,7 +824,6 @@
         });
       };
     }
-  });
 
   /* ═══════════════════════════════════════════════
      STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
@@ -1164,8 +1163,8 @@ CHANGELOG CONTENT:
     });
   });
 
-</script>
-<script>
+
+  // ── RUN AUDIT + EXTRACT BRAND BUTTONS ──
   var btn = document.getElementById('runAuditBtn');
   var extractBtn = document.getElementById('extractBrandBtn');
 
@@ -1386,6 +1385,8 @@ CHANGELOG CONTENT:
       tabBefore.classList.remove('active');
     };
   }
+
+}); // end window.addEventListener('load')
 </script>
 </body>
 </html>
