@@ -827,6 +827,8 @@
 
 <script>
 window.addEventListener('load', function() {
+  console.log('LOAD START');
+  try {
 
   /* ═══════════════════════════════════════════════
      STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
@@ -1373,6 +1375,8 @@ CHANGELOG CONTENT:
     };
   }
 
+  } catch(e) { console.log('LOAD ERROR:', e.message, e.stack); }
+  console.log('LOAD END');
 }); // end window.addEventListener('load')
 </script>
 </body>
