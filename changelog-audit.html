@@ -1191,7 +1191,49 @@ CHANGELOG CONTENT:
 
   if (extractBtn) {
     extractBtn.onclick = function() {
-      applyBrand();
+      var urlRaw = document.getElementById('brandUrl').value.trim();
+      var status = document.getElementById('scraperStatus');
+      if (!urlRaw) { status.textContent = 'Paste a URL first.'; return; }
+      var url = urlRaw.startsWith('http') ? urlRaw : 'https://' + urlRaw;
+      var urlLower = url.toLowerCase();
+      var presets = {
+        'linear': { primary: '#5E6AD2', name: 'Linear' },
+        'notion': { primary: '#000000', name: 'Notion' },
+        'vercel': { primary: '#000000', name: 'Vercel' },
+        'stripe': { primary: '#635BFF', name: 'Stripe' },
+        'loom': { primary: '#625DF5', name: 'Loom' },
+        'intercom': { primary: '#1F8EED', name: 'Intercom' },
+        'figma': { primary: '#F24E1E', name: 'Figma' },
+        'github': { primary: '#2DA44E', name: 'GitHub' },
+        'dbt': { primary: '#FF694A', name: 'dbt Labs' }
+      };
+      var preset = { primary: '#FF694A', name: 'Company' };
+      for (var key in presets) {
+        if (urlLower.includes(key)) { preset = presets[key]; break; }
+      }
+      document.documentElement.style.setProperty('--brand-primary', preset.primary);
+      var logo = document.getElementById('client-logo');
+      if (logo) logo.innerHTML = preset.name.slice(0,-1) + '<span>' + preset.name.slice(-1) + '</span>';
+      status.textContent = 'Brand applied: ' + preset.name;
+      status.style.color = '#69F0AE';
+      status.style.fontStyle = 'normal';
+    };
+  }
+
+  var tabBefore = document.getElementById('tab-before');
+  var tabAfter = document.getElementById('tab-after');
+  if (tabBefore) {
+    tabBefore.onclick = function() {
+      document.getElementById('body').classList.remove('after-view');
+      tabBefore.classList.add('active');
+      tabAfter.classList.remove('active');
+    };
+  }
+  if (tabAfter) {
+    tabAfter.onclick = function() {
+      document.getElementById('body').classList.add('after-view');
+      tabAfter.classList.add('active');
+      tabBefore.classList.remove('active');
     };
   }
 </script>
