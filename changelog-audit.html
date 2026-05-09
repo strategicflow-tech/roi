@@ -1055,17 +1055,37 @@ CHANGELOG CONTENT:
 
   // ── EVENT LISTENERS — sicuri su mobile ──
   document.addEventListener('DOMContentLoaded', function() {
-    const runBtn = document.getElementById('runAuditBtn');
+    var runBtn = document.getElementById('runAuditBtn');
+    var status = document.getElementById('scraperStatus');
+
     if (runBtn) {
       runBtn.addEventListener('click', function() {
-        runAuditFromManual();
+        status.textContent = 'BUTTON WORKS - testing...';
+        status.style.color = 'lime';
+        status.style.fontSize = '16px';
+
+        var text = document.getElementById('manualText').value.trim();
+        status.textContent = 'Text length: ' + text.length + ' chars. Sending to Replit...';
+
+        fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: '', text: text })
+        })
+        .then(function(res) {
+          status.textContent = 'Response status: ' + res.status;
+          return res.json();
+        })
+        .then(function(data) {
+          status.textContent = 'SUCCESS: ' + JSON.stringify(data).slice(0, 100);
+        })
+        .catch(function(err) {
+          status.textContent = 'ERROR: ' + err.message;
+          status.style.color = 'red';
+        });
       });
-    }
-    const extractBtn = document.getElementById('extractBrandBtn');
-    if (extractBtn) {
-      extractBtn.addEventListener('click', function() {
-        applyBrand();
-      });
+    } else {
+      document.body.innerHTML += '<div style="background:red;padding:20px;color:white;">runAuditBtn NOT FOUND</div>';
     }
   });
 
