@@ -1,0 +1,140 @@
+Trimite aceste doua prompturi in Replit AI, unul dupa altul:
+
+**Promptul 1 — scoate JS WORKS:**
+
+---
+
+In `changelog-audit.html`, remove these two lines completely:
+
+```html
+<div id="js-test" style="background:red;color:white;padding:20px;font-size:20px;text-align:center;">JS NOT LOADED</div>
+<script>document.getElementById('js-test').textContent = 'JS WORKS';</script>
+```
+
+---
+
+**Promptul 2 — bara de progres:**
+
+---
+
+In `changelog-audit.html`, find the `scraper-status` div and replace it with:
+
+```html
+<div id="scraperStatus" style="font-size:12px;color:rgba(255,255,255,.4);font-style:italic;min-height:16px;">Paste changelog text above and tap Run Audit</div>
+
+<div id="progressWrap" style="display:none;width:100%;margin-top:12px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel">Analyzing...</span>
+    <span style="font-size:13px;font-weight:700;color:#69F0AE;" id="progressPct">0%</span>
+  </div>
+  <div style="width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+    <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#00E676,#69F0AE);border-radius:3px;transition:width 0.4s ease;"></div>
+  </div>
+</div>
+```
+
+Then in the last `<script>` block, find `status.textContent = 'Running audit...';` and replace the entire onclick function body with this:
+
+```javascript
+btn.onclick = function() {
+  var text = document.getElementById('manualText').value.trim();
+  var status = document.getElementById('scraperStatus');
+  var progressWrap = document.getElementById('progressWrap');
+  var progressBar = document.getElementById('progressBar');
+  var progressPct = document.getElementById('progressPct');
+  var progressLabel = document.getElementById('progressLabel');
+
+  if (!text || text.length < 80) {
+    status.textContent = 'Paste more text first.';
+    status.style.color = '#FF6B6B';
+    return;
+  }
+
+  // Show progress bar
+  status.textContent = '';
+  progressWrap.style.display = 'block';
+  btn.textContent = 'Analyzing...';
+  btn.disabled = true;
+
+  // Animate progress
+  var pct = 0;
+  var steps = [
+    { pct: 15, label: 'Reading changelog structure...', time: 300 },
+    { pct: 30, label: 'Identifying bugs...', time: 700 },
+    { pct: 50, label: 'Running Strategic Flow audit...', time: 1200 },
+    { pct: 70, label: 'Rebuilding content...', time: 2000 },
+    { pct: 85, label: 'Generating fixes...', time: 2800 },
+    { pct: 95, label: 'Almost done...', time: 3500 }
+  ];
+
+  steps.forEach(function(step) {
+    setTimeout(function() {
+      progressBar.style.width = step.pct + '%';
+      progressPct.textContent = step.pct + '%';
+      progressLabel.textContent = step.label;
+    }, step.time);
+  });
+
+  var logo = document.getElementById('client-logo');
+  var companyName = logo ? logo.textContent.replace('.','').trim() : 'Company';
+
+  fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: '', text: text })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(audit) {
+    if (audit.error) throw new Error(audit.error);
+
+    // Complete progress
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    progressLabel.textContent = 'Audit complete';
+
+    setTimeout(function() {
+      progressWrap.style.display = 'none';
+      status.textContent = 'Audit complete — ' + (audit.company || companyName);
+      status.style.color = '#69F0AE';
+      status.style.fontStyle = 'normal';
+      status.style.fontWeight = '600';
+    }, 600);
+
+    // Populate template
+    document.getElementById('score-before').textContent = 'Original: ' + (audit.original_score || 2) + '/10';
+    document.getElementById('score-after').textContent = 'Rebuilt: ' + (audit.rebuilt_score || 9) + '/10';
+    if (audit.original_title) document.getElementById('original-title').textContent = audit.original_title;
+    if (audit.rebuilt_title) document.getElementById('rebuilt-title').textContent = audit.rebuilt_title;
+    if (audit.original_lead) document.getElementById('original-lead').textContent = audit.original_lead;
+    if (audit.rebuilt_lead) document.getElementById('rebuilt-lead').textContent = audit.rebuilt_lead;
+    if (audit.entry1_title) document.getElementById('entry1-title').textContent = audit.entry1_title;
+    if (audit.entry1_before) document.getElementById('entry1-before').textContent = audit.entry1_before;
+    if (audit.entry1_after) document.getElementById('entry1-after').textContent = audit.entry1_after;
+    if (audit.stat1_num) document.getElementById('stat1-num').textContent = audit.stat1_num;
+    if (audit.stat1_label) document.getElementById('stat1-label').textContent = audit.stat1_label;
+    if (audit.stat2_num) document.getElementById('stat2-num').textContent = audit.stat2_num;
+    if (audit.stat2_label) document.getElementById('stat2-label').textContent = audit.stat2_label;
+    if (audit.stat3_num) document.getElementById('stat3-num').textContent = audit.stat3_num;
+    if (audit.stat3_label) document.getElementById('stat3-label').textContent = audit.stat3_label;
+    if (audit.cta_before) document.getElementById('cta-before').textContent = audit.cta_before;
+    if (audit.cta_after) document.getElementById('cta-after').textContent = audit.cta_after;
+
+    btn.textContent = 'Run Audit';
+    btn.disabled = false;
+  })
+  .catch(function(err) {
+    progressWrap.style.display = 'none';
+    status.textContent = 'ERROR: ' + err.message;
+    status.style.color = '#FF6B6B';
+    status.style.fontStyle = 'normal';
+    btn.textContent = 'Run Audit';
+    btn.disabled = false;
+  });
+};
+```
+
+Save and publish.
+
+---
+
+Dupa publish testeaza si spune-mi ce apare.
