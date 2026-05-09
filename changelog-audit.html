@@ -395,11 +395,59 @@
     <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#FF694A;margin-bottom:16px;font-family:monospace;">Strategic Flow — Free Audit</div>
     <h2 style="font-size:26px;font-weight:700;color:#fff;margin-bottom:10px;line-height:1.2;">Enter your email to run your free audit</h2>
     <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.6;">One free audit. Full results. No credit card required.</p>
-    <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;"/>
+    <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;-webkit-box-shadow:0 0 0 1000px rgba(10,10,10,.95) inset;-webkit-text-fill-color:#fff;"/>
     <button id="gateSubmitBtn" style="width:100%;padding:14px;background:#FF694A;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;">Run Free Audit</button>
     <p style="font-size:11px;color:rgba(255,255,255,.25);margin-top:12px;font-family:monospace;">No spam. Strategic Flow only.</p>
   </div>
 </div>
+<script>
+  (function() {
+    var gateBtn = document.getElementById('gateSubmitBtn');
+    var gateInput = document.getElementById('gateEmailInput');
+    var gateOverlay = document.getElementById('emailGate');
+    var savedEmail = localStorage.getItem('sf_email');
+    var auditUsed = localStorage.getItem('sf_used_audit');
+    var isAdmin = localStorage.getItem('sf_admin') === 'true';
+    if (savedEmail && auditUsed && !isAdmin) {
+      window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html';
+    } else if (savedEmail) {
+      if (gateOverlay) gateOverlay.style.display = 'none';
+    }
+    if (gateBtn) {
+      gateBtn.onclick = function() {
+        var email = gateInput ? gateInput.value.trim() : '';
+        if (!email || !email.includes('@')) {
+          if (gateInput) gateInput.style.borderColor = '#FF4444';
+          return;
+        }
+        gateBtn.textContent = 'Checking...';
+        gateBtn.disabled = true;
+        fetch('https://strategic-flow-audit.replit.app/changelog-audit/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, source: 'changelog_audit_gate' })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          localStorage.setItem('sf_email', email);
+          var adminEmails = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
+          if (adminEmails.indexOf(email.toLowerCase()) !== -1 || data.allowed) {
+            localStorage.setItem('sf_admin', 'true');
+          }
+          if (gateOverlay) gateOverlay.style.display = 'none';
+          gateBtn.textContent = 'Run Free Audit';
+          gateBtn.disabled = false;
+        })
+        .catch(function() {
+          localStorage.setItem('sf_email', email);
+          if (gateOverlay) gateOverlay.style.display = 'none';
+          gateBtn.textContent = 'Run Free Audit';
+          gateBtn.disabled = false;
+        });
+      };
+    }
+  })();
+</script>
 
 <!-- ── BRAND SCRAPER BAR ── -->
 <div class="scraper-bar" id="scraperBar">
@@ -771,59 +819,6 @@
 
 <script>
 window.addEventListener('load', function() {
-
-  // ── EMAIL GATE ──
-    var gateOverlay = document.getElementById('emailGate');
-    var gateInput = document.getElementById('gateEmailInput');
-    var gateBtn = document.getElementById('gateSubmitBtn');
-
-    var savedEmail = localStorage.getItem('sf_email');
-    var auditUsed = localStorage.getItem('sf_used_audit');
-    var isAdmin = localStorage.getItem('sf_admin') === 'true';
-
-    if (savedEmail && auditUsed && !isAdmin) {
-      window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html';
-      return;
-    } else if (savedEmail) {
-      if (gateOverlay) gateOverlay.style.display = 'none';
-    } else {
-      if (gateOverlay) gateOverlay.style.display = 'flex';
-    }
-
-    if (gateBtn) {
-      gateBtn.onclick = function() {
-        var email = gateInput ? gateInput.value.trim() : '';
-        if (!email || !email.includes('@')) {
-          if (gateInput) gateInput.style.borderColor = '#FF4444';
-          return;
-        }
-        gateBtn.textContent = 'Checking...';
-        gateBtn.disabled = true;
-
-        fetch('/changelog-audit/check-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, source: 'changelog_audit_gate' })
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          localStorage.setItem('sf_email', email);
-          var adminEmails = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
-          if (adminEmails.indexOf(email.toLowerCase()) !== -1 || data.allowed) {
-            localStorage.setItem('sf_admin', 'true');
-          }
-          if (gateOverlay) gateOverlay.style.display = 'none';
-          gateBtn.textContent = 'Run Free Audit';
-          gateBtn.disabled = false;
-        })
-        .catch(function() {
-          localStorage.setItem('sf_email', email);
-          if (gateOverlay) gateOverlay.style.display = 'none';
-          gateBtn.textContent = 'Run Free Audit';
-          gateBtn.disabled = false;
-        });
-      };
-    }
 
   /* ═══════════════════════════════════════════════
      STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
