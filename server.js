@@ -4376,6 +4376,17 @@ app.post('/changelog-audit/check-email', async (req, res) => {
       [email, allowed]
     );
 
+    if (!allowed) {
+      const source = (req.body.source || 'audit_gate').replace(/[<>]/g, '');
+      const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      resend.emails.send({
+        from: 'Strategic Flow <onboarding@resend.dev>',
+        to: 'strategicflow@proton.me',
+        subject: `New audit lead — ${email} via ${source}`,
+        text: `New lead captured:\n\nEmail: ${email}\nSource: ${source}\nDate: ${dateStr}\nTier: free\n\nAction needed: send pitch within 24h.`
+      }).catch(err => console.error('[lead-notify]', err.message));
+    }
+
     return res.json({ allowed, tier });
   } catch (e) {
     console.error('[changelog-audit/check-email]', e.message);
