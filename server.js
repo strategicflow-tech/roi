@@ -4461,18 +4461,7 @@ app.post('/changelog-audit', async (req, res) => {
 // ─── END CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────
 
 // ─── ONBOARDING AUDIT ENDPOINT ────────────────────────────────────────────────
-const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Audit engine. You analyze SaaS onboarding copy — welcome screens, setup steps, tooltips, empty states, CTAs, error messages — and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
-
-Use the same JSON schema as /changelog-audit.
-
-The 7 bugs to diagnose:
-1. Welcome Screen Without Consequence — announces product not what user can do in next 2 minutes
-2. Progress Indicator Absent or Useless — no progress bar, or shows Step X of Y without naming the end reward
-3. Generic CTA on Every Screen — buttons say Next/Continue/Skip instead of naming the specific action and result
-4. Empty State Without Direction — first screen after setup is passive, user does not know what to do
-5. Feature Explanation Instead of Outcome — tooltips explain what the feature does technically not what user can do with it
-6. Too Many Steps Before First Value — user completes 4+ screens before seeing anything concrete, no quick win
-7. Invisible Microcopy — labels, placeholders, error messages are generic or missing`;
+const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Audit engine. Analyze SaaS onboarding copy and return ONLY a valid JSON object. No markdown, no backticks, no explanation. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10. Diagnose these 7 bugs: 1.Welcome Without Consequence 2.Useless Progress Indicator 3.Generic CTA 4.Empty State Without Direction 5.Feature Not Outcome 6.Too Many Steps Before Value 7.Invisible Microcopy.`;
 
 app.get('/onboarding-audit-page', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
@@ -4540,14 +4529,16 @@ app.post('/onboarding-audit', async (req, res) => {
       messages: [{ role: 'user', content: `Analyze this SaaS onboarding copy:\n\n${content.slice(0, 8000)}` }],
     });
 
-    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
-    const result = safeParseJSON(raw);
-    if (!result) {
-      console.error('[onboarding-audit] JSON parse failed. Raw:', raw.slice(0, 300));
-      return res.status(500).json({ error: 'Claude returned invalid JSON' });
+    const raw = response.content[0].text;
+    const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    try {
+      const result = JSON.parse(clean);
+      console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
+      res.json(result);
+    } catch(e) {
+      console.log('[onboarding-audit] JSON parse error. Raw response:', raw.slice(0, 500));
+      res.status(500).json({ error: 'Claude returned invalid JSON', raw: raw.slice(0, 200) });
     }
-    console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
-    res.json(result);
   } catch (err) {
     console.error('[onboarding-audit] Claude error:', err.message);
     res.status(500).json({ error: err.message });
