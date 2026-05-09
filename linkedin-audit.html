@@ -551,8 +551,8 @@
     <span>Blog</span>
   </div>
   <div class="nav-right">
-    <button class="btn btn-ghost">Log in</button>
-    <button class="btn btn-primary">Get started</button>
+    <button class="btn btn-ghost" onclick="window.location.href='https://strategic-flow-audit.replit.app/login.html'">Log in</button>
+    <button class="btn btn-primary" onclick="window.location.href='https://strategicflow-tech.github.io/showcase/enterprise.html'">Get started</button>
   </div>
 </nav>
 
@@ -962,11 +962,57 @@ document.querySelectorAll('.wc-a').forEach(function(el){el.textContent='';});
       status.textContent = 'Audit complete — ' + audit.company + ' · Score: ' + audit.original_score + ' → ' + audit.rebuilt_score;
       btn.textContent = 'Re-run Audit';
       btn.disabled = false;
-      if (!localStorage.getItem('sf_admin')) localStorage.setItem('sf_used_audit', 'true');
-      var dg = document.getElementById('downloadGate');
-      if (dg) dg.style.display = 'block';
       var elTitle = document.querySelector('.article-title');
       if (elTitle) elTitle.style.visibility = 'visible';
+      var downloadGate = document.getElementById('downloadGate');
+      if (downloadGate) downloadGate.style.display = 'block';
+      var downloadBtn = document.getElementById('downloadBtn');
+      if (downloadBtn) {
+        downloadBtn.onclick = function() {
+          var email = document.getElementById('downloadEmail').value.trim();
+          var dlStatus = document.getElementById('downloadStatus');
+          if (!email || !email.includes('@')) {
+            dlStatus.textContent = 'Enter a valid email.';
+            dlStatus.style.color = '#FF6B6B';
+            return;
+          }
+          dlStatus.textContent = 'Checking access...';
+          fetch('https://strategic-flow-audit.replit.app/changelog-audit/check-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+          })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data.allowed) {
+              dlStatus.textContent = 'Access confirmed. Downloading...';
+              dlStatus.style.color = '#69F0AE';
+              var content = document.documentElement.outerHTML;
+              var blob = new Blob([content], { type: 'text/html' });
+              var url = URL.createObjectURL(blob);
+              var a = document.createElement('a');
+              a.href = url;
+              a.download = 'strategic-flow-linkedin-audit.html';
+              a.click();
+              URL.revokeObjectURL(url);
+            } else {
+              dlStatus.innerHTML = 'Download included in Architecture. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:#FF694A;font-weight:700;">Book access →</a>';
+            }
+          })
+          .catch(function() {
+            dlStatus.textContent = 'Error. Try again.';
+            dlStatus.style.color = '#FF6B6B';
+          });
+        };
+      }
+      if (!localStorage.getItem('sf_admin')) {
+        localStorage.setItem('sf_used_audit', 'true');
+        var usedBanner = document.createElement('div');
+        usedBanner.style.cssText = 'background:rgba(255,92,53,.1);border:1px solid rgba(255,92,53,.3);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5;';
+        usedBanner.innerHTML = 'You have used your free audit. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:#FF694A;font-weight:700;">Get unlimited access via Architecture \u2192</a>';
+        var scraperBar = document.getElementById('scraperBar');
+        if (scraperBar) scraperBar.appendChild(usedBanner);
+      }
 
     } catch (err) {
       const errMsg = err.message || String(err);
