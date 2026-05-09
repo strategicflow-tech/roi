@@ -1175,6 +1175,12 @@ CHANGELOG CONTENT:
         if (audit.cta_before) document.getElementById('cta-before').textContent = audit.cta_before;
         if (audit.cta_after) document.getElementById('cta-after').textContent = audit.cta_after;
 
+        // Hero image — populate with company name
+        var heroBlock = document.getElementById('hero-block');
+        if (heroBlock) {
+          heroBlock.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border-radius:8px;"><span style="font-size:18px;font-weight:700;color:rgba(0,0,0,.25);letter-spacing:.05em;text-transform:uppercase;">' + (audit.company || 'Company') + ' — Changelog Audit</span></div>';
+        }
+
         btn.textContent = 'Run Audit';
         btn.disabled = false;
       })
