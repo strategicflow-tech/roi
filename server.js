@@ -4460,6 +4460,101 @@ app.post('/changelog-audit', async (req, res) => {
 });
 // ─── END CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────
 
+// ─── ONBOARDING AUDIT ENDPOINT ────────────────────────────────────────────────
+const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Audit engine. You analyze SaaS onboarding copy — welcome screens, setup steps, tooltips, empty states, CTAs, error messages — and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
+
+Use the same JSON schema as /changelog-audit.
+
+The 7 bugs to diagnose:
+1. Welcome Screen Without Consequence — announces product not what user can do in next 2 minutes
+2. Progress Indicator Absent or Useless — no progress bar, or shows Step X of Y without naming the end reward
+3. Generic CTA on Every Screen — buttons say Next/Continue/Skip instead of naming the specific action and result
+4. Empty State Without Direction — first screen after setup is passive, user does not know what to do
+5. Feature Explanation Instead of Outcome — tooltips explain what the feature does technically not what user can do with it
+6. Too Many Steps Before First Value — user completes 4+ screens before seeing anything concrete, no quick win
+7. Invisible Microcopy — labels, placeholders, error messages are generic or missing`;
+
+app.get('/onboarding-audit-page', (req, res) => {
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'onboarding-audit.html'));
+});
+
+app.options('/onboarding-audit', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
+app.post('/onboarding-audit', async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
+  }
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  console.log('ONBOARDING AUDIT HIT - body:', JSON.stringify(req.body));
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.json({ error: 'No body received', received: req.body });
+  }
+  const { url, text: rawText } = req.body;
+  if (!rawText || rawText.length < 50) {
+    return res.status(400).json({ error: 'No text provided' });
+  }
+
+  let content = rawText.trim();
+
+  if (content.length < 100 && url) {
+    console.log('[onboarding-audit] text too short, fetching URL:', url);
+    try {
+      const page = await fetchWithCache(url);
+      if (page && page.text && page.text.length >= 100) {
+        content = [
+          page.title ? `Title: ${page.title}` : '',
+          page.meta  ? `Description: ${page.meta}` : '',
+          page.text,
+        ].filter(Boolean).join('\n\n');
+        console.log('[onboarding-audit] fetched content length:', content.length);
+      }
+    } catch (fetchErr) {
+      console.error('[onboarding-audit] fetch failed:', fetchErr.message);
+    }
+  }
+
+  if (content.length < 100 && url) {
+    const errBody = { error: 'Could not fetch URL content. The site may be blocking automated requests.' };
+    console.log('[onboarding-audit] response (422):', JSON.stringify(errBody));
+    return res.status(422).json(errBody);
+  }
+
+  try {
+    const response = await claude.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: ONBOARDING_AUDIT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Analyze this SaaS onboarding copy:\n\n${content.slice(0, 8000)}` }],
+    });
+
+    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const result = safeParseJSON(raw);
+    if (!result) {
+      console.error('[onboarding-audit] JSON parse failed. Raw:', raw.slice(0, 300));
+      return res.status(500).json({ error: 'Claude returned invalid JSON' });
+    }
+    console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
+    res.json(result);
+  } catch (err) {
+    console.error('[onboarding-audit] Claude error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END ONBOARDING AUDIT ENDPOINT ───────────────────────────────────────────
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
