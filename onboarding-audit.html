@@ -901,6 +901,16 @@ window.onload = function() {
           if (el && ids[id]) el.textContent = ids[id];
         }
 
+        var sbBefore = document.getElementById('sb-score-before');
+        var sbAfter = document.getElementById('sb-score-after');
+        if (sbBefore) sbBefore.textContent = (audit.original_score || 2) + ' / 10';
+        if (sbAfter) sbAfter.textContent = (audit.rebuilt_score || 9) + ' / 10';
+
+        var barBefore = document.getElementById('bar-before');
+        var barAfter = document.getElementById('bar-after');
+        if (barBefore) barBefore.style.width = ((audit.original_score || 2) * 10) + '%';
+        if (barAfter) barAfter.style.width = ((audit.rebuilt_score || 9) * 10) + '%';
+
         if (audit.bugs && audit.bugs.length) {
           var bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
           audit.bugs.forEach(function(bug, i) {
