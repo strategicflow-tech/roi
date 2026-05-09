@@ -780,33 +780,58 @@
   })();
 
 window.onload = function() {
-  // ── EMAIL GATE — show/hide + submit wiring ──
-  (function(){
-    var ADMIN = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
-    var storedEmail = localStorage.getItem('sf_email');
-    var gate = document.getElementById('emailGate');
-    if (storedEmail) { if (gate) gate.style.display = 'none'; }
-    else {
-      var submitBtn = document.getElementById('gateSubmitBtn');
-      var emailInput = document.getElementById('gateEmailInput');
-      if (submitBtn && emailInput) {
-        function gateSubmit() {
-          var val = emailInput.value.trim();
-          if (!val || val.indexOf('@') < 0) { emailInput.focus(); return; }
-          localStorage.setItem('sf_email', val);
-          if (ADMIN.indexOf(val.toLowerCase()) !== -1) localStorage.setItem('sf_admin', 'true');
-          if (gate) gate.style.display = 'none';
-          fetch('/changelog-audit/check-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: val, source: 'audit_gate' })
-          }).catch(function(){});
-        }
-        submitBtn.addEventListener('click', gateSubmit);
-        emailInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') gateSubmit(); });
+  // ── EMAIL GATE ──
+  var gateOverlay = document.getElementById('emailGate');
+  var gateInput = document.getElementById('gateEmailInput');
+  var gateBtn = document.getElementById('gateSubmitBtn');
+
+  var savedEmail = localStorage.getItem('sf_email');
+  var auditUsed = localStorage.getItem('sf_used_audit');
+  var isAdmin = localStorage.getItem('sf_admin') === 'true';
+
+  if (savedEmail && auditUsed && !isAdmin) {
+    window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html';
+    return;
+  } else if (savedEmail) {
+    if (gateOverlay) gateOverlay.style.display = 'none';
+  } else {
+    if (gateOverlay) gateOverlay.style.display = 'flex';
+  }
+
+  if (gateBtn) {
+    gateBtn.onclick = function() {
+      var email = gateInput ? gateInput.value.trim() : '';
+      if (!email || !email.includes('@')) {
+        if (gateInput) gateInput.style.borderColor = '#FF4444';
+        return;
       }
-    }
-  })();
+      gateBtn.textContent = 'Checking...';
+      gateBtn.disabled = true;
+
+      fetch('/changelog-audit/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, source: 'onboarding_audit_gate' })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        localStorage.setItem('sf_email', email);
+        var adminEmails = ['strategicflow@proton.me', 'consultantcalatorii@gmail.com'];
+        if (adminEmails.indexOf(email.toLowerCase()) !== -1 || data.allowed) {
+          localStorage.setItem('sf_admin', 'true');
+        }
+        if (gateOverlay) gateOverlay.style.display = 'none';
+        gateBtn.textContent = 'Run Free Audit';
+        gateBtn.disabled = false;
+      })
+      .catch(function() {
+        localStorage.setItem('sf_email', email);
+        if (gateOverlay) gateOverlay.style.display = 'none';
+        gateBtn.textContent = 'Run Free Audit';
+        gateBtn.disabled = false;
+      });
+    };
+  }
 
   var btn = document.getElementById('runAuditBtn');
   var extractBtn = document.getElementById('extractBrandBtn');
