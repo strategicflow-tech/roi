@@ -406,11 +406,8 @@
     var gateInput = document.getElementById('gateEmailInput');
     var gateOverlay = document.getElementById('emailGate');
     var savedEmail = localStorage.getItem('sf_email');
-    var auditUsed = localStorage.getItem('sf_used_audit');
     var isAdmin = localStorage.getItem('sf_admin') === 'true';
-    if (savedEmail && auditUsed && !isAdmin) {
-      window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html';
-    } else if (savedEmail) {
+    if (savedEmail) {
       if (gateOverlay) gateOverlay.style.display = 'none';
     }
     if (gateBtn) {
@@ -1067,7 +1064,14 @@ window.addEventListener('load', function() {
           };
         }
 
-        if (!localStorage.getItem('sf_admin')) localStorage.setItem('sf_used_audit', 'true');
+        if (!localStorage.getItem('sf_admin')) {
+          localStorage.setItem('sf_used_audit', 'true');
+          var usedBanner = document.createElement('div');
+          usedBanner.style.cssText = 'background:rgba(255,92,53,.1);border:1px solid rgba(255,92,53,.3);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5;';
+          usedBanner.innerHTML = 'You have used your free audit. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:#FF694A;font-weight:700;">Get unlimited access via Architecture \u2192</a>';
+          var scraperBar = document.getElementById('scraperBar');
+          if (scraperBar) scraperBar.appendChild(usedBanner);
+        }
         btn.textContent = 'Run Audit';
         btn.disabled = false;
       })
