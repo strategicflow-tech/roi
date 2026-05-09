@@ -761,12 +761,253 @@
 
 <script>
 window.onload = function() {
-  document.body.style.border = '5px solid red';
   var btn = document.getElementById('runAuditBtn');
+  var extractBtn = document.getElementById('extractBrandBtn');
+  var tabBefore = document.getElementById('tab-before');
+  var tabAfter = document.getElementById('tab-after');
+
+  if (tabBefore) {
+    tabBefore.onclick = function() {
+      document.getElementById('body').classList.remove('after-view');
+      tabBefore.classList.add('active');
+      tabAfter.classList.remove('active');
+    };
+  }
+  if (tabAfter) {
+    tabAfter.onclick = function() {
+      document.getElementById('body').classList.add('after-view');
+      tabAfter.classList.add('active');
+      tabBefore.classList.remove('active');
+    };
+  }
+
+  var loginBtn = document.querySelector('.btn-ghost');
+  var startBtn = document.querySelector('.btn-primary');
+  if (loginBtn) loginBtn.onclick = function() { window.location.href = 'https://strategic-flow-audit.replit.app/login.html'; };
+  if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; };
+
+  if (extractBtn) {
+    extractBtn.onclick = function() {
+      var urlRaw = document.getElementById('brandUrl').value.trim();
+      var status = document.getElementById('scraperStatus');
+      if (!urlRaw) { status.textContent = 'Paste a URL first.'; return; }
+      var url = urlRaw.startsWith('http') ? urlRaw : 'https://' + urlRaw;
+      var urlLower = url.toLowerCase();
+      var presets = {
+        'linear': { primary: '#5E6AD2', name: 'Linear' },
+        'notion': { primary: '#000000', name: 'Notion' },
+        'vercel': { primary: '#000000', name: 'Vercel' },
+        'stripe': { primary: '#635BFF', name: 'Stripe' },
+        'loom': { primary: '#625DF5', name: 'Loom' },
+        'intercom': { primary: '#1F8EED', name: 'Intercom' },
+        'figma': { primary: '#F24E1E', name: 'Figma' },
+        'github': { primary: '#2DA44E', name: 'GitHub' },
+        'dbt': { primary: '#FF694A', name: 'dbt Labs' }
+      };
+      var preset = { primary: '#FF694A', name: 'Company' };
+      for (var key in presets) {
+        if (urlLower.includes(key)) { preset = presets[key]; break; }
+      }
+      document.documentElement.style.setProperty('--brand-primary', preset.primary);
+      var logo = document.getElementById('client-logo');
+      if (logo) logo.innerHTML = preset.name.slice(0,-1) + '<span>' + preset.name.slice(-1) + '</span>';
+      status.textContent = 'Brand applied: ' + preset.name;
+      status.style.color = '#69F0AE';
+      status.style.fontStyle = 'normal';
+    };
+  }
+
   if (btn) {
-    btn.style.background = 'blue';
     btn.onclick = function() {
-      alert('WORKING');
+      var text = document.getElementById('manualText').value.trim();
+      var status = document.getElementById('scraperStatus');
+      var progressWrap = document.getElementById('progressWrap');
+      var progressBar = document.getElementById('progressBar');
+      var progressPct = document.getElementById('progressPct');
+      var progressLabel = document.getElementById('progressLabel');
+
+      if (!text || text.length < 80) {
+        status.textContent = 'Paste more onboarding copy first.';
+        status.style.color = '#FF6B6B';
+        return;
+      }
+
+      status.textContent = '';
+      if (progressWrap) progressWrap.style.display = 'block';
+      btn.textContent = 'Analyzing...';
+      btn.disabled = true;
+
+      var steps = [
+        { pct: 15, label: 'Reading onboarding structure...', time: 300 },
+        { pct: 30, label: 'Identifying UX copy bugs...', time: 700 },
+        { pct: 50, label: 'Running Strategic Flow audit...', time: 1200 },
+        { pct: 70, label: 'Rebuilding copy...', time: 2000 },
+        { pct: 85, label: 'Generating fixes...', time: 2800 },
+        { pct: 95, label: 'Almost done...', time: 3500 }
+      ];
+      steps.forEach(function(step) {
+        setTimeout(function() {
+          if (progressBar) progressBar.style.width = step.pct + '%';
+          if (progressPct) progressPct.textContent = step.pct + '%';
+          if (progressLabel) progressLabel.textContent = step.label;
+        }, step.time);
+      });
+
+      var logo = document.getElementById('client-logo');
+      var companyName = logo ? logo.textContent.replace('.','').trim() : 'Company';
+
+      fetch('https://strategic-flow-audit.replit.app/onboarding-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: '', text: text })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(audit) {
+        if (audit.error) throw new Error(audit.error);
+
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressPct) progressPct.textContent = '100%';
+        if (progressLabel) progressLabel.textContent = 'Audit complete';
+
+        setTimeout(function() {
+          if (progressWrap) progressWrap.style.display = 'none';
+          status.textContent = 'Audit complete — ' + (audit.company || companyName) + ' · Score: ' + (audit.original_score || '?') + ' → ' + (audit.rebuilt_score || '?');
+          status.style.color = '#69F0AE';
+          status.style.fontStyle = 'normal';
+          status.style.fontWeight = '600';
+        }, 600);
+
+        var ids = {
+          'score-before': 'Original: ' + (audit.original_score || 2) + '/10',
+          'score-after': 'Rebuilt: ' + (audit.rebuilt_score || 9) + '/10',
+          'original-title': audit.original_title,
+          'rebuilt-title': audit.rebuilt_title,
+          'original-lead': audit.original_lead,
+          'rebuilt-lead': audit.rebuilt_lead,
+          'entry1-title': audit.entry1_title,
+          'entry1-before': audit.entry1_before,
+          'entry1-after': audit.entry1_after,
+          'stat1-num': audit.stat1_num,
+          'stat1-label': audit.stat1_label,
+          'stat2-num': audit.stat2_num,
+          'stat2-label': audit.stat2_label,
+          'stat3-num': audit.stat3_num,
+          'stat3-label': audit.stat3_label,
+          'cta-before': audit.cta_before,
+          'cta-after': audit.cta_after
+        };
+        for (var id in ids) {
+          var el = document.getElementById(id);
+          if (el && ids[id]) el.textContent = ids[id];
+        }
+
+        if (audit.bugs && audit.bugs.length) {
+          var bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
+          audit.bugs.forEach(function(bug, i) {
+            if (bugCards[i]) {
+              var t = bugCards[i].querySelector('.ann-title');
+              var b = bugCards[i].querySelector('.ann-body');
+              if (t) t.textContent = bug.title;
+              if (b) b.textContent = bug.body;
+            }
+          });
+        }
+
+        if (audit.fixes && audit.fixes.length) {
+          var fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
+          audit.fixes.forEach(function(fix, i) {
+            if (fixCards[i]) {
+              var t = fixCards[i].querySelector('.ann-title');
+              var b = fixCards[i].querySelector('.ann-body');
+              if (t) t.textContent = fix.title;
+              if (b) b.textContent = fix.body;
+            }
+          });
+        }
+
+        if (audit.wc && audit.wc.length) {
+          var wcRows = document.querySelectorAll('.wc-row');
+          audit.wc.forEach(function(item, i) {
+            if (wcRows[i]) {
+              var f = wcRows[i].querySelector('.wc-fix');
+              var bEl = wcRows[i].querySelector('.wc-b');
+              var aEl = wcRows[i].querySelector('.wc-a');
+              if (f) f.innerHTML = item.fix.replace('\n','<br>');
+              if (bEl) bEl.textContent = item.before;
+              if (aEl) aEl.textContent = item.after;
+            }
+          });
+        }
+
+        var heroBlock = document.getElementById('hero-block');
+        if (heroBlock) {
+          var domain = '';
+          try {
+            var urlInput = document.getElementById('brandUrl').value.trim();
+            if (urlInput) {
+              var fullUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
+              domain = new URL(fullUrl).hostname;
+            }
+          } catch(e) {}
+          if (domain) {
+            var faviconUrl = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=128';
+            heroBlock.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:8px;"><img src="' + faviconUrl + '" style="width:64px;height:64px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);" onerror="this.style.display:none"><span style="font-size:13px;font-weight:600;color:rgba(0,0,0,.4);letter-spacing:.08em;text-transform:uppercase;">' + (audit.company || companyName) + ' Onboarding Audit</span></div>';
+          }
+        }
+
+        var downloadGate = document.getElementById('downloadGate');
+        if (downloadGate) downloadGate.style.display = 'block';
+
+        var downloadBtn = document.getElementById('downloadBtn');
+        if (downloadBtn) {
+          downloadBtn.onclick = function() {
+            var email = document.getElementById('downloadEmail').value.trim();
+            var dlStatus = document.getElementById('downloadStatus');
+            if (!email || !email.includes('@')) {
+              dlStatus.textContent = 'Enter a valid email.';
+              dlStatus.style.color = '#FF6B6B';
+              return;
+            }
+            dlStatus.textContent = 'Checking access...';
+            fetch('https://strategic-flow-audit.replit.app/changelog-audit/check-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: email })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+              if (data.allowed) {
+                dlStatus.textContent = 'Access confirmed. Downloading...';
+                dlStatus.style.color = '#69F0AE';
+                var content = document.documentElement.outerHTML;
+                var blob = new Blob([content], { type: 'text/html' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'strategic-flow-onboarding-audit.html';
+                a.click();
+                URL.revokeObjectURL(url);
+              } else {
+                dlStatus.innerHTML = 'Download included in Architecture. <a href="mailto:strategicflow@proton.me" style="color:#FF694A;font-weight:700;">Book access</a>';
+              }
+            })
+            .catch(function() {
+              dlStatus.textContent = 'Error. Try again.';
+              dlStatus.style.color = '#FF6B6B';
+            });
+          };
+        }
+
+        btn.textContent = 'Run Audit';
+        btn.disabled = false;
+      })
+      .catch(function(err) {
+        if (progressWrap) progressWrap.style.display = 'none';
+        status.textContent = 'ERROR: ' + err.message;
+        status.style.color = '#FF6B6B';
+        btn.textContent = 'Run Audit';
+        btn.disabled = false;
+      });
     };
   }
 };
