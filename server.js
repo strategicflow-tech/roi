@@ -4330,6 +4330,10 @@ app.get('/changelog-audit-test', (req, res) => {
   res.json({ status: 'ok', message: 'changelog audit endpoint is live' });
 });
 
+app.get('/clear-test', (req, res) => {
+  res.send('<!DOCTYPE html><html><body><script>localStorage.clear();window.location.href="/changelog-audit-page";</script></body></html>');
+});
+
 app.get('/changelog-audit-page', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
   res.setHeader('Cache-Control', 'no-cache');
