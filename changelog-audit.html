@@ -882,33 +882,10 @@ window.addEventListener('load', function() {
     status.textContent = 'Brand applied: ' + preset.name + ' — now paste the changelog text in Step 2 and tap Run Audit.';
   }
 
-  // ── FALLBACK manual — nu mai e fallback, e fluxul principal ──
-  async function runAuditFromManual() {
-    const text = document.getElementById('manualText').value.trim();
-    const status = document.getElementById('scraperStatus');
-
-    if (!text || text.length < 80) {
-      status.textContent = 'Paste more text — need at least a title and a few entries.';
-      return;
-    }
-
-    const companyName = document.getElementById('client-logo').textContent.replace('.','').trim() || 'Company';
-    status.textContent = 'Running Strategic Flow audit...';
-    status.style.color = '#69F0AE';
-    status.style.fontStyle = 'normal';
-    const btn = document.getElementById('runAuditBtn');
-    if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
-
-    await runAudit(text, '', companyName);
-
-    if (btn) { btn.textContent = 'Run Audit'; btn.disabled = false; }
-  }
-
-  
   // ── STEP 2: CLAUDE API AUDIT ──
   async function runAudit(pageText, sourceUrl, companyName) {
     const status = document.getElementById('scraperStatus');
-    const btn = document.querySelector('.scraper-btn');
+    const btn = document.getElementById('runAuditBtn');
 
     const SYSTEM_PROMPT = \`You are the Strategic Flow Changelog Audit engine.
 You analyze SaaS changelog pages and apply the Strategic Flow Method: 7 structural bug diagnostics + full rebuild.
