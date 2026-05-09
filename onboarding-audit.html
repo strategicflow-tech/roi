@@ -1063,17 +1063,28 @@ window.addEventListener('load', function() {
         var heroBlock = document.getElementById('hero-block');
         if (heroBlock) {
           var domain = '';
+          var companyForHero = audit.company || companyName || 'Company';
           try {
-            var urlInput = document.getElementById('brandUrl').value.trim();
-            if (urlInput) {
-              var fullUrl = urlInput.startsWith('http') ? urlInput : 'https://' + urlInput;
-              domain = new URL(fullUrl).hostname;
+            var urlInput = document.getElementById('brandUrl');
+            if (urlInput && urlInput.value.trim()) {
+              var fullUrl = urlInput.value.trim();
+              if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
+              domain = new URL(fullUrl).hostname.replace('www.','');
             }
           } catch(e) {}
-          if (domain) {
-            var faviconUrl = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=128';
-            heroBlock.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:8px;"><img src="' + faviconUrl + '" style="width:64px;height:64px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);" onerror="this.style.display:none"><span style="font-size:13px;font-weight:600;color:rgba(0,0,0,.4);letter-spacing:.08em;text-transform:uppercase;">' + (audit.company || companyName) + ' Onboarding Audit</span></div>';
-          }
+          var logoUrl = domain
+            ? 'https://logo.clearbit.com/' + domain
+            : 'https://www.google.com/s2/favicons?domain=' + companyForHero.toLowerCase().replace(' ','.') + '.com&sz=128';
+          heroBlock.innerHTML =
+            '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);border-radius:8px;padding:24px;">' +
+            '<img src="' + logoUrl + '" ' +
+            'style="width:80px;height:80px;object-fit:contain;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);" ' +
+            'onerror="this.src=\'https://www.google.com/s2/favicons?domain=' + domain + '&sz=128\'">' +
+            '<div style="text-align:center;">' +
+            '<div style="font-size:18px;font-weight:700;color:#111;margin-bottom:4px;">' + companyForHero + '</div>' +
+            '<div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#999;">Strategic Flow Audit</div>' +
+            '</div>' +
+            '</div>';
         }
 
         var downloadGate = document.getElementById('downloadGate');
