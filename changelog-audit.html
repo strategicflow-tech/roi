@@ -880,6 +880,22 @@ document.getElementById('runAuditBtn').onclick = function() {
   status.style.color = 'lime';
   this.disabled = true;
   this.textContent = 'Analyzing...';
+  var progressWrap=document.getElementById('progressWrap');
+  var progressBar=document.getElementById('progressBar');
+  var progressPct=document.getElementById('progressPct');
+  var progressLabel=document.getElementById('progressLabel');
+  if(progressWrap)progressWrap.style.display='block';
+  var steps=[
+    {pct:10,label:'Reading changelog structure...',time:200},
+    {pct:25,label:'Identifying filing labels...',time:600},
+    {pct:40,label:'Checking CTA strength...',time:1100},
+    {pct:55,label:'Diagnosing hierarchy...',time:1600},
+    {pct:70,label:'Running Strategic Flow audit...',time:2200},
+    {pct:82,label:'Rebuilding entries...',time:2800},
+    {pct:91,label:'Generating stat cards...',time:3400},
+    {pct:96,label:'Almost done...',time:3900}
+  ];
+  steps.forEach(function(step){setTimeout(function(){if(progressBar)progressBar.style.width=step.pct+'%';if(progressPct)progressPct.textContent=step.pct+'%';if(progressLabel)progressLabel.textContent=step.label;},step.time);});
   fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -887,6 +903,10 @@ document.getElementById('runAuditBtn').onclick = function() {
   })
   .then(function(r){return r.json();})
   .then(function(a){
+    if(progressBar)progressBar.style.width='100%';
+    if(progressPct)progressPct.textContent='100%';
+    if(progressLabel)progressLabel.textContent='Audit complete';
+    setTimeout(function(){if(progressWrap)progressWrap.style.display='none';},800);
     status.textContent = 'Done: ' + (a.company||'?') + ' ' + (a.original_score||'?') + '->' + (a.rebuilt_score||'?');
     document.getElementById('runAuditBtn').textContent = 'Run Audit';
     document.getElementById('runAuditBtn').disabled = false;

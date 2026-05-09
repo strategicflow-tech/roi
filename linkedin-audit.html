@@ -488,6 +488,16 @@
 
   <div class="scraper-status" id="scraperStatus">Paste LinkedIn post above and tap Run Audit</div>
 
+  <div id="progressWrap" style="display:none;width:100%;margin-top:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel">Analyzing...</span>
+      <span style="font-size:13px;font-weight:700;color:#00E676;" id="progressPct">0%</span>
+    </div>
+    <div style="width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+      <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#00E676,#69F0AE);border-radius:3px;transition:width 0.4s ease;"></div>
+    </div>
+  </div>
+
   <div id="downloadGate" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,.1);padding-top:16px;">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:8px;">Download the full teardown HTML</div>
     <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:12px;">Enter your email to download. Architecture clients get instant access.</div>
@@ -904,6 +914,23 @@ document.querySelectorAll('.wc-a').forEach(function(el){el.textContent='';});
     const btn = document.getElementById('runAuditBtn');
     if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
 
+    var progressWrap=document.getElementById('progressWrap');
+    var progressBar=document.getElementById('progressBar');
+    var progressPct=document.getElementById('progressPct');
+    var progressLabel=document.getElementById('progressLabel');
+    if(progressWrap)progressWrap.style.display='block';
+    var liSteps=[
+      {pct:10,label:'Reading post structure...',time:200},
+      {pct:25,label:'Analyzing hook strength...',time:600},
+      {pct:40,label:'Checking specificity and proof...',time:1100},
+      {pct:55,label:'Diagnosing audience signal...',time:1600},
+      {pct:70,label:'Running Strategic Flow audit...',time:2200},
+      {pct:82,label:'Rebuilding post copy...',time:2800},
+      {pct:91,label:'Generating 3 hook variants...',time:3400},
+      {pct:96,label:'Almost done...',time:3900}
+    ];
+    liSteps.forEach(function(step){setTimeout(function(){if(progressBar)progressBar.style.width=step.pct+'%';if(progressPct)progressPct.textContent=step.pct+'%';if(progressLabel)progressLabel.textContent=step.label;},step.time);});
+
     await runAudit(text, '', companyName);
 
     if (btn) { btn.textContent = 'Run Audit'; btn.disabled = false; }
@@ -945,6 +972,14 @@ document.querySelectorAll('.wc-a').forEach(function(el){el.textContent='';});
       auditData = audit;
       populateTemplate(audit);
 
+      var _pw=document.getElementById('progressWrap');
+      var _pb=document.getElementById('progressBar');
+      var _pp=document.getElementById('progressPct');
+      var _pl=document.getElementById('progressLabel');
+      if(_pb)_pb.style.width='100%';
+      if(_pp)_pp.textContent='100%';
+      if(_pl)_pl.textContent='Audit complete';
+      setTimeout(function(){if(_pw)_pw.style.display='none';},800);
       status.textContent = 'Audit complete — ' + audit.company + ' · Score: ' + audit.original_score + ' → ' + audit.rebuilt_score;
       btn.textContent = 'Re-run Audit';
       btn.disabled = false;
