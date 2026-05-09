@@ -4562,6 +4562,101 @@ app.post('/onboarding-audit', async (req, res) => {
 });
 // ─── END ONBOARDING AUDIT ENDPOINT ───────────────────────────────────────────
 
+// ─── LINKEDIN AUDIT ENDPOINT ──────────────────────────────────────────────────
+const LINKEDIN_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow LinkedIn Post Audit engine. Analyze SaaS LinkedIn posts and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
+
+Use the same JSON schema as /changelog-audit. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10.
+
+The 7 bugs:
+1. Hook Without Consequence — first line announces feature or company, not reader's operational problem
+2. Feature-First Body — describes what product does technically, not what user no longer has to do
+3. Zero Specificity — no numbers, no benchmarks, no concrete verifiable claims
+4. Wall of Text — paragraphs too long, no white space, no rhythm
+5. Absent or Generic CTA — no clear direction or "Link in comments" without context
+6. No Proof No Stakes — no real client, no impact number, no consequence of not acting
+7. Wrong Audience Signal — written for everyone, ideal reader does not recognize themselves`;
+
+app.get('/linkedin-audit-page', (req, res) => {
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'linkedin-audit.html'));
+});
+
+app.options('/linkedin-audit', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
+app.post('/linkedin-audit', async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send('');
+    return;
+  }
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  console.log('LINKEDIN AUDIT HIT - body:', JSON.stringify(req.body));
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.json({ error: 'No body received', received: req.body });
+  }
+  const { url, text: rawText } = req.body;
+  if (!rawText || rawText.length < 50) {
+    return res.status(400).json({ error: 'No text provided' });
+  }
+
+  let content = rawText.trim();
+
+  if (content.length < 100 && url) {
+    console.log('[linkedin-audit] text too short, fetching URL:', url);
+    try {
+      const page = await fetchWithCache(url);
+      if (page && page.text && page.text.length >= 100) {
+        content = [
+          page.title ? `Title: ${page.title}` : '',
+          page.meta  ? `Description: ${page.meta}` : '',
+          page.text,
+        ].filter(Boolean).join('\n\n');
+        console.log('[linkedin-audit] fetched content length:', content.length);
+      }
+    } catch (fetchErr) {
+      console.error('[linkedin-audit] fetch failed:', fetchErr.message);
+    }
+  }
+
+  if (content.length < 100 && url) {
+    const errBody = { error: 'Could not fetch URL content. The site may be blocking automated requests.' };
+    console.log('[linkedin-audit] response (422):', JSON.stringify(errBody));
+    return res.status(422).json(errBody);
+  }
+
+  try {
+    const response = await claude.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: LINKEDIN_AUDIT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Analyze this LinkedIn post:\n\n${content.slice(0, 8000)}` }],
+    });
+
+    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const result = safeParseJSON(raw);
+    if (!result) {
+      console.error('[linkedin-audit] JSON parse failed. Raw:', raw.slice(0, 300));
+      return res.status(500).json({ error: 'Claude returned invalid JSON' });
+    }
+    console.log('[linkedin-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
+    res.json(result);
+  } catch (err) {
+    console.error('[linkedin-audit] Claude error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END LINKEDIN AUDIT ENDPOINT ─────────────────────────────────────────────
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
