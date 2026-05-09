@@ -832,8 +832,8 @@ var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
 var ub=document.getElementById('usedBanner');if(ub)ub.remove();
 document.getElementById('scraperStatus').textContent='Paste changelog text above and tap Run Audit';
 document.getElementById('scraperStatus').style.color='';
-
-document.getElementById('runAuditBtn').style.border = '5px solid lime';
+var elBc=document.getElementById('bc-current');if(elBc)elBc.textContent='Changelog Audit';
+var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='hidden';
 document.getElementById('runAuditBtn').onclick = function() {
   var text = document.getElementById('manualText').value.trim();
   var status = document.getElementById('scraperStatus');
@@ -860,6 +860,7 @@ document.getElementById('runAuditBtn').onclick = function() {
     for(var id in ids){var el=document.getElementById(id);if(el&&ids[id])el.textContent=ids[id];}
     if(!localStorage.getItem('sf_admin'))localStorage.setItem('sf_used_audit','true');
     var dg=document.getElementById('downloadGate');if(dg)dg.style.display='block';
+    var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='visible';
   })
   .catch(function(e){
     status.textContent = 'ERROR: ' + e.message;

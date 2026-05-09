@@ -833,6 +833,8 @@ var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
 var ub=document.getElementById('usedBanner');if(ub)ub.remove();
 document.getElementById('scraperStatus').textContent='Paste onboarding copy above and tap Run Audit';
 document.getElementById('scraperStatus').style.color='';
+var elBc=document.getElementById('bc-current');if(elBc)elBc.textContent='Onboarding Audit';
+var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='hidden';
 
 window.addEventListener('load', function() {
   var btn = document.getElementById('runAuditBtn');
@@ -949,6 +951,7 @@ window.addEventListener('load', function() {
           status.style.color = '#69F0AE';
           status.style.fontStyle = 'normal';
           status.style.fontWeight = '600';
+          var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='visible';
         }, 600);
 
         var ids = {
