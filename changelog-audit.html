@@ -1115,5 +1115,20 @@ CHANGELOG CONTENT:
   });
 
 </script>
+<script>
+  var btn = document.getElementById('runAuditBtn');
+  var status = document.getElementById('scraperStatus');
+
+  if (!btn) {
+    alert('runAuditBtn NOT FOUND in DOM');
+  } else {
+    alert('runAuditBtn FOUND - attaching click');
+    btn.onclick = function() {
+      alert('CLICKED');
+      var text = document.getElementById('manualText').value;
+      alert('Text length: ' + text.length);
+    };
+  }
+</script>
 </body>
 </html>
