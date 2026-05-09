@@ -4330,6 +4330,12 @@ app.get('/changelog-audit-test', (req, res) => {
   res.json({ status: 'ok', message: 'changelog audit endpoint is live' });
 });
 
+app.get('/changelog-audit-page', (req, res) => {
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'changelog-audit.html'));
+});
+
 app.options('/changelog-audit', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
