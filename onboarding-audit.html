@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Onboarding Audit — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ── BRAND TOKENS — injected dynamically per client ── */
+  :root {
+    --brand-primary: #FF694A;       /* client accent — scraped or set manually */
+    --brand-black:   #0F1117;
+    --brand-white:   #FFFFFF;
+    --brand-gray-50:  #F9FAFB;
+    --brand-gray-100: #F3F4F6;
+    --brand-gray-200: #E5E7EB;
+    --brand-gray-300: #D1D5DB;
+    --brand-gray-500: #6B7280;
+    --brand-gray-700: #374151;
+    --brand-gray-900: #111827;
+    --brand-text:   #111827;
+    --brand-muted:  #6B7280;
+    --brand-border: #E5E7EB;
+    --bug:    #DC2626;
+    --bug-bg: #FEF2F2;
+    --bug-br: #FECACA;
+    --fix:    #059669;
+    --fix-bg: #F0FDF4;
+    --fix-br: #6EE7B7;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;overflow-x:hidden;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--brand-white);color:var(--brand-text);font-size:16px;line-height:1.75;}
+
+  /* ══════════════════════════════════════
+     HEADER UNIFICAT — un singur bloc negru
+     fara rupturi, full viewport width
+  ══════════════════════════════════════ */
+  .sf-header{
+    width:100%;
+    background:var(--brand-black);
+    position:sticky;top:0;z-index:200;
+    /* gradient subtil spre continut */
+    box-shadow:0 4px 24px rgba(0,0,0,.35);
+  }
+
+  /* Randul 1: branding + scoruri */
+  .sf-header-top{
+    width:100%;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 20px;
+    border-bottom:1px solid rgba(255,255,255,.07);
+    gap:10px;
+  }
+  .sf-header-brand{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .sf-badge{
+    background:var(--brand-primary);color:#fff;
+    font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:5px 10px;border-radius:6px;white-space:nowrap;
+  }
+  .cl-badge{
+    color:rgba(255,255,255,.5);
+    font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .sf-header-scores{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .sc{
+    padding:5px 10px;border-radius:6px;
+    font-size:11px;font-weight:700;white-space:nowrap;
+  }
+  .sc.bad{background:#DC2626;color:#fff;}
+  .sc.good{background:#059669;color:#fff;}
+
+  /* Randul 2: tab-uri Before/After */
+  .sf-header-tabs{
+    width:100%;
+    display:flex;align-items:stretch;
+    border-bottom:3px solid var(--brand-primary);
+  }
+  .tab-btn{
+    flex:1;
+    padding:12px 20px;border:none;
+    background:transparent;
+    font-family:inherit;font-size:14px;font-weight:700;
+    color:rgba(255,255,255,.35);cursor:pointer;
+    transition:all .2s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    letter-spacing:.01em;
+    border-bottom:3px solid transparent;
+    margin-bottom:-3px;
+  }
+  .tab-btn:hover{
+    background:rgba(255,255,255,.05);
+    color:rgba(255,255,255,.7);
+  }
+  .tab-btn.active{
+    background:rgba(255,255,255,.06);
+    color:#fff;
+  }
+  .tab-btn.active.before-tab{
+    border-bottom-color:var(--bug);
+    color:#FF6B6B;
+  }
+  .tab-btn.active.after-tab{
+    border-bottom-color:#00E676;
+    color:#69F0AE;
+  }
+  .tab-dot{
+    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  }
+  .before-dot{background:var(--bug);}
+  .after-dot{background:#00E676;}
+
+  /* ── CLIENT NAV — sub header, alb ── */
+  .client-nav{
+    width:100%;
+    height:52px;
+    border-bottom:1px solid var(--brand-border);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;
+    background:var(--brand-white);
+  }
+  .client-logo{font-size:18px;font-weight:700;letter-spacing:-.02em;color:var(--brand-black);}
+  .client-logo span{color:var(--brand-primary);}
+  .nav-links{display:flex;gap:24px;font-size:14px;color:var(--brand-gray-700);font-weight:500;}
+  .nav-right{display:flex;gap:10px;align-items:center;}
+  .btn{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;border:none;}
+  .btn-ghost{background:transparent;border:1px solid var(--brand-border);color:var(--brand-text);}
+  .btn-primary{background:var(--brand-primary);color:#fff;}
+
+  /* ── PAGE LAYOUT ── */
+  .page{max-width:1200px;width:100%;margin:0 auto;padding:48px 20px 80px;display:grid;grid-template-columns:1fr 268px;gap:56px;overflow:hidden;}
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--brand-muted);margin-bottom:20px;}
+  .breadcrumb a{color:var(--brand-muted);text-decoration:none;}
+  .breadcrumb a:hover{color:var(--brand-primary);}
+  .bc-sep{color:var(--brand-gray-300);}
+
+  /* ── ARTICLE TITLE ── */
+  .article-title{font-size:36px;font-weight:700;line-height:1.15;letter-spacing:-.02em;color:var(--brand-gray-900);margin-bottom:16px;}
+
+  /* ── META ── */
+  .article-meta{display:flex;align-items:center;gap:10px;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--brand-border);font-size:14px;color:var(--brand-muted);}
+  .meta-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--brand-gray-200);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--brand-primary);}
+  .meta-authors{color:var(--brand-gray-900);font-weight:500;}
+
+  /* ── HERO ── */
+  .hero{width:100%;aspect-ratio:16/7;border-radius:8px;overflow:hidden;background:var(--brand-gray-100);margin-bottom:32px;display:flex;align-items:center;justify-content:center;}
+  .hero img{width:100%;height:100%;object-fit:cover;}
+  .hero-placeholder{font-size:13px;color:var(--brand-muted);}
+
+  /* ── BODY TEXT ── */
+  .article-body{font-size:16px;line-height:1.8;color:var(--brand-gray-700);overflow-wrap:break-word;word-break:break-word;min-width:0;}
+  .article-body p{margin-bottom:20px;}
+  .article-body h2{font-size:24px;font-weight:700;color:var(--brand-gray-900);margin:44px 0 14px;letter-spacing:-.01em;}
+  .article-body h3{font-size:20px;font-weight:600;color:var(--brand-gray-900);margin:32px 0 10px;}
+  .article-body ul{margin-bottom:20px;padding-left:22px;}
+  .article-body ul li{margin-bottom:10px;}
+  .article-body a{color:var(--brand-primary);text-decoration:none;}
+  .article-body a:hover{text-decoration:underline;}
+  .article-body strong{color:var(--brand-gray-900);font-weight:600;}
+  .article-body code{background:var(--brand-gray-100);border:1px solid var(--brand-gray-200);border-radius:4px;padding:1px 6px;font-size:14px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--brand-primary);}
+
+  /* ── QUOTE ── */
+  .brand-quote{border-left:4px solid var(--brand-primary);padding:14px 20px;background:var(--brand-gray-50);border-radius:0 6px 6px 0;margin:24px 0;font-style:italic;font-size:15px;color:var(--brand-gray-700);line-height:1.65;}
+  .brand-quote cite{display:block;font-style:normal;font-size:13px;color:var(--brand-muted);margin-top:8px;}
+
+  /* ── CTA BLOCK ── */
+  .cta-block{background:var(--brand-gray-50);border:1px solid var(--brand-border);border-radius:10px;padding:28px 32px;margin:36px 0;}
+  .cta-block h3{font-size:18px;font-weight:700;color:var(--brand-gray-900);margin-bottom:8px;}
+  .cta-block p{font-size:15px;color:var(--brand-muted);margin-bottom:16px;}
+
+  /* ── DIVIDER ── */
+  .divider{border:none;border-top:1px solid var(--brand-border);margin:36px 0;}
+
+  /* ── SF FOOTER ── */
+  .sf-footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--brand-border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--brand-muted);}
+  .sf-footer a{color:var(--brand-primary);text-decoration:none;font-weight:500;}
+
+  /* ── BUG ANNOTATIONS ── */
+  .bug-text{background:rgba(220,38,38,.07);text-decoration:underline;text-decoration-color:var(--bug);text-decoration-thickness:2px;text-underline-offset:3px;border-radius:2px;padding:0 2px;}
+  .bug-num{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--bug);color:#fff;font-size:10px;font-weight:700;vertical-align:super;position:relative;top:-3px;margin-left:3px;cursor:default;}
+  .para-bug{border-left:3px solid var(--bug);padding-left:14px;margin-left:0;background:rgba(220,38,38,.03);border-radius:4px;margin-bottom:20px;}
+  .para-bug p{margin-bottom:0;}
+  .inline-bug{display:inline-flex;align-items:center;gap:4px;background:var(--bug-bg);border:1px solid var(--bug-br);border-radius:4px;padding:1px 8px;font-size:11px;color:var(--bug);font-weight:600;margin-left:6px;white-space:nowrap;vertical-align:middle;}
+
+  /* ── FIX ANNOTATIONS ── */
+  .rebuilt-title-block{background:var(--fix-bg);border:1px solid var(--fix-br);border-left:4px solid var(--fix);border-radius:6px;padding:16px 20px;margin-bottom:16px;}
+  .rebuilt-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--fix);margin-bottom:6px;}
+  .rebuilt-title-text{font-size:36px;font-weight:700;line-height:1.15;letter-spacing:-.02em;color:var(--brand-gray-900);}
+  .rebuilt-para{border-left:3px solid var(--fix);padding-left:14px;margin-left:0;background:rgba(5,150,105,.03);border-radius:4px;margin-bottom:20px;}
+  .rebuilt-para p{margin-bottom:0;}
+  .inline-fix{display:inline-flex;align-items:center;gap:4px;background:var(--fix-bg);border:1px solid var(--fix-br);border-radius:4px;padding:1px 8px;font-size:11px;color:var(--fix);font-weight:600;margin-left:6px;white-space:nowrap;vertical-align:middle;}
+
+  /* ── STAT CARDS ── */
+  .stat-cards{display:flex;gap:12px;margin:20px 0;}
+  .stat-card{background:var(--brand-gray-900);color:#fff;border-radius:8px;padding:16px 20px;flex:1;text-align:center;}
+  .stat-num{font-size:28px;font-weight:700;color:var(--fix);line-height:1;}
+  .stat-label{font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;text-transform:uppercase;letter-spacing:.05em;}
+
+  /* ── REBUILT CTA BTN ── */
+  .rebuilt-cta-btn{display:inline-block;background:var(--fix);color:#fff;padding:11px 22px;border-radius:6px;font-size:15px;font-weight:600;cursor:default;}
+
+  /* ── SIDEBAR ── */
+  .sidebar{position:sticky;top:calc(48px + 56px + 24px);height:fit-content;max-height:calc(100vh - 160px);overflow-y:auto;}
+  .score-box{background:var(--brand-gray-50);border:1px solid var(--brand-border);border-radius:8px;padding:16px;margin-bottom:20px;}
+  .score-box-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-muted);margin-bottom:12px;}
+  .score-line{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px;border-bottom:1px solid var(--brand-border);}
+  .score-line:last-child{border:none;}
+  .score-k{color:var(--brand-muted);}
+  .score-v{font-weight:700;}
+  .score-v.r{color:var(--bug);}
+  .score-v.g{color:var(--fix);}
+  .score-v.a{color:#d97706;}
+  .sbar{height:4px;background:var(--brand-gray-200);border-radius:2px;margin-top:5px;overflow:hidden;}
+  .sfill{height:100%;border-radius:2px;}
+  .ann-header{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-muted);padding-bottom:8px;border-bottom:1px solid var(--brand-border);margin-bottom:10px;}
+  .ann-card{border-radius:6px;padding:11px 13px;margin-bottom:9px;border:1px solid;font-size:12px;line-height:1.5;}
+  .ann-card.bug{background:var(--bug-bg);border-color:var(--bug-br);}
+  .ann-card.fix{background:var(--fix-bg);border-color:var(--fix-br);}
+  .ann-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+  .ann-l.bug{color:var(--bug);}
+  .ann-l.fix{color:var(--fix);}
+  .ann-circle{width:15px;height:15px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;}
+  .ann-circle.bug{background:var(--bug);color:#fff;}
+  .ann-circle.fix{background:var(--fix);color:#fff;}
+  .ann-title{font-weight:600;color:var(--brand-gray-900);margin-bottom:2px;}
+  .ann-body{color:var(--brand-gray-700);font-size:11px;}
+
+  /* ── WHAT CHANGED TABLE ── */
+  .wc{background:#0a0a0a;border-radius:12px;padding:32px;margin:36px 0;border:1px solid #1a1a1a;}
+  .wc-head{
+    font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;
+    color:rgba(255,255,255,.3);margin-bottom:24px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .wc-head::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06);}
+  .wc-cols{
+    display:grid;grid-template-columns:100px 1fr 1fr;gap:16px;
+    padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:0;
+  }
+  .wc-col-h{
+    font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+  }
+  .wc-col-h:nth-child(1){color:rgba(255,255,255,.25);}
+  .wc-col-h:nth-child(2){color:#FF4444;text-shadow:0 0 12px rgba(255,68,68,.5);}
+  .wc-col-h:nth-child(3){color:#00E676;text-shadow:0 0 12px rgba(0,230,118,.5);}
+
+  .wc-row{
+    display:grid;grid-template-columns:100px 1fr 1fr;gap:16px;
+    padding:16px 0;border-bottom:1px solid rgba(255,255,255,.04);
+    align-items:start;
+  }
+  .wc-row:last-child{border:none;}
+
+  .wc-fix{
+    font-size:10px;font-weight:800;color:rgba(255,255,255,.3);
+    text-transform:uppercase;letter-spacing:.08em;line-height:1.5;
+    padding-top:3px;
+  }
+
+  /* BEFORE cell — dark red tint, red text */
+  .wc-b{
+    font-size:13px;line-height:1.6;font-weight:500;
+    color:#FF6B6B;
+    background:rgba(255,68,68,.08);
+    border:1px solid rgba(255,68,68,.2);
+    border-left:3px solid #FF4444;
+    border-radius:0 6px 6px 0;
+    padding:10px 14px;
+    text-shadow:0 0 20px rgba(255,68,68,.15);
+  }
+
+  /* AFTER cell — dark green tint, green text */
+  .wc-a{
+    font-size:13px;line-height:1.6;font-weight:500;
+    color:#69F0AE;
+    background:rgba(0,230,118,.08);
+    border:1px solid rgba(0,230,118,.2);
+    border-left:3px solid #00E676;
+    border-radius:0 6px 6px 0;
+    padding:10px 14px;
+    text-shadow:0 0 20px rgba(0,230,118,.15);
+  }
+
+  /* ── BEFORE/AFTER TOGGLE ── */
+  .before-only{display:block;}
+  .after-only{display:none;}
+  body.after-view .before-only{display:none;}
+  body.after-view .after-only{display:block;}
+
+  /* ── CHANGELOG ENTRY CARD ── */
+  .cl-entry{border:1px solid var(--brand-border);border-radius:10px;overflow:hidden;margin-bottom:24px;}
+  .cl-entry-header{padding:16px 20px;background:var(--brand-gray-50);border-bottom:1px solid var(--brand-border);display:flex;align-items:center;justify-content:space-between;}
+  .cl-entry-title{font-size:16px;font-weight:600;color:var(--brand-gray-900);}
+  .cl-entry-date{font-size:12px;color:var(--brand-muted);}
+  .cl-entry-body{padding:20px;}
+  .cl-tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:4px;margin-right:6px;margin-bottom:8px;}
+  .cl-tag.new{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;}
+  .cl-tag.fix{background:var(--fix-bg);color:var(--fix);border:1px solid var(--fix-br);}
+  .cl-tag.improved{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;}
+
+  /* ── BRAND SCRAPER UI ── */
+  .scraper-bar{
+    background:var(--brand-black);
+    border-bottom:3px solid var(--brand-primary);
+    padding:16px 20px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .scraper-label{
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:rgba(255,255,255,.4);
+  }
+  .scraper-guide{
+    font-size:13px;color:rgba(255,255,255,.75);line-height:1.4;
+  }
+  .scraper-guide strong{color:#fff;}
+  .scraper-row{display:flex;align-items:center;gap:10px;width:100%;}
+  .scraper-input{
+    flex:1;
+    padding:11px 14px;
+    border:1.5px solid rgba(255,255,255,.15);
+    border-radius:8px;
+    font-size:14px;font-family:inherit;
+    background:rgba(255,255,255,.07);
+    color:#fff;outline:none;
+    transition:border-color .15s;
+  }
+  .scraper-input::placeholder{color:rgba(255,255,255,.3);}
+  .scraper-input:focus{border-color:var(--brand-primary);}
+  .scraper-btn{
+    padding:11px 20px;
+    background:var(--brand-primary);color:#fff;
+    border:none;border-radius:8px;
+    font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+    white-space:nowrap;flex-shrink:0;
+    transition:opacity .15s;
+  }
+  .scraper-btn:hover{opacity:.88;}
+  .scraper-status{
+    font-size:12px;color:rgba(255,255,255,.4);
+    font-style:italic;min-height:16px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:900px){
+    .page{grid-template-columns:1fr;gap:32px;}
+    .sidebar{position:static;max-height:none;}
+    .stat-cards{flex-wrap:wrap;}
+    .stat-card{min-width:calc(50% - 6px);}
+    .wc-cols,.wc-row{grid-template-columns:80px 1fr 1fr;}
+    .nav-links{display:none;}
+  }
+
+  @media(max-width:600px){
+    *{max-width:100%;}
+    .scraper-bar{padding:14px 16px;}
+    .scraper-guide{font-size:12px;}
+    .scraper-input{font-size:13px;padding:10px 12px;}
+    .scraper-btn{font-size:13px;padding:10px 14px;}
+    .sf-header-top{padding:10px 16px;}
+    .sf-header-scores{gap:6px;}
+    .sf-header-tabs .tab-btn{font-size:14px;padding:13px 16px;}
+    .cl-badge{display:none;}
+    .client-nav{padding:0 14px;height:46px;}
+    .nav-links{display:none;}
+    .nav-right{gap:6px;}
+    .btn{padding:6px 10px;font-size:12px;}
+    .page{padding:20px 16px 60px;grid-template-columns:1fr;gap:24px;}
+    .sidebar{position:static;max-height:none;}
+    .article-title{font-size:22px;word-break:break-word;}
+    .inline-bug,.inline-fix{white-space:normal;display:flex;flex-wrap:wrap;width:100%;margin:8px 0 0 0;}
+    .wc{padding:16px 14px;overflow:hidden;}
+    .wc-cols{display:none;}
+    .wc-row{grid-template-columns:1fr;gap:0;border-bottom:1px solid rgba(255,255,255,.08);padding:14px 0;}
+    .wc-fix{font-size:9px;font-weight:800;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;display:block;}
+    .wc-b{font-size:12px;padding:10px 12px;border-radius:6px;margin-bottom:6px;border-left-width:3px;}
+    .wc-a{font-size:12px;padding:10px 12px;border-radius:6px;border-left-width:3px;}
+    .stat-cards{flex-direction:column;}
+    .stat-card{min-width:100%;}
+    .cl-entry{overflow:hidden;}
+    .cl-entry-header{flex-wrap:wrap;gap:6px;}
+  }
+</style>
+</head>
+<body id="body">
+
+<!-- ── BRAND SCRAPER BAR ── -->
+<div class="scraper-bar" id="scraperBar">
+
+  <!-- STEP 1: Brand URL -->
+  <div class="scraper-label">Step 1 — App URL</div>
+  <div class="scraper-guide">
+    Paste your <strong>app URL</strong> to extract brand colors and company name.
+  </div>
+  <div class="scraper-row">
+    <input
+      class="scraper-input"
+      id="brandUrl"
+      placeholder="e.g. app.linear.app or your-app.com"
+    />
+    <button id="extractBrandBtn" class="scraper-btn">Extract Brand</button>
+  </div>
+
+  <!-- STEP 2: Manual text input — always visible -->
+  <div class="scraper-label" style="margin-top:14px;color:rgba(255,255,255,.4);">Step 2 — Paste onboarding copy</div>
+  <div class="scraper-guide">
+    Open your app onboarding screens, <strong>copy all text</strong> from each screen (welcome, setup steps, empty states, tooltips), and paste below.
+  </div>
+  <textarea
+    id="manualText"
+    placeholder="Paste all onboarding copy here — welcome screen, setup steps, tooltips, empty states, CTAs, error messages. The more text, the better the audit."
+    style="width:100%;min-height:100px;padding:12px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;resize:vertical;outline:none;margin-top:6px;line-height:1.5;"
+  ></textarea>
+
+  <!-- RUN AUDIT button -->
+  <div class="scraper-row" style="margin-top:10px;">
+    <button id="runAuditBtn" class="scraper-btn" style="width:100%;justify-content:center;font-size:15px;padding:13px 20px;">
+      Run Audit
+    </button>
+  </div>
+
+  <div class="scraper-status" id="scraperStatus">Paste onboarding copy above and tap Run Audit</div>
+
+</div>
+
+<!-- ══════════════════════════════════
+     HEADER UNIFICAT Strategic Flow
+════════════════════════════════════ -->
+<header class="sf-header">
+
+  <!-- Randul 1: brand + scoruri -->
+  <div class="sf-header-top">
+    <div class="sf-header-brand">
+      <span class="sf-badge">Strategic Flow</span>
+      <span class="cl-badge">Onboarding Audit</span>
+    </div>
+    <div class="sf-header-scores">
+      <span class="sc bad" id="score-before">Original: 2/10</span>
+      <span class="sc good" id="score-after">Rebuilt: 9/10</span>
+    </div>
+  </div>
+
+  <!-- Randul 2: tab-uri -->
+  <div class="sf-header-tabs">
+    <button class="tab-btn before-tab active" id="tab-before" onclick="setView('before')">
+      <span class="tab-dot before-dot"></span>Before
+    </button>
+    <button class="tab-btn after-tab" id="tab-after" onclick="setView('after')">
+      <span class="tab-dot after-dot"></span>After
+    </button>
+  </div>
+
+</header>
+<nav class="client-nav">
+  <div class="client-logo" id="client-logo">Company<span>.</span></div>
+  <div class="nav-links" id="nav-links">
+    <span>Product</span>
+    <span>Changelog</span>
+    <span>Docs</span>
+    <span>Blog</span>
+  </div>
+  <div class="nav-right">
+    <button class="btn btn-ghost">Log in</button>
+    <button class="btn btn-primary">Get started</button>
+  </div>
+</nav>
+
+<!-- ── MAIN PAGE ── -->
+<div class="page">
+  <article>
+    <div class="article-body" id="article-body">
+
+      <!-- BREADCRUMB -->
+      <div class="breadcrumb">
+        <a href="#" id="bc-home">Home</a>
+        <span class="bc-sep">/</span>
+        <a href="#" id="bc-changelog">Changelog</a>
+        <span class="bc-sep">/</span>
+        <span id="bc-current">Onboarding Audit</span>
+      </div>
+
+      <!-- TITLE -->
+      <!-- BEFORE: filing label -->
+      <div class="before-only para-bug" style="margin-left:0;padding-left:0;border-left:none;background:none;">
+        <h1 class="article-title">
+          <span class="bug-text" id="original-title">Welcome to Acme. We're glad you're here.</span>
+          <span class="bug-num">1</span>
+        </h1>
+        <span class="inline-bug" style="margin-bottom:16px;display:inline-flex;">Bug #1 — Filing label. Date as title. Zero curiosity gap.</span>
+      </div>
+
+      <!-- AFTER: consequence-first title -->
+      <div class="after-only">
+        <div class="rebuilt-title-block">
+          <div class="rebuilt-tag">Rebuilt Title</div>
+          <div class="rebuilt-title-text" id="rebuilt-title">Your first report is 3 clicks away. Let's set it up.</div>
+        </div>
+        <span class="inline-fix" style="margin-bottom:20px;display:inline-flex;">Fix #1 — Curiosity gap formula: [number] + [who benefits] + [what changed]</span>
+      </div>
+
+      <!-- META -->
+      <div class="article-meta">
+        <div class="meta-avatar" id="meta-avatar">SF</div>
+        <div>
+          <div class="meta-authors" id="meta-authors">Product Team</div>
+          <div id="meta-date">April 28, 2026 · 3 min read</div>
+        </div>
+      </div>
+
+      <!-- HERO -->
+      <div class="hero" id="hero-block">
+        <span class="hero-placeholder">Hero image — paste URL or upload</span>
+      </div>
+
+      <!-- ENTRY 1 — LEAD / BUG #2 consequence -->
+      <div class="before-only para-bug">
+        <p>
+          <span class="bug-text" id="original-lead">Complete your profile to get started.</span>
+          <span class="bug-num">2</span>
+          <span class="inline-bug">Bug #2 — "We focused on" opener. Team as subject, not the reader.</span>
+        </p>
+      </div>
+      <div class="after-only rebuilt-para">
+        <p id="rebuilt-lead"><strong>The export that used to freeze your browser now runs in the background.</strong> No waiting. No lost work. Everything else keeps moving while your data processes.
+        <span class="inline-fix">Fix #2 — Reader's operational reality in sentence 1. Consequence before caveat.</span></p>
+      </div>
+
+      <!-- CHANGELOG ENTRIES -->
+      <h2>What shipped this month</h2>
+
+      <!-- ENTRY: Major feature — Bug #3 feature language / Fix #3 outcome language -->
+      <div class="cl-entry">
+        <div class="cl-entry-header">
+          <div>
+            <span class="cl-tag new">New</span>
+            <span class="cl-entry-title" id="entry1-title">Background Export Engine</span>
+          </div>
+          <span class="cl-entry-date">April 22</span>
+        </div>
+        <div class="cl-entry-body">
+
+          <!-- BEFORE: feature language -->
+          <div class="before-only para-bug">
+            <p>
+              <span class="bug-text" id="entry1-before">Refactored the export pipeline to support async processing with a new worker thread architecture. Exports now run in a dedicated background process.</span>
+              <span class="bug-num">3</span>
+              <span class="inline-bug">Bug #3 — Feature-first. Architecture described, not the user's outcome.</span>
+            </p>
+          </div>
+
+          <!-- AFTER: outcome language -->
+          <div class="after-only rebuilt-para">
+            <p id="entry1-after">Exports no longer block your workflow. Start an export, keep working. The file lands in your downloads when it's ready — no waiting, no browser freeze, no lost progress.
+            <span class="inline-fix">Fix #3 — What the user no longer has to do. Outcome before architecture.</span></p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STAT CARDS — after only — Bug #5 numbers -->
+      <div class="after-only">
+        <div class="stat-cards" id="stat-cards">
+          <div class="stat-card">
+            <div class="stat-num" id="stat1-num">0s</div>
+            <div class="stat-label" id="stat1-label">Browser wait time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat2-num">4x</div>
+            <div class="stat-label" id="stat2-label">Faster bulk export</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat3-num">Live</div>
+            <div class="stat-label" id="stat3-label">Available now</div>
+          </div>
+        </div>
+        <span class="inline-fix" style="margin-bottom:20px;display:inline-flex;">Fix #5 — Numbers moved from footer text to stat cards at top of entry.</span>
+      </div>
+
+      <!-- ENTRY 2 — Bug #4 flat hierarchy demonstration -->
+      <h3>Also shipped</h3>
+
+      <!-- BEFORE: flat list -->
+      <div class="before-only para-bug">
+        <ul id="before-flat-list">
+          <li>Added bulk selection to the dashboard table</li>
+          <li>Fixed timezone offset in scheduled reports</li>
+          <li>New keyboard shortcut: Cmd+K to open search</li>
+          <li>Fixed login redirect loop on Safari</li>
+          <li>Improved load time on the settings page</li>
+          <li>Added CSV export to the activity log</li>
+        </ul>
+        <span class="bug-num">4</span>
+        <span class="inline-bug">Bug #4 — Flat list. Major features and minor bugfixes share identical visual weight.</span>
+      </div>
+
+      <!-- AFTER: tiered hierarchy -->
+      <div class="after-only rebuilt-para">
+        <p><strong>Two things worth your attention:</strong>
+        <span class="inline-fix">Fix #4 — Major features lead. Routine fixes listed separately below.</span></p>
+        <ul id="after-tiered-list">
+          <li><strong>Bulk selection on the dashboard table.</strong> Select multiple rows, apply actions in one click. No more one-by-one.</li>
+          <li><strong>Cmd+K search, anywhere in the app.</strong> Find any record, setting, or action without touching the nav.</li>
+        </ul>
+        <p style="margin-top:12px;font-size:14px;color:var(--brand-muted);">Also fixed: timezone offset in scheduled reports, Safari login redirect, settings page load time, CSV export on activity log.</p>
+      </div>
+
+      <!-- BEFORE/AFTER CONTRAST — Bug #7 -->
+      <div class="before-only para-bug">
+        <p>
+          <em style="font-size:13px;color:var(--brand-muted);" id="before-contrast">Previously: exports required the browser tab to stay open until completion.</em>
+          <span class="bug-num">7</span>
+          <span class="inline-bug">Bug #7 — Before/after buried in italic fine print. Reader must infer the contrast.</span>
+        </p>
+      </div>
+      <div class="after-only rebuilt-para">
+        <p id="after-contrast"><strong>Before:</strong> Exports froze your browser tab and failed if you navigated away. A 50,000-row export meant 4 minutes of waiting.<br><br>
+        <strong>After:</strong> Exports run in the background. Navigate anywhere, close the tab, come back later. The file is there.
+        <span class="inline-fix">Fix #7 — Explicit Before/After in body. Contrast is structural and visible at first scroll.</span></p>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- CTA BLOCK — Bug #6 -->
+      <div class="cta-block">
+        <h3>Try it now</h3>
+        <p id="cta-context">Background exports are live for all plans. Open your dashboard and start an export to see it in action.</p>
+
+        <!-- Before: dead-end CTA -->
+        <div class="before-only">
+          <div style="display:inline-block;background:var(--brand-black);color:#fff;padding:11px 22px;border-radius:6px;font-size:15px;font-weight:500;cursor:default;text-decoration:line-through;text-decoration-color:var(--bug);opacity:.6;" id="cta-before">Read the documentation</div>
+          <span class="bug-num" style="margin-left:6px;">6</span>
+          <div style="margin-top:8px;"><span class="inline-bug">Bug #6 — Dead-end CTA. No ownership language. Sends reader to docs instead of the product.</span></div>
+        </div>
+
+        <!-- After: ownership CTA -->
+        <div class="after-only">
+          <div class="rebuilt-cta-btn" id="cta-after">Run my first background export →</div>
+          <div style="margin-top:8px;"><span class="inline-fix">Fix #6 — "My first" = ownership language. Action feels already theirs.</span></div>
+        </div>
+      </div>
+
+      <!-- WHAT CHANGED TABLE -->
+      <div class="wc">
+        <div class="wc-head">Strategic Flow — Onboarding Audit: What Changed & Why</div>
+        <div class="wc-cols">
+          <div class="wc-col-h">Fix</div>
+          <div class="wc-col-h">Before ✕</div>
+          <div class="wc-col-h">After ✓</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #1<br>Title</div>
+          <div class="wc-b">"Product Updates — April 2026" — filing label. Date as title. No curiosity gap.</div>
+          <div class="wc-a">"Three things your team couldn't do last week — now they can" — number + who + what changed = reader opens.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #2<br>Lead</div>
+          <div class="wc-b">"This month we focused on..." — team as subject. Reader has no reason to keep reading.</div>
+          <div class="wc-a">"The export that used to freeze your browser now runs in the background." — consequence in sentence 1.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #3<br>Feature language</div>
+          <div class="wc-b">"Refactored async pipeline with worker thread architecture" — describes the build, not the outcome.</div>
+          <div class="wc-a">"Exports no longer block your workflow." — what the user no longer has to do. Architecture is secondary.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #4<br>Hierarchy</div>
+          <div class="wc-b">6 bullets, identical weight. Major feature and minor bugfix indistinguishable.</div>
+          <div class="wc-a">2 major features lead with full description. Routine fixes condensed into one line below.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #5<br>Numbers</div>
+          <div class="wc-b">No quantified claims anywhere in the entry. "Improved performance" with zero evidence.</div>
+          <div class="wc-a">Stat cards: 0s wait / 4x faster / Live. Proof is structural at the top, not buried in footnotes.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #6<br>CTA</div>
+          <div class="wc-b">"Read the documentation" — sends reader away from the product. No ownership language.</div>
+          <div class="wc-a">"Run my first background export →" — "my first" makes the action feel already theirs.</div>
+        </div>
+        <div class="wc-row">
+          <div class="wc-fix">Fix #7<br>Before/After</div>
+          <div class="wc-b">Before/after buried in italic fine print at the bottom. Reader must infer the contrast.</div>
+          <div class="wc-a">Explicit "Before: / After:" in body copy. Contrast visible at first scroll, not hidden.</div>
+        </div>
+      </div>
+
+      <!-- SF FOOTER -->
+      <div class="sf-footer">
+        <span>Audit by <strong>Strategic Flow</strong> · <a href="https://strategicflow-tech.github.io/showcase" target="_blank">See all audits →</a></span>
+        <span><a href="https://strategic-flow-audit.replit.app" target="_blank">Run your own audit →</a></span>
+      </div>
+
+    </div>
+  </article>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <div class="score-box">
+      <div class="score-box-title">Strategic Flow Score</div>
+      <div class="score-line"><span class="score-k">Original</span><span class="score-v r" id="sb-score-before">2 / 10</span></div>
+      <div class="sbar"><div class="sfill" id="bar-before" style="width:20%;background:var(--bug);"></div></div>
+      <div class="score-line" style="margin-top:8px;"><span class="score-k">Rebuilt</span><span class="score-v g" id="sb-score-after">9 / 10</span></div>
+      <div class="sbar"><div class="sfill" id="bar-after" style="width:90%;background:var(--fix);"></div></div>
+      <div class="score-line" style="margin-top:8px;"><span class="score-k">Bugs found</span><span class="score-v a">7 / 7</span></div>
+    </div>
+
+    <!-- BEFORE annotations -->
+    <div class="before-ann before-only">
+      <div class="ann-header">Bugs Found — 7/7</div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">1</span>Bug #1</div><div class="ann-title">Welcome Screen Without Consequence</div><div class="ann-body">Announces product or team. User doesn't know what they can do in the next 2 minutes.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">2</span>Bug #2</div><div class="ann-title">Useless Progress Indicator</div><div class="ann-body">Shows "Step 2 of 5" without naming the reward at the end. User doesn't know why it's worth completing.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">3</span>Bug #3</div><div class="ann-title">Generic CTA</div><div class="ann-body">"Continue" and "Next" everywhere. No action names the specific outcome the user is moving toward.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">4</span>Bug #4</div><div class="ann-title">Empty State Without Direction</div><div class="ann-body">First screen after setup is passive. User lands with no clear next step and no quick win.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">5</span>Bug #5</div><div class="ann-title">Feature Explanation Instead of Outcome</div><div class="ann-body">Tooltips describe what the feature does technically. User doesn't know what they can do with it.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">6</span>Bug #6</div><div class="ann-title">Too Many Steps Before First Value</div><div class="ann-body">User completes 4+ screens before seeing anything concrete. No quick win. Activation rate drops.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">7</span>Bug #7</div><div class="ann-title">Invisible Microcopy</div><div class="ann-body">Labels, placeholders and error messages are generic or missing. User doesn't know why a field is required.</div></div>
+    </div>
+
+    <!-- AFTER annotations -->
+    <div class="after-ann after-only">
+      <div class="ann-header">Fixes Applied — 7/7</div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">1</span>Fix #1</div><div class="ann-title">Consequence-First Welcome</div><div class="ann-body">"Your first report is 3 clicks away." User knows exactly what happens next and why it matters.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">2</span>Fix #2</div><div class="ann-title">Progress With Reward</div><div class="ann-body">"Step 2 of 5 — after this, your dashboard is live." User knows the end reward before completing.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">3</span>Fix #3</div><div class="ann-title">Action-Named CTA</div><div class="ann-body">"Connect my first data source" instead of "Continue". Every button names the specific outcome.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">4</span>Fix #4</div><div class="ann-title">Empty State With Direction</div><div class="ann-body">"You're 1 import away from your first insight. Start here →" One clear next step, immediate quick win.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">5</span>Fix #5</div><div class="ann-title">Outcome-First Tooltips</div><div class="ann-body">"Your numbers update automatically — no manual refresh needed." What the user can do, not how it works.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">6</span>Fix #6</div><div class="ann-title">Quick Win Inserted Early</div><div class="ann-body">First moment of value moved to step 2. User sees something real before completing full setup.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">7</span>Fix #7</div><div class="ann-title">Microcopy Made Visible</div><div class="ann-body">"Use your work email — we'll match you with your team." Every field explains why it matters.</div></div>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+
+  /* ═══════════════════════════════════════════════
+     STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
+     Claude API connector + brand injection + UI
+  ═══════════════════════════════════════════════ */
+
+  // ── STATE ──
+  let auditData = null;
+
+  // ── TAB TOGGLE ──
+  function setView(view) {
+    const body = document.getElementById('body');
+    const tabBefore = document.getElementById('tab-before');
+    const tabAfter = document.getElementById('tab-after');
+    if (view === 'after') {
+      body.classList.add('after-view');
+      tabAfter.classList.add('active');
+      tabBefore.classList.remove('active');
+    } else {
+      body.classList.remove('after-view');
+      tabBefore.classList.add('active');
+      tabAfter.classList.remove('active');
+    }
+  }
+
+  // ── BRAND PRESETS (fallback quando scraper nu poate accesa URL) ──
+  const BRAND_PRESETS = {
+    'linear':   { primary: '#5E6AD2', name: 'Linear' },
+    'notion':   { primary: '#000000', name: 'Notion' },
+    'vercel':   { primary: '#000000', name: 'Vercel' },
+    'stripe':   { primary: '#635BFF', name: 'Stripe' },
+    'loom':     { primary: '#625DF5', name: 'Loom' },
+    'intercom': { primary: '#1F8EED', name: 'Intercom' },
+    'figma':    { primary: '#F24E1E', name: 'Figma' },
+    'github':   { primary: '#2DA44E', name: 'GitHub' },
+    'dbt':      { primary: '#FF694A', name: 'dbt Labs' },
+    'linear':   { primary: '#5E6AD2', name: 'Linear' },
+    'default':  { primary: '#FF694A', name: 'Company' },
+  };
+
+  // ── STEP 1: EXTRACT BRAND + FETCH URL CONTENT ──
+  function applyBrand() {
+    const urlRaw = document.getElementById('brandUrl').value.trim();
+    const status = document.getElementById('scraperStatus');
+
+    if (!urlRaw) {
+      status.textContent = 'Paste a URL first.';
+      return;
+    }
+
+    const url = urlRaw.startsWith('http') ? urlRaw : 'https://' + urlRaw;
+    const urlLower = url.toLowerCase();
+
+    // Aplica brand preset din URL
+    let preset = BRAND_PRESETS['default'];
+    for (const key of Object.keys(BRAND_PRESETS)) {
+      if (urlLower.includes(key)) { preset = BRAND_PRESETS[key]; break; }
+    }
+    applyBrandTokens(preset.primary, preset.name);
+    status.textContent = 'Brand applied: ' + preset.name + ' — now paste the changelog text in Step 2 and tap Run Audit.';
+  }
+
+  // ── FALLBACK manual — nu mai e fallback, e fluxul principal ──
+  async function runAuditFromManual() {
+    const text = document.getElementById('manualText').value.trim();
+    const status = document.getElementById('scraperStatus');
+
+    if (!text || text.length < 80) {
+      status.textContent = 'Paste more text — need at least a title and a few entries.';
+      return;
+    }
+
+    const companyName = document.getElementById('client-logo').textContent.replace('.','').trim() || 'Company';
+    status.textContent = 'Running Strategic Flow audit...';
+    status.style.color = '#69F0AE';
+    status.style.fontStyle = 'normal';
+    const btn = document.getElementById('runAuditBtn');
+    if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
+
+    await runAudit(text, '', companyName);
+
+    if (btn) { btn.textContent = 'Run Audit'; btn.disabled = false; }
+  }
+
+  
+  // ── STEP 2: CLAUDE API AUDIT ──
+  async function runAudit(pageText, sourceUrl, companyName) {
+    const status = document.getElementById('scraperStatus');
+    const btn = document.querySelector('.scraper-btn');
+
+    const SYSTEM_PROMPT = 'You are the Strategic Flow Onboarding Audit engine. ' +
+      'You analyze SaaS onboarding copy: welcome screens, setup steps, tooltips, empty states, CTAs, error messages. ' +
+      'Apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. ' +
+      'Return ONLY valid JSON. No markdown, no backticks, no preamble. ' +
+      'Use this JSON schema: {company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc:[{fix,before,after}], bugs:[{number,title,body}], fixes:[{number,title,body}]}. ' +
+      'The 7 bugs: 1.Welcome Screen Without Consequence 2.Progress Indicator Absent or Useless 3.Generic CTA on Every Screen 4.Empty State Without Direction 5.Feature Explanation Instead of Outcome 6.Too Many Steps Before First Value 7.Invisible Microcopy. ' +
+      'Apply Strategic Flow vocabulary: consequence, ownership language, first moment of value, activation rate, quick win, microcopy.';
+
+        const USER_PROMPT = 'Analyze this onboarding copy from ' + (companyName || 'this SaaS company') + '. ' +
+      'Apply all 7 Strategic Flow onboarding bug diagnostics. Rebuild everything. ' +
+      'Return only the JSON object. ' +
+      'ONBOARDING COPY: ' + pageText.slice(0, 6000);
+
+        try {
+      const response = await fetch('https://strategic-flow-audit.replit.app/onboarding-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: sourceUrl || '',
+          text: pageText
+        })
+      });
+
+      const audit = await response.json();
+
+      if (audit.error) throw new Error(audit.error);
+
+      auditData = audit;
+      populateTemplate(audit);
+
+      status.textContent = 'Audit complete — ' + audit.company + ' · Score: ' + audit.original_score + ' → ' + audit.rebuilt_score;
+      btn.textContent = 'Re-run Audit';
+      btn.disabled = false;
+
+    } catch (err) {
+      const errMsg = err.message || String(err);
+      status.textContent = 'ERROR: ' + errMsg;
+      status.style.color = '#FF6B6B';
+      status.style.fontStyle = 'normal';
+      status.style.fontWeight = '700';
+      const runBtn = document.getElementById('runAuditBtn');
+      if (runBtn) { runBtn.textContent = 'Run Audit'; runBtn.disabled = false; }
+    }
+  }
+
+  // ── STEP 3: POPULATE TEMPLATE ──
+  function populateTemplate(a) {
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val) el.textContent = val;
+    };
+    const setHTML = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val) el.innerHTML = val;
+    };
+
+    // Scores
+    const scoreBefore = a.original_score || 2;
+    const scoreAfter = a.rebuilt_score || 9;
+    set('score-before', 'Original: ' + scoreBefore + '/10');
+    set('score-after', 'Rebuilt: ' + scoreAfter + '/10');
+
+    const elBarBefore = document.getElementById('bar-before');
+    const elBarAfter = document.getElementById('bar-after');
+    if (elBarBefore) elBarBefore.style.width = (scoreBefore * 10) + '%';
+    if (elBarAfter) elBarAfter.style.width = (scoreAfter * 10) + '%';
+
+    // Sidebar score box
+    const sbBefore = document.getElementById('sb-score-before');
+    const sbAfter = document.getElementById('sb-score-after');
+    if (sbBefore) sbBefore.textContent = scoreBefore + ' / 10';
+    if (sbAfter) sbAfter.textContent = scoreAfter + ' / 10';
+
+    // Company
+    const company = a.company || 'Company';
+    applyBrandTokens(null, company);
+
+    // Content fields
+    set('original-title', a.original_title);
+    set('rebuilt-title', a.rebuilt_title);
+    set('original-lead', a.original_lead);
+    set('rebuilt-lead', a.rebuilt_lead ? a.rebuilt_lead : '');
+    if (a.rebuilt_lead) {
+      const el = document.getElementById('rebuilt-lead');
+      if (el) el.innerHTML = '<strong>' + a.rebuilt_lead.split('.')[0] + '.</strong> ' + a.rebuilt_lead.split('.').slice(1).join('.').trim();
+    }
+    set('entry1-title', a.entry1_title);
+    set('entry1-before', a.entry1_before);
+    set('entry1-after', a.entry1_after);
+    set('stat1-num', a.stat1_num);
+    set('stat1-label', a.stat1_label);
+    set('stat2-num', a.stat2_num);
+    set('stat2-label', a.stat2_label);
+    set('stat3-num', a.stat3_num);
+    set('stat3-label', a.stat3_label);
+    set('cta-before', a.cta_before);
+    set('cta-after', a.cta_after);
+    set('before-contrast', a.before_contrast);
+    if (a.after_contrast) {
+      const el = document.getElementById('after-contrast');
+      if (el) el.innerHTML = a.after_contrast.replace('Before:', '<strong>Before:</strong>').replace('After:', '<br><br><strong>After:</strong>');
+    }
+    set('bc-current', company + ' Changelog');
+    set('bc-home', company);
+    set('meta-authors', company + ' Product Team');
+
+    // What Changed table
+    if (a.wc && a.wc.length) {
+      const wcRows = document.querySelectorAll('.wc-row');
+      a.wc.forEach((item, i) => {
+        if (wcRows[i]) {
+          const fixEl = wcRows[i].querySelector('.wc-fix');
+          const bEl = wcRows[i].querySelector('.wc-b');
+          const aEl = wcRows[i].querySelector('.wc-a');
+          if (fixEl) fixEl.innerHTML = item.fix.replace('\n', '<br>');
+          if (bEl) bEl.textContent = item.before;
+          if (aEl) aEl.textContent = item.after;
+        }
+      });
+    }
+
+    // Sidebar bug cards
+    if (a.bugs && a.bugs.length) {
+      const bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
+      a.bugs.forEach((bug, i) => {
+        if (bugCards[i]) {
+          const titleEl = bugCards[i].querySelector('.ann-title');
+          const bodyEl = bugCards[i].querySelector('.ann-body');
+          if (titleEl) titleEl.textContent = bug.title;
+          if (bodyEl) bodyEl.textContent = bug.body;
+        }
+      });
+    }
+
+    // Sidebar fix cards
+    if (a.fixes && a.fixes.length) {
+      const fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
+      a.fixes.forEach((fix, i) => {
+        if (fixCards[i]) {
+          const titleEl = fixCards[i].querySelector('.ann-title');
+          const bodyEl = fixCards[i].querySelector('.ann-body');
+          if (titleEl) titleEl.textContent = fix.title;
+          if (bodyEl) bodyEl.textContent = fix.body;
+        }
+      });
+    }
+
+    // Scroll la continut
+    document.querySelector('.client-nav').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ── APPLY BRAND TOKENS ──
+  function applyBrandTokens(primaryColor, companyName) {
+    const root = document.documentElement;
+    if (primaryColor) root.style.setProperty('--brand-primary', primaryColor);
+
+    if (companyName) {
+      const logo = document.getElementById('client-logo');
+      if (logo) logo.innerHTML = companyName.slice(0, -1) + '<span>' + companyName.slice(-1) + '</span>';
+      const tbName = document.getElementById('tb-client-name');
+      if (tbName) tbName.textContent = companyName;
+      const avatar = document.getElementById('meta-avatar');
+      if (avatar) avatar.textContent = companyName.slice(0, 2).toUpperCase();
+    }
+  }
+
+  // ── EVENT LISTENERS — sicuri su mobile ──
+  document.addEventListener('DOMContentLoaded', function() {
+    const runBtn = document.getElementById('runAuditBtn');
+    if (runBtn) {
+      runBtn.addEventListener('click', function() {
+        runAuditFromManual();
+      });
+    }
+    const extractBtn = document.getElementById('extractBrandBtn');
+    if (extractBtn) {
+      extractBtn.addEventListener('click', function() {
+        applyBrand();
+      });
+    }
+  });
+
+  // ── EDITABLE FIELDS — double-click to edit ──
+  const editableIds = [
+    'original-title','rebuilt-title','original-lead','rebuilt-lead',
+    'entry1-title','entry1-before','entry1-after',
+    'cta-before','cta-after','cta-context',
+    'stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label',
+    'before-contrast','after-contrast','meta-date','bc-current'
+  ];
+  editableIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.cursor = 'text';
+    el.setAttribute('title', 'Double-click to edit');
+    el.addEventListener('dblclick', () => {
+      el.contentEditable = 'true';
+      el.focus();
+      el.style.outline = '2px solid var(--brand-primary)';
+      el.style.borderRadius = '3px';
+    });
+    el.addEventListener('blur', () => {
+      el.contentEditable = 'false';
+      el.style.outline = 'none';
+    });
+  });
+
+</script>
+</body>
+</html>
