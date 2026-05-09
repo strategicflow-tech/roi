@@ -739,303 +739,211 @@
 </div>
 
 <script>
+  var btn = document.getElementById("runAuditBtn");
+  var extractBtn = document.getElementById("extractBrandBtn");
+  var tabBefore = document.getElementById("tab-before");
+  var tabAfter = document.getElementById("tab-after");
 
-  /* ═══════════════════════════════════════════════
-     STRATEGIC FLOW — CHANGELOG AUDIT ENGINE
-     Claude API connector + brand injection + UI
-  ═══════════════════════════════════════════════ */
-
-  // ── STATE ──
-  let auditData = null;
-
-  // ── TAB TOGGLE ──
-  function setView(view) {
-    const body = document.getElementById('body');
-    const tabBefore = document.getElementById('tab-before');
-    const tabAfter = document.getElementById('tab-after');
-    if (view === 'after') {
-      body.classList.add('after-view');
-      tabAfter.classList.add('active');
-      tabBefore.classList.remove('active');
-    } else {
-      body.classList.remove('after-view');
-      tabBefore.classList.add('active');
-      tabAfter.classList.remove('active');
-    }
-  }
-
-  // ── BRAND PRESETS (fallback quando scraper nu poate accesa URL) ──
-  const BRAND_PRESETS = {
-    'linear':   { primary: '#5E6AD2', name: 'Linear' },
-    'notion':   { primary: '#000000', name: 'Notion' },
-    'vercel':   { primary: '#000000', name: 'Vercel' },
-    'stripe':   { primary: '#635BFF', name: 'Stripe' },
-    'loom':     { primary: '#625DF5', name: 'Loom' },
-    'intercom': { primary: '#1F8EED', name: 'Intercom' },
-    'figma':    { primary: '#F24E1E', name: 'Figma' },
-    'github':   { primary: '#2DA44E', name: 'GitHub' },
-    'dbt':      { primary: '#FF694A', name: 'dbt Labs' },
-    'linear':   { primary: '#5E6AD2', name: 'Linear' },
-    'default':  { primary: '#FF694A', name: 'Company' },
-  };
-
-  // ── STEP 1: EXTRACT BRAND + FETCH URL CONTENT ──
-  function applyBrand() {
-    const urlRaw = document.getElementById('brandUrl').value.trim();
-    const status = document.getElementById('scraperStatus');
-
-    if (!urlRaw) {
-      status.textContent = 'Paste a URL first.';
-      return;
-    }
-
-    const url = urlRaw.startsWith('http') ? urlRaw : 'https://' + urlRaw;
-    const urlLower = url.toLowerCase();
-
-    // Aplica brand preset din URL
-    let preset = BRAND_PRESETS['default'];
-    for (const key of Object.keys(BRAND_PRESETS)) {
-      if (urlLower.includes(key)) { preset = BRAND_PRESETS[key]; break; }
-    }
-    applyBrandTokens(preset.primary, preset.name);
-    status.textContent = 'Brand applied: ' + preset.name + ' — now paste the changelog text in Step 2 and tap Run Audit.';
-  }
-
-  // ── FALLBACK manual — nu mai e fallback, e fluxul principal ──
-  async function runAuditFromManual() {
-    const text = document.getElementById('manualText').value.trim();
-    const status = document.getElementById('scraperStatus');
-
-    if (!text || text.length < 80) {
-      status.textContent = 'Paste more text — need at least a title and a few entries.';
-      return;
-    }
-
-    const companyName = document.getElementById('client-logo').textContent.replace('.','').trim() || 'Company';
-    status.textContent = 'Running Strategic Flow audit...';
-    status.style.color = '#69F0AE';
-    status.style.fontStyle = 'normal';
-    const btn = document.getElementById('runAuditBtn');
-    if (btn) { btn.textContent = 'Analyzing...'; btn.disabled = true; }
-
-    await runAudit(text, '', companyName);
-
-    if (btn) { btn.textContent = 'Run Audit'; btn.disabled = false; }
-  }
-
-  
-  // ── STEP 2: CLAUDE API AUDIT ──
-  async function runAudit(pageText, sourceUrl, companyName) {
-    const status = document.getElementById('scraperStatus');
-    const btn = document.querySelector('.scraper-btn');
-
-    const SYSTEM_PROMPT = 'You are the Strategic Flow Onboarding Audit engine. ' +
-      'You analyze SaaS onboarding copy: welcome screens, setup steps, tooltips, empty states, CTAs, error messages. ' +
-      'Apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. ' +
-      'Return ONLY valid JSON. No markdown, no backticks, no preamble. ' +
-      'Use this JSON schema: {company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc:[{fix,before,after}], bugs:[{number,title,body}], fixes:[{number,title,body}]}. ' +
-      'The 7 bugs: 1.Welcome Screen Without Consequence 2.Progress Indicator Absent or Useless 3.Generic CTA on Every Screen 4.Empty State Without Direction 5.Feature Explanation Instead of Outcome 6.Too Many Steps Before First Value 7.Invisible Microcopy. ' +
-      'Apply Strategic Flow vocabulary: consequence, ownership language, first moment of value, activation rate, quick win, microcopy.';
-
-        const USER_PROMPT = 'Analyze this onboarding copy from ' + (companyName || 'this SaaS company') + '. ' +
-      'Apply all 7 Strategic Flow onboarding bug diagnostics. Rebuild everything. ' +
-      'Return only the JSON object. ' +
-      'ONBOARDING COPY: ' + pageText.slice(0, 6000);
-
-        try {
-      const response = await fetch('https://strategic-flow-audit.replit.app/onboarding-audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: sourceUrl || '',
-          text: pageText
-        })
-      });
-
-      const audit = await response.json();
-
-      if (audit.error) throw new Error(audit.error);
-
-      auditData = audit;
-      populateTemplate(audit);
-
-      status.textContent = 'Audit complete — ' + audit.company + ' · Score: ' + audit.original_score + ' → ' + audit.rebuilt_score;
-      btn.textContent = 'Re-run Audit';
-      btn.disabled = false;
-
-    } catch (err) {
-      const errMsg = err.message || String(err);
-      status.textContent = 'ERROR: ' + errMsg;
-      status.style.color = '#FF6B6B';
-      status.style.fontStyle = 'normal';
-      status.style.fontWeight = '700';
-      const runBtn = document.getElementById('runAuditBtn');
-      if (runBtn) { runBtn.textContent = 'Run Audit'; runBtn.disabled = false; }
-    }
-  }
-
-  // ── STEP 3: POPULATE TEMPLATE ──
-  function populateTemplate(a) {
-    const set = (id, val) => {
-      const el = document.getElementById(id);
-      if (el && val) el.textContent = val;
+  if (tabBefore) {
+    tabBefore.onclick = function() {
+      document.getElementById("body").classList.remove("after-view");
+      tabBefore.classList.add("active");
+      tabAfter.classList.remove("active");
     };
-    const setHTML = (id, val) => {
-      const el = document.getElementById(id);
-      if (el && val) el.innerHTML = val;
+  }
+  if (tabAfter) {
+    tabAfter.onclick = function() {
+      document.getElementById("body").classList.add("after-view");
+      tabAfter.classList.add("active");
+      tabBefore.classList.remove("active");
     };
-
-    // Scores
-    const scoreBefore = a.original_score || 2;
-    const scoreAfter = a.rebuilt_score || 9;
-    set('score-before', 'Original: ' + scoreBefore + '/10');
-    set('score-after', 'Rebuilt: ' + scoreAfter + '/10');
-
-    const elBarBefore = document.getElementById('bar-before');
-    const elBarAfter = document.getElementById('bar-after');
-    if (elBarBefore) elBarBefore.style.width = (scoreBefore * 10) + '%';
-    if (elBarAfter) elBarAfter.style.width = (scoreAfter * 10) + '%';
-
-    // Sidebar score box
-    const sbBefore = document.getElementById('sb-score-before');
-    const sbAfter = document.getElementById('sb-score-after');
-    if (sbBefore) sbBefore.textContent = scoreBefore + ' / 10';
-    if (sbAfter) sbAfter.textContent = scoreAfter + ' / 10';
-
-    // Company
-    const company = a.company || 'Company';
-    applyBrandTokens(null, company);
-
-    // Content fields
-    set('original-title', a.original_title);
-    set('rebuilt-title', a.rebuilt_title);
-    set('original-lead', a.original_lead);
-    set('rebuilt-lead', a.rebuilt_lead ? a.rebuilt_lead : '');
-    if (a.rebuilt_lead) {
-      const el = document.getElementById('rebuilt-lead');
-      if (el) el.innerHTML = '<strong>' + a.rebuilt_lead.split('.')[0] + '.</strong> ' + a.rebuilt_lead.split('.').slice(1).join('.').trim();
-    }
-    set('entry1-title', a.entry1_title);
-    set('entry1-before', a.entry1_before);
-    set('entry1-after', a.entry1_after);
-    set('stat1-num', a.stat1_num);
-    set('stat1-label', a.stat1_label);
-    set('stat2-num', a.stat2_num);
-    set('stat2-label', a.stat2_label);
-    set('stat3-num', a.stat3_num);
-    set('stat3-label', a.stat3_label);
-    set('cta-before', a.cta_before);
-    set('cta-after', a.cta_after);
-    set('before-contrast', a.before_contrast);
-    if (a.after_contrast) {
-      const el = document.getElementById('after-contrast');
-      if (el) el.innerHTML = a.after_contrast.replace('Before:', '<strong>Before:</strong>').replace('After:', '<br><br><strong>After:</strong>');
-    }
-    set('bc-current', company + ' Changelog');
-    set('bc-home', company);
-    set('meta-authors', company + ' Product Team');
-
-    // What Changed table
-    if (a.wc && a.wc.length) {
-      const wcRows = document.querySelectorAll('.wc-row');
-      a.wc.forEach((item, i) => {
-        if (wcRows[i]) {
-          const fixEl = wcRows[i].querySelector('.wc-fix');
-          const bEl = wcRows[i].querySelector('.wc-b');
-          const aEl = wcRows[i].querySelector('.wc-a');
-          if (fixEl) fixEl.innerHTML = item.fix.replace('\n', '<br>');
-          if (bEl) bEl.textContent = item.before;
-          if (aEl) aEl.textContent = item.after;
-        }
-      });
-    }
-
-    // Sidebar bug cards
-    if (a.bugs && a.bugs.length) {
-      const bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
-      a.bugs.forEach((bug, i) => {
-        if (bugCards[i]) {
-          const titleEl = bugCards[i].querySelector('.ann-title');
-          const bodyEl = bugCards[i].querySelector('.ann-body');
-          if (titleEl) titleEl.textContent = bug.title;
-          if (bodyEl) bodyEl.textContent = bug.body;
-        }
-      });
-    }
-
-    // Sidebar fix cards
-    if (a.fixes && a.fixes.length) {
-      const fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
-      a.fixes.forEach((fix, i) => {
-        if (fixCards[i]) {
-          const titleEl = fixCards[i].querySelector('.ann-title');
-          const bodyEl = fixCards[i].querySelector('.ann-body');
-          if (titleEl) titleEl.textContent = fix.title;
-          if (bodyEl) bodyEl.textContent = fix.body;
-        }
-      });
-    }
-
-    // Scroll la continut
-    document.querySelector('.client-nav').scrollIntoView({ behavior: 'smooth' });
   }
 
-  // ── APPLY BRAND TOKENS ──
-  function applyBrandTokens(primaryColor, companyName) {
-    const root = document.documentElement;
-    if (primaryColor) root.style.setProperty('--brand-primary', primaryColor);
-
-    if (companyName) {
-      const logo = document.getElementById('client-logo');
-      if (logo) logo.innerHTML = companyName.slice(0, -1) + '<span>' + companyName.slice(-1) + '</span>';
-      const tbName = document.getElementById('tb-client-name');
-      if (tbName) tbName.textContent = companyName;
-      const avatar = document.getElementById('meta-avatar');
-      if (avatar) avatar.textContent = companyName.slice(0, 2).toUpperCase();
-    }
+  if (extractBtn) {
+    extractBtn.onclick = function() {
+      var urlRaw = document.getElementById("brandUrl").value.trim();
+      var status = document.getElementById("scraperStatus");
+      if (!urlRaw) { status.textContent = "Paste a URL first."; return; }
+      var url = urlRaw.startsWith("http") ? urlRaw : "https://" + urlRaw;
+      var urlLower = url.toLowerCase();
+      var presets = {
+        "linear": { primary: "#5E6AD2", name: "Linear" },
+        "notion": { primary: "#000000", name: "Notion" },
+        "vercel": { primary: "#000000", name: "Vercel" },
+        "stripe": { primary: "#635BFF", name: "Stripe" },
+        "loom": { primary: "#625DF5", name: "Loom" },
+        "intercom": { primary: "#1F8EED", name: "Intercom" },
+        "figma": { primary: "#F24E1E", name: "Figma" },
+        "github": { primary: "#2DA44E", name: "GitHub" },
+        "dbt": { primary: "#FF694A", name: "dbt Labs" }
+      };
+      var preset = { primary: "#FF694A", name: "Company" };
+      for (var key in presets) {
+        if (urlLower.includes(key)) { preset = presets[key]; break; }
+      }
+      document.documentElement.style.setProperty("--brand-primary", preset.primary);
+      var logo = document.getElementById("client-logo");
+      if (logo) logo.innerHTML = preset.name.slice(0,-1) + "<span>" + preset.name.slice(-1) + "</span>";
+      status.textContent = "Brand applied: " + preset.name;
+      status.style.color = "#69F0AE";
+      status.style.fontStyle = "normal";
+    };
   }
 
-  // ── EVENT LISTENERS — sicuri su mobile ──
-  document.addEventListener('DOMContentLoaded', function() {
-    const runBtn = document.getElementById('runAuditBtn');
-    if (runBtn) {
-      runBtn.addEventListener('click', function() {
-        runAuditFromManual();
-      });
-    }
-    const extractBtn = document.getElementById('extractBrandBtn');
-    if (extractBtn) {
-      extractBtn.addEventListener('click', function() {
-        applyBrand();
-      });
-    }
-  });
+  if (btn) {
+    btn.onclick = function() {
+      var text = document.getElementById("manualText").value.trim();
+      var status = document.getElementById("scraperStatus");
+      var progressWrap = document.getElementById("progressWrap");
+      var progressBar = document.getElementById("progressBar");
+      var progressPct = document.getElementById("progressPct");
+      var progressLabel = document.getElementById("progressLabel");
 
-  // ── EDITABLE FIELDS — double-click to edit ──
-  const editableIds = [
-    'original-title','rebuilt-title','original-lead','rebuilt-lead',
-    'entry1-title','entry1-before','entry1-after',
-    'cta-before','cta-after','cta-context',
-    'stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label',
-    'before-contrast','after-contrast','meta-date','bc-current'
-  ];
-  editableIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.cursor = 'text';
-    el.setAttribute('title', 'Double-click to edit');
-    el.addEventListener('dblclick', () => {
-      el.contentEditable = 'true';
-      el.focus();
-      el.style.outline = '2px solid var(--brand-primary)';
-      el.style.borderRadius = '3px';
-    });
-    el.addEventListener('blur', () => {
-      el.contentEditable = 'false';
-      el.style.outline = 'none';
-    });
-  });
+      if (!text || text.length < 80) {
+        status.textContent = "Paste more onboarding copy first.";
+        status.style.color = "#FF6B6B";
+        return;
+      }
 
+      status.textContent = "";
+      progressWrap.style.display = "block";
+      btn.textContent = "Analyzing...";
+      btn.disabled = true;
+
+      var steps = [
+        { pct: 15, label: "Reading onboarding structure...", time: 300 },
+        { pct: 30, label: "Identifying UX copy bugs...", time: 700 },
+        { pct: 50, label: "Running Strategic Flow audit...", time: 1200 },
+        { pct: 70, label: "Rebuilding copy...", time: 2000 },
+        { pct: 85, label: "Generating fixes...", time: 2800 },
+        { pct: 95, label: "Almost done...", time: 3500 }
+      ];
+      steps.forEach(function(step) {
+        setTimeout(function() {
+          progressBar.style.width = step.pct + "%";
+          progressPct.textContent = step.pct + "%";
+          progressLabel.textContent = step.label;
+        }, step.time);
+      });
+
+      var logo = document.getElementById("client-logo");
+      var companyName = logo ? logo.textContent.replace(".","").trim() : "Company";
+
+      fetch("https://strategic-flow-audit.replit.app/onboarding-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "", text: text })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(audit) {
+        if (audit.error) throw new Error(audit.error);
+
+        progressBar.style.width = "100%";
+        progressPct.textContent = "100%";
+        progressLabel.textContent = "Audit complete";
+
+        setTimeout(function() {
+          progressWrap.style.display = "none";
+          status.textContent = "Audit complete — " + (audit.company || companyName);
+          status.style.color = "#69F0AE";
+          status.style.fontStyle = "normal";
+          status.style.fontWeight = "600";
+        }, 600);
+
+        document.getElementById("score-before").textContent = "Original: " + (audit.original_score || 2) + "/10";
+        document.getElementById("score-after").textContent = "Rebuilt: " + (audit.rebuilt_score || 9) + "/10";
+        if (audit.original_title) document.getElementById("original-title").textContent = audit.original_title;
+        if (audit.rebuilt_title) document.getElementById("rebuilt-title").textContent = audit.rebuilt_title;
+        if (audit.original_lead) document.getElementById("original-lead").textContent = audit.original_lead;
+        if (audit.rebuilt_lead) document.getElementById("rebuilt-lead").textContent = audit.rebuilt_lead;
+        if (audit.entry1_title) document.getElementById("entry1-title").textContent = audit.entry1_title;
+        if (audit.entry1_before) document.getElementById("entry1-before").textContent = audit.entry1_before;
+        if (audit.entry1_after) document.getElementById("entry1-after").textContent = audit.entry1_after;
+        if (audit.stat1_num) document.getElementById("stat1-num").textContent = audit.stat1_num;
+        if (audit.stat1_label) document.getElementById("stat1-label").textContent = audit.stat1_label;
+        if (audit.stat2_num) document.getElementById("stat2-num").textContent = audit.stat2_num;
+        if (audit.stat2_label) document.getElementById("stat2-label").textContent = audit.stat2_label;
+        if (audit.stat3_num) document.getElementById("stat3-num").textContent = audit.stat3_num;
+        if (audit.stat3_label) document.getElementById("stat3-label").textContent = audit.stat3_label;
+        if (audit.cta_before) document.getElementById("cta-before").textContent = audit.cta_before;
+        if (audit.cta_after) document.getElementById("cta-after").textContent = audit.cta_after;
+
+        var downloadGate = document.getElementById("downloadGate");
+        if (downloadGate) downloadGate.style.display = "block";
+
+        var heroBlock = document.getElementById("hero-block");
+        if (heroBlock) {
+          var domain = "";
+          try {
+            var urlInput = document.getElementById("brandUrl").value.trim();
+            if (urlInput) {
+              var fullUrl = urlInput.startsWith("http") ? urlInput : "https://" + urlInput;
+              domain = new URL(fullUrl).hostname;
+            }
+          } catch(e) {}
+          if (domain) {
+            var faviconUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=128";
+            heroBlock.innerHTML = "<div style='width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:8px;'><img src='" + faviconUrl + "' style='width:64px;height:64px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);' onerror="this.style.display='none'"><span style='font-size:13px;font-weight:600;color:rgba(0,0,0,.4);letter-spacing:.08em;text-transform:uppercase;'>" + (audit.company || companyName) + " — Onboarding Audit</span></div>";
+          }
+        }
+
+        var downloadBtn = document.getElementById("downloadBtn");
+        if (downloadBtn) {
+          downloadBtn.onclick = function() {
+            var email = document.getElementById("downloadEmail").value.trim();
+            var dlStatus = document.getElementById("downloadStatus");
+            if (!email || !email.includes("@")) {
+              dlStatus.textContent = "Enter a valid email.";
+              dlStatus.style.color = "#FF6B6B";
+              return;
+            }
+            dlStatus.textContent = "Checking access...";
+            fetch("https://strategic-flow-audit.replit.app/changelog-audit/check-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: email })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+              if (data.allowed) {
+                dlStatus.textContent = "Access confirmed. Downloading...";
+                dlStatus.style.color = "#69F0AE";
+                var content = document.documentElement.outerHTML;
+                var blob = new Blob([content], { type: "text/html" });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = url;
+                a.download = "strategic-flow-onboarding-audit.html";
+                a.click();
+                URL.revokeObjectURL(url);
+              } else {
+                dlStatus.innerHTML = "Download included in Architecture. <a href='mailto:strategicflow@proton.me' style='color:#FF694A;font-weight:700;'>Book access &rarr;</a>";
+              }
+            })
+            .catch(function() {
+              dlStatus.textContent = "Error checking access. Try again.";
+              dlStatus.style.color = "#FF6B6B";
+            });
+          };
+        }
+
+        btn.textContent = "Run Audit";
+        btn.disabled = false;
+      })
+      .catch(function(err) {
+        progressWrap.style.display = "none";
+        status.textContent = "ERROR: " + err.message;
+        status.style.color = "#FF6B6B";
+        btn.textContent = "Run Audit";
+        btn.disabled = false;
+      });
+    };
+  }
+
+  var loginBtn = document.querySelector(".btn-ghost");
+  var startBtn = document.querySelector(".btn-primary");
+  if (loginBtn) loginBtn.onclick = function() { window.location.href = "https://strategic-flow-audit.replit.app/login.html"; };
+  if (startBtn) startBtn.onclick = function() { window.location.href = "https://strategicflow-tech.github.io/showcase/enterprise.html"; };
 </script>
 </body>
 </html>
