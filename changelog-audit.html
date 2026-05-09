@@ -826,6 +826,13 @@
 </div>
 
 <script>
+var fieldsToClear = ['original-title','rebuilt-title','original-lead','rebuilt-lead','entry1-title','entry1-before','entry1-after','stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label','cta-before','cta-after'];
+fieldsToClear.forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
+var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
+var ub=document.getElementById('usedBanner');if(ub)ub.remove();
+document.getElementById('scraperStatus').textContent='Paste changelog text above and tap Run Audit';
+document.getElementById('scraperStatus').style.color='';
+
 document.getElementById('runAuditBtn').style.border = '5px solid lime';
 document.getElementById('runAuditBtn').onclick = function() {
   var text = document.getElementById('manualText').value.trim();
