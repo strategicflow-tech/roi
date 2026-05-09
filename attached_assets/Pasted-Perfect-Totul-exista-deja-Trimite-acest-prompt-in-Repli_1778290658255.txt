@@ -1,0 +1,111 @@
+Perfect. Totul exista deja. Trimite acest prompt in Replit AI:
+
+---
+
+Build the download gate for the Changelog Audit page. Here is exactly what I need:
+
+**1. New route POST `/changelog-audit/check-email`**
+
+Check if the email exists in the users table and has a paying tier (architecture, lite, growth, high_impact). Return:
+```json
+{ "allowed": true, "tier": "architecture" }
+// or
+{ "allowed": false, "tier": null }
+```
+
+Also save the email to a new table `changelog_audit_leads` with columns: `email`, `created_at`, `allowed_download`. If the email is not a paying client, set `allowed_download = false`. If paying, set `allowed_download = true`.
+
+**2. In `changelog-audit.html`, after the audit completes, add a download button:**
+
+Replace the existing `btn.textContent = 'Run Audit'` completion code with this flow:
+
+After audit populates, show a new section at the bottom of the scraper bar:
+
+```html
+<div id="downloadGate" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,.1);padding-top:16px;">
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:8px;">Download the full teardown HTML</div>
+  <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:12px;">Enter your email to download. Architecture clients get instant access.</div>
+  <div style="display:flex;gap:10px;">
+    <input id="downloadEmail" type="email" placeholder="your@email.com" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;outline:none;"/>
+    <button id="downloadBtn" style="padding:10px 18px;background:#FF694A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">Download</button>
+  </div>
+  <div id="downloadStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
+</div>
+```
+
+**3. Download button logic:**
+
+```javascript
+downloadBtn.onclick = function() {
+  var email = document.getElementById('downloadEmail').value.trim();
+  var dlStatus = document.getElementById('downloadStatus');
+  
+  if (!email || !email.includes('@')) {
+    dlStatus.textContent = 'Enter a valid email.';
+    dlStatus.style.color = '#FF6B6B';
+    return;
+  }
+
+  dlStatus.textContent = 'Checking access...';
+  dlStatus.style.color = 'rgba(255,255,255,.4)';
+
+  fetch('https://strategic-flow-audit.replit.app/changelog-audit/check-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.allowed) {
+      // Paying client — download immediately
+      dlStatus.textContent = 'Access confirmed. Downloading...';
+      dlStatus.style.color = '#69F0AE';
+      downloadHTML();
+    } else {
+      // Not a client — show upgrade message
+      dlStatus.innerHTML = 'Download included in Architecture. <a href="mailto:strategicflow@proton.me" style="color:#FF694A;font-weight:700;">Book access →</a>';
+      dlStatus.style.color = 'rgba(255,255,255,.6)';
+    }
+  })
+  .catch(function() {
+    dlStatus.textContent = 'Error checking access. Try again.';
+    dlStatus.style.color = '#FF6B6B';
+  });
+};
+```
+
+**4. The `downloadHTML()` function:**
+
+```javascript
+function downloadHTML() {
+  var content = document.documentElement.outerHTML;
+  var blob = new Blob([content], { type: 'text/html' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'strategic-flow-changelog-audit.html';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+**5. Show the download gate after audit completes:**
+
+After `status.textContent = 'Audit complete...'`, add:
+```javascript
+document.getElementById('downloadGate').style.display = 'block';
+```
+
+**6. Fix the Login and Get Started buttons in the nav:**
+
+Find the two buttons in the client-nav and update them:
+```html
+<button class="btn btn-ghost" onclick="window.location.href='https://strategic-flow-audit.replit.app/login.html'">Log in</button>
+<button class="btn btn-primary" onclick="window.location.href='https://strategicflow-tech.github.io/showcase/enterprise.html'">Get started</button>
+```
+
+Save and publish.
+
+---
+
+Dupa publish testeaza cu `strategicflow@proton.me` — ar trebui sa descarce instant. Spune-mi ce apare.
