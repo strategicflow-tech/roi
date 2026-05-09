@@ -122,6 +122,7 @@
   /* ── BREADCRUMB ── */
   .breadcrumb{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.5);margin-bottom:24px;font-family:'DM Mono',monospace;}
   .breadcrumb a{color:var(--blue);text-decoration:none;}
+  .breadcrumb span:last-child{color:rgba(255,255,255,.7);}
   .bc-sep{opacity:.4;}
 
   /* ── POST CARD ── */
@@ -151,13 +152,13 @@
 
   /* ── WHAT CHANGED ── */
   .wc{background:#0a0a0a;border-radius:10px;padding:24px 20px;margin:32px 0;border:1px solid #1a1a1a;}
-  .wc-head{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+  .wc-head{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
   .wc-head::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06);}
   .wc-row{padding:14px 0;border-bottom:1px solid rgba(255,255,255,.05);}
   .wc-row:last-child{border:none;}
-  .wc-fix-label{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);margin-bottom:6px;}
-  .wc-b{font-size:13px;line-height:1.6;color:#FF6B6B;background:rgba(232,84,84,.08);border-left:3px solid var(--red);border-radius:0 6px 6px 0;padding:10px 12px;margin-bottom:4px;}
-  .wc-a{font-size:13px;line-height:1.6;color:#69F0AE;background:rgba(62,207,142,.08);border-left:3px solid var(--green);border-radius:0 6px 6px 0;padding:10px 12px;}
+  .wc-fix-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.55);margin-bottom:6px;}
+  .wc-b{font-size:13px;line-height:1.6;color:#FF6B6B;background:rgba(232,84,84,.08);border-left:3px solid var(--red);border-radius:0 6px 6px 0;padding:10px 12px;margin-bottom:4px;min-height:36px;}
+  .wc-a{font-size:13px;line-height:1.6;color:#69F0AE;background:rgba(62,207,142,.08);border-left:3px solid var(--green);border-radius:0 6px 6px 0;padding:10px 12px;min-height:36px;}
 
   /* ── SIDEBAR ── */
   .sidebar{position:sticky;top:calc(96px + 24px);height:fit-content;max-height:calc(100vh-140px);overflow-y:auto;}
