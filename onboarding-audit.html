@@ -759,6 +759,9 @@
 </div>
 
 <script>
+console.log('Script tag reached');
+window.onload = function() {
+  console.log('DOM ready, btn:', document.getElementById('runAuditBtn'));
   var btn = document.getElementById("runAuditBtn");
   var extractBtn = document.getElementById("extractBrandBtn");
   var tabBefore = document.getElementById("tab-before");
@@ -964,6 +967,7 @@
   var startBtn = document.querySelector(".btn-primary");
   if (loginBtn) loginBtn.onclick = function() { window.location.href = "https://strategic-flow-audit.replit.app/login.html"; };
   if (startBtn) startBtn.onclick = function() { window.location.href = "https://strategicflow-tech.github.io/showcase/enterprise.html"; };
+}; // end window.onload
 </script>
 </body>
 </html>
