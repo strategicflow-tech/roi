@@ -443,13 +443,20 @@
         });
       };
     }
+  var fieldsToClear = ['original-title','rebuilt-title','original-lead','rebuilt-lead','entry1-title','entry1-before','entry1-after','stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label','cta-before','cta-after'];
+  fieldsToClear.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
+  var downloadGate = document.getElementById('downloadGate');
+  if (downloadGate) downloadGate.style.display = 'none';
   })();
 </script>
 
 <!-- ── BRAND SCRAPER BAR ── -->
 <div class="scraper-bar" id="scraperBar">
 
-  <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-.01em;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);">
+  <div style="font-size:15px;font-weight:700;color:#ffffff;letter-spacing:.02em;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);">
     Onboarding Audit <span style="color:#FF694A;">—</span> Strategic Flow
   </div>
 
