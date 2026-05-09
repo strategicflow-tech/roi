@@ -1117,16 +1117,53 @@ CHANGELOG CONTENT:
 </script>
 <script>
   var btn = document.getElementById('runAuditBtn');
-  var status = document.getElementById('scraperStatus');
+  var extractBtn = document.getElementById('extractBrandBtn');
 
-  if (!btn) {
-    alert('runAuditBtn NOT FOUND in DOM');
-  } else {
-    alert('runAuditBtn FOUND - attaching click');
+  if (btn) {
     btn.onclick = function() {
-      alert('CLICKED');
-      var text = document.getElementById('manualText').value;
-      alert('Text length: ' + text.length);
+      var text = document.getElementById('manualText').value.trim();
+      var status = document.getElementById('scraperStatus');
+
+      if (!text || text.length < 80) {
+        status.textContent = 'Paste more text first.';
+        status.style.color = '#FF6B6B';
+        return;
+      }
+
+      status.textContent = 'Running audit...';
+      status.style.color = '#69F0AE';
+      btn.textContent = 'Analyzing...';
+      btn.disabled = true;
+
+      var logo = document.getElementById('client-logo');
+      var companyName = logo ? logo.textContent.replace('.','').trim() : 'Company';
+
+      fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: '', text: text })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(audit) {
+        if (audit.error) throw new Error(audit.error);
+        populateTemplate(audit);
+        status.textContent = 'Audit complete — ' + (audit.company || companyName);
+        status.style.color = '#69F0AE';
+        btn.textContent = 'Run Audit';
+        btn.disabled = false;
+      })
+      .catch(function(err) {
+        status.textContent = 'ERROR: ' + err.message;
+        status.style.color = '#FF6B6B';
+        btn.textContent = 'Run Audit';
+        btn.disabled = false;
+      });
+    };
+  }
+
+  if (extractBtn) {
+    extractBtn.onclick = function() {
+      applyBrand();
     };
   }
 </script>
