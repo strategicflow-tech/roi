@@ -392,7 +392,7 @@
 
 <div id="emailGate" style="position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:flex;align-items:center;justify-content:center;padding:24px;">
   <div style="max-width:420px;width:100%;text-align:center;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#FF694A;margin-bottom:8px;font-family:monospace;">Changelog Audit</div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#4A8FE7;margin-bottom:8px;font-family:monospace;">Changelog Audit</div>
     <h2 style="font-size:24px;font-weight:800;color:#ffffff;margin-bottom:10px;line-height:1.2;">Enter your email to run your free audit</h2>
     <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.6;">One free audit. Full results. No credit card required.</p>
     <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;-webkit-box-shadow:0 0 0 1000px rgba(10,10,10,.95) inset;-webkit-text-fill-color:#fff;"/>
@@ -422,7 +422,7 @@
       var gateTitle = gateOverlay.querySelector('h2');
       if (gateTitle) gateTitle.textContent = 'You have used your free audit.';
       var gateSub = gateOverlay.querySelector('p');
-      if (gateSub) gateSub.innerHTML = 'Get unlimited access to Changelog, Onboarding, and Email audits via Architecture.<br><br><a href="https://strategicflow-tech.github.io/showcase/enterprise.html" style="display:inline-block;padding:14px 28px;background:#FF694A;color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:15px;">Get Architecture access \u2192</a>';
+      if (gateSub) gateSub.innerHTML = 'Get unlimited access to Changelog, Onboarding, and Email audits via Architecture.<br><br><a href="https://strategicflow-tech.github.io/showcase/enterprise.html" style="display:inline-block;padding:14px 28px;background:#4A8FE7;color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:15px;">Get Architecture access \u2192</a>';
     } else if (savedEmail) {
       if (gateOverlay) gateOverlay.style.display = 'none';
     } else {
@@ -476,7 +476,7 @@
 <div class="scraper-bar" id="scraperBar">
 
   <div style="font-size:15px;font-weight:700;color:#ffffff;letter-spacing:.02em;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08);">
-    Changelog Audit <span style="color:#FF694A;">—</span> Strategic Flow
+    Changelog Audit <span style="color:#4A8FE7;">—</span> Strategic Flow
   </div>
 
   <!-- STEP 1: Brand URL -->
@@ -935,7 +935,7 @@ document.getElementById('extractBrandBtn').onclick = function() {
   var url = document.getElementById('brandUrl').value.trim().toLowerCase();
   var presets = {'linear':'#5E6AD2','notion':'#000000','stripe':'#635BFF','loom':'#625DF5','figma':'#F24E1E','github':'#2DA44E','dbt':'#FF694A','intercom':'#1F8EED'};
   var names = {'linear':'Linear','notion':'Notion','stripe':'Stripe','loom':'Loom','figma':'Figma','github':'GitHub','dbt':'dbt Labs','intercom':'Intercom'};
-  var color = '#FF694A', name = 'Company';
+  var color = '#4A8FE7', name = 'Company';
   for(var k in presets){if(url.includes(k)){color=presets[k];name=names[k];break;}}
   document.documentElement.style.setProperty('--brand-primary', color);
   var logo = document.getElementById('client-logo');
