@@ -4512,7 +4512,7 @@ app.post('/onboarding-audit', async (req, res) => {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
   }
-  const { url, text: rawText } = req.body;
+  const { url, text: rawText, lang } = req.body;
   if (!rawText || rawText.length < 50) {
     return res.status(400).json({ error: 'No text provided' });
   }
@@ -4546,20 +4546,18 @@ app.post('/onboarding-audit', async (req, res) => {
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: ONBOARDING_AUDIT_SYSTEM_PROMPT,
+      system: getLangInstruction(lang) + '\n\n' + ONBOARDING_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this SaaS onboarding copy:\n\n${content.slice(0, 8000)}` }],
     });
 
-    const raw = response.content[0].text;
-    const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    try {
-      const result = JSON.parse(clean);
-      console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
-      res.json(result);
-    } catch(e) {
-      console.log('[onboarding-audit] JSON parse error. Raw response:', raw.slice(0, 500));
-      res.status(500).json({ error: 'Claude returned invalid JSON', raw: raw.slice(0, 200) });
+    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const result = safeParseJSON(raw);
+    if (!result) {
+      console.error('[onboarding-audit] JSON parse failed. Raw:', raw.slice(0, 300));
+      return res.status(500).json({ error: 'Claude returned invalid JSON' });
     }
+    console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
+    res.json(result);
   } catch (err) {
     console.error('[onboarding-audit] Claude error:', err.message);
     res.status(500).json({ error: err.message });
