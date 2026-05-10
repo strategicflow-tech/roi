@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow Architecture — Enterprise Communication Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --cream: #ede9e0;
+    --signal: #4A8FE7;
+    --signal-dim: #2D6BE4;
+    --noise: #ff4d2e;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.85);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--signal); }
+
+  .nav-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .nav-cta {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    background: var(--signal);
+    padding: 10px 20px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .nav-cta:hover { background: var(--signal-dim); }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 140px 48px 80px;
+    z-index: 1;
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.2s;
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(52px, 7vw, 96px);
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    max-width: 900px;
+    margin-bottom: 40px;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.4s;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--signal);
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    color: var(--mid);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 56px;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.6s;
+  }
+
+  .hero-sub strong { color: var(--white); font-weight: 500; }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.8s;
+  }
+
+  .btn-primary {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    background: var(--signal);
+    padding: 16px 32px;
+    text-decoration: none;
+    transition: all 0.2s;
+    display: inline-block;
+  }
+
+  .btn-primary:hover {
+    background: var(--signal-dim);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2px;
+    transition: color 0.2s;
+  }
+
+  .btn-ghost:hover { color: var(--white); }
+
+  /* SCORE TICKER */
+  .score-ticker {
+    position: absolute;
+    right: 48px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeIn 1s ease forwards 1.2s;
+  }
+
+  .score-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .score-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .score-bar {
+    width: 120px;
+    height: 2px;
+    background: rgba(244,242,237,0.1);
+    position: relative;
+  }
+
+  .score-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    background: var(--signal);
+    animation: growBar 1.2s ease forwards 1.4s;
+    width: 0;
+  }
+
+  .score-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  @keyframes growBar { to { width: var(--target-width); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* STAT BAR */
+  .stat-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-item {
+    padding: 40px 48px;
+    border-right: 1px solid var(--border);
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 48px;
+    color: var(--signal);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-desc {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* SECTION */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 48px;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--signal);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 4vw, 56px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    max-width: 700px;
+    margin-bottom: 24px;
+  }
+
+  .section-title em { font-style: italic; color: var(--signal); }
+
+  .section-body {
+    font-size: 17px;
+    color: var(--mid);
+    max-width: 560px;
+    line-height: 1.8;
+  }
+
+  .section-body strong { color: var(--white); font-weight: 500; }
+
+  /* PROBLEM SECTION */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    margin-top: 64px;
+    border: 1px solid var(--border);
+  }
+
+  .problem-cell {
+    background: var(--black);
+    padding: 48px;
+  }
+
+  .problem-cell.highlight { background: rgba(74,143,231,0.06); }
+
+  .cell-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cell-tag.before { color: var(--noise); }
+  .cell-tag.after { color: var(--signal); }
+
+  .cell-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .cell-content {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--mid);
+  }
+
+  .cell-content strong { color: var(--white); font-weight: 500; }
+  .cell-content .highlight-text { color: var(--signal); }
+  .cell-content .noise-text { color: var(--noise); }
+
+  /* ENGINE SECTION */
+  .engine-section {
+    background: rgba(244,242,237,0.02);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .engine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 48px;
+    margin-top: 64px;
+  }
+
+  .engine-card {
+    padding: 40px;
+    border: 1px solid var(--border);
+    position: relative;
+    transition: border-color 0.3s;
+  }
+
+  .engine-card:hover { border-color: rgba(74,143,231,0.4); }
+
+  .engine-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--signal);
+    margin-bottom: 24px;
+  }
+
+  .engine-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+
+  .engine-body {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.8;
+  }
+
+  .engine-body strong { color: var(--white); font-weight: 500; }
+
+  /* ASSESSMENT FLOW */
+  .flow-section { padding: 100px 48px; }
+
+  .flow-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-top: 64px;
+  }
+
+  .flow-step {
+    background: var(--black);
+    padding: 40px 32px;
+    position: relative;
+  }
+
+  .flow-step::after {
+    content: '→';
+    position: absolute;
+    right: -14px;
+    top: 40px;
+    color: var(--signal);
+    font-size: 16px;
+    z-index: 2;
+  }
+
+  .flow-step:last-child::after { display: none; }
+
+  .step-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--signal);
+    margin-bottom: 20px;
+  }
+
+  .step-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+
+  .step-body {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
+  /* ROI SECTION */
+  .roi-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .roi-calculator {
+    margin-top: 64px;
+    border: 1px solid var(--border);
+    background: rgba(74,143,231,0.03);
+  }
+
+  .roi-header {
+    padding: 32px 48px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .roi-header-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  .roi-header-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+    letter-spacing: 0.08em;
+  }
+
+  .roi-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .roi-cell {
+    background: var(--black);
+    padding: 40px 48px;
+  }
+
+  .roi-cell-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  .roi-cell-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .roi-cell-value.positive { color: var(--signal); }
+  .roi-cell-value.negative { color: var(--noise); }
+
+  .roi-cell-note {
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* PROOF */
+  .proof-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-top: 64px;
+  }
+
+  .proof-card {
+    padding: 40px;
+    border: 1px solid var(--border);
+    transition: border-color 0.3s;
+  }
+
+  .proof-card:hover { border-color: rgba(74,143,231,0.3); }
+
+  .proof-score {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .score-before {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    color: var(--noise);
+  }
+
+  .score-arrow {
+    font-size: 18px;
+    color: var(--mid);
+  }
+
+  .score-after {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    color: var(--signal);
+  }
+
+  .proof-company {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--signal);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .proof-issue {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
+  .proof-issue strong { color: var(--white); font-weight: 500; }
+
+  /* PRICING */
+  .pricing-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .pricing-card {
+    margin-top: 64px;
+    border: 1px solid rgba(74,143,231,0.3);
+    background: rgba(74,143,231,0.03);
+    display: grid;
+    grid-template-columns: 380px 1fr;
+  }
+
+  .pricing-left {
+    padding: 64px;
+    border-right: 1px solid var(--border);
+  }
+
+  .pricing-price {
+    font-family: 'DM Serif Display', serif;
+    font-size: 72px;
+    color: var(--signal);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .pricing-period {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    letter-spacing: 0.1em;
+    margin-bottom: 40px;
+  }
+
+  .pricing-desc {
+    font-size: 16px;
+    color: var(--mid);
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+
+  .pricing-desc strong { color: var(--white); font-weight: 500; }
+
+  .pricing-cta {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--white);
+    background: var(--signal);
+    padding: 18px 36px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .pricing-cta:hover {
+    background: var(--signal-dim);
+    transform: translateY(-1px);
+  }
+
+  .pricing-right {
+    padding: 64px;
+  }
+
+  .includes-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .includes-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .includes-item {
+    border: 1px solid var(--border);
+    padding: 20px;
+    background: var(--card);
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.2s;
+  }
+
+  .includes-item:hover { border-color: rgba(74,143,231,0.3); }
+
+  .includes-item::before { display: none; }
+
+  .includes-item strong {
+    color: var(--white);
+    font-weight: 600;
+    font-size: 13px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  @media (max-width: 640px) {
+    .includes-list { grid-template-columns: 1fr; }
+  }
+
+  /* COMPARISON */
+  .compare-table {
+    margin-top: 64px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .compare-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    background: rgba(244,242,237,0.04);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-header-cell {
+    padding: 20px 24px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--white);
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+  }
+
+  .compare-header-cell:last-child { border-right: none; }
+  .compare-header-cell.ours { color: var(--signal); }
+
+  .compare-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-row:last-child { border-bottom: none; }
+
+  .compare-cell {
+    padding: 20px 24px;
+    font-size: 14px;
+    color: var(--white);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    line-height: 1.5;
+  }
+
+  .compare-cell:last-child { border-right: none; }
+  .compare-cell.feature { color: var(--white); font-weight: 500; }
+  .compare-cell.yes { color: var(--signal); font-family: 'DM Mono', monospace; font-weight: 600; }
+  .compare-cell.no { color: var(--noise); font-family: 'DM Mono', monospace; font-weight: 600; }
+  .compare-cell.price {
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-weight: 600;
+    font-size: 15px;
+    justify-content: flex-end;
+    padding-right: 32px;
+    letter-spacing: 0.04em;
+  }
+
+  /* CTA SECTION */
+  .cta-section {
+    border-top: 1px solid var(--border);
+    padding: 120px 48px;
+    text-align: center;
+  }
+
+  .cta-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(40px, 5vw, 72px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    max-width: 700px;
+    margin: 0 auto 24px;
+  }
+
+  .cta-title em { font-style: italic; color: var(--signal); }
+
+  .cta-sub {
+    font-size: 16px;
+    color: var(--mid);
+    margin-bottom: 48px;
+  }
+
+  .cta-note {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+    margin-top: 24px;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .footer-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+  }
+
+  .footer-logo span { color: var(--signal); }
+
+  .footer-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+
+  .footer-link:hover { color: var(--signal); }
+
+  @media (max-width: 900px) {
+    nav { padding: 16px 20px; }
+    .nav-tag { display: none; }
+    .hero { padding: 120px 24px 60px; }
+    .score-ticker { display: none; }
+    .stat-bar { grid-template-columns: 1fr 1fr; }
+    .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+    section { padding: 60px 24px; }
+    .problem-grid, .engine-grid, .flow-steps, .roi-body, .proof-grid { grid-template-columns: 1fr; }
+    .pricing-card { grid-template-columns: 1fr; }
+    .pricing-left { border-right: none; border-bottom: 1px solid var(--border); }
+    .flow-step::after { display: none; }
+    footer { flex-direction: column; gap: 16px; text-align: center; }
+    .divider { margin: 0 24px; }
+
+    /* COMPARE TABLE MOBILE — stack each row as a card */
+    .compare-header { display: none; }
+
+    .compare-row {
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+    }
+
+    .compare-cell {
+      padding: 14px 20px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .compare-cell:last-child { border-bottom: none; }
+
+    .compare-cell.feature {
+      background: rgba(244,242,237,0.04);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .compare-cell[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--signal);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <span class="nav-tag">Enterprise · $2,500/mo</span>
+  <a href="#" onclick="startCheckout(); return false;" class="nav-cta">Book Assessment →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-label">// Strategic Flow Architecture — Enterprise Assessment Engine</div>
+  <h1 class="hero-title">
+    Your emails reach<br>
+    the inbox.<br>
+    <em>They don't move it.</em>
+  </h1>
+  <p class="hero-sub">
+    Strategic Flow Architecture diagnoses every structural failure in your SaaS communication stack —
+    <strong>subject lines, hooks, CTAs, hierarchy</strong> —
+    and rebuilds them using conversion architecture. Not templates. Not suggestions. A system.
+  </p>
+  <div class="hero-actions">
+    <a href="#pricing" class="btn-primary">Start the Assessment →</a>
+    <a href="#how" class="btn-ghost">See how it works</a>
+  </div>
+
+  <div class="score-ticker">
+    <div class="score-item">
+      <span class="score-label">Subject line</span>
+      <div class="score-bar"><div class="score-fill" style="--target-width: 90%"></div></div>
+      <span class="score-num">9/10</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">Hook architecture</span>
+      <div class="score-bar"><div class="score-fill" style="--target-width: 80%"></div></div>
+      <span class="score-num">8/10</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">CTA ownership</span>
+      <div class="score-bar"><div class="score-fill" style="--target-width: 90%"></div></div>
+      <span class="score-num">9/10</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">Conversion signal</span>
+      <div class="score-bar"><div class="score-fill" style="--target-width: 90%"></div></div>
+      <span class="score-num">9/10</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">Noise removed</span>
+      <div class="score-bar"><div class="score-fill" style="--target-width: 100%"></div></div>
+      <span class="score-num">10/10</span>
+    </div>
+    <div style="margin-top:8px; text-align:right;">
+      <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);letter-spacing:0.1em;">BEFORE: 3/10 → AFTER: 9/10</span>
+    </div>
+  </div>
+</section>
+
+<!-- STAT BAR -->
+<div class="stat-bar">
+  <div class="stat-item">
+    <div class="stat-num">21</div>
+    <div class="stat-desc">SaaS email rebuilds completed across the showcase</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">3→9</div>
+    <div class="stat-desc">Average Strategic Flow score lift per rebuild</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">7</div>
+    <div class="stat-desc">Structural bugs diagnosed in every underperforming email</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">60s</div>
+    <div class="stat-desc">Time to generate a complete diagnostic on any email</div>
+  </div>
+</div>
+
+<!-- PROBLEM SECTION -->
+<section>
+  <div class="section-label">// The diagnosis</div>
+  <h2 class="section-title">Your CRM knows <em>who</em> to reach.<br>Your emails don't know <em>what</em> to say.</h2>
+  <p class="section-body">
+    Most SaaS product emails score <strong>2–3 out of 10</strong> on conversion architecture.
+    Not because the team is weak. Because nobody audited the structure.
+    The subject line announces the product. The hook describes the feature. The CTA says "Learn more."
+    The reader moves on.
+  </p>
+
+  <div class="problem-grid">
+    <div class="problem-cell">
+      <div class="cell-tag before">Before Strategic Flow Architecture</div>
+      <div class="cell-content">
+        Subject: <span class="noise-text">"New dashboard features available"</span><br><br>
+        Preview: <span class="noise-text">"View this email in your browser"</span><br><br>
+        Hook: <span class="noise-text">"We're excited to announce our new AI feature."</span><br><br>
+        CTA: <span class="noise-text">"Learn more" / "Explore what's new"</span><br><br>
+        Score: <span class="noise-text">3 / 10</span>
+      </div>
+    </div>
+    <div class="problem-cell highlight">
+      <div class="cell-tag after">After Strategic Flow Architecture</div>
+      <div class="cell-content">
+        Subject: <span class="highlight-text">"Your reporting is 3 clicks slower than it should be"</span><br><br>
+        Preview: <span class="highlight-text">"Here's which workflows are underperforming."</span><br><br>
+        Hook: <span class="highlight-text">"Your team is losing 40 minutes per day to manual inspection."</span><br><br>
+        CTA: <span class="highlight-text">"Fix my reporting →"</span><br><br>
+        Score: <span class="highlight-text">9 / 10</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENGINE SECTION -->
+<section class="engine-section" id="how">
+  <div class="section-label">// The engine</div>
+  <h2 class="section-title">Three systems.<br><em>One assessment.</em></h2>
+  <p class="section-body">
+    Strategic Flow Architecture combines structural audit, conversion rebuild, and ROI projection into a single diagnostic engine. Every email your company sends gets scored, diagnosed, and rebuilt.
+  </p>
+
+  <div class="engine-grid">
+    <div class="engine-card">
+      <div class="engine-num">01 — Structural Audit</div>
+      <h3 class="engine-title">The 7-bug diagnostic</h3>
+      <p class="engine-body">
+        Every email is scanned for the <strong>7 structural failures</strong> that kill open rates before the reader even decides: filing label subject, caveat opener, feature-first language, flat hierarchy, zero claims, weak CTA, buried contrast.
+        Each bug is named, explained, and scored.
+      </p>
+    </div>
+    <div class="engine-card">
+      <div class="engine-num">02 — Conversion Rebuild</div>
+      <h3 class="engine-title">Consequence-first architecture</h3>
+      <p class="engine-body">
+        The Strategic Flow Method rebuilds every email from the subject line down: <strong>consequence-first hook, ownership CTA, before/after contrast in the body, stat cards for major releases</strong>. Output is HTML ready to ship — not suggestions to consider.
+      </p>
+    </div>
+    <div class="engine-card">
+      <div class="engine-num">03 — ROI Projection</div>
+      <h3 class="engine-title">Delta in revenue terms</h3>
+      <p class="engine-body">
+        Every rebuild comes with a projected open rate delta based on industry benchmarks and your actual subscriber count. <strong>The number makes the conversation with leadership straightforward</strong> — it's not "better emails," it's "26,000 additional readers per month."
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- THREE AUDIT MODULES -->
+<section style="padding: 100px 48px; border-top: 1px solid var(--border);">
+  <div class="section-label">// Three audit modules</div>
+  <h2 class="section-title">Every communication layer.<br><em>One system.</em></h2>
+  <div class="engine-grid" style="margin-top: 64px;">
+    <div class="engine-card">
+      <div class="engine-num">Module 01 — Email Audit</div>
+      <h3 class="engine-title">Product update emails rebuilt</h3>
+      <p class="engine-body">
+        Every product update email scored against the <strong>7-bug diagnostic</strong>. Subject line, preview text, hook, hierarchy, CTA — each element rebuilt and output as HTML ready to ship. 3 subject line variants with predicted open rate delta included.
+      </p>
+      <p style="margin-top: 16px; font-size: 12px; color: var(--signal); font-family: 'DM Mono', monospace; letter-spacing: .06em;">LIVE AT strategic-flow-audit.replit.app</p>
+    </div>
+    <div class="engine-card">
+      <div class="engine-num">Module 02 — Changelog Audit</div>
+      <h3 class="engine-title">Release notes that get read</h3>
+      <p class="engine-body">
+        Filing labels become curiosity gaps. Feature lists become <strong>consequence-first entries with stat cards and ownership CTAs</strong>. Every release note scored, diagnosed, and rebuilt. The update your users actually open.
+      </p>
+      <p style="margin-top: 16px; font-size: 12px; color: var(--signal); font-family: 'DM Mono', monospace; letter-spacing: .06em;">LIVE AT strategic-flow-audit.replit.app/changelog-audit-page</p>
+    </div>
+    <div class="engine-card">
+      <div class="engine-num">Module 03 — Onboarding Audit</div>
+      <h3 class="engine-title">Copy that reaches first value</h3>
+      <p class="engine-body">
+        Every welcome screen, setup step, empty state, tooltip, and CTA scored against <strong>7 onboarding-specific bugs</strong>. Rebuilt with consequence-first hooks, progress indicators with rewards, and microcopy that actually explains why a field matters.
+      </p>
+      <p style="margin-top: 16px; font-size: 12px; color: var(--signal); font-family: 'DM Mono', monospace; letter-spacing: .06em;">LIVE AT strategic-flow-audit.replit.app/onboarding-audit-page</p>
+    </div>
+  </div>
+  <div class="engine-grid" style="margin-top: 1px;">
+    <div class="engine-card" style="grid-column: 1 / -1;">
+      <div class="engine-num">Module 04 — LinkedIn Post Audit</div>
+      <h3 class="engine-title">SaaS posts that stop the scroll</h3>
+      <p class="engine-body">
+        Every LinkedIn product post scored against 7 structural bugs: <strong>hook without consequence, feature-first body, zero specificity, wall of text, dead-end CTA, no proof, wrong audience signal</strong>. Rebuilt with a consequence-first hook, specific numbers, and a CTA that names the next step. Ready to publish.
+      </p>
+      <p style="margin-top: 16px; font-size: 12px; color: var(--signal); font-family: 'DM Mono', monospace; letter-spacing: .06em;">LIVE AT strategic-flow-audit.replit.app/linkedin-audit-page</p>
+    </div>
+  </div>
+</section>
+
+<!-- FLOW STEPS -->
+<section class="flow-section">
+  <div class="section-label">// The process</div>
+  <h2 class="section-title">Audit → Rebuild →<br><em>Test → Ship.</em></h2>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="step-num">STEP 01</div>
+      <h4 class="step-title">Input</h4>
+      <p class="step-body">Paste any email, release note, or onboarding sequence. URL or raw HTML — both work. The engine pulls structure, not just text.</p>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">STEP 02</div>
+      <h4 class="step-title">Diagnose</h4>
+      <p class="step-body">Strategic Flow scores every structural element — subject line, preview text, hook, hierarchy, CTA. Each bug is flagged with a one-line explanation.</p>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">STEP 03</div>
+      <h4 class="step-title">Rebuild</h4>
+      <p class="step-body">The engine outputs rebuilt HTML — consequence-first, ownership CTA, before/after contrast visible. Three subject line variants with predicted open rates.</p>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">STEP 04</div>
+      <h4 class="step-title">Ship</h4>
+      <p class="step-body">One person reviews. Approves or edits in under 10 minutes. The rebuilt email goes into your existing ESP. No workflow changes required.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ROI SECTION -->
+<section class="roi-section">
+  <div class="section-label">// The business case</div>
+  <h2 class="section-title">The maths your<br><em>leadership needs.</em></h2>
+  <p class="section-body">
+    A company with <strong>50,000 subscribers sending 4 emails per month</strong> — this is what the delta looks like when structural bugs are fixed.
+  </p>
+
+  <div class="roi-calculator">
+    <div class="roi-header">
+      <span class="roi-header-title">ROI Projection — Sample 50K subscriber base</span>
+      <span class="roi-header-tag">Strategic Flow Architecture</span>
+    </div>
+    <div class="roi-body">
+      <div class="roi-cell">
+        <div class="roi-cell-label">Current open rate</div>
+        <div class="roi-cell-value negative">18%</div>
+        <div class="roi-cell-note">9,000 readers per email<br>Industry average for SaaS product updates</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-cell-label">Rebuilt open rate</div>
+        <div class="roi-cell-value positive">31%</div>
+        <div class="roi-cell-note">15,500 readers per email<br>Strategic Flow average post-rebuild</div>
+      </div>
+      <div class="roi-cell">
+        <div class="roi-cell-label">Monthly delta</div>
+        <div class="roi-cell-value positive">+26K</div>
+        <div class="roi-cell-note">Additional readers seeing your CTA<br>across 4 emails per month</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROOF -->
+<section>
+  <div class="section-label">// The showcase</div>
+  <h2 class="section-title">21 rebuilds.<br><em>Same result every time.</em></h2>
+
+  <div class="proof-grid">
+    <div class="proof-card">
+      <div class="proof-score">
+        <span class="score-before">2</span>
+        <span class="score-arrow">→</span>
+        <span class="score-after">9</span>
+      </div>
+      <div class="proof-company">HeyGen</div>
+      <p class="proof-issue">Subject announced the feature update. <strong>Rebuilt to announce the reader's workflow gap.</strong> Hook rewrote from "We added AI voices" to "Your voiceovers are taking 3x longer than they should."</p>
+    </div>
+    <div class="proof-card">
+      <div class="proof-score">
+        <span class="score-before">3</span>
+        <span class="score-arrow">→</span>
+        <span class="score-after">9</span>
+      </div>
+      <div class="proof-company">Revolut</div>
+      <p class="proof-issue">Filing label subject, caveat opener, no CTA ownership. <strong>Rebuilt with curiosity gap subject, consequence-first hook.</strong> "Fix my spending limit →" replaced "Learn more."</p>
+    </div>
+    <div class="proof-card">
+      <div class="proof-score">
+        <span class="score-before">3</span>
+        <span class="score-arrow">→</span>
+        <span class="score-after">8</span>
+      </div>
+      <div class="proof-company">Cato Networks</div>
+      <p class="proof-issue">Feature-first language across every update. Zero quantified claims. <strong>Rebuilt with stat cards for major features, before/after contrast visible in body.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON -->
+<section>
+  <div class="section-label">// The difference</div>
+  <h2 class="section-title">They distribute.<br><em>We convert.</em></h2>
+
+  <div class="compare-table">
+    <div class="compare-header">
+      <div class="compare-header-cell">Capability</div>
+      <div class="compare-header-cell">Beamer / LaunchNotes</div>
+      <div class="compare-header-cell ours">Strategic Flow Architecture</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">Multi-channel distribution</div>
+      <div class="compare-cell yes" data-label="Beamer / LaunchNotes">✓ Yes</div>
+      <div class="compare-cell yes" data-label="Strategic Flow Architecture">✓ Yes (via your ESP)</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">Structural bug diagnosis</div>
+      <div class="compare-cell no" data-label="Beamer / LaunchNotes">✗ No</div>
+      <div class="compare-cell yes" data-label="Strategic Flow Architecture">✓ 7-point diagnostic</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">Consequence-first rebuild</div>
+      <div class="compare-cell no" data-label="Beamer / LaunchNotes">✗ No</div>
+      <div class="compare-cell yes" data-label="Strategic Flow Architecture">✓ Full HTML output</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">Subject line variants + open rate prediction</div>
+      <div class="compare-cell no" data-label="Beamer / LaunchNotes">✗ No</div>
+      <div class="compare-cell yes" data-label="Strategic Flow Architecture">✓ 3 variants per email</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">ROI projection per rebuild</div>
+      <div class="compare-cell no" data-label="Beamer / LaunchNotes">✗ No</div>
+      <div class="compare-cell yes" data-label="Strategic Flow Architecture">✓ Subscriber delta model</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell feature">Pricing</div>
+      <div class="compare-cell price" data-label="Beamer / LaunchNotes">$49–99/mo</div>
+      <div class="compare-cell price" data-label="Strategic Flow Architecture">$2,500/mo</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="pricing">
+  <div class="section-label">// The investment</div>
+  <h2 class="section-title">One system.<br><em>Every email your company sends.</em></h2>
+
+  <div class="pricing-card">
+    <div class="pricing-left">
+      <div class="pricing-price">$2,500</div>
+      <div class="pricing-period">/ MONTH · STRATEGIC FLOW ARCHITECTURE</div>
+      <p class="pricing-desc">
+        For SaaS companies with <strong>5,000+ users</strong> sending product updates, release notes, or onboarding sequences. The assessment engine runs on every email before it ships.
+        <br><br>
+        <strong>Beamer sends. Strategic Flow Architecture decides what it says.</strong>
+      </p>
+      <a href="#" onclick="startCheckout(); return false;" class="pricing-cta">Book Assessment →</a>
+    </div>
+    <div class="pricing-right">
+      <div class="includes-title">What's included</div>
+      <ul class="includes-list">
+        <li class="includes-item"><strong>Unlimited rebuilds</strong> — every email your team ships, rebuilt HTML ready to send. No quota, no queue</li>
+        <li class="includes-item"><strong>Full communication audit</strong> — every email from the past 90 days scored against the 7-bug diagnostic. Delivered as an executive report with prioritised fixes</li>
+        <li class="includes-item"><strong>3 subject line variants</strong> per email with predicted open rate delta based on your subscriber count and industry benchmark</li>
+        <li class="includes-item"><strong>Batch assessment</strong> — diagnose up to 10 emails at once, ranked by impact. Know which ones to fix first before the next send</li>
+        <li class="includes-item"><strong>Content calendar</strong> — every rebuild generates a 4-week arc and 3 follow-up sequences. Subject lines, angles, and timing included</li>
+        <li class="includes-item"><strong>Competitor benchmark</strong> — score your emails against up to 3 competitors on the same 7-point diagnostic. See exactly where the gap is</li>
+        <li class="includes-item"><strong>A/B test tracker</strong> — log every test, record real open rates, and see which subject line patterns consistently win across your emails</li>
+        <li class="includes-item"><strong>Monthly performance report</strong> — score trends, rebuild history, and what to fix next. Updated every assessment, emailed every month</li>
+        <li class="includes-item"><strong>Onboarding sequence audit</strong> — every email in your onboarding flow scored, diagnosed, and rebuilt. The sequence that runs while nobody's watching</li>
+        <li class="includes-item"><strong>Release note system</strong> — technical changelog transformed into conversion-ready email automatically. Paste the Jira ticket, receive the rebuilt HTML</li>
+        <li class="includes-item"><strong>Monthly diagnostic call</strong> — 45 minutes with Alex. What performed, what didn't, what ships next month. Strategic, not operational</li>
+        <li class="includes-item"><strong>Direct Slack access</strong> — one channel, same-day responses. No tickets, no account managers, no delay between question and answer</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2 class="cta-title">Start with <em>one email.</em><br>Free.</h2>
+  <p class="cta-sub">Paste any email your company has sent. Get the full diagnostic in 60 seconds — score, bugs, rebuilt subject line. No card. No call required.</p>
+  <a href="https://strategic-flow-audit.replit.app/demo.html" class="btn-primary">See Architecture in Action →</a>
+  <div class="cta-note">Free demo · No account required · 60 seconds · one time only</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-logo">Strategic Flow <span>Architecture</span></span>
+  <a href="https://strategicflow.carrd.co" class="footer-link">strategicflow.carrd.co</a>
+  <a href="mailto:strategicflow@proton.me" class="footer-link">strategicflow@proton.me</a>
+</footer>
+
+<script>
+function startCheckout() {
+  window.location.href = 'https://strategic-flow-audit.replit.app/checkout';
+}
+</script>
+
+</body>
+</html>
