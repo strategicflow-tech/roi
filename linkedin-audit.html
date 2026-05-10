@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" id="body">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -147,8 +147,8 @@
   /* ── BEFORE/AFTER TOGGLE ── */
   .before-only{display:block;}
   .after-only{display:none;}
-  body.after-view .before-only{display:none;}
-  body.after-view .after-only{display:block;}
+  .after-view .before-only{display:none;}
+  .after-view .after-only{display:block;}
 
   /* ── WHAT CHANGED ── */
   .wc{background:#0a0a0a;border-radius:10px;padding:24px 20px;margin:32px 0;border:1px solid #1a1a1a;}
@@ -427,8 +427,8 @@ var btn = document.getElementById('runAuditBtn');
 var tabB = document.getElementById('tab-before');
 var tabA = document.getElementById('tab-after');
 
-if (tabB) tabB.onclick = function() { document.getElementById('body').classList.remove('after-view'); tabB.classList.add('active'); tabA.classList.remove('active'); };
-if (tabA) tabA.onclick = function() { document.getElementById('body').classList.add('after-view'); tabA.classList.add('active'); tabB.classList.remove('active'); };
+if (tabB) tabB.onclick = function() { document.body.classList.remove('after-view'); tabB.classList.add('active'); tabA.classList.remove('active'); };
+if (tabA) tabA.onclick = function() { document.body.classList.add('after-view'); tabA.classList.add('active'); tabB.classList.remove('active'); };
 
 var loginBtn = document.getElementById('loginBtn');
 var startBtn = document.getElementById('startBtn');
