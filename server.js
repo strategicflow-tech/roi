@@ -4482,7 +4482,13 @@ app.post('/changelog-audit', async (req, res) => {
 // ─── END CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────
 
 // ─── ONBOARDING AUDIT ENDPOINT ────────────────────────────────────────────────
-const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Audit engine. Analyze SaaS onboarding copy and return ONLY a valid JSON object. No markdown, no backticks, no explanation. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10. Diagnose these 7 bugs: 1.Welcome Without Consequence 2.Useless Progress Indicator 3.Generic CTA 4.Empty State Without Direction 5.Feature Not Outcome 6.Too Many Steps Before Value 7.Invisible Microcopy.`;
+const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Audit engine. Analyze SaaS onboarding copy and return ONLY a valid JSON object. No markdown, no backticks, no explanation.
+
+CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples below are templates only. Do not reproduce their English wording. Translate everything into the specified language.
+
+JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body).
+
+Scores 1-10. Diagnose these 7 bugs: 1.Welcome Without Consequence 2.Useless Progress Indicator 3.Generic CTA 4.Empty State Without Direction 5.Feature Not Outcome 6.Too Many Steps Before Value 7.Invisible Microcopy.`;
 
 app.get('/onboarding-audit-page', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
