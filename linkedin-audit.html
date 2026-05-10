@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>LinkedIn Post Audit — Strategic Flow</title>
+<title data-i18n="linkedin.pageTitle">LinkedIn Post Audit — Strategic Flow</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -200,6 +200,7 @@
     .wc{padding:14px 12px;}
   }
 </style>
+<script src="/translations.js"></script>
 </head>
 <body>
 
@@ -233,14 +234,15 @@
       <span class="sf-badge">Strategic Flow</span>
       <span class="cl-badge">LinkedIn Post Audit</span>
     </div>
+    <div id="lang-selector-container"></div>
     <div class="sf-header-scores">
       <span class="sc bad" id="score-before">Original: —</span>
       <span class="sc good" id="score-after">Rebuilt: —</span>
     </div>
   </div>
   <div class="sf-header-tabs">
-    <button class="tab-btn before-tab active" id="tab-before"><span class="tab-dot before-dot"></span>Before</button>
-    <button class="tab-btn after-tab" id="tab-after"><span class="tab-dot after-dot"></span>After</button>
+    <button class="tab-btn before-tab active" id="tab-before"><span class="tab-dot before-dot"></span><span data-i18n="shared.before">Before</span></button>
+    <button class="tab-btn after-tab" id="tab-after"><span class="tab-dot after-dot"></span><span data-i18n="shared.after">After</span></button>
   </div>
 </header>
 
@@ -248,11 +250,11 @@
 <div class="scraper-bar">
   <div class="scraper-title">LinkedIn Post Audit <span>— Strategic Flow</span></div>
   <div class="scraper-guide">Copy the full text of the LinkedIn post. Include the <strong>hook, body, and CTA</strong>. Paste below and tap Run Audit.</div>
-  <textarea class="scraper-input" id="manualText" placeholder="Paste the full LinkedIn post here — hook, body, CTA, hashtags."></textarea>
-  <button class="run-btn" id="runAuditBtn">Run Audit</button>
+  <textarea class="scraper-input" id="manualText" placeholder="Paste the full LinkedIn post here — hook, body, CTA, hashtags." data-i18n-placeholder="linkedin.inputPlaceholder"></textarea>
+  <button class="run-btn" id="runAuditBtn" data-i18n="shared.runAudit">Run Audit</button>
   <div class="scraper-status" id="scraperStatus">Paste a LinkedIn post above and tap Run Audit</div>
   <div id="progressWrap">
-    <div class="progress-top"><span class="progress-label" id="progressLabel">Analyzing...</span><span class="progress-pct" id="progressPct">0%</span></div>
+    <div class="progress-top"><span class="progress-label" id="progressLabel" data-i18n="shared.loading">Analyzing...</span><span class="progress-pct" id="progressPct">0%</span></div>
     <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
   </div>
   <div id="downloadGate">
@@ -319,7 +321,7 @@
 
     <!-- WHAT CHANGED -->
     <div class="wc">
-      <div class="wc-head">Strategic Flow — LinkedIn Post Audit: What Changed and Why</div>
+      <div class="wc-head" data-i18n="linkedin.whatChanged">Strategic Flow — LinkedIn Post Audit: What Changed and Why</div>
       <div class="wc-row"><div class="wc-fix-label" id="wc-fix-1">Fix #1 — Hook</div><div class="wc-b" id="wc-b-1">Run audit to see diagnosis.</div><div class="wc-a" id="wc-a-1">Run audit to see rebuild.</div></div>
       <div class="wc-row"><div class="wc-fix-label" id="wc-fix-2">Fix #2 — Body</div><div class="wc-b" id="wc-b-2"></div><div class="wc-a" id="wc-a-2"></div></div>
       <div class="wc-row"><div class="wc-fix-label" id="wc-fix-3">Fix #3 — Specificity</div><div class="wc-b" id="wc-b-3"></div><div class="wc-a" id="wc-a-3"></div></div>
@@ -470,7 +472,7 @@ if (btn) {
 
     fetch('https://strategic-flow-audit.replit.app/linkedin-audit', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ url: '', text: text })
+      body: JSON.stringify({ url: '', text: text, lang: getLang() })
     })
     .then(function(r) { return r.json(); })
     .then(function(a) {
@@ -579,6 +581,9 @@ function downloadPage() {
   a.href=url; a.download='strategic-flow-linkedin-audit.html'; a.click();
   URL.revokeObjectURL(url);
 }
+</script>
+<script>
+  initI18n('linkedin', 'lang-selector-container');
 </script>
 </body>
 </html>

@@ -4607,7 +4607,7 @@ app.post('/linkedin-audit', async (req, res) => {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
   }
-  const { url, text: rawText } = req.body;
+  const { url, text: rawText, lang } = req.body;
   if (!rawText || rawText.length < 50) {
     return res.status(400).json({ error: 'No text provided' });
   }
@@ -4641,7 +4641,7 @@ app.post('/linkedin-audit', async (req, res) => {
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: LINKEDIN_AUDIT_SYSTEM_PROMPT,
+      system: getLangInstruction(lang) + '\n\n' + LINKEDIN_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this LinkedIn post:\n\n${content.slice(0, 8000)}` }],
     });
 

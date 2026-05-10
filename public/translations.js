@@ -31,6 +31,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'LinkedIn Post Audit — Strategic Flow',
       inputLabel:       'Paste your LinkedIn post',
       inputPlaceholder: 'Paste the full LinkedIn post here — hook, body, CTA, hashtags.',
+      whatChanged:      'Strategic Flow — LinkedIn Post Audit: What Changed and Why',
     },
   },
 
@@ -59,6 +60,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'Auditoría de Post LinkedIn — Strategic Flow',
       inputLabel:       'Pega tu post de LinkedIn',
       inputPlaceholder: 'Pega el post completo de LinkedIn aquí — gancho, cuerpo, CTA, hashtags.',
+      whatChanged:      'Strategic Flow — Auditoría de Post LinkedIn: Qué Cambió y Por Qué',
     },
   },
 
@@ -87,6 +89,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'LinkedIn-inläggsgranskning — Strategic Flow',
       inputLabel:       'Klistra in ditt LinkedIn-inlägg',
       inputPlaceholder: 'Klistra in hela LinkedIn-inlägget här — krok, brödtext, CTA, hashtags.',
+      whatChanged:      'Strategic Flow — LinkedIn-inläggsgranskning: Vad Ändrades och Varför',
     },
   },
 
@@ -115,6 +118,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'Audit Post LinkedIn — Strategic Flow',
       inputLabel:       'Collez votre post LinkedIn',
       inputPlaceholder: 'Collez ici le post LinkedIn complet — accroche, corps, CTA, hashtags.',
+      whatChanged:      'Strategic Flow — Audit Post LinkedIn : Ce qui a changé et pourquoi',
     },
   },
 
@@ -143,6 +147,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'Audit Post LinkedIn — Strategic Flow',
       inputLabel:       'Lipește postarea ta LinkedIn',
       inputPlaceholder: 'Lipește postarea completă LinkedIn aici — cârlig, corp, CTA, hashtag-uri.',
+      whatChanged:      'Strategic Flow — Audit Post LinkedIn: Ce s-a Schimbat și De Ce',
     },
   },
 
@@ -171,6 +176,7 @@ var SF_TRANSLATIONS = {
       pageTitle:        'LinkedIn-Post-Audit — Strategic Flow',
       inputLabel:       'LinkedIn-Post einfügen',
       inputPlaceholder: 'Fügen Sie hier den vollständigen LinkedIn-Post ein — Hook, Text, CTA, Hashtags.',
+      whatChanged:      'Strategic Flow — LinkedIn-Post-Audit: Was sich geändert hat und warum',
     },
   },
 };
