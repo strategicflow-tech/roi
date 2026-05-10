@@ -4406,6 +4406,64 @@ app.post('/changelog-audit/check-email', async (req, res) => {
   }
 });
 
+app.post('/onboarding-audit/check-email', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email required' });
+  }
+
+  const PAYING_TIERS = ['architecture', 'lite', 'growth', 'high_impact'];
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS changelog_audit_leads (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        allowed_download BOOLEAN DEFAULT FALSE
+      )
+    `);
+
+    let allowed = false;
+    let tier = null;
+
+    if (isAdmin(email)) {
+      allowed = true;
+      tier = 'admin';
+    } else {
+      const user = await getUser(email);
+      if (user && PAYING_TIERS.includes(user.tier)) {
+        allowed = true;
+        tier = user.tier;
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO changelog_audit_leads (email, allowed_download)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [email, allowed]
+    );
+
+    if (!allowed) {
+      const source = (req.body.source || 'onboarding_audit_gate').replace(/[<>]/g, '');
+      const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      resend.emails.send({
+        from: 'Strategic Flow <onboarding@resend.dev>',
+        to: 'strategicflow@proton.me',
+        subject: `New audit lead — ${email} via ${source}`,
+        text: `New lead captured:\n\nEmail: ${email}\nSource: ${source}\nDate: ${dateStr}\nTier: free\n\nAction needed: send pitch within 24h.`
+      }).catch(err => console.error('[lead-notify]', err.message));
+    }
+
+    return res.json({ allowed, tier });
+  } catch (e) {
+    console.error('[onboarding-audit/check-email]', e.message);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.options('/changelog-audit', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
