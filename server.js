@@ -4291,6 +4291,11 @@ app.get('/api/calendar', async (req, res) => {
 // ─── END CALENDAR ENDPOINT ────────────────────────────────────────────────────
 
 // ─── CHANGELOG AUDIT ENDPOINT ─────────────────────────────────────────────────
+function getLangInstruction(lang) {
+  var map = { en: 'English', es: 'Spanish', sv: 'Swedish', fr: 'French', ro: 'Romanian', de: 'German' };
+  var full = map[lang] || 'English';
+  return 'Respond entirely in ' + full + '. All diagnostic text, rebuilt content, and explanations must be in ' + full + '.';
+}
 // CORS is handled globally (line ~86) for strategicflow-tech.github.io.
 // This endpoint is intentionally outside PROTECTED_PATHS — no session required.
 const CHANGELOG_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Changelog Audit engine. Analyze SaaS changelog pages and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
@@ -4421,7 +4426,7 @@ app.post('/changelog-audit', async (req, res) => {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
   }
-  const { url, text: rawText } = req.body;
+  const { url, text: rawText, lang } = req.body;
   if (!rawText || rawText.length < 50) {
     return res.status(400).json({ error: 'No text provided' });
   }
@@ -4457,7 +4462,7 @@ app.post('/changelog-audit', async (req, res) => {
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: CHANGELOG_AUDIT_SYSTEM_PROMPT,
+      system: getLangInstruction(lang) + '\n\n' + CHANGELOG_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
     });
 

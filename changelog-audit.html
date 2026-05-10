@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Changelog Audit — Strategic Flow</title>
+<title data-i18n="changelog.pageTitle">Changelog Audit — Strategic Flow</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   /* ── BRAND TOKENS — injected dynamically per client ── */
@@ -387,6 +387,7 @@
     .cl-entry-header{flex-wrap:wrap;gap:6px;}
   }
 </style>
+<script src="/translations.js"></script>
 </head>
 <body id="body">
 
@@ -489,24 +490,26 @@
       class="scraper-input"
       id="brandUrl"
       placeholder="e.g. linear.app/changelog or getdbt.com/blog"
+      data-i18n-placeholder="shared.urlPlaceholder"
     />
     <button id="extractBrandBtn" class="scraper-btn">Extract Brand</button>
   </div>
 
   <!-- STEP 2: Manual text input — always visible -->
-  <div class="scraper-label" style="margin-top:14px;color:rgba(255,255,255,.4);">Step 2 — Paste changelog text</div>
+  <div class="scraper-label" style="margin-top:14px;color:rgba(255,255,255,.4);" data-i18n="changelog.inputLabel">Step 2 — Paste changelog text</div>
   <div class="scraper-guide">
     Open the client changelog page, <strong>select all text</strong> (Ctrl+A or tap and hold), copy it, and paste below.
   </div>
   <textarea
     id="manualText"
     placeholder="Paste the full changelog text here — title, all entries, CTAs. The more text, the better the audit."
+    data-i18n-placeholder="changelog.inputPlaceholder"
     style="width:100%;min-height:100px;padding:12px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;resize:vertical;outline:none;margin-top:6px;line-height:1.5;"
   ></textarea>
 
   <!-- RUN AUDIT button -->
   <div class="scraper-row" style="margin-top:10px;">
-    <button id="runAuditBtn" class="scraper-btn" style="width:100%;justify-content:center;font-size:15px;padding:13px 20px;">
+    <button id="runAuditBtn" class="scraper-btn" data-i18n="shared.runAudit" style="width:100%;justify-content:center;font-size:15px;padding:13px 20px;">
       Run Audit
     </button>
   </div>
@@ -515,7 +518,7 @@
 
   <div id="progressWrap" style="display:none;width:100%;margin-top:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel">Analyzing...</span>
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel" data-i18n="shared.loading">Analyzing...</span>
       <span style="font-size:13px;font-weight:700;color:#69F0AE;" id="progressPct">0%</span>
     </div>
     <div style="width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
@@ -528,7 +531,7 @@
     <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:12px;">Enter your email to download. Architecture clients get instant access.</div>
     <div style="display:flex;gap:10px;">
       <input id="downloadEmail" type="email" placeholder="your@email.com" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;outline:none;"/>
-      <button id="downloadBtn" style="padding:10px 18px;background:#4A8FE7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">Download</button>
+      <button id="downloadBtn" data-i18n="shared.downloadHTML" style="padding:10px 18px;background:#4A8FE7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">Download</button>
     </div>
     <div id="downloadStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
   </div>
@@ -546,6 +549,7 @@
       <span class="sf-badge">Strategic Flow</span>
       <span class="cl-badge">Changelog Audit</span>
     </div>
+    <div id="lang-selector-container"></div>
     <div class="sf-header-scores">
       <span class="sc bad" id="score-before">Original: 2/10</span>
       <span class="sc good" id="score-after">Rebuilt: 9/10</span>
@@ -555,10 +559,10 @@
   <!-- Randul 2: tab-uri -->
   <div class="sf-header-tabs">
     <button class="tab-btn before-tab active" id="tab-before" onclick="setView('before')">
-      <span class="tab-dot before-dot"></span>Before
+      <span class="tab-dot before-dot"></span><span data-i18n="shared.before">Before</span>
     </button>
     <button class="tab-btn after-tab" id="tab-after" onclick="setView('after')">
-      <span class="tab-dot after-dot"></span>After
+      <span class="tab-dot after-dot"></span><span data-i18n="shared.after">After</span>
     </button>
   </div>
 
@@ -753,7 +757,7 @@
 
       <!-- WHAT CHANGED TABLE -->
       <div class="wc">
-        <div class="wc-head">Strategic Flow — Changelog Audit: What Changed & Why</div>
+        <div class="wc-head" data-i18n="shared.whatChanged">Strategic Flow — Changelog Audit: What Changed & Why</div>
         <div class="wc-cols">
           <div class="wc-col-h">Fix</div>
           <div class="wc-col-h">Before ✕</div>
@@ -899,7 +903,7 @@ document.getElementById('runAuditBtn').onclick = function() {
   fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({url: '', text: text})
+    body: JSON.stringify({url: '', text: text, lang: getLang()})
   })
   .then(function(r){return r.json();})
   .then(function(a){
@@ -952,6 +956,9 @@ var loginBtn = document.querySelector('.btn-ghost');
 var startBtn = document.querySelector('.btn-primary');
 if(loginBtn) loginBtn.onclick = function(){window.location.href='https://strategic-flow-audit.replit.app/login.html';};
 if(startBtn) startBtn.onclick = function(){window.location.href='https://strategicflow-tech.github.io/showcase/enterprise.html';};
+</script>
+<script>
+  initI18n('changelog', 'lang-selector-container');
 </script>
 </body>
 </html>
