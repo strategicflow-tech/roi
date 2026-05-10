@@ -4328,6 +4328,8 @@ JSON schema:
   "fixes": [{"number": 1, "title": "string", "body": "string"}]
 }
 
+CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
+
 The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.`;
 
 app.get('/changelog-audit-test', (req, res) => {
@@ -4575,6 +4577,8 @@ app.post('/onboarding-audit', async (req, res) => {
 const LINKEDIN_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow LinkedIn Post Audit engine. Analyze SaaS LinkedIn posts and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
 
 Use the same JSON schema as /changelog-audit. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10.
+
+CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
 The 7 bugs:
 1. Hook Without Consequence — first line announces feature or company, not reader's operational problem
