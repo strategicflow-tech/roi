@@ -929,6 +929,12 @@ document.getElementById('runAuditBtn').onclick = function() {
       var searchDomain=companyForHero.toLowerCase().replace(/\s+/g,'')+'.com';
       var logoUrl='https://logo.clearbit.com/'+searchDomain;
       heroBlock.innerHTML='<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f5f5f5,#e8e8e8);border-radius:8px;padding:24px;"><img src="'+logoUrl+'" style="width:80px;height:80px;object-fit:contain;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);" onerror="this.style.display=\'none\'"><div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:#111;margin-bottom:4px;">'+companyForHero+'</div><div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#999;">Changelog Audit</div></div></div>';
+      var logoEl = document.getElementById('client-logo');
+      if (logoEl) { var n = (a.company||'Company').trim(); logoEl.innerHTML = n.slice(0,-1)+'<span>'+n.slice(-1)+'</span>'; }
+      var authorsEl = document.getElementById('meta-authors');
+      if (authorsEl) authorsEl.textContent = (a.company||'Product') + ' Team';
+      var dateEl = document.getElementById('meta-date');
+      if (dateEl) { var now = new Date(); dateEl.textContent = now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})+' · 3 min read'; }
     }
   })
   .catch(function(e){
@@ -981,16 +987,49 @@ if (downloadBtn) {
   });
 }
 
-document.getElementById('extractBrandBtn').onclick = function() {
+document.getElementById('extractBrandBtn').onclick = async function() {
   var url = document.getElementById('brandUrl').value.trim().toLowerCase();
+  var statusEl = document.getElementById('scraperStatus');
   var presets = {'linear':'#5E6AD2','notion':'#000000','stripe':'#635BFF','loom':'#625DF5','figma':'#F24E1E','github':'#2DA44E','dbt':'#FF694A','intercom':'#1F8EED'};
   var names = {'linear':'Linear','notion':'Notion','stripe':'Stripe','loom':'Loom','figma':'Figma','github':'GitHub','dbt':'dbt Labs','intercom':'Intercom'};
-  var color = '#4A8FE7', name = 'Company';
-  for(var k in presets){if(url.includes(k)){color=presets[k];name=names[k];break;}}
-  document.documentElement.style.setProperty('--brand-primary', color);
-  var logo = document.getElementById('client-logo');
-  if(logo) logo.innerHTML = name.slice(0,-1)+'<span>'+name.slice(-1)+'</span>';
-  document.getElementById('scraperStatus').textContent = 'Brand: ' + name;
+
+  if (!url) { statusEl.textContent = 'Please enter a website URL.'; return; }
+
+  statusEl.textContent = 'Extracting brand…';
+  document.getElementById('extractBrandBtn').disabled = true;
+
+  var color = null, name = null;
+
+  try {
+    var res = await fetch('/brand-dna', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url })
+    });
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data.primaryColor) color = data.primaryColor;
+      if (data && data.companyName) name = data.companyName;
+    }
+  } catch(e) {}
+
+  if (!color) {
+    for (var k in presets) {
+      if (url.includes(k)) { color = presets[k]; name = names[k]; break; }
+    }
+  }
+
+  if (color) {
+    document.documentElement.style.setProperty('--brand-primary', color);
+    var logo = document.getElementById('client-logo');
+    var displayName = name || 'Company';
+    if (logo) logo.innerHTML = displayName.slice(0,-1)+'<span>'+displayName.slice(-1)+'</span>';
+    statusEl.textContent = 'Brand: ' + displayName;
+  } else {
+    statusEl.textContent = 'No brand data found for this URL. Try a different address.';
+  }
+
+  document.getElementById('extractBrandBtn').disabled = false;
 };
 
 var tb = document.getElementById('tab-before');
