@@ -556,6 +556,9 @@
     </div>
   </div>
 
+  <!-- lang change warning -->
+  <div id="lang-change-warning" style="display:none;font-size:11px;color:rgba(255,255,255,.38);background:rgba(255,255,255,.03);border-top:1px solid rgba(255,255,255,.06);padding:5px 20px;text-align:center;font-family:'Inter',sans-serif;letter-spacing:.01em;"></div>
+
   <!-- Randul 2: tab-uri -->
   <div class="sf-header-tabs">
     <button class="tab-btn before-tab active" id="tab-before" onclick="setView('before')">
@@ -925,6 +928,9 @@ window.addEventListener('load', function() {
 
   if (btn) {
     btn.onclick = function() {
+      window.auditComplete = false;
+      var langWarn = document.getElementById('lang-change-warning');
+      if (langWarn) langWarn.style.display = 'none';
       var text = document.getElementById('manualText').value.trim();
       var status = document.getElementById('scraperStatus');
       var progressWrap = document.getElementById('progressWrap');
@@ -1073,6 +1079,9 @@ window.addEventListener('load', function() {
             '</div>';
         }
 
+        window.auditComplete = true;
+        window.auditLang = getLang();
+
         var downloadGate = document.getElementById('downloadGate');
         if (downloadGate) downloadGate.style.display = 'block';
 
@@ -1140,6 +1149,15 @@ window.addEventListener('load', function() {
 }); // end window.addEventListener('load')
 </script>
 <script>
+  var _sfLangNames = {en:'English',es:'Español',sv:'Svenska',fr:'Français',ro:'Română',de:'Deutsch'};
+  window.onSfLangChange = function(newLang) {
+    var langWarn = document.getElementById('lang-change-warning');
+    if (!langWarn) return;
+    if (!window.auditComplete) { langWarn.style.display = 'none'; return; }
+    if (newLang === window.auditLang) { langWarn.style.display = 'none'; return; }
+    langWarn.textContent = 'Results generated in ' + (_sfLangNames[window.auditLang] || window.auditLang) + '. Re-run audit for ' + (_sfLangNames[newLang] || newLang) + '.';
+    langWarn.style.display = 'block';
+  };
   initI18n('onboarding', 'lang-selector-container');
 </script>
 </body>

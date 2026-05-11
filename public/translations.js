@@ -304,6 +304,7 @@ function _buildSelector(namespace, containerId, lang) {
     _sfCurrentLang = chosen;
     try { localStorage.setItem('sf_lang', chosen); } catch(e) {}
     _applyTranslations(namespace, chosen);
+    if (window.onSfLangChange) window.onSfLangChange(chosen);
   });
 
   sel.addEventListener('focus', function() { sel.style.borderColor = 'rgba(255,255,255,.45)'; });
