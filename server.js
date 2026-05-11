@@ -4323,10 +4323,20 @@ JSON schema:
   "cta_after": "string",
   "before_contrast": "string",
   "after_contrast": "string",
-  "wc": [{"fix": "string", "before": "string", "after": "string"}],
+  "wc": [
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"},
+    {"fix": "string", "before": "string", "after": "string"}
+  ],
   "bugs": [{"number": 1, "title": "string", "body": "string"}],
   "fixes": [{"number": 1, "title": "string", "body": "string"}]
 }
+
+IMPORTANT: wc array must always contain exactly 7 objects. If the content does not have 7 distinct fixes, synthesize additional relevant fixes based on the 7 structural bugs diagnosed above. Never return fewer than 7 wc items.
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
@@ -4549,6 +4559,8 @@ CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of 
 
 JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body).
 
+IMPORTANT: wc array must always contain exactly 7 objects. If the content does not have 7 distinct fixes, synthesize additional relevant fixes based on the 7 structural bugs diagnosed above. Never return fewer than 7 wc items.
+
 Scores 1-10. Diagnose these 7 bugs: 1.Welcome Without Consequence 2.Useless Progress Indicator 3.Generic CTA 4.Empty State Without Direction 5.Feature Not Outcome 6.Too Many Steps Before Value 7.Invisible Microcopy.`;
 
 app.get('/onboarding-audit-page', (req, res) => {
@@ -4636,6 +4648,8 @@ app.post('/onboarding-audit', async (req, res) => {
 const LINKEDIN_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow LinkedIn Post Audit engine. Analyze SaaS LinkedIn posts and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
 
 Use the same JSON schema as /changelog-audit. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10.
+
+IMPORTANT: wc array must always contain exactly 7 objects. If the content does not have 7 distinct fixes, synthesize additional relevant fixes based on the 7 structural bugs diagnosed above. Never return fewer than 7 wc items.
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
