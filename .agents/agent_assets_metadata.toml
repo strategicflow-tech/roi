@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NMmjh-R4mBP1FflkHEE3I"
+uri = "file://changelog-audit.tar.gz"
+type = "unspecified"
+title = "changelog-audit.html — cod complet (.tar.gz)"
