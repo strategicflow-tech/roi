@@ -916,6 +916,23 @@ document.getElementById('runAuditBtn').onclick = function() {
     document.getElementById('runAuditBtn').disabled = false;
     var ids = {'score-before':'Original: '+(a.original_score||2)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score||9)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'original-lead':a.original_lead,'rebuilt-lead':a.rebuilt_lead,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'entry1-after':a.entry1_after,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after};
     for(var id in ids){var el=document.getElementById(id);if(el&&ids[id])el.textContent=ids[id];}
+    if (a.wc && a.wc.length) {
+      var wcRows = document.querySelectorAll('.wc-row');
+      a.wc.forEach(function(item, i) {
+        if (wcRows[i]) {
+          var f = wcRows[i].querySelector('.wc-fix');
+          var bEl = wcRows[i].querySelector('.wc-b');
+          var aEl = wcRows[i].querySelector('.wc-a');
+          if (f) f.innerHTML = item.fix ? item.fix.replace('\n','<br>') : '';
+          if (bEl) bEl.textContent = item.before || '';
+          if (aEl) aEl.textContent = item.after || '';
+        }
+      });
+    }
+    var sbBefore = document.getElementById('sb-score-before');
+    var sbAfter = document.getElementById('sb-score-after');
+    if (sbBefore) sbBefore.textContent = a.original_score + ' / 10';
+    if (sbAfter) sbAfter.textContent = a.rebuilt_score + ' / 10';
     if(!localStorage.getItem('sf_admin'))localStorage.setItem('sf_used_audit','true');
     var dg=document.getElementById('downloadGate');if(dg)dg.style.display='block';
     var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='visible';
@@ -934,6 +951,48 @@ document.getElementById('runAuditBtn').onclick = function() {
     document.getElementById('runAuditBtn').disabled = false;
   });
 };
+
+var downloadBtn = document.getElementById('downloadBtn');
+var downloadEmail = document.getElementById('downloadEmail');
+if (downloadBtn) {
+  downloadBtn.addEventListener('click', function() {
+    var email = (downloadEmail ? downloadEmail.value : '').trim();
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = 'Checking...';
+    fetch('https://strategic-flow-audit.replit.app/changelog-audit/check-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, source: 'changelog_audit_download' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.allowed) {
+        var statusEl = document.getElementById('downloadStatus');
+        if (statusEl) statusEl.textContent = 'Access confirmed. Downloading...';
+        var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'strategic-flow-changelog-audit.html';
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        var statusEl = document.getElementById('downloadStatus');
+        if (statusEl) statusEl.textContent = 'Access not confirmed. Check your email or upgrade your plan.';
+      }
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = 'Download';
+    })
+    .catch(function() {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = 'Download';
+    });
+  });
+}
 
 document.getElementById('extractBrandBtn').onclick = function() {
   var url = document.getElementById('brandUrl').value.trim().toLowerCase();
