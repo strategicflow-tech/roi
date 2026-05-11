@@ -4417,7 +4417,7 @@ app.post('/onboarding-audit/check-email', async (req, res) => {
 
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS changelog_audit_leads (
+      CREATE TABLE IF NOT EXISTS onboarding_audit_leads (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -4440,7 +4440,7 @@ app.post('/onboarding-audit/check-email', async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO changelog_audit_leads (email, allowed_download)
+      `INSERT INTO onboarding_audit_leads (email, allowed_download)
        VALUES ($1, $2)
        ON CONFLICT DO NOTHING`,
       [email, allowed]
