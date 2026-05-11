@@ -4532,6 +4532,7 @@ app.post('/changelog-audit', async (req, res) => {
       console.error('[changelog-audit] JSON parse failed. Raw:', raw.slice(0, 300));
       return res.status(500).json({ error: 'Claude returned invalid JSON' });
     }
+    console.log('CHANGELOG RESPONSE:', JSON.stringify(result, null, 2));
     console.log('[changelog-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
     res.json(result);
   } catch (err) {
