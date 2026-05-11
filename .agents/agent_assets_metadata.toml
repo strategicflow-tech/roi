@@ -6,3 +6,9 @@ id = "NMmjh-R4mBP1FflkHEE3I"
 uri = "file://changelog-audit.tar.gz"
 type = "unspecified"
 title = "changelog-audit.html — cod complet (.tar.gz)"
+
+[[outputs]]
+id = "gxcNpd2XB_w7qNKxKSVRg"
+uri = "file://onboarding-audit.zip"
+type = "unspecified"
+title = "onboarding-audit.html"
