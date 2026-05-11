@@ -12,3 +12,9 @@ id = "gxcNpd2XB_w7qNKxKSVRg"
 uri = "file://onboarding-audit.zip"
 type = "unspecified"
 title = "onboarding-audit.html"
+
+[[outputs]]
+id = "GLjP1zOEFnMM04Wn-xU2T"
+uri = "file://linkedin-audit.zip"
+type = "unspecified"
+title = "linkedin-audit.html"
