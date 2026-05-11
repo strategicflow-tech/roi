@@ -907,6 +907,7 @@ document.getElementById('runAuditBtn').onclick = function() {
   })
   .then(function(r){return r.json();})
   .then(function(a){
+    console.log('AUDIT JSON:', JSON.stringify(a, null, 2));
     if(progressBar)progressBar.style.width='100%';
     if(progressPct)progressPct.textContent='100%';
     if(progressLabel)progressLabel.textContent='Audit complete';
