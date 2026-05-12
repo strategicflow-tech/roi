@@ -1,0 +1,74 @@
+Trimite asta în Replit:
+
+```
+Make these exact changes in 3 files. No confirmation needed. Show diff for each.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE 1 — showcase-generator.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Line 270 — .company-tag color:
+BEFORE: color: rgba(255,255,255,0.45)
+AFTER:  color: #cccccc
+
+Line 285 — .card-label color:
+BEFORE: color: rgba(255,255,255,0.35)
+AFTER:  color: #bbbbbb
+
+Line 317 — .score-reason color:
+BEFORE: color: rgba(255,255,255,0.45)
+AFTER:  color: #cccccc
+
+Line 324 — .ab-reason color:
+BEFORE: color: rgba(255,255,255,0.45)
+AFTER:  color: #cccccc
+
+Line 329 — .cal-why color:
+BEFORE: color: rgba(255,255,255,0.45)
+AFTER:  color: #cccccc
+
+Line 335 — .ch-body color:
+BEFORE: color: rgba(255,255,255,0.5)
+AFTER:  color: #cccccc
+
+Also in showcase-generator.js, find the .email-frame CSS rule 
+(around line 160). It currently has max-width:640px.
+
+BEFORE:
+.email-frame{background:#ffffff;width:100%;max-width:640px;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
+
+AFTER:
+.email-frame{background:#ffffff;width:100%;max-width:100%;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
+
+Also find the .email-shell CSS rule and update padding:
+BEFORE: .email-shell{background:#f0f0f0;border-radius:10px;padding:20px;overflow-x:auto}
+AFTER:  .email-shell{background:#f0f0f0;border-radius:10px;padding:8px;overflow-x:hidden}
+
+Also find the @media(max-width:620px) block in showcase-generator.js
+and add these rules inside it:
+.email-shell{padding:4px;}
+.email-frame{max-width:100%;width:100%;}
+.email-card{padding:10px;}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE 2 — public/index.html
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Line 2034 — .brand color:
+BEFORE: color: rgba(255,255,255,0.45)
+AFTER:  color: #cccccc
+
+Line 2044 — .card-body color:
+BEFORE: color: rgba(255,255,255,0.65)
+AFTER:  color: #dddddd
+
+Line 2053 — .ba-body color:
+BEFORE: color: rgba(255,255,255,0.60)
+AFTER:  color: #dddddd
+
+Line 2071 — .change-item color:
+BEFORE: color: rgba(255,255,255,0.70)
+AFTER:  color: #e0e0e0
+
+Show diff for all 3 files then Republish.
+```

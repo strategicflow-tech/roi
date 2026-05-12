@@ -267,7 +267,7 @@ a{color:${accent}}
 .brand-logo{width:32px;height:32px;object-fit:contain;border-radius:6px}
 .brand-name{font-size:17px;font-weight:800;color:#fff}
 .brand-name em{color:${accent};font-style:normal}
-.company-tag{font-size:12px;color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.05);padding:4px 12px;border-radius:100px;border:1px solid ${BORDER};white-space:nowrap}
+.company-tag{font-size:12px;color:#cccccc;background:rgba(255,255,255,0.05);padding:4px 12px;border-radius:100px;border:1px solid ${BORDER};white-space:nowrap}
 /* ── Layout ── */
 .main{max-width:960px;margin:0 auto;padding:36px 24px 80px}
 .page-title{font-size:30px;font-weight:900;margin-bottom:4px}
@@ -282,7 +282,7 @@ a{color:${accent}}
 .tab-btn.active{color:${accent};border-bottom-color:${accent}}
 /* ── Card ── */
 .card{background:${CARD_BG};border:1px solid ${BORDER};border-radius:14px;padding:24px;margin-bottom:18px}
-.card-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:14px}
+.card-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#bbbbbb;margin-bottom:14px}
 /* ── Before ── */
 .subject-orig{font-size:19px;font-weight:800;padding:14px 18px;border-radius:8px;border:2px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.04);line-height:1.3}
 .orig-body{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.75;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow-y:auto}
@@ -297,8 +297,8 @@ a{color:${accent}}
 .subject-rebuilt{font-size:19px;font-weight:800;padding:14px 18px;border-radius:8px;border:2px solid;line-height:1.3}
 .preview-text{font-size:12px;color:rgba(255,255,255,0.38);margin-top:8px;font-style:italic}
 .email-card{padding:20px}
-.email-shell{background:#f0f0f0;border-radius:10px;padding:20px;overflow-x:auto}
-.email-frame{background:#ffffff;width:100%;max-width:640px;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
+.email-shell{background:#f0f0f0;border-radius:10px;padding:8px;overflow-x:hidden}
+.email-frame{background:#ffffff;width:100%;max-width:100%;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
 .hook-headline{font-size:20px;font-weight:800;margin-bottom:10px;color:#fff}
 .hook-lead{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.65;margin-bottom:16px}
 .body-para{margin-bottom:14px;padding:12px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:2px solid rgba(255,255,255,0.1)}
@@ -314,25 +314,25 @@ a{color:${accent}}
 .score-bar-track{background:rgba(255,255,255,0.07);border-radius:100px;height:6px;width:100%;margin-top:10px}
 .score-bar-fill{height:6px;border-radius:100px;transition:width .4s}
 .score-delta{text-align:center;margin-top:12px;font-size:13px;font-weight:700}
-.score-reason{font-size:13px;color:rgba(255,255,255,0.45);margin-top:10px;line-height:1.55}
+.score-reason{font-size:13px;color:#cccccc;margin-top:10px;line-height:1.55}
 .ab-card{padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid ${BORDER};border-radius:10px;margin-bottom:10px}
 .ab-card:last-child{margin-bottom:0}
 .ab-subject{font-size:15px;font-weight:700;margin-bottom:8px;color:#fff}
 .ab-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .ab-angle{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px}
 .ab-lift{font-size:13px;font-weight:700}
-.ab-reason{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.5}
+.ab-reason{font-size:13px;color:#cccccc;line-height:1.5}
 .cal-card{padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid ${BORDER};border-radius:10px;margin-bottom:10px}
 .cal-card:last-child{margin-bottom:0}
 .cal-week{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px}
 .cal-subject{font-size:15px;font-weight:700;color:#fff;margin-bottom:5px}
-.cal-why{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.5}
+.cal-why{font-size:13px;color:#cccccc;line-height:1.5}
 /* ── What Changed ── */
 .change-card{display:flex;align-items:flex-start;gap:14px;background:${CARD_BG};border:1px solid ${BORDER};border-radius:14px;padding:20px 22px;margin-bottom:14px}
 .ch-num{flex-shrink:0;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;margin-top:1px}
 .ch-body-wrap{flex:1}
 .ch-title{font-size:15px;font-weight:800;margin-bottom:6px;color:#fff}
-.ch-body{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65}
+.ch-body{font-size:13px;color:#cccccc;line-height:1.65}
 .methodology-card{border-left:3px solid rgba(255,255,255,0.12)}
 .meth-p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.65;margin-bottom:10px}
 .meth-p:last-child{margin-bottom:0}
@@ -349,7 +349,9 @@ a{color:${accent}}
   .tabs{overflow-x:auto}
   .tab-btn{padding:10px 14px;font-size:12px}
   .page-title{font-size:22px}
-  .email-shell{padding:10px}
+  .email-shell{padding:4px;}
+  .email-frame{max-width:100%;width:100%;}
+  .email-card{padding:10px;}
 }
 </style>
 </head>
