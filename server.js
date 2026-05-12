@@ -142,13 +142,29 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'Unauthorised' });
 }
 
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 app.use(requireAuth);
+
+app.get('/index.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
 app.use(express.static('public'));
 
 // ── REDIRECT ROOT ─────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   if (req.session && req.session.userEmail) {
-    return res.redirect('/index.html');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.sendFile(path.join(__dirname, 'public/index.html'));
   }
   return res.redirect('/login.html');
 });
