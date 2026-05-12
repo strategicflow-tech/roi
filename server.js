@@ -1225,6 +1225,11 @@ const UI_LABELS = {
   sv: { before: 'Innan',   after: 'Efter',    original: 'Original', rebuilt: 'Återbyggd',     whatChanged: 'Vad som förändrades och varför' },
 };
 
+function proxyUrl(u) {
+  if (!u || !u.startsWith('http')) return u || '';
+  return `/proxy-image?url=${encodeURIComponent(u)}`;
+}
+
 function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // Guard all critical inputs — never render the string "undefined" or "null" in output HTML
   company = safeVal(company) || 'Your Company';
@@ -1328,7 +1333,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   // apple-touch-icon / PNG favicon → img; nothing found → name only.
   const logoUrl = brandDNA?.logo || null;
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" onerror="this.style.display='none';" /><span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
+    ? `<img src="${proxyUrl(logoUrl)}" alt="${company}" style="height:36px;width:36px;border-radius:8px;display:inline-block;vertical-align:middle;margin-right:10px;" onerror="this.style.display='none';" /><span style="font-size:20px;font-weight:900;color:${primaryColor};letter-spacing:-0.5px;vertical-align:middle;">${company}</span>`
     : `<span style="font-size:20px;font-weight:900;color:${textStrong};letter-spacing:-0.5px;">${company}</span>`;
   // Right cell: issue date
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -1450,7 +1455,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     return extras.map(img => {
       const cleanAlt = (img.alt || '').includes('|') ? '' : (img.alt || '');
       const caption = cleanAlt ? `<tr><td style="padding:6px 0 0;font-size:12px;color:${textMedium};line-height:1.4;font-style:italic;">${cleanAlt}</td></tr>` : '';
-      return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;"><tr><td style="padding:0;line-height:0;"><img src="${img.url}" alt="${cleanAlt}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>${caption}</table>`;
+      return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;"><tr><td style="padding:0;line-height:0;"><img src="${proxyUrl(img.url)}" alt="${cleanAlt}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>${caption}</table>`;
     }).join('');
   })();
 
@@ -1461,7 +1466,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
   // Footer logo (small, centered)
   const footerLogo = brandDNA?.logo
-    ? `<img src="${brandDNA.logo}" alt="${company}" style="max-height:28px;display:block;margin:0 auto 10px;" onerror="this.style.display='none';" />`
+    ? `<img src="${proxyUrl(brandDNA.logo)}" alt="${company}" style="max-height:28px;display:block;margin:0 auto 10px;" onerror="this.style.display='none';" />`
     : '';
 
   // Tagline from site meta description (capped at 90 chars for footer)
@@ -1658,7 +1663,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     // Build individual card cell — includes Unsplash photo when item.image is present
     const buildCard = item => `<td width="50%" valign="top" style="padding:8px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:${cardBg};border-radius:8px;overflow:hidden;border:1px solid ${dividerColor};">
-          ${item.image ? `<tr><td style="padding:0;line-height:0;"><img src="${item.image}" width="100%" height="140" alt="${item.name}" style="display:block;width:100%;height:140px;object-fit:cover;border-radius:8px 8px 0 0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>` : ''}
+          ${item.image ? `<tr><td style="padding:0;line-height:0;"><img src="${proxyUrl(item.image)}" width="100%" height="140" alt="${item.name}" style="display:block;width:100%;height:140px;object-fit:cover;border-radius:8px 8px 0 0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>` : ''}
           <tr><td style="padding:14px 16px 16px;">
             <div style="margin-bottom:8px;">
               ${item.deal ? `<span style="display:inline-block;background:${primaryColor};color:${primaryText};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;">${item.deal}</span>` : ''}
@@ -1746,7 +1751,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         _fc.slice(0, 6).map((card, idx) =>
           `<tr><td style="padding:${idx === 0 ? '0' : '16px'} 0 16px;${idx > 0 ? `border-top:1px solid ${dividerColor};padding-top:16px;` : ''}">
             <p style="font-size:11px;font-weight:800;color:${primaryColor};text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">${card.title || ''}</p>
-            ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" />` : ''}
+            ${card.imageUrl ? `<img src="${proxyUrl(card.imageUrl)}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" />` : ''}
             <p style="font-size:14px;color:${textBody};margin:0;line-height:1.65;">${card.body || ''}</p>
           </td></tr>`
         ).join('') +
@@ -1792,7 +1797,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 
         <!-- HERO IMAGE -->
         <!-- Images sourced from original email. Some may not display if the sender restricts hotlinking. -->
-        <tr><td style="padding:0;line-height:0;"><img src="${heroSrc}" alt="${company}" width="600" height="220" style="width:100%;max-width:600px;height:220px;object-fit:cover;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>
+        <tr><td style="padding:0;line-height:0;"><img src="${proxyUrl(heroSrc)}" alt="${company}" width="600" height="220" style="width:100%;max-width:600px;height:220px;object-fit:cover;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';" /></td></tr>
 
         <!-- HOOK + TENSION + STAT CARDS -->
         <tr>
@@ -1815,7 +1820,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   style="margin-bottom:16px;border:1px solid rgba(0,0,0,0.10);border-radius:10px;overflow:hidden;border-collapse:separate;">
   <tr><td style="padding:16px 20px;background:#f9f9f9;">
     <div style="font-size:10px;font-weight:700;color:${primaryColor};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;">${card.title || ''}</div>
-    ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';">` : ''}
+    ${card.imageUrl ? `<img src="${proxyUrl(card.imageUrl)}" alt="${card.title || ''}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:0 0 8px;display:block;border:0;" onerror="this.style.display='none';this.parentElement.style.display='none';">` : ''}
     <div style="font-size:14px;color:#3a3a35;line-height:1.6;">${card.body || card.text || card.content || ''}</div>
   </td></tr>
 </table>`).join('')
@@ -1878,7 +1883,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
   </td></tr>
   <!-- Images sourced from original email. Some may not display if the sender restricts hotlinking. -->
   <tr><td align="center" valign="top" style="padding:0;margin:0;font-size:0;line-height:0;">
-    <img src="${heroSrc}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" onerror="this.style.display='none';this.parentElement.style.display='none';" />
+    <img src="${proxyUrl(heroSrc)}" width="620" height="300" border="0" alt="${company}" style="display:block;width:620px;height:300px;max-width:620px;min-width:620px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" onerror="this.style.display='none';this.parentElement.style.display='none';" />
   </td></tr>
   <tr><td style="background:${headerBg};padding:28px 40px 24px;">
     <p style="font-size:10px;font-weight:600;color:${headerText};opacity:0.6;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px 0;">${company} &middot; ${today}</p>
@@ -2132,6 +2137,24 @@ ${(body || '').slice(0, 1400)}`;
 // ─── ROUTES ─────────────────────────────────────────────────────────────────
 
 app.get('/health', (_, res) => res.json({ ok: true, model: MODEL, ts: new Date().toISOString() }));
+
+app.get('/proxy-image', async (req, res) => {
+  try {
+    const url = decodeURIComponent(req.query.url || '');
+    if (!url.startsWith('http')) return res.status(400).end();
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    if (!response.ok) return res.status(404).end();
+    const buffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/png';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    res.status(500).end();
+  }
+});
 
 // ── CHECK EMAIL ──
 app.post('/check-email', async (req, res) => {

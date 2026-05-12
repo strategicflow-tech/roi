@@ -299,6 +299,9 @@ a{color:${accent}}
 .email-card{padding:20px}
 .email-shell{background:#f0f0f0;border-radius:10px;padding:8px;overflow-x:hidden}
 .email-frame{background:#ffffff;width:100%;max-width:100%;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
+.email-frame table{max-width:100% !important;}
+.email-frame img{max-width:100% !important;height:auto !important;}
+.email-frame td[width]{width:auto !important;}
 .hook-headline{font-size:20px;font-weight:800;margin-bottom:10px;color:#fff}
 .hook-lead{font-size:14px;color:#dddddd;line-height:1.65;margin-bottom:16px}
 .body-para{margin-bottom:14px;padding:12px 14px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:2px solid rgba(255,255,255,0.1)}
