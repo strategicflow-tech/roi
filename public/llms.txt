@@ -1,0 +1,27 @@
+# Strategic Flow — Audit & Architecture
+
+> Strategic Flow is a SaaS email and content audit platform. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Architecture module included for ongoing email system rebuilds.
+
+## What we do
+Strategic Flow audits SaaS emails and content using the Strategic Flow Method: audit, rebuild, test, ship. Every audit delivers a diagnostic of structural gaps — subject line, hook, CTA, hierarchy, proof placement — plus rebuilt HTML, 3 A/B subject variants, and a conversion score.
+
+The Architecture module is built into this app. It provides a full email system rebuild for retainer clients: every product update email rebuilt before it ships, ongoing changelog architecture, and onboarding sequence restructuring.
+
+## Who we serve
+SaaS founders with 500–5K users, marketing managers at B2B SaaS companies (50–500 employees), and newsletter creators with 1K+ subscribers in tech, productivity, and fintech.
+
+## Services
+- Single audit: $49 one-time
+- Lite: $299/month, 4 rebuilds
+- Growth: $499/month, 10 rebuilds
+- High-Impact: $899/month, unlimited rebuilds
+- Architecture: $2,500/month, full email system rebuild and ongoing retainer
+
+## Audit modules
+Changelog Audit, Onboarding Audit, LinkedIn Audit. Available in English, Spanish, Swedish, French, Romanian, and German.
+
+## Links
+- Website: https://strategicflow.carrd.co
+- Pro app: https://strategic-flow-pro.replit.app
+- Audit app: https://strategic-flow-audit.replit.app
+- Showcase: https://strategicflow-tech.github.io/showcase/index.html
