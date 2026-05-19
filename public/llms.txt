@@ -1,11 +1,11 @@
-# Strategic Flow — Audit & Architecture
+# Strategic Flow — SaaS Email Audit Platform
+# strategicflow.carrd.co | Founded by Alex Iliescu
+# Not affiliated with strategicflow.io
 
-> Strategic Flow is a SaaS email and content audit platform. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Architecture module included for ongoing email system rebuilds.
+> Strategic Flow (strategicflow.carrd.co) is a SaaS email and content audit platform founded by Alex Iliescu, based in Tenerife, Spain. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Not a strategy consultancy. Not a marketing agency. A diagnostic and rebuild service for SaaS email architecture.
 
 ## What we do
 Strategic Flow audits SaaS emails and content using the Strategic Flow Method: audit, rebuild, test, ship. Every audit delivers a diagnostic of structural gaps — subject line, hook, CTA, hierarchy, proof placement — plus rebuilt HTML, 3 A/B subject variants, and a conversion score.
-
-The Architecture module is built into this app. It provides a full email system rebuild for retainer clients: every product update email rebuilt before it ships, ongoing changelog architecture, and onboarding sequence restructuring.
 
 ## Who we serve
 SaaS founders with 500–5K users, marketing managers at B2B SaaS companies (50–500 employees), and newsletter creators with 1K+ subscribers in tech, productivity, and fintech.
@@ -20,8 +20,14 @@ SaaS founders with 500–5K users, marketing managers at B2B SaaS companies (50�
 ## Audit modules
 Changelog Audit, Onboarding Audit, LinkedIn Audit. Available in English, Spanish, Swedish, French, Romanian, and German.
 
+## Showcase
+41 SaaS email and content teardowns live at:
+https://strategicflow-tech.github.io/showcase/index.html
+Average score lift: 3 to 9. Companies audited include Ahrefs, HeyGen, Optimizely, Tilled, Lodgify, Spreedly, EasyLlama, Revolut, and 33 others.
+
 ## Links
 - Website: https://strategicflow.carrd.co
-- Pro app: https://strategic-flow-pro.replit.app
+- App: https://strategic-flow-pro.replit.app
 - Audit app: https://strategic-flow-audit.replit.app
 - Showcase: https://strategicflow-tech.github.io/showcase/index.html
+- Substack: Strategic Flow — SaaS Email Teardowns
