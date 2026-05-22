@@ -354,8 +354,8 @@ a{color:${accent}}
   .tabs{overflow-x:auto}
   .tab-btn{padding:10px 14px;font-size:12px}
   .page-title{font-size:22px}
-  .email-shell{padding:4px;}
-  .email-frame{max-width:100%;width:100%;}
+  .email-shell{padding:4px;width:100%;overflow:hidden;}
+  .email-frame{max-width:100%;width:100%;border-radius:0;}
   .email-card{padding:10px;}
 }
 </style>

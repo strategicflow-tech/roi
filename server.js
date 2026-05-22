@@ -1546,7 +1546,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <p style="font-size:11px;color:${statLabelColor};margin:5px 0 0;line-height:1.4;">${s.l}</p>
       </td>`;
     }).join('');
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${statBorderColor};border-radius:8px;margin:0;"><tr>${cells}</tr></table>`;
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${statBorderColor};border-radius:8px;margin:0;"><tr class="stat-row">${cells}</tr></table>`;
   })();
 
   // Calendar rows — only rendered when at least one week has content
@@ -1763,8 +1763,10 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${subject}</title>
 <style>
 @media only screen and (max-width:620px){
-  .email-outer-td { padding: 16px 8px !important; }
-  .email-section-pad { padding-left: 16px !important; padding-right: 16px !important; }
+  .email-outer-td { padding: 0 !important; }
+  .email-section-pad { padding: 20px 16px !important; }
+  .stat-row td { display:block !important; width:100% !important; border-left:none !important; text-align:center !important; }
+  h1 { font-size:20px !important; }
 }
 </style></head>
 <body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;">
