@@ -384,7 +384,7 @@ function renderDashboard(data) {
           <span class="score-arrow">→</span>
           <span class="score-new">${t.score_rebuilt || '?'}/10</span>
         </div>
-        ${t.link ? `<a href="${t.link}" target="_blank" class="recent-link">View →</a>` : ''}
+        ${(t.url || t.link) ? `<a href="${t.url || t.link}" target="_blank" class="recent-link">View →</a>` : ''}
       </div>
     </div>`).join('');
 }
@@ -405,7 +405,7 @@ function copyPost(btnId, text) {
 function loadData() {
   fetch(JSON_URL)
     .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json(); })
-    .then(data => renderDashboard(data))
+    .then(data => renderDashboard(Array.isArray(data) ? data : (data.teardowns || [])))
     .catch(() => {
       if (!_lastData) {
         document.getElementById('errorMsg').removeAttribute('hidden');
