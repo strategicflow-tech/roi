@@ -88,7 +88,7 @@ textarea{resize:vertical;line-height:1.7;}
 .vip-badge{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(245,158,11,0.4);padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono);}
 
 /* ─── PRICING TABLE ─────────────────────────────────── */
-.pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.pricing-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
 .plan-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px 18px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
 .plan-card:hover{border-color:var(--teal);transform:translateY(-2px);}
 .plan-card.featured{border-color:var(--gold);background:linear-gradient(145deg,#0f1a2e,#111a30);}
@@ -110,6 +110,13 @@ textarea{resize:vertical;line-height:1.7;}
 .plan-btn-gold:hover{background:#fbbf24;}
 .plan-btn-outline{background:transparent;color:var(--teal);border:1px solid rgba(0,229,160,0.4);}
 .plan-btn-outline:hover{background:var(--teal-dim);}
+.plan-card.enterprise{border-color:#818cf8;background:linear-gradient(145deg,#0d1128,#111230);}
+.plan-card.enterprise::before{content:'ENTERPRISE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#818cf8;color:#080f1e;font-size:9px;font-weight:800;letter-spacing:0.12em;padding:3px 10px;border-radius:10px;white-space:nowrap;font-family:var(--mono);}
+.plan-card.enterprise:hover{border-color:#a5b4fc;transform:translateY(-2px);}
+.plan-features li.ent::before{color:#818cf8;}
+.plan-btn-enterprise{background:#818cf8;color:#080f1e;}
+.plan-btn-enterprise:hover{background:#a5b4fc;}
+.check-ent{color:#818cf8;font-weight:700;}
 
 /* Comparison table */
 .compare-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:20px;}
@@ -242,6 +249,9 @@ textarea{resize:vertical;line-height:1.7;}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 [hidden]{display:none!important;}
+@media(max-width:900px){
+  .pricing-grid{grid-template-columns:repeat(3,1fr);}
+}
 @media(max-width:640px){
   .pricing-grid{grid-template-columns:1fr 1fr;}
   .panel-row,.before-after,.field-row,.admin-stats{grid-template-columns:1fr;}
@@ -433,32 +443,57 @@ textarea{resize:vertical;line-height:1.7;}
           <a href="https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03" target="_blank" class="plan-btn plan-btn-gold">Get High-Impact →</a>
         </div>
 
+        <!-- Architecture -->
+        <div class="plan-card enterprise">
+          <div class="plan-name" style="color:#818cf8;">ARCHITECTURE</div>
+          <div class="plan-price" style="color:#818cf8;">$2,500</div>
+          <div class="plan-period">/mo</div>
+          <p style="font-size:13px;color:#a0aec0;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">For SaaS companies with 5,000+ users.</strong>Every email your company sends, rebuilt before it ships. A full 90-day communication audit, competitor benchmarks, and direct access to Alex — same-day on Slack.</p>
+          <ul class="plan-features">
+            <li class="ent">Unlimited rebuilds — HTML ready to send</li>
+            <li class="ent">Full 90-day communication audit (exec report)</li>
+            <li class="ent">3 subject line variants + open rate delta</li>
+            <li class="ent">Batch assessment — up to 10 emails ranked</li>
+            <li class="ent">Monthly diagnostic call (45 min with Alex)</li>
+            <li class="ent">Direct Slack access — same-day responses</li>
+            <li class="ent">Competitor benchmark (3 competitors)</li>
+            <li class="ent">Onboarding sequence audit + release note system</li>
+          </ul>
+          <a href="https://buy.stripe.com/bJefZh03u7NncxD7ph7wA07" target="_blank" class="plan-btn plan-btn-enterprise">Book Assessment →</a>
+        </div>
+
       </div>
 
       <!-- Compare table -->
       <table class="compare-table">
         <thead>
           <tr>
-            <th style="width:36%">Feature</th>
-            <th>Single</th><th>Lite</th><th>Growth</th><th>High-Impact</th>
+            <th style="width:30%">Feature</th>
+            <th>Single</th><th>Lite</th><th>Growth</th><th>High-Impact</th><th style="color:#818cf8;">Architecture</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>Strategic Flow rebuild</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Download HTML</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>A/B subject lines</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Conversion score (1–10)</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Before/After comparison</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Human review request</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Brand DNA extraction</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Voice preservation</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Audience segments</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Content calendar</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Roadmap teaser block</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td></tr>
-          <tr><td>Full-funnel cohesion check</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
-          <tr><td>Email type detection</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
-          <tr><td>VIP priority flag</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
-          <tr><td>Monthly conversion audit</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td></tr>
+          <tr><td>Strategic Flow rebuild</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Download HTML</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>A/B subject lines</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Conversion score (1–10)</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Before/After comparison</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Human review request</td><td class="cross">—</td><td class="check">✓</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Brand DNA extraction</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Voice preservation</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Audience segments</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Content calendar</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Roadmap teaser block</td><td class="cross">—</td><td class="cross">—</td><td class="check">✓</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Full-funnel cohesion check</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Email type detection</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>VIP priority flag</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>Monthly conversion audit</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-gold">✓</td><td class="check-ent">✓</td></tr>
+          <tr><td>90-day communication audit</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
+          <tr><td>Batch assessment (10 emails)</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
+          <tr><td>Monthly diagnostic call (45 min)</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
+          <tr><td>Direct Slack access</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
+          <tr><td>Competitor benchmark (3)</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
+          <tr><td>Onboarding sequence audit</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td><td class="check-ent">✓</td></tr>
         </tbody>
       </table>
 
