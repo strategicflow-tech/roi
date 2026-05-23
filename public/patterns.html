@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pattern Intelligence — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #080f1e;
+  --bg2:      #0d1628;
+  --surface:  #111e34;
+  --surface2: #162440;
+  --border:   #1c2e4a;
+  --teal:     #00d4c8;
+  --teal-dim: rgba(0,229,160,0.12);
+  --gold:     #f59e0b;
+  --gold-dim: rgba(245,158,11,0.12);
+  --red:      #e8455a;
+  --red-dim:  rgba(232,69,90,0.12);
+  --text:     #eef1f7;
+  --text2:    #c4cedf;
+  --muted:    #7a8ba8;
+  --green:    #1d9e75;
+  --blue:     #4a8fe7;
+  --font:     'Inter', sans-serif;
+  --mono:     'DM Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.container{max-width:960px;margin:0 auto;padding:40px 20px 100px;}
+
+h2{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--text);}
+h3{font-size:14px;font-weight:600;margin-bottom:8px;}
+
+.logo-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.22);border-radius:100px;padding:7px 18px;margin-bottom:20px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--teal);font-family:var(--mono);}
+.logo-dot{width:6px;height:6px;background:var(--teal);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+
+.page-header{text-align:center;margin-bottom:40px;animation:fadeDown 0.5s ease both;}
+.page-title{font-size:clamp(22px,4vw,36px);font-weight:800;line-height:1.15;letter-spacing:-0.02em;margin-bottom:10px;}
+.page-subtitle{font-size:14px;color:var(--muted);font-family:var(--mono);}
+
+.nav-back{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;margin-bottom:32px;}
+.nav-back:hover{color:var(--teal);border-color:rgba(0,229,160,0.4);}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;}
+.section-label{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--teal);font-family:var(--mono);margin-bottom:16px;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 16px;text-align:center;}
+.stat-val{font-size:28px;font-weight:900;line-height:1;margin-bottom:4px;}
+.stat-lbl{font-size:11px;color:var(--muted);font-family:var(--mono);}
+
+table.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+table.data-table th{padding:9px 12px;text-align:left;color:var(--muted);font-weight:600;font-family:var(--mono);letter-spacing:0.08em;border-bottom:1px solid var(--border);}
+table.data-table th:not(:first-child){text-align:center;}
+table.data-table td{padding:9px 12px;border-bottom:1px solid rgba(28,46,74,0.5);color:var(--text2);}
+table.data-table td:not(:first-child){text-align:center;}
+table.data-table tr:last-child td{border-bottom:none;}
+table.data-table tr:hover td{background:rgba(255,255,255,0.02);}
+
+.tier-red{color:#e8455a;font-weight:700;}
+.tier-yellow{color:#f59e0b;font-weight:700;}
+.tier-orange{color:#f97316;font-weight:700;}
+.tier-gray{color:var(--muted);}
+.milestone-row td:first-child{color:#1d9e75 !important;font-weight:600;}
+
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.bar-label{font-size:12px;color:var(--text2);font-family:var(--mono);width:60px;text-align:right;flex-shrink:0;}
+.bar-track{flex:1;background:rgba(255,255,255,0.06);border-radius:4px;height:16px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
+.bar-count{font-size:11px;color:var(--muted);font-family:var(--mono);width:36px;flex-shrink:0;}
+
+.alert-card{background:rgba(232,69,90,0.08);border:1px solid rgba(232,69,90,0.35);border-radius:14px;padding:22px 24px;margin-bottom:20px;}
+.alert-card .alert-title{font-size:14px;font-weight:800;color:#e8455a;margin-bottom:8px;}
+.alert-card .alert-body{font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:14px;}
+.btn-copy{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:var(--mono);transition:border-color .2s,color .2s;}
+.btn-copy:hover{border-color:rgba(0,229,160,0.4);color:var(--teal);}
+.btn-copy.copied{border-color:var(--green);color:var(--green);}
+
+.recent-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(28,46,74,0.5);}
+.recent-row:last-child{border-bottom:none;}
+.recent-company{font-size:13px;font-weight:600;color:var(--text);}
+.recent-meta{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+.recent-scores{font-size:12px;font-family:var(--mono);white-space:nowrap;text-align:right;}
+.score-orig{color:var(--muted);}
+.score-arrow{color:var(--border);margin:0 4px;}
+.score-new{color:var(--green);font-weight:700;}
+.recent-link{font-size:11px;color:var(--blue);text-decoration:none;font-family:var(--mono);}
+.recent-link:hover{text-decoration:underline;}
+
+.refresh-note{font-size:11px;color:var(--muted);font-family:var(--mono);text-align:right;margin-bottom:12px;}
+.error-msg{text-align:center;padding:60px 24px;font-size:14px;color:var(--muted);font-family:var(--mono);}
+
+@media(max-width:640px){
+  .stat-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:420px){
+  .stat-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <a href="/" class="nav-back">← Audit app</a>
+
+  <div class="page-header">
+    <div class="logo-badge"><span class="logo-dot"></span>Strategic Flow</div>
+    <div class="page-title">Pattern Intelligence</div>
+    <div class="page-subtitle" id="pageSubtitle">Loading teardowns…</div>
+  </div>
+
+  <div class="refresh-note" id="refreshNote"></div>
+
+  <div id="errorMsg" class="error-msg" hidden>Data temporarily unavailable. Try again in a moment.</div>
+  <div id="dashContent" hidden>
+
+    <!-- Section 1: Summary Stats -->
+    <div class="stat-grid" id="statGrid"></div>
+
+    <!-- Section 7: Post Ready Alert (shown before table if triggered) -->
+    <div id="postReadyAlerts"></div>
+
+    <!-- Section 2: Pattern Frequency -->
+    <div class="card">
+      <div class="section-label">Pattern Frequency</div>
+      <table class="data-table" id="patternTable">
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>Count</th>
+            <th>%</th>
+            <th>Tier</th>
+          </tr>
+        </thead>
+        <tbody id="patternTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Section 3: Breakdown by Vertical -->
+    <div class="card">
+      <div class="section-label">By Vertical</div>
+      <table class="data-table" id="verticalTable">
+        <thead>
+          <tr>
+            <th>Vertical</th>
+            <th>Count</th>
+            <th>Avg Original</th>
+            <th>Top Pattern</th>
+          </tr>
+        </thead>
+        <tbody id="verticalTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Section 4: Breakdown by Content Type -->
+    <div class="card">
+      <div class="section-label">By Content Type</div>
+      <table class="data-table" id="typeTable">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Count</th>
+            <th>Avg Original</th>
+            <th>Top Pattern</th>
+          </tr>
+        </thead>
+        <tbody id="typeTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Section 5: Score Distribution -->
+    <div class="card">
+      <div class="section-label">Score Distribution</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="distGrid">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px;font-family:var(--mono);">ORIGINAL SCORES</div>
+          <div id="origDist"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:12px;font-family:var(--mono);">REBUILT SCORES</div>
+          <div id="rebuiltDist"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 6: Recent Teardowns -->
+    <div class="card">
+      <div class="section-label">Recent Teardowns</div>
+      <div id="recentList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const JSON_URL = 'https://raw.githubusercontent.com/strategicflow-tech/showcase/main/teardowns.json';
+
+const POST_TEXTS = {
+  'Guest Language CTA': '96% of SaaS emails I\'ve audited use \'Learn more\' or \'Explore what\'s new\' as CTA. That\'s not a copy problem. It\'s an architecture problem. \'Learn more\' describes what the brand offers. \'Fix my reporting\' describes what the reader does. One converts. The other doesn\'t. 49 teardowns. Same pattern.',
+  'Feature-First Bias': '9 out of 10 SaaS emails open with what the product does. Not what the reader gains. I\'ve audited 49 emails. Feature-First Bias appears in 9 out of 10. It\'s not a coincidence. It\'s how product teams write — from the product\'s perspective, not the reader\'s.',
+  'Filing Label Subject': '85% of emails I\'ve audited open with a filing label subject. \'New Feature: Dashboard Update\'. \'Announcing Advanced Reporting\'. No consequence. No curiosity gap. Just a folder tab. The subject line is the only line read by 100% of recipients. It\'s also the last one most teams think about.',
+};
+
+const MILESTONES = [90, 85, 80, 75];
+
+let _lastData = null;
+let _refreshTimer = null;
+
+function fmt1(n) { return Number.isFinite(n) ? n.toFixed(1) : '—'; }
+
+function topPattern(items) {
+  const freq = {};
+  items.forEach(t => {
+    const ps = Array.isArray(t.patterns) ? t.patterns : [];
+    ps.forEach(p => { freq[p] = (freq[p] || 0) + 1; });
+  });
+  let top = null, topCount = 0;
+  Object.entries(freq).forEach(([p, c]) => { if (c > topCount) { topCount = c; top = p; } });
+  return top || '—';
+}
+
+function tierInfo(pct) {
+  if (pct >= 80) return { label: '🔴 Universal', cls: 'tier-red' };
+  if (pct >= 50) return { label: '🟡 Common',    cls: 'tier-yellow' };
+  if (pct >= 30) return { label: '🟠 Situational', cls: 'tier-orange' };
+  return               { label: '⚪ Rare',       cls: 'tier-gray' };
+}
+
+function isMilestoneWeek(pct) {
+  return MILESTONES.some(m => pct >= m && pct < m + 5);
+}
+
+function renderDashboard(data) {
+  _lastData = data;
+  const total = data.length;
+
+  document.getElementById('pageSubtitle').textContent =
+    `Live analysis across ${total} teardowns. Updated automatically.`;
+  document.getElementById('dashContent').removeAttribute('hidden');
+  document.getElementById('errorMsg').setAttribute('hidden', '');
+
+  const ts = new Date().toLocaleTimeString();
+  document.getElementById('refreshNote').textContent = `Last updated: ${ts} · Auto-refreshes every 60s`;
+
+  // ── Section 1: Summary Stats ──────────────────────────────────────
+  const avgOrig    = data.reduce((s, t) => s + (t.score_original || 0), 0) / total;
+  const avgRebuilt = data.reduce((s, t) => s + (t.score_rebuilt  || 0), 0) / total;
+  const avgLift    = avgRebuilt - avgOrig;
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--teal);">${total}</div>
+      <div class="stat-lbl">Total teardowns</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--red);">${fmt1(avgOrig)}</div>
+      <div class="stat-lbl">Avg original score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#1d9e75;">${fmt1(avgRebuilt)}</div>
+      <div class="stat-lbl">Avg rebuilt score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#4a8fe7;">+${fmt1(avgLift)}</div>
+      <div class="stat-lbl">Avg lift</div>
+    </div>`;
+
+  // ── Section 2: Pattern Frequency ─────────────────────────────────
+  const patFreq = {};
+  data.forEach(t => {
+    (Array.isArray(t.patterns) ? t.patterns : []).forEach(p => {
+      patFreq[p] = (patFreq[p] || 0) + 1;
+    });
+  });
+  const patSorted = Object.entries(patFreq).sort((a, b) => b[1] - a[1]);
+
+  document.getElementById('patternTbody').innerHTML = patSorted.map(([name, count]) => {
+    const pct  = Math.round(count / total * 100);
+    const tier = tierInfo(pct);
+    const mile = isMilestoneWeek(pct);
+    return `<tr class="${mile ? 'milestone-row' : ''}">
+      <td style="color:var(--blue);font-weight:500;">${name}${mile ? ' ★' : ''}</td>
+      <td>${count}</td>
+      <td>${pct}%</td>
+      <td class="${tier.cls}">${tier.label}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Section 7: Post Ready Alerts ─────────────────────────────────
+  const alerts = patSorted.filter(([, c]) => Math.round(c / total * 100) >= 90);
+  document.getElementById('postReadyAlerts').innerHTML = alerts.map(([name, count]) => {
+    const pct  = Math.round(count / total * 100);
+    const post = POST_TEXTS[name] || `${pct}% of teardowns show ${name}. This is a publishable stat.`;
+    const id   = 'copy_' + name.replace(/\s+/g, '_');
+    return `
+    <div class="alert-card">
+      <div class="alert-title">🚨 POST READY: ${name} appears in ${pct}% of teardowns. This is a publishable stat.</div>
+      <div class="alert-body">${post}</div>
+      <button class="btn-copy" id="${id}" onclick="copyPost('${id}', ${JSON.stringify(post)})">
+        📋 Copy post text
+      </button>
+    </div>`;
+  }).join('');
+
+  // ── Section 3: By Vertical ────────────────────────────────────────
+  const vertMap = {};
+  data.forEach(t => {
+    const v = t.vertical || 'Unknown';
+    if (!vertMap[v]) vertMap[v] = [];
+    vertMap[v].push(t);
+  });
+  const vertSorted = Object.entries(vertMap).sort((a, b) => b[1].length - a[1].length);
+
+  document.getElementById('verticalTbody').innerHTML = vertSorted.map(([v, items]) => {
+    const avgO = items.reduce((s, t) => s + (t.score_original || 0), 0) / items.length;
+    return `<tr>
+      <td style="font-weight:500;">${v}</td>
+      <td>${items.length}</td>
+      <td>${fmt1(avgO)}/10</td>
+      <td style="color:var(--blue);font-size:11px;">${topPattern(items)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Section 4: By Content Type ────────────────────────────────────
+  const typeMap = {};
+  data.forEach(t => {
+    const tp = t.type || 'Unknown';
+    if (!typeMap[tp]) typeMap[tp] = [];
+    typeMap[tp].push(t);
+  });
+  const typeSorted = Object.entries(typeMap).sort((a, b) => b[1].length - a[1].length);
+
+  document.getElementById('typeTbody').innerHTML = typeSorted.map(([tp, items]) => {
+    const avgO = items.reduce((s, t) => s + (t.score_original || 0), 0) / items.length;
+    return `<tr>
+      <td style="font-weight:500;">${tp}</td>
+      <td>${items.length}</td>
+      <td>${fmt1(avgO)}/10</td>
+      <td style="color:var(--blue);font-size:11px;">${topPattern(items)}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Section 5: Score Distribution ────────────────────────────────
+  const origCounts = {};
+  const rebuiltCounts = {};
+  data.forEach(t => {
+    const o = Math.round(t.score_original || 0);
+    const r = Math.round(t.score_rebuilt  || 0);
+    origCounts[o]    = (origCounts[o]    || 0) + 1;
+    rebuiltCounts[r] = (rebuiltCounts[r] || 0) + 1;
+  });
+
+  function buildBars(counts, color, maxCount) {
+    return Object.entries(counts)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([score, cnt]) => {
+        const pct = Math.round(cnt / maxCount * 100);
+        return `<div class="bar-row">
+          <div class="bar-label">${score}/10</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>
+          <div class="bar-count">${cnt}</div>
+        </div>`;
+      }).join('');
+  }
+
+  document.getElementById('origDist').innerHTML    = buildBars(origCounts,    '#e8455a', total);
+  document.getElementById('rebuiltDist').innerHTML = buildBars(rebuiltCounts, '#1d9e75', total);
+
+  // ── Section 6: Recent Teardowns ───────────────────────────────────
+  const recent = [...data].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 10);
+  document.getElementById('recentList').innerHTML = recent.map(t => `
+    <div class="recent-row">
+      <div>
+        <div class="recent-company">${t.company || '—'}</div>
+        <div class="recent-meta">${t.vertical || ''} · ${t.type || ''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="recent-scores">
+          <span class="score-orig">${t.score_original || '?'}/10</span>
+          <span class="score-arrow">→</span>
+          <span class="score-new">${t.score_rebuilt || '?'}/10</span>
+        </div>
+        ${t.link ? `<a href="${t.link}" target="_blank" class="recent-link">View →</a>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function copyPost(btnId, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 Copy post text';
+      btn.classList.remove('copied');
+    }, 2500);
+  });
+}
+
+function loadData() {
+  fetch(JSON_URL)
+    .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json(); })
+    .then(data => renderDashboard(data))
+    .catch(() => {
+      if (!_lastData) {
+        document.getElementById('errorMsg').removeAttribute('hidden');
+        document.getElementById('dashContent').setAttribute('hidden', '');
+        document.getElementById('pageSubtitle').textContent = 'Data temporarily unavailable.';
+      }
+      document.getElementById('refreshNote').textContent = 'Failed to refresh. Retrying in 60s.';
+    });
+}
+
+loadData();
+_refreshTimer = setInterval(loadData, 60000);
+</script>
+</body>
+</html>

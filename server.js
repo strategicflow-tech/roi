@@ -158,6 +158,11 @@ app.get('/index.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
+app.get('/patterns', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/patterns.html'));
+});
+
 app.use(express.static('public'));
 
 // ── REDIRECT ROOT ─────────────────────────────────────────────────────────────
