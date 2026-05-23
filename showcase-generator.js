@@ -300,9 +300,10 @@ a{color:${accent}}
 .email-shell{background:#f0f0f0;border-radius:10px;padding:0;overflow-x:hidden}
 .email-frame{background:#ffffff;width:100%;max-width:100%;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.18)}
 .email-frame>table{width:100% !important;max-width:100% !important;}
-.email-frame table{max-width:100% !important;}
+.email-frame table{width:100% !important;max-width:100% !important;}
+.email-frame table[width]{width:100% !important;max-width:100% !important;}
 .email-frame img{max-width:100% !important;height:auto !important;}
-.email-frame td[width]{width:auto !important;}
+.email-frame td[width]{width:auto !important;max-width:100% !important;}
 .email-frame table[style*="width"]{width:100% !important;max-width:100% !important;}
 .hook-headline{font-size:20px;font-weight:800;margin-bottom:10px;color:#fff}
 .hook-lead{font-size:14px;color:#dddddd;line-height:1.65;margin-bottom:16px}
@@ -355,7 +356,10 @@ a{color:${accent}}
   .tab-btn{padding:10px 14px;font-size:12px}
   .page-title{font-size:22px}
   .email-shell{padding:4px;width:100%;overflow:hidden;}
-  .email-frame{max-width:100%;width:100%;border-radius:0;}
+  .email-frame{max-width:100%;width:100%;border-radius:0;overflow:hidden;}
+  .email-frame table{width:100% !important;max-width:100% !important;}
+  .email-frame td{max-width:100% !important;word-break:break-word;}
+  .email-frame .stat-row td{display:block !important;width:100% !important;border-left:none !important;text-align:center !important;}
   .email-card{padding:10px;}
 }
 </style>
