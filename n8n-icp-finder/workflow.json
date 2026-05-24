@@ -1,0 +1,160 @@
+{
+  "name": "LinkedIn ICP Finder via Google CSE",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "key", "value": "={{ $env.GOOGLE_CSE_API_KEY }}" },
+            { "name": "cx",  "value": "={{ $env.GOOGLE_CSE_ID }}" },
+            { "name": "q",   "value": "site:linkedin.com/jobs \"email marketing\" \"United States\"" },
+            { "name": "num", "value": "10" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search_jobs",
+      "name": "Search LinkedIn Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json;\nconst results = items.items || [];\n\nconst companies = [];\nconst seen = new Set();\n\nfor (const r of results) {\n  const snippet = r.snippet || '';\n  const title   = r.title   || '';\n  const link    = r.link    || '';\n\n  let company = '';\n\n  const titleMatch = title.match(/^(.+?)\\s*[-–|·]/);\n  if (titleMatch) company = titleMatch[1].trim();\n\n  if (!company) {\n    const snippetMatch = snippet.match(/at\\s+([A-Z][\\w\\s&.,'-]{2,40}?)(?:\\s+is|\\.|,|\\n)/);\n    if (snippetMatch) company = snippetMatch[1].trim();\n  }\n\n  if (company && !seen.has(company.toLowerCase())) {\n    seen.add(company.toLowerCase());\n    companies.push({ json: { company, jobUrl: link, hiringSignal: 'Email Marketing' } });\n  }\n}\n\nreturn companies.slice(0, 20);"
+      },
+      "id": "extract_companies",
+      "name": "Extract Companies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "key", "value": "={{ $env.GOOGLE_CSE_API_KEY }}" },
+            { "name": "cx",  "value": "={{ $env.GOOGLE_CSE_ID }}" },
+            { "name": "q",   "value": "=site:linkedin.com/in (\"Head of Marketing\" OR \"VP Marketing\" OR \"Marketing Manager\" OR \"Growth Manager\" OR \"PMM\") \"{{ $json.company }}\"" },
+            { "name": "num", "value": "5" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "search_people",
+      "name": "Search People per Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const searchResult = $input.first().json;\nconst company     = $('Extract Companies').first().json.company;\nconst hiringSignal= $('Extract Companies').first().json.hiringSignal;\n\nconst results = searchResult.items || [];\nconst people  = [];\n\nfor (const r of results) {\n  const title    = r.title   || '';\n  const link     = r.link    || '';\n  const snippet  = r.snippet || '';\n\n  const namePart  = title.split('-')[0].split('|')[0].trim();\n  const nameParts = namePart.split(' ');\n  const firstName = nameParts[0] || '';\n  const lastName  = nameParts.slice(1).join(' ') || '';\n\n  const titleMatch = title.match(/[-–|]\\s*(.+?)(?:\\s*[-–|]|$)/);\n  const jobTitle   = titleMatch ? titleMatch[1].trim() : '';\n\n  if (firstName && link.includes('linkedin.com/in/')) {\n    people.push({\n      json: {\n        company,\n        firstName,\n        lastName,\n        jobTitle,\n        linkedinUrl: link,\n        hiringSignal\n      }\n    });\n  }\n}\n\nreturn people.length > 0 ? people : [{ json: null }];"
+      },
+      "id": "parse_people",
+      "name": "Parse People Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "not_null",
+              "leftValue": "={{ $json.firstName }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        }
+      },
+      "id": "filter_nulls",
+      "name": "Filter Empty Results",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEET_ID }}", "mode": "id" },
+        "sheetName": { "value": "ICP Results", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company":      "={{ $json.company }}",
+            "First Name":   "={{ $json.firstName }}",
+            "Last Name":    "={{ $json.lastName }}",
+            "Title":        "={{ $json.jobTitle }}",
+            "LinkedIn URL": "={{ $json.linkedinUrl }}",
+            "Signal":       "={{ $json.hiringSignal }}",
+            "Found At":     "={{ new Date().toISOString().split('T')[0] }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "write_sheet",
+      "name": "Write to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "id": "delay",
+      "name": "Delay (rate limit)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1000, 480],
+      "webhookId": "delay-node"
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [[{ "node": "Search LinkedIn Jobs", "type": "main", "index": 0 }]]
+    },
+    "Search LinkedIn Jobs": {
+      "main": [[{ "node": "Extract Companies", "type": "main", "index": 0 }]]
+    },
+    "Extract Companies": {
+      "main": [[{ "node": "Search People per Company", "type": "main", "index": 0 }]]
+    },
+    "Search People per Company": {
+      "main": [[{ "node": "Parse People Results", "type": "main", "index": 0 }]]
+    },
+    "Parse People Results": {
+      "main": [[{ "node": "Filter Empty Results", "type": "main", "index": 0 }]]
+    },
+    "Filter Empty Results": {
+      "main": [[{ "node": "Write to Google Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-05-23T00:00:00.000Z",
+  "versionId": "1"
+}

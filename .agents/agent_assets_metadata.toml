@@ -18,3 +18,15 @@ id = "GLjP1zOEFnMM04Wn-xU2T"
 uri = "file://linkedin-audit.zip"
 type = "unspecified"
 title = "linkedin-audit.html"
+
+[[outputs]]
+id = "lCBBr5w7fyfX9nR481dvM"
+uri = "file://n8n-icp-finder/workflow.json"
+type = "unspecified"
+title = "n8n Workflow — LinkedIn ICP Finder"
+
+[[outputs]]
+id = "nRk-IYBieA51u2cLvJnNe"
+uri = "file://n8n-icp-finder/README.md"
+type = "text"
+title = "Setup Instructions — Google CSE + Sheets"
