@@ -131,6 +131,9 @@ function requireAuth(req, res, next) {
   const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo'];
   if (open.some(p => req.path.startsWith(p))) return next();
 
+  // ?preview=free bypasses auth for HTML page viewing only (not API calls)
+  if (req.query.preview === 'free' && (req.path.endsWith('.html') || req.path === '/')) return next();
+
   const needsAuth = PROTECTED_PATHS.some(p => req.path === p || req.path.startsWith(p));
   if (!needsAuth) return next();
 

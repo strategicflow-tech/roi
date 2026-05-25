@@ -237,6 +237,11 @@ textarea{resize:vertical;line-height:1.7;}
 .guide-toggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;font-family:var(--mono);letter-spacing:0.08em;transition:color .2s,border-color .2s;}
 .guide-toggle:hover{color:var(--teal);border-color:rgba(0,229,160,0.4);}
 
+/* PREVIEW MODE BANNER */
+#previewBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(255,180,0,0.12);border-bottom:1px solid rgba(255,180,0,0.35);padding:9px 16px;text-align:center;font-size:12px;font-family:var(--mono);letter-spacing:0.06em;color:#ffb400;backdrop-filter:blur(4px);}
+#previewBanner strong{color:#ffd040;}
+#previewBanner.visible{display:block;}
+
 /* ANIMATIONS */
 @keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
@@ -257,6 +262,9 @@ textarea{resize:vertical;line-height:1.7;}
 </style>
 </head>
 <body>
+<div id="previewBanner">
+  <strong>PREVIEW MODE</strong> — You are viewing the free user experience. API calls are disabled. <a href="/login.html" style="color:#ffd040;text-decoration:underline;">Sign in for full access →</a>
+</div>
 <div class="container">
 
   <!-- HEADER -->
@@ -2350,7 +2358,14 @@ async function upgradeUser(email, tier) {
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
+const _PREVIEW_BLOCKED = ['/generate', '/ab-subjects', '/conversion-score',
+  '/audience-segments', '/content-calendar', '/cohesion-check',
+  '/human-review', '/brand-dna', '/activate', '/auth/magic'];
+
 async function api(path, body) {
+  if (window._previewMode && _PREVIEW_BLOCKED.some(p => path.startsWith(p))) {
+    throw new Error('API calls are disabled in preview mode. Sign in to use this feature.');
+  }
   const res = await fetch(path, { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
@@ -2410,6 +2425,29 @@ function downloadRebuiltNewsletter() {
   a.download = `rebuilt-newsletter-${Date.now()}.html`;
   a.click();
 }
+
+// ── PREVIEW MODE (?preview=free) ────────────────────────────────────────────
+(function initPreviewMode() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('preview') !== 'free') return;
+
+  // Set global flag — checked inside api() to block write endpoints
+  window._previewMode = true;
+
+  // Show the banner
+  document.getElementById('previewBanner').classList.add('visible');
+  document.body.style.paddingTop = '38px';
+
+  // Simulate a fresh free_trial user — runs after all variable declarations
+  setTimeout(() => {
+    currentEmail   = 'preview@example.com';
+    currentTier    = 'free_trial';
+    currentIsAdmin = false;
+    currentVip     = false;
+    trialUsed      = false;
+    setupForm({ tier: 'free_trial', used: 0, limit: 1, tierName: 'Free Trial' });
+  }, 0);
+})();
 </script>
 </body>
 </html>
