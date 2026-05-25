@@ -352,17 +352,16 @@ textarea{resize:vertical;line-height:1.7;}
     </div>
   </div>
 
-  <!-- EMAIL CHECK STATE (returning users / paid accounts) -->
+  <!-- EMAIL CHECK STATE -->
   <div id="stateEmail" class="card" hidden>
-    <div class="section-label">Returning User</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Enter the email linked to your paid account to access your full tier.</p>
+    <div class="section-label">Get Started</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Enter your email to start your free audit. No account or payment needed.</p>
     <div class="error-msg" id="errEmail"></div>
     <div class="field">
       <label>Your Email Address</label>
       <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email" />
     </div>
     <button class="btn btn-primary" onclick="checkEmail()">Continue →</button>
-    <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="showOnly('stateForm')">← Back to free rebuild</button>
   </div>
 
   <!-- PRICING STATE -->
@@ -1312,11 +1311,12 @@ function setupForm(userData) {
     }
   }
 
+  if (currentEmail)  { const fe = document.getElementById('fEmail'); if (fe) fe.value = currentEmail; }
   if (currentCompany) document.getElementById('fCompany').value = currentCompany;
 
-  // Show/hide tier-specific fields (expand advanced options for Growth+)
-  const isGrowth = ['growth','high_impact'].includes(currentTier) || currentIsAdmin;
-  const isHI     = currentTier === 'high_impact' || currentIsAdmin;
+  // Show/hide tier-specific fields — free_trial gets full High Impact form
+  const isGrowth = ['free_trial','growth','high_impact'].includes(currentTier) || currentIsAdmin;
+  const isHI     = ['free_trial','high_impact'].includes(currentTier) || currentIsAdmin;
   if (isGrowth) {
     show('brandDNARow','roadmapRow','advancedFields');
     document.getElementById('advancedArrow').style.transform = 'rotate(90deg)';
@@ -1696,10 +1696,7 @@ function showResults(gen) {
         </div>
       </div>`).join('');
 
-    const freeTierNudge = (gen.tier === 'free_trial') ? `
-      <div style="margin-top:14px;padding:11px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534;">
-        Want A/B subject lines and full brand DNA applied? <a href="#pricing" style="color:#059669;font-weight:700;text-decoration:underline;" onclick="event.preventDefault();document.getElementById('pricing')?.scrollIntoView({behavior:'smooth'})">See paid plans →</a>
-      </div>` : '';
+    const freeTierNudge = '';
 
     document.getElementById('scoreBreakdownContent').innerHTML = `
       <div style="display:flex;align-items:center;gap:16px;padding:14px 0 18px;">
@@ -2374,6 +2371,12 @@ async function api(path, body) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('emailInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkEmail(); });
+
+// Auto-show email entry on first load for non-preview users
+if (!window._previewMode) {
+  showOnly('stateEmail');
+  document.getElementById('emailInput').focus();
+}
 
 function downloadShowcase() {
   if (!showcaseHtmlContent) return;

@@ -120,10 +120,8 @@ setInterval(() => {
 
 // ── AUTH MIDDLEWARE ────────────────────────────────────────────────────────────
 const PROTECTED_PATHS = [
-  '/index.html',
   '/architecture.html',
   '/assessment.html',
-  '/generate',
   '/api/architecture'
 ];
 
@@ -168,13 +166,10 @@ app.get('/patterns', (req, res) => {
 
 app.use(express.static('public'));
 
-// ── REDIRECT ROOT ─────────────────────────────────────────────────────────────
+// ── ROOT — always serve app (no auth wall for free users) ─────────────────────
 app.get('/', (req, res) => {
-  if (req.session && req.session.userEmail) {
-    res.setHeader('Cache-Control', 'no-store');
-    return res.sendFile(path.join(__dirname, 'public/index.html'));
-  }
-  return res.redirect('/login.html');
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
 // ── POST /auth/magic — send magic link ───────────────────────────────────────
