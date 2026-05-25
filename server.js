@@ -185,22 +185,6 @@ app.post('/auth/magic', async (req, res) => {
     return res.status(400).json({ error: 'Valid email required' });
   }
 
-  let hasAccess = isAdmin(email);
-
-  if (!hasAccess) {
-    try {
-      const user = await getUser(email);
-      hasAccess = !!user;
-    } catch (e) {
-      console.error('[auth/magic] getUser error:', e.message);
-    }
-  }
-
-  if (!hasAccess) {
-    console.log('[auth/magic] Access denied for:', email);
-    return res.json({ ok: true });
-  }
-
   const token = crypto.randomBytes(32).toString('hex');
   const expires = Date.now() + 15 * 60 * 1000;
   magicTokens.set(token, { email, expires });
@@ -257,7 +241,7 @@ app.get('/auth/verify/:token', async (req, res) => {
   }
 
   console.log('[auth/verify] Signed in:', data.email);
-  res.redirect('/architecture.html');
+  res.redirect('/');
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
