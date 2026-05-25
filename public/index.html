@@ -259,6 +259,9 @@ textarea{resize:vertical;line-height:1.7;}
 @media(max-width:420px){
   .pricing-grid{grid-template-columns:1fr;}
 }
+.upsell-pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+@media(max-width:700px){.upsell-pricing-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:420px){.upsell-pricing-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -1804,12 +1807,7 @@ function showResults(gen) {
     </div>
   </div>
 
-  <div style="
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:12px;
-    margin-bottom:28px;
-  ">
+  <div class="upsell-pricing-grid">
     <div style="background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#f5a623;">One-Time</div>
       <div style="font-size:18px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;">Single</div>
