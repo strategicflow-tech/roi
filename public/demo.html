@@ -392,7 +392,16 @@
     .score-row { grid-template-columns: 1fr; }
     .rebuild-grid { grid-template-columns: 1fr; }
     .roi-grid { grid-template-columns: 1fr; }
-    .included-grid { grid-template-columns: 1fr; gap: 16px; }
+    .included-grid {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+      background: transparent !important;
+      border: none !important;
+    }
+    .included-card {
+      border: 1px solid var(--border);
+      grid-column: auto !important;
+    }
   }
 
   /* ── INCLUDED SECTION ── */
@@ -423,6 +432,26 @@
     color: var(--signal);
     text-transform: uppercase;
     margin-bottom: 8px;
+  }
+
+  .tool-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .tool-arch-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.35);
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .included-card-name {
@@ -790,7 +819,7 @@
 
 
         <div class="included-card">
-          <div class="included-card-num" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">Tool 07<span style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;border:1px solid rgba(245,158,11,0.35);padding:2px 7px;white-space:nowrap;">Architecture Only</span></div>
+          <div class="included-card-num tool-label-row">Tool 07<span class="tool-arch-badge">Architecture Only</span></div>
           <div class="included-card-name">Changelog Audit</div>
           <div class="included-card-desc">Every product update email diagnosed before it ships. Major update surfaces first. Minor fixes grouped below.</div>
           <div class="included-preview">
@@ -804,7 +833,7 @@
         </div>
 
         <div class="included-card">
-          <div class="included-card-num" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">Tool 08<span style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;border:1px solid rgba(245,158,11,0.35);padding:2px 7px;white-space:nowrap;">Architecture Only</span></div>
+          <div class="included-card-num tool-label-row">Tool 08<span class="tool-arch-badge">Architecture Only</span></div>
           <div class="included-card-name">Onboarding Audit</div>
           <div class="included-card-desc">Day-1, day-3, and day-7 emails scored and rebuilt. Resequenced around the reader's first win, not the feature list.</div>
           <div class="included-preview">
@@ -818,7 +847,7 @@
         </div>
 
         <div class="included-card" style="grid-column: 1 / -1;">
-          <div class="included-card-num" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">Tool 09<span style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;border:1px solid rgba(245,158,11,0.35);padding:2px 7px;white-space:nowrap;">Architecture Only</span></div>
+          <div class="included-card-num tool-label-row">Tool 09<span class="tool-arch-badge">Architecture Only</span></div>
           <div class="included-card-name">LinkedIn Audit</div>
           <div class="included-card-desc">Product posts and feature announcements scored against 7 structural bugs. Hook rebuilt consequence-first.</div>
           <div class="included-preview">
