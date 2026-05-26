@@ -490,19 +490,20 @@
 
   </div>
 
-  <div class="section-label">Admin</div>
-
-  <div class="admin-grid">
-    <a href="/admin" class="admin-card">
-      <div class="admin-card-label">Admin Panel</div>
-      <div class="admin-card-name">Platform Stats &amp; Users</div>
-      <div class="admin-card-desc">View all users, tiers, usage counts, and platform-level metrics.</div>
-    </a>
-    <a href="/guide.html" class="admin-card">
-      <div class="admin-card-label">Documentation</div>
-      <div class="admin-card-name">Platform Guide</div>
-      <div class="admin-card-desc">Full feature reference, prompt structure, and tier breakdown.</div>
-    </a>
+  <div id="adminSection" style="display:none;">
+    <div class="section-label">Admin</div>
+    <div class="admin-grid">
+      <a href="/admin" class="admin-card">
+        <div class="admin-card-label">Admin Panel</div>
+        <div class="admin-card-name">Platform Stats &amp; Users</div>
+        <div class="admin-card-desc">View all users, tiers, usage counts, and platform-level metrics.</div>
+      </a>
+      <a href="/guide.html" class="admin-card">
+        <div class="admin-card-label">Documentation</div>
+        <div class="admin-card-name">Platform Guide</div>
+        <div class="admin-card-desc">Full feature reference, prompt structure, and tier breakdown.</div>
+      </a>
+    </div>
   </div>
 
 </main>
@@ -514,6 +515,9 @@ async function init() {
     const data = await res.json();
     if (!data.signedIn) { window.location.href = '/login.html'; return; }
     document.getElementById('navEmail').textContent = data.email;
+    if (data.isAdmin) {
+      document.getElementById('adminSection').style.display = 'block';
+    }
   } catch (e) {
     window.location.href = '/login.html';
   }

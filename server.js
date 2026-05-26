@@ -290,9 +290,10 @@ app.post('/auth/logout', (req, res) => {
 // ── GET /auth/me ──────────────────────────────────────────────────────────────
 app.get('/auth/me', (req, res) => {
   if (req.session && req.session.userEmail) {
-    return res.json({ email: req.session.userEmail, signedIn: true });
+    const email = req.session.userEmail;
+    return res.json({ email, signedIn: true, isAdmin: BYPASS_EMAILS.has(email) });
   }
-  res.json({ signedIn: false });
+  res.json({ signedIn: false, isAdmin: false });
 });
 
 // ── ADMIN: add user ───────────────────────────────────────────────────────────
