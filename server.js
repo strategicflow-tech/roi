@@ -239,14 +239,32 @@ app.get('/auth/verify/:token', async (req, res) => {
   if (BYPASS_EMAILS.has(data.email)) {
     return res.redirect('/architecture-dashboard');
   }
+  try {
+    const r = await pool.query('SELECT tier FROM users WHERE email = $1', [data.email.toLowerCase().trim()]);
+    if (r.rows[0]?.tier === 'architecture') {
+      return res.redirect('/architecture-dashboard');
+    }
+  } catch (e) {
+    console.error('[auth/verify] tier check error:', e.message);
+  }
   res.redirect('/');
 });
 
 // ── GET /architecture-dashboard ──────────────────────────────────────────────
-app.get('/architecture-dashboard', (req, res) => {
+app.get('/architecture-dashboard', async (req, res) => {
   if (!req.session || !req.session.userEmail) return res.redirect('/login.html');
-  if (!BYPASS_EMAILS.has(req.session.userEmail)) return res.redirect('/');
-  res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const r = await pool.query('SELECT tier FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    if (r.rows[0]?.tier === 'architecture') {
+      return res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) {
+    console.error('[architecture-dashboard] tier check error:', e.message);
+  }
+  res.redirect('/');
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
