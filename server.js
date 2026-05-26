@@ -2692,7 +2692,7 @@ async function handleGenerate(req, res) {
           : (slug ? `https://www.${slug}.com` : null);
         const [dnaSettled, claudeSettled] = await Promise.allSettled([
           candidateUrl ? extractBrandDNA(candidateUrl).catch(() => null) : Promise.resolve(null),
-          claudeJSON(prompt, 4000)
+          claudeJSON(prompt, 8000)
         ]);
         if (dnaSettled.status === 'fulfilled' && dnaSettled.value) {
           effectiveBrandDNA = dnaSettled.value;
@@ -2701,7 +2701,7 @@ async function handleGenerate(req, res) {
         }
         result = claudeSettled.status === 'fulfilled' ? claudeSettled.value : null;
       } else {
-        result = await claudeJSON(prompt, 4000);
+        result = await claudeJSON(prompt, 8000);
       }
     }
 
