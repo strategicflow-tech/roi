@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow Architecture — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: rgba(74,143,231,0.12);
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.1);
+    --green: #34d399;
+    --green-dim: rgba(52,211,153,0.1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--signal); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .nav-email {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.04em;
+  }
+
+  .nav-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid rgba(245,158,11,0.3);
+    padding: 3px 10px;
+  }
+
+  .logout-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+
+  .logout-btn:hover { color: var(--white); border-color: rgba(244,242,237,0.3); }
+
+  /* ── MAIN ── */
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 40px 80px;
+  }
+
+  /* ── HEADER ── */
+  .dash-header {
+    margin-bottom: 56px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 40px;
+  }
+
+  .dash-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 16px;
+  }
+
+  .dash-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(32px, 5vw, 48px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .dash-sub {
+    font-size: 15px;
+    color: var(--mid);
+    line-height: 1.6;
+    max-width: 560px;
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+
+  .stat-cell {
+    background: var(--black);
+    padding: 24px 28px;
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--white);
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.signal { color: var(--signal); }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── TOOL GRID ── */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+
+  .tool-card {
+    background: var(--black);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: background 0.2s;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .tool-card:hover { background: var(--card); }
+
+  .tool-card.locked {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  .tool-card.locked:hover { background: var(--black); }
+
+  .tool-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--signal);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tool-status {
+    font-size: 9px;
+    padding: 2px 7px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .status-live {
+    color: var(--green);
+    border: 1px solid rgba(52,211,153,0.3);
+  }
+
+  .status-soon {
+    color: var(--amber);
+    border: 1px solid rgba(245,158,11,0.3);
+  }
+
+  .tool-name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .tool-desc {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .tool-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--signal);
+    letter-spacing: 0.04em;
+    margin-top: 4px;
+  }
+
+  .tool-card.locked .tool-link { color: var(--mid); }
+
+  /* ── ADMIN SECTION ── */
+  .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+
+  .admin-card {
+    background: var(--black);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.2s;
+  }
+
+  .admin-card:hover { background: var(--card); }
+
+  .admin-card-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+
+  .admin-card-name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .admin-card-desc {
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.6;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    nav { padding: 14px 20px; }
+    .nav-email { display: none; }
+    main { padding: 80px 20px 60px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .tool-grid { grid-template-columns: 1fr; }
+    .admin-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <div class="nav-right">
+    <span class="nav-email" id="navEmail"></span>
+    <span class="nav-badge">Architecture</span>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<main>
+
+  <div class="dash-header">
+    <div class="dash-eyebrow">Architecture Plan · All Tools</div>
+    <h1 class="dash-title">Communication<br>Intelligence Suite</h1>
+    <p class="dash-sub">Every tool in your Architecture plan. Click any card to open the tool.</p>
+  </div>
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-cell">
+      <div class="stat-label">Plan</div>
+      <div class="stat-value amber">Architecture</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Tools Active</div>
+      <div class="stat-value signal">10</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Coming Soon</div>
+      <div class="stat-value">3</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Monthly Cap</div>
+      <div class="stat-value green">Unlimited</div>
+    </div>
+  </div>
+
+  <div class="section-label">Core Email Tools</div>
+
+  <div class="tool-grid">
+
+    <a href="/assessment.html" class="tool-card">
+      <div class="tool-num">Tool 01 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Email Assessment</div>
+      <div class="tool-desc">7-bug diagnostic on any email. Identifies every structural failure before your subscriber sees it.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/index.html" class="tool-card">
+      <div class="tool-num">Tool 02 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Email Rebuild</div>
+      <div class="tool-desc">Full Strategic Flow rebuild. Outcome-first subject, hook above fold, ownership CTAs.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/batch.html" class="tool-card">
+      <div class="tool-num">Tool 03 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Batch Assessment</div>
+      <div class="tool-desc">Diagnose up to 10 emails at once. Full 7-bug analysis per email, scored and ranked.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/abtracker.html" class="tool-card">
+      <div class="tool-num">Tool 04 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">A/B Tracker</div>
+      <div class="tool-desc">Track subject line test results. Compare variants, log winners, build your split-test record.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/calendar.html" class="tool-card">
+      <div class="tool-num">Tool 05 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Content Calendar</div>
+      <div class="tool-desc">3 follow-up email topics mapped to your audience and product context.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/benchmark.html" class="tool-card">
+      <div class="tool-num">Tool 06 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Competitor Benchmark</div>
+      <div class="tool-desc">Score your email against 3 competitors. See where your communication leads or lags.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+  </div>
+
+  <div class="section-label">Specialised Audits</div>
+
+  <div class="tool-grid">
+
+    <a href="/changelog-audit.html" class="tool-card">
+      <div class="tool-num">Tool 07 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Changelog Audit</div>
+      <div class="tool-desc">Every product update email diagnosed before it ships. Major update surfaces first, minor fixes grouped below.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/onboarding-audit.html" class="tool-card">
+      <div class="tool-num">Tool 08 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Onboarding Audit</div>
+      <div class="tool-desc">Day-1, day-3, and day-7 emails scored and rebuilt. Resequenced around the reader's first win.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/linkedin-audit.html" class="tool-card">
+      <div class="tool-num">Tool 09 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">LinkedIn Audit</div>
+      <div class="tool-desc">Product posts and feature announcements scored against 7 structural bugs. Hook rebuilt consequence-first.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+  </div>
+
+  <div class="section-label">Intelligence Tools</div>
+
+  <div class="tool-grid">
+
+    <a href="/predict" class="tool-card">
+      <div class="tool-num">Tool 10 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Open Rate Predictor</div>
+      <div class="tool-desc">Predict open rate before sending. Scored against subject line, send time, and audience signal.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/patterns.html" class="tool-card">
+      <div class="tool-num">Tool 11 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Pattern Intelligence</div>
+      <div class="tool-desc">Identify recurring structural bugs across your email archive. Surface the pattern before it compounds.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <a href="/report.html" class="tool-card">
+      <div class="tool-num">Tool 12 <span class="tool-status status-live">Live</span></div>
+      <div class="tool-name">Monthly Report</div>
+      <div class="tool-desc">Full 30-day communication audit. Every email scored, patterns flagged, wins documented.</div>
+      <div class="tool-link">Open tool →</div>
+    </a>
+
+    <div class="tool-card locked">
+      <div class="tool-num">Tool 13 <span class="tool-status status-soon">Coming Soon</span></div>
+      <div class="tool-name">90-Day Communication Audit</div>
+      <div class="tool-desc">Full-stack analysis of your last 90 days. Every email type, sequence gap, and structural pattern surfaced.</div>
+      <div class="tool-link">In development</div>
+    </div>
+
+    <div class="tool-card locked">
+      <div class="tool-num">Tool 14 <span class="tool-status status-soon">Coming Soon</span></div>
+      <div class="tool-name">Release Note System</div>
+      <div class="tool-desc">Structured framework for turning raw changelogs into consequence-first release emails, automatically.</div>
+      <div class="tool-link">In development</div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Admin</div>
+
+  <div class="admin-grid">
+    <a href="/admin" class="admin-card">
+      <div class="admin-card-label">Admin Panel</div>
+      <div class="admin-card-name">Platform Stats &amp; Users</div>
+      <div class="admin-card-desc">View all users, tiers, usage counts, and platform-level metrics.</div>
+    </a>
+    <a href="/guide.html" class="admin-card">
+      <div class="admin-card-label">Documentation</div>
+      <div class="admin-card-name">Platform Guide</div>
+      <div class="admin-card-desc">Full feature reference, prompt structure, and tier breakdown.</div>
+    </a>
+  </div>
+
+</main>
+
+<script>
+async function init() {
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    if (!data.signedIn) { window.location.href = '/login.html'; return; }
+    document.getElementById('navEmail').textContent = data.email;
+  } catch (e) {
+    window.location.href = '/login.html';
+  }
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+}
+
+init();
+</script>
+</body>
+</html>

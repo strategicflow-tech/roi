@@ -236,7 +236,17 @@ app.get('/auth/verify/:token', async (req, res) => {
   }
 
   console.log('[auth/verify] Signed in:', data.email);
+  if (BYPASS_EMAILS.has(data.email)) {
+    return res.redirect('/architecture-dashboard');
+  }
   res.redirect('/');
+});
+
+// ── GET /architecture-dashboard ──────────────────────────────────────────────
+app.get('/architecture-dashboard', (req, res) => {
+  if (!req.session || !req.session.userEmail) return res.redirect('/login.html');
+  if (!BYPASS_EMAILS.has(req.session.userEmail)) return res.redirect('/');
+  res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
