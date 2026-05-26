@@ -2473,5 +2473,20 @@ function downloadRebuiltNewsletter() {
   }, 0);
 })();
 </script>
+<script>
+(async function autoAdminInit() {
+  if (!window.location.pathname.startsWith('/admin')) return;
+  try {
+    const res = await fetch('/auth/me');
+    const data = await res.json();
+    if (!data.signedIn || !data.isAdmin) { window.location.href = '/'; return; }
+    currentEmail    = data.email;
+    currentTier     = 'high_impact';
+    currentIsAdmin  = true;
+    currentVip      = true;
+    showAdmin();
+  } catch (e) { console.error('[autoAdminInit]', e); }
+})();
+</script>
 </body>
 </html>
