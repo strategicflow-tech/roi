@@ -2710,6 +2710,11 @@ async function handleGenerate(req, res) {
       } else {
         result = await claudeJSON(prompt, 8000);
       }
+      console.log('[generate] parsed result keys:', result ? Object.keys(result) : 'NULL',
+        '| has headline:', !!result?.headline,
+        '| has body[]:', Array.isArray(result?.body),
+        '| has rebuilt_subject:', !!result?.rebuilt_subject,
+        '| has rebuilt_body:', !!result?.rebuilt_body);
     }
 
     // Apply forceDark after brand DNA resolves — keyword match wins over any inferred theme
@@ -2720,7 +2725,10 @@ async function handleGenerate(req, res) {
     }
 
     // Normalize flat JSON format (new) → internal representation used by the rest of the pipeline
-    if (result && result.headline && Array.isArray(result.body)) {
+    // Also handles featureCards-only types (thought_leadership, event_announcement, product_update)
+    // where Claude is explicitly told NOT to return body[] — featureCards replaces body[] in those cases.
+    if (result && result.headline && (Array.isArray(result.body) || Array.isArray(result.featureCards))) {
+      result.body = Array.isArray(result.body) ? result.body : [];
       if (!result.rebuilt_subject) result.rebuilt_subject = result.subject || subject;
 
       // ── STAT VALIDATION — strip invented statistics not present verbatim in source ──
@@ -2810,6 +2818,13 @@ async function handleGenerate(req, res) {
       // Synthetic rebuilt_body for DB storage, weakness verification, and section patching
       result.rebuilt_body = [result.headline, result.lead, ...(result.body || [])].filter(Boolean).join('\n\n');
       if (!result.conversion_hook) result.conversion_hook = result.lead || '';
+    }
+
+    // Safety net: if Claude returned a headline but rebuilt_subject is still missing
+    // (e.g. featureCards path, or Claude omitted the field), fall back to original subject.
+    if (result && result.headline && !result.rebuilt_subject) {
+      result.rebuilt_subject = result.subject || subject;
+      console.log('[generate] rebuilt_subject fallback applied from original subject');
     }
 
     console.log('STEP 3: Claude generation complete');
