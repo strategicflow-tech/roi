@@ -274,6 +274,9 @@ app.get('/admin', (req, res) => {
   res.sendFile('index.html', { root: path.join(__dirname, 'public') });
 });
 
+// ── GET /predict ──────────────────────────────────────────────────────────────
+app.get('/predict', (req, res) => res.redirect(301, 'https://strategic-flow-pro.replit.app/predict'));
+
 // ── Audit page redirects (.html → -page) ──────────────────────────────────────
 app.get('/changelog-audit.html', (req, res) => res.redirect(301, '/changelog-audit-page'));
 app.get('/onboarding-audit.html', (req, res) => res.redirect(301, '/onboarding-audit-page'));
