@@ -267,6 +267,18 @@ app.get('/architecture-dashboard', async (req, res) => {
   res.redirect('/');
 });
 
+// ── GET /admin ────────────────────────────────────────────────────────────────
+app.get('/admin', (req, res) => {
+  if (!req.session || !req.session.userEmail) return res.redirect('/login.html');
+  if (!BYPASS_EMAILS.has(req.session.userEmail)) return res.redirect('/');
+  res.sendFile('index.html', { root: path.join(__dirname, 'public') });
+});
+
+// ── Audit page redirects (.html → -page) ──────────────────────────────────────
+app.get('/changelog-audit.html', (req, res) => res.redirect(301, '/changelog-audit-page'));
+app.get('/onboarding-audit.html', (req, res) => res.redirect(301, '/onboarding-audit-page'));
+app.get('/linkedin-audit.html', (req, res) => res.redirect(301, '/linkedin-audit-page'));
+
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
 app.post('/auth/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
