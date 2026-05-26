@@ -4020,7 +4020,7 @@ Return ONLY valid JSON:
   ]
 }`;
 
-      const combined = await claudeJSON(combinedPrompt, 1200);
+      const combined = await claudeJSON(combinedPrompt, 2500);
       if (!combined) throw new Error('Assessment failed');
 
       const diagnostic = combined;
