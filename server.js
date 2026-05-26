@@ -555,7 +555,10 @@ function safeParseJSON(raw) {
     if (s !== -1 && e > s) return JSON.parse(decoded.slice(s, e + 1));
   } catch (_) {}
   // Layer 5: all attempts failed — return null so callers can show a clean error
-  console.warn('[safeParseJSON] all layers failed. Raw (first 300):', (raw || '').slice(0, 300));
+  const _r = raw || '';
+  console.warn('[safeParseJSON] all layers failed. Length:', _r.length,
+    '\n  FIRST 400:', _r.slice(0, 400),
+    '\n  LAST  400:', _r.slice(-400));
   return null;
 }
 
@@ -580,6 +583,10 @@ async function claudeJSON(prompt, maxTokens = 2000) {
         timeout: 90000
       });
       const raw = msg.content[0].text.trim();
+      console.log(`[claudeJSON] response length=${raw.length} stop_reason=${msg.stop_reason}`);
+      if (msg.stop_reason === 'max_tokens') {
+        console.warn('[claudeJSON] TRUNCATED — hit max_tokens limit. Response cut off. Increase max_tokens or shorten prompt.');
+      }
       return safeParseJSON(raw);
     } catch (err) {
       const is529 = err.status === 529 || String(err.message).includes('529') || String(err.message).includes('Overloaded');
@@ -2809,7 +2816,11 @@ async function handleGenerate(req, res) {
     // Guard: Claude must have returned a parseable object with the two critical fields.
     // If either is missing, surface a clean error rather than rendering "undefined" everywhere.
     if (!result || !safeVal(result.rebuilt_subject) || (!safeVal(result.rebuilt_body) && !result._flatFields)) {
-      console.error('[generate] Claude response missing rebuilt_subject or rebuilt_body', result);
+      console.error('[generate] Guard fired — result null or missing critical fields.',
+        'result=', result === null ? 'NULL' : JSON.stringify(Object.keys(result || {})),
+        'rebuilt_subject=', result?.rebuilt_subject,
+        'rebuilt_body length=', (result?.rebuilt_body || '').length,
+        '_flatFields=', !!result?._flatFields);
       return res.status(500).json({ error: 'Generation failed. Please try again.' });
     }
 
