@@ -3952,6 +3952,92 @@ Return ONLY valid JSON with this exact structure:
 });
 // ─── END FATIGUE DETECTOR ─────────────────────────────────────────────────────
 
+// ── GET /audience-mirror ──────────────────────────────────────────────────────
+app.get('/audience-mirror', async (req, res) => {
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('audience-mirror.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    if (row?.tier === 'architecture') {
+      return res.sendFile('audience-mirror.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) { console.error('[audience-mirror] tier check:', e.message); }
+  res.redirect('/');
+});
+
+app.post('/api/audience-mirror', async (req, res) => {
+  const { customerText, productContext } = req.body;
+  if (!customerText || customerText.trim().length < 30) {
+    return res.status(400).json({ error: 'Please provide at least 5 lines of customer language.' });
+  }
+
+  const contextLine = productContext
+    ? `\nProduct context provided by the team: "${productContext.slice(0, 200)}"`
+    : '\nNo product context provided.';
+
+  const prompt = `You are the Strategic Flow Audience Mirror. Analyze the following raw customer language and extract actionable email copy elements.
+
+CUSTOMER LANGUAGE INPUT:
+${customerText.slice(0, 6000)}
+${contextLine}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "languageMap": {
+    "signalStrength": "<STRONG | MODERATE | WEAK>",
+    "summary": "<1-2 sentence overview of the most dominant language patterns>",
+    "phrases": [
+      { "phrase": "<exact verbatim phrase or word cluster from customer text>", "frequency": <number of times pattern appears or is implied> }
+    ]
+  },
+  "painHierarchy": {
+    "signalStrength": "<STRONG | MODERATE | WEAK>",
+    "pains": [
+      {
+        "label": "<short pain name, 3-6 words>",
+        "frequency": "<High | Medium | Low>",
+        "intensity": "<High | Medium | Low>",
+        "specificity": "<Specific | Vague>",
+        "quote": "<exact verbatim quote from input that best represents this pain>"
+      }
+    ]
+  },
+  "beforeAfterVocab": {
+    "signalStrength": "<STRONG | MODERATE | WEAK>",
+    "before": ["<exact phrase describing life WITH the problem>"],
+    "after": ["<exact phrase describing life AFTER solving it>"],
+    "note": "<1 sentence on how to use these in email copy>"
+  },
+  "wordsToAvoid": {
+    "summary": "<1 sentence>",
+    "flagged": [
+      { "word": "<marketing word from product context>", "reason": "Your team says \\"X\\". Your customers never do." }
+    ]
+  },
+  "hooks": [
+    { "text": "<subject line hook built from customer language — not from marketing copy>", "type": "<curiosity gap | consequence-first | social proof>" }
+  ]
+}
+
+Rules:
+- languageMap.phrases: minimum 5, maximum 12, ranked by frequency descending. Extract verbatim phrases — do NOT paraphrase.
+- painHierarchy.pains: exactly 3, ranked by combined frequency + intensity.
+- beforeAfterVocab: minimum 3 phrases per column. Extract verbatim from input.
+- wordsToAvoid.flagged: only flag words that appear in the product context but are absent from customer language. If no product context, return empty array.
+- hooks: exactly 5, each with a different type tag. Built strictly from customer vocabulary, never from marketing language.`;
+
+  try {
+    const result = await claudeJSON(prompt, 2500);
+    if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/audience-mirror]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END AUDIENCE MIRROR ──────────────────────────────────────────────────────
+
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
 
 // POST /stripe/checkout — creează Stripe Checkout Session

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Audience Mirror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --navy: #0a0f1e;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --teal: #00E5CC;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+    --card-hover: rgba(244,242,237,0.07);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.92);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); text-decoration: none; }
+  .nav-logo span { color: var(--teal); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--teal); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  .page-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: var(--teal); text-transform: uppercase; margin-bottom: 16px; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .page-title em { font-style: italic; color: var(--teal); }
+  .page-sub { font-size: 15px; color: var(--mid); margin-bottom: 40px; line-height: 1.7; max-width: 600px; }
+
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* WALKTHROUGH */
+  .walkthrough {
+    border: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+
+  .walkthrough-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    gap: 12px;
+  }
+  .walkthrough-header:hover { background: var(--card-hover); }
+
+  .walkthrough-header-left { display: flex; align-items: center; gap: 12px; }
+  .walkthrough-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); }
+  .walkthrough-title { font-size: 13px; font-weight: 600; color: var(--white); }
+  .walkthrough-chevron { font-size: 12px; color: var(--mid); transition: transform 0.25s; flex-shrink: 0; }
+  .walkthrough-chevron.open { transform: rotate(180deg); }
+
+  .walkthrough-body { display: none; border-top: 1px solid var(--border); padding: 24px 20px; }
+  .walkthrough-body.open { display: block; }
+
+  .walkthrough-step { margin-bottom: 24px; }
+  .walkthrough-step:last-child { margin-bottom: 0; }
+  .wt-step-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .wt-step-title { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 8px; }
+  .wt-step-body { font-size: 13px; color: var(--mid); line-height: 1.75; }
+  .wt-step-body ul { padding-left: 18px; margin-top: 6px; }
+  .wt-step-body li { margin-bottom: 4px; }
+  .wt-step-body strong { color: var(--white); }
+  .wt-avoid { color: var(--amber); }
+  .wt-tip { margin-top: 8px; padding: 10px 14px; background: rgba(0,229,204,0.06); border-left: 2px solid var(--teal); font-size: 12px; color: var(--mid); line-height: 1.65; }
+
+  /* FORM */
+  .section-divider { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin: 40px 0 20px; display: flex; align-items: center; gap: 12px; }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .field-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 6px;
+  }
+
+  .field-hint { font-size: 12px; color: var(--mid); margin-bottom: 10px; line-height: 1.6; }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    background: rgba(244,242,237,0.04);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+  }
+  textarea:focus, input[type="text"]:focus { border-color: var(--teal); }
+  textarea::placeholder, input[type="text"]::placeholder { color: rgba(168,163,155,0.5); }
+
+  .main-textarea { min-height: 200px; margin-bottom: 20px; }
+  .optional-field { margin-bottom: 24px; }
+
+  .field-optional { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); margin-left: 8px; letter-spacing: 0.08em; }
+
+  /* ACTIONS */
+  .form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; padding: 11px 22px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--mid); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-teal { background: var(--teal); color: #0a0a08; font-weight: 600; }
+  .btn-teal:hover { background: #00ccb4; }
+  .btn-teal:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { font-size: 11px; padding: 7px 14px; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 32px 0; display: none; }
+  .progress-wrap.active { display: block; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); }
+  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--teal); }
+  .progress-bar { height: 2px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--teal); transition: width 0.4s ease; width: 0%; }
+
+  /* RESULTS */
+  .results-wrap { display: none; }
+  .results-wrap.active { display: block; }
+
+  .result-section { margin-bottom: 8px; border: 1px solid var(--border); }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    gap: 12px;
+  }
+  .result-header:hover { background: var(--card-hover); }
+
+  .result-header-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+  .result-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--mid); flex-shrink: 0; }
+  .result-title { font-size: 14px; font-weight: 600; color: var(--white); }
+
+  .result-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .badge-green { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-red { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .badge-teal { background: rgba(0,229,204,0.1); color: var(--teal); border: 1px solid rgba(0,229,204,0.2); }
+
+  .result-chevron { font-size: 12px; color: var(--mid); transition: transform 0.25s; flex-shrink: 0; }
+  .result-header.open .result-chevron { transform: rotate(180deg); }
+
+  .result-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--border); }
+  .result-body.open { display: block; }
+
+  /* LANGUAGE PHRASE PILLS */
+  .phrase-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .phrase-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .phrase-rank { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); width: 24px; flex-shrink: 0; }
+  .phrase-text { font-size: 14px; color: var(--white); flex: 1; font-style: italic; }
+  .phrase-freq { font-family: 'DM Mono', monospace; font-size: 10px; flex-shrink: 0; }
+  .freq-high { color: var(--green); }
+  .freq-med { color: var(--amber); }
+  .freq-low { color: var(--mid); }
+
+  /* PAIN HIERARCHY */
+  .pain-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+  .pain-item { border: 1px solid var(--border); padding: 16px 18px; }
+  .pain-rank-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .pain-rank-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--teal); }
+  .pain-label { font-size: 14px; font-weight: 600; color: var(--white); }
+  .pain-meta { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+  .pain-meta-item { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); display: flex; gap: 5px; align-items: center; }
+  .pain-meta-val { color: var(--white); }
+  .pain-quote { font-size: 13px; color: var(--mid); line-height: 1.7; border-left: 2px solid var(--teal); padding-left: 12px; font-style: italic; }
+
+  /* BEFORE / AFTER VOCABULARY */
+  .vocab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 16px; }
+  .vocab-col { background: var(--black); padding: 16px 18px; }
+  .vocab-col-header { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+  .vocab-before .vocab-col-header { color: var(--red); }
+  .vocab-after .vocab-col-header { color: var(--green); }
+  .vocab-phrases { display: flex; flex-direction: column; gap: 8px; }
+  .vocab-phrase { font-size: 13px; color: var(--white); padding: 7px 10px; border-left: 2px solid; font-style: italic; line-height: 1.55; }
+  .vocab-before .vocab-phrase { border-left-color: var(--red); background: rgba(239,68,68,0.05); }
+  .vocab-after .vocab-phrase { border-left-color: var(--green); background: rgba(34,197,94,0.05); }
+  .vocab-note { font-size: 12px; color: var(--mid); margin-top: 14px; line-height: 1.65; }
+
+  /* WORDS TO AVOID */
+  .avoid-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .avoid-item { border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.05); padding: 14px 16px; }
+  .avoid-word { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--red); font-weight: 600; margin-bottom: 5px; }
+  .avoid-reason { font-size: 13px; color: var(--mid); line-height: 1.65; }
+  .avoid-none { margin-top: 16px; padding: 16px; background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2); }
+  .avoid-none-text { font-size: 13px; color: var(--green); }
+
+  /* HOOKS */
+  .hooks-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .hook-item { border: 1px solid var(--border); padding: 16px 18px; background: var(--card); }
+  .hook-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .hook-text { font-size: 14px; color: var(--white); line-height: 1.55; flex: 1; font-style: italic; }
+  .hook-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 3px 9px; flex-shrink: 0; white-space: nowrap; }
+  .tag-curiosity { background: rgba(74,143,231,0.12); color: var(--signal); border: 1px solid rgba(74,143,231,0.25); }
+  .tag-consequence { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .tag-social { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .tag-default { background: rgba(0,229,204,0.08); color: var(--teal); border: 1px solid rgba(0,229,204,0.2); }
+
+  .copy-hooks-row { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .copy-flash { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--green); margin-right: 12px; display: none; align-items: center; }
+  .copy-flash.show { display: flex; }
+
+  /* FINDING ITEMS */
+  .finding-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+  .finding-item { border-left: 2px solid var(--border); padding: 10px 16px; }
+  .finding-item.warning { border-left-color: var(--amber); }
+  .finding-item.critical { border-left-color: var(--red); }
+  .finding-item.ok { border-left-color: var(--green); }
+  .finding-item.info { border-left-color: var(--teal); }
+  .finding-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px; color: var(--mid); }
+  .finding-text { font-size: 13px; color: var(--white); line-height: 1.65; }
+
+  /* SIGNAL INDICATOR */
+  .signal-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; margin-bottom: 6px; }
+  .signal-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .signal-dot.green { background: var(--green); }
+  .signal-dot.amber { background: var(--amber); }
+  .signal-dot.red { background: var(--red); }
+  .signal-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .signal-label.green { color: var(--green); }
+  .signal-label.amber { color: var(--amber); }
+  .signal-label.red { color: var(--red); }
+  .signal-desc { font-size: 12px; color: var(--mid); margin-left: 18px; line-height: 1.6; }
+
+  /* RESET */
+  .reset-row { margin-top: 32px; }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-links { display: none; }
+    main { padding: 80px 16px 60px; }
+    .vocab-grid { grid-template-columns: 1fr; }
+    .form-actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <div class="nav-links">
+    <a href="/architecture-dashboard" class="nav-link">Dashboard</a>
+    <a href="/assessment.html" class="nav-link">Assessment</a>
+    <a href="/report.html" class="nav-link">Report</a>
+    <a href="/audience-mirror" class="nav-link active">Audience Mirror</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-label">// Tool 16 — Intelligence</div>
+  <h1 class="page-title">Audience<br><em>Mirror.</em></h1>
+  <p class="page-sub">Paste real customer language. Extract the exact words that belong in your subject line, lead, and CTA.</p>
+
+  <!-- WALKTHROUGH -->
+  <div class="walkthrough">
+    <div class="walkthrough-header" onclick="toggleWalkthrough()">
+      <div class="walkthrough-header-left">
+        <span class="walkthrough-label">How to use</span>
+        <span class="walkthrough-title">Step-by-step walkthrough</span>
+      </div>
+      <span class="walkthrough-chevron" id="wtChevron">▼</span>
+    </div>
+    <div class="walkthrough-body" id="wtBody">
+
+      <div class="walkthrough-step">
+        <div class="wt-step-num">// Step 1</div>
+        <div class="wt-step-title">Gather raw customer language</div>
+        <div class="wt-step-body">
+          Best sources, in order of quality:
+          <ul>
+            <li><strong>Replies to your emails</strong> — "I clicked because…"</li>
+            <li><strong>G2 / Capterra / App Store reviews</strong></li>
+            <li><strong>LinkedIn comments</strong> on your posts</li>
+            <li><strong>Support tickets</strong> describing a problem</li>
+            <li><strong>Onboarding survey open-text answers</strong></li>
+            <li><strong>Sales call notes</strong> with direct quotes</li>
+          </ul>
+          <div class="wt-tip"><span class="wt-avoid">Avoid:</span> internal personas, survey data with closed questions, paraphrased summaries. Those are your words, not theirs.</div>
+          <div class="wt-tip">Minimum 5 inputs. Sweet spot: 10–15. More inputs = more accurate language map.</div>
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="wt-step-num">// Step 2</div>
+        <div class="wt-step-title">Optional product context</div>
+        <div class="wt-step-body">
+          One sentence about what your product does.<br>
+          Example: <em>"We help SaaS teams send product update emails that get clicked."</em><br><br>
+          This lets the tool flag the gap between how you describe the product and how customers describe the problem.
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="wt-step-num">// Step 3</div>
+        <div class="wt-step-title">Read the Exact Language Map first</div>
+        <div class="wt-step-body">
+          These are the words that belong in your subject line and lead. Not your words — their words. Copy them directly into your next draft.
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="wt-step-num">// Step 4</div>
+        <div class="wt-step-title">Use Before / After Vocabulary in the email</div>
+        <div class="wt-step-body">
+          <strong>Before vocabulary</strong> → goes in the hook (name the problem they recognize)<br>
+          <strong>After vocabulary</strong> → goes in the CTA (name the state they want to reach)
+        </div>
+      </div>
+
+      <div class="walkthrough-step">
+        <div class="wt-step-num">// Step 5</div>
+        <div class="wt-step-title">Check Words to Avoid</div>
+        <div class="wt-step-body">
+          If your current subject line or lead contains any flagged words, rewrite before sending. These are the terms your team invented that customers never actually use.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div id="formWrap">
+
+    <div class="section-divider">// Customer language input</div>
+
+    <div class="field-label">Customer language</div>
+    <div class="field-hint">Paste reviews, comments, email replies, testimonials, support tickets — one entry per line or separated by blank lines.</div>
+    <textarea
+      class="main-textarea"
+      id="customerText"
+      placeholder="Paste customer language here — reviews, comments, replies, testimonials. One per line or separated by blank lines."
+    ></textarea>
+
+    <div class="optional-field">
+      <div class="field-label">What does your product do? <span class="field-optional">optional</span></div>
+      <div class="field-hint">One sentence. Helps the tool flag the gap between your marketing language and customer language.</div>
+      <input type="text" id="productContext" placeholder="e.g. We help SaaS teams send product update emails that get clicked." />
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-teal" id="mirrorBtn" onclick="runMirror()">Mirror the Audience →</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Extracting customer language…</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-wrap" id="resultsWrap">
+
+    <div class="section-divider">// Language analysis</div>
+    <h2 style="font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:24px;">Your audience diagnostic<em style="font-style:italic;color:var(--teal);">.</em></h2>
+
+    <div id="sec1" class="result-section"></div>
+    <div id="sec2" class="result-section"></div>
+    <div id="sec3" class="result-section"></div>
+    <div id="sec4" class="result-section"></div>
+    <div id="sec5" class="result-section"></div>
+
+    <div class="reset-row">
+      <button class="btn btn-ghost" onclick="resetForm()">← Analyze new customer language</button>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleWalkthrough() {
+  const body = document.getElementById('wtBody');
+  const chev = document.getElementById('wtChevron');
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+async function runMirror() {
+  const text = (document.getElementById('customerText').value || '').trim();
+  const context = (document.getElementById('productContext').value || '').trim();
+
+  if (!text || text.split('\n').filter(l => l.trim()).length < 3) {
+    alert('Please paste at least 5 lines of customer language before analyzing.');
+    return;
+  }
+
+  document.getElementById('mirrorBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('active');
+  setProgress(5, 'Parsing customer language…');
+
+  const steps = [
+    [20, 'Extracting exact phrases…'],
+    [40, 'Building pain hierarchy…'],
+    [60, 'Mapping before/after vocabulary…'],
+    [78, 'Detecting language gaps…'],
+    [90, 'Generating hooks…'],
+  ];
+  let si = 0;
+  const ticker = setInterval(() => {
+    if (si < steps.length) {
+      const [pct, lbl] = steps[si++];
+      setProgress(pct, lbl);
+    }
+  }, 1900);
+
+  try {
+    const res = await fetch('/api/audience-mirror', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ customerText: text, productContext: context })
+    });
+
+    clearInterval(ticker);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Server error' }));
+      throw new Error(err.error || 'Analysis failed');
+    }
+
+    setProgress(100, 'Complete');
+    await new Promise(r => setTimeout(r, 400));
+
+    const data = await res.json();
+    renderResults(data);
+
+  } catch (err) {
+    clearInterval(ticker);
+    document.getElementById('progressWrap').classList.remove('active');
+    document.getElementById('mirrorBtn').disabled = false;
+    document.getElementById('progressLabel').textContent = 'Error: ' + esc(err.message);
+  }
+}
+
+function toggleSection(id) {
+  const header = document.getElementById('hdr-' + id);
+  const body = document.getElementById('bdy-' + id);
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function renderSection(containerId, num, title, badge, bodyHtml) {
+  const id = 's' + num;
+  document.getElementById(containerId).innerHTML = `
+    <div class="result-header" id="hdr-${id}" onclick="toggleSection('${id}')">
+      <div class="result-header-left">
+        <span class="result-num">0${num}</span>
+        <span class="result-title">${esc(title)}</span>
+      </div>
+      ${badge}
+      <span class="result-chevron" id="chv-${id}">▼</span>
+    </div>
+    <div class="result-body" id="bdy-${id}">
+      ${bodyHtml}
+    </div>
+  `;
+  toggleSection(id);
+}
+
+function signalBadge(strength) {
+  const s = (strength || '').toUpperCase();
+  if (s === 'STRONG') return '<span class="result-badge badge-green">Strong Signal</span>';
+  if (s === 'MODERATE') return '<span class="result-badge badge-amber">Moderate Signal</span>';
+  if (s === 'WEAK') return '<span class="result-badge badge-amber">Weak Signal</span>';
+  if (s === 'GAP DETECTED' || s === 'GAP') return '<span class="result-badge badge-red">Gap Detected</span>';
+  return `<span class="result-badge badge-teal">${esc(strength)}</span>`;
+}
+
+function freqClass(f) {
+  if (!f) return 'freq-low';
+  const n = typeof f === 'number' ? f : parseInt(f);
+  if (n >= 4) return 'freq-high';
+  if (n >= 2) return 'freq-med';
+  return 'freq-low';
+}
+
+function hookTagHtml(type) {
+  const t = (type || '').toLowerCase();
+  if (t.includes('curiosity')) return '<span class="hook-tag tag-curiosity">Curiosity gap</span>';
+  if (t.includes('consequence')) return '<span class="hook-tag tag-consequence">Consequence-first</span>';
+  if (t.includes('social')) return '<span class="hook-tag tag-social">Social proof</span>';
+  return '<span class="hook-tag tag-default">' + esc(type || 'Hook') + '</span>';
+}
+
+function renderResults(d) {
+  document.getElementById('progressWrap').classList.remove('active');
+  document.getElementById('resultsWrap').classList.add('active');
+  document.getElementById('formWrap').style.display = 'none';
+
+  // Section 1 — Exact Language Map
+  const lm = d.languageMap || {};
+  const phrases = lm.phrases || [];
+  const phrasesHtml = phrases.map((p, i) => `
+    <div class="phrase-row">
+      <span class="phrase-rank">#${i + 1}</span>
+      <span class="phrase-text">"${esc(p.phrase)}"</span>
+      <span class="phrase-freq ${freqClass(p.frequency)}">${p.frequency ? `×${p.frequency}` : ''}</span>
+    </div>
+  `).join('');
+  const lmBodyHtml = `
+    ${lm.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:16px;margin-bottom:8px;">${esc(lm.summary)}</p>` : ''}
+    <div class="phrase-list">${phrasesHtml || '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No phrases extracted.</p>'}</div>
+  `;
+  renderSection('sec1', 1, 'Exact Language Map', signalBadge(lm.signalStrength || 'Strong'), lmBodyHtml);
+
+  // Section 2 — Pain Hierarchy
+  const ph = d.painHierarchy || {};
+  const pains = ph.pains || [];
+  const painsHtml = pains.map((p, i) => `
+    <div class="pain-item">
+      <div class="pain-rank-row">
+        <span class="pain-rank-num">Pain #${i + 1}</span>
+        <span class="pain-label">${esc(p.label)}</span>
+      </div>
+      <div class="pain-meta">
+        <div class="pain-meta-item">Frequency: <span class="pain-meta-val">${esc(String(p.frequency || '—'))}</span></div>
+        <div class="pain-meta-item">Intensity: <span class="pain-meta-val">${esc(p.intensity || '—')}</span></div>
+        <div class="pain-meta-item">Specificity: <span class="pain-meta-val">${esc(p.specificity || '—')}</span></div>
+      </div>
+      ${p.quote ? `<div class="pain-quote">${esc(p.quote)}</div>` : ''}
+    </div>
+  `).join('');
+  const phBodyHtml = `
+    <div class="pain-list">${painsHtml || '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No pains detected.</p>'}</div>
+  `;
+  renderSection('sec2', 2, 'Pain Hierarchy', signalBadge(ph.signalStrength || 'Strong'), phBodyHtml);
+
+  // Section 3 — Before / After Vocabulary
+  const bav = d.beforeAfterVocab || {};
+  const beforePhrases = (bav.before || []).map(p => `<div class="vocab-phrase">${esc(p)}</div>`).join('');
+  const afterPhrases = (bav.after || []).map(p => `<div class="vocab-phrase">${esc(p)}</div>`).join('');
+  const bavBodyHtml = `
+    <div class="vocab-grid">
+      <div class="vocab-col vocab-before">
+        <div class="vocab-col-header">Before — the problem</div>
+        <div class="vocab-phrases">${beforePhrases || '<span style="font-size:13px;color:var(--mid);">None detected</span>'}</div>
+      </div>
+      <div class="vocab-col vocab-after">
+        <div class="vocab-col-header">After — the outcome</div>
+        <div class="vocab-phrases">${afterPhrases || '<span style="font-size:13px;color:var(--mid);">None detected</span>'}</div>
+      </div>
+    </div>
+    ${bav.note ? `<p class="vocab-note">${esc(bav.note)}</p>` : ''}
+  `;
+  renderSection('sec3', 3, 'Before / After Vocabulary', signalBadge(bav.signalStrength || 'Strong'), bavBodyHtml);
+
+  // Section 4 — Words to Avoid
+  const wta = d.wordsToAvoid || {};
+  const avoidItems = wta.flagged || [];
+  let avoidBodyHtml;
+  if (avoidItems.length === 0) {
+    avoidBodyHtml = `<div class="avoid-none"><div class="avoid-none-text">No language gaps detected. Your product description aligns with customer vocabulary.</div></div>`;
+  } else {
+    const avoidHtml = avoidItems.map(a => `
+      <div class="avoid-item">
+        <div class="avoid-word">${esc(a.word)}</div>
+        <div class="avoid-reason">${esc(a.reason)}</div>
+      </div>
+    `).join('');
+    avoidBodyHtml = `
+      ${wta.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:16px;margin-bottom:12px;">${esc(wta.summary)}</p>` : ''}
+      <div class="avoid-list">${avoidHtml}</div>
+    `;
+  }
+  const avoidBadge = avoidItems.length > 0 ? '<span class="result-badge badge-red">Gap Detected</span>' : '<span class="result-badge badge-green">Aligned</span>';
+  renderSection('sec4', 4, 'Words to Avoid', avoidBadge, avoidBodyHtml);
+
+  // Section 5 — Ready-to-Use Hooks
+  const hooks = d.hooks || [];
+  const hooksHtml = hooks.map((h, i) => `
+    <div class="hook-item" data-hook="${esc(h.text)}">
+      <div class="hook-top">
+        <div class="hook-text">"${esc(h.text)}"</div>
+        ${hookTagHtml(h.type)}
+      </div>
+    </div>
+  `).join('');
+  const hooksBodyHtml = `
+    <div class="hooks-list" id="hooksList">${hooksHtml || '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No hooks generated.</p>'}</div>
+    <div class="copy-hooks-row">
+      <span class="copy-flash" id="copyFlash">✓ Copied to clipboard</span>
+      <button class="btn btn-ghost btn-sm" onclick="copyHooks()">Copy all hooks →</button>
+    </div>
+  `;
+  renderSection('sec5', 5, 'Ready-to-Use Hooks', '<span class="result-badge badge-teal">5 Hooks</span>', hooksBodyHtml);
+}
+
+function copyHooks() {
+  const items = document.querySelectorAll('#hooksList .hook-item');
+  const lines = Array.from(items).map((el, i) => `${i + 1}. ${el.dataset.hook || ''}`).join('\n');
+  navigator.clipboard.writeText(lines).then(() => {
+    const flash = document.getElementById('copyFlash');
+    if (flash) {
+      flash.classList.add('show');
+      setTimeout(() => flash.classList.remove('show'), 2200);
+    }
+  });
+}
+
+function resetForm() {
+  document.getElementById('resultsWrap').classList.remove('active');
+  document.getElementById('formWrap').style.display = '';
+  document.getElementById('mirrorBtn').disabled = false;
+  document.getElementById('customerText').value = '';
+  document.getElementById('productContext').value = '';
+  document.getElementById('progressWrap').classList.remove('active');
+  setProgress(0, 'Extracting customer language…');
+  ['sec1','sec2','sec3','sec4','sec5'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
+  });
+}
+</script>
+</body>
+</html>
