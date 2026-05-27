@@ -2335,19 +2335,39 @@ async function loadAdmin() {
 }
 
 function renderUserList(users) {
+  function fmtDate(d) {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) +
+           ' ' + dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  }
   document.getElementById('adminUserList').innerHTML = users.length ? users.map(u => `
-    <div class="user-row">
-      <span class="user-email">${u.email}</span>
-      <span class="tier-badge ${tierClass(u.tier)}">${TIER_NAMES[u.tier] || '—'}</span>
-      ${u.vip ? '<span class="vip-badge">VIP</span>' : ''}
-      <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">${u.newsletter_count} total</span>
-      <select onchange="upgradeUser('${u.email}',this.value)" style="font-size:11px;padding:4px 8px;width:auto;background:var(--bg2);">
-        <option value="">Change tier…</option>
-        <option value="single">Single</option>
-        <option value="lite">Lite</option>
-        <option value="growth">Growth</option>
-        <option value="high_impact">High-Impact</option>
-      </select>
+    <div class="user-row" style="flex-wrap:wrap;gap:6px;padding:12px 0;border-bottom:1px solid var(--border);">
+      <div style="width:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="user-email" style="font-weight:600;">${u.email}</span>
+        <span class="tier-badge ${tierClass(u.tier)}">${TIER_NAMES[u.tier] || '—'}</span>
+        ${u.vip ? '<span class="vip-badge">VIP</span>' : ''}
+        <span style="font-size:10px;color:var(--muted);font-family:var(--mono);">${u.newsletter_count || 0} rebuilds</span>
+      </div>
+      <div style="width:100%;display:flex;gap:20px;flex-wrap:wrap;margin-top:4px;">
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">
+          First seen: <span style="color:var(--fg);">${fmtDate(u.created_at)}</span>
+        </span>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">
+          Last active: <span style="color:var(--fg);">${fmtDate(u.last_used_at)}</span>
+        </span>
+        ${u.company ? `<span style="font-size:11px;color:var(--muted);font-family:var(--mono);">Co: <span style="color:var(--fg);">${u.company}</span></span>` : ''}
+      </div>
+      <div style="width:100%;margin-top:6px;">
+        <select onchange="upgradeUser('${u.email}',this.value)" style="font-size:11px;padding:4px 8px;width:auto;background:var(--bg2);">
+          <option value="">Change tier…</option>
+          <option value="single">Single</option>
+          <option value="lite">Lite</option>
+          <option value="growth">Growth</option>
+          <option value="high_impact">High-Impact</option>
+          <option value="architecture">Architecture</option>
+        </select>
+      </div>
     </div>`).join('') : '<div style="color:var(--muted);font-size:12px;">No users yet.</div>';
 }
 
