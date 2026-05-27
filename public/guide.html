@@ -449,7 +449,7 @@ td strong { color: var(--teal); font-weight: 600; }
       <div class="toc-toggle-left">
         <span class="toc-icon">☰</span>
         <span class="toc-title">Cuprins</span>
-        <span class="toc-count">12 secțiuni</span>
+        <span class="toc-count">13 secțiuni</span>
       </div>
       <span class="toc-chevron" id="tocChevron">▼</span>
     </button>
@@ -510,6 +510,11 @@ td strong { color: var(--teal); font-weight: 600; }
         <a href="#tool-17" class="toc-item" onclick="closeTOC()">
           <span class="toc-item-num">12</span>
           <span class="toc-item-title">Tool 17 — Dead Email Resurrector</span>
+          <span class="toc-item-badge">Live</span>
+        </a>
+        <a href="#tool-19" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">13</span>
+          <span class="toc-item-title">Tool 19 — Sequence Gap Finder</span>
           <span class="toc-item-badge">Live</span>
         </a>
       </div>
@@ -879,8 +884,8 @@ td strong { color: var(--teal); font-weight: 600; }
     <h3>What's Included</h3>
     <div class="output-grid">
       <div class="output-item">
-        <div class="label">14 Tools Active</div>
-        <p>Email Assessment, Email Rebuild, Batch Assessment, A/B Tracker, Content Calendar, Competitor Benchmark, Changelog Audit, Onboarding Audit, LinkedIn Audit, Open Rate Predictor, Pattern Intelligence, Monthly Report, Release Note System, and Email Fatigue Detector — all available from your dashboard with no monthly cap.</p>
+        <div class="label">19 Tools Active</div>
+        <p>Email Assessment, Email Rebuild, Batch Assessment, A/B Tracker, Content Calendar, Competitor Benchmark, Changelog Audit, Onboarding Audit, LinkedIn Audit, Open Rate Predictor, Pattern Intelligence, Monthly Report, Release Note System, Email Fatigue Detector, Audience Mirror, Dead Email Resurrector, Best Send Window, and Sequence Gap Finder — all available from your dashboard with no monthly cap.</p>
       </div>
       <div class="output-item">
         <div class="label">Unlimited Monthly Cap</div>
@@ -888,7 +893,7 @@ td strong { color: var(--teal); font-weight: 600; }
       </div>
       <div class="output-item">
         <div class="label">0 Tools Coming Soon</div>
-        <p>All 14 tools are live. The suite covers single-email assessment, sequence analysis, changelog communication, subject testing, and monthly performance tracking.</p>
+        <p>All 19 tools are live. The suite covers single-email assessment, sequence gap detection, changelog communication, subject testing, fatigue analysis, and monthly performance tracking.</p>
       </div>
     </div>
 
@@ -1074,6 +1079,65 @@ td strong { color: var(--teal); font-weight: 600; }
     <h3>Access</h3>
     <div class="callout">
       Available at <a href="/dead-email-resurrector" style="color:var(--teal);text-decoration:none;">/dead-email-resurrector</a>. Architecture plan only. No monthly cap.
+    </div>
+  </div>
+
+  <!-- SECTION: Tool 19 — Sequence Gap Finder -->
+  <div class="section" id="tool-19">
+    <div class="section-label">Tool 19 — Sequence Gap Finder</div>
+    <h2>Sequence Gap Finder</h2>
+    <p>Low activation rates are usually blamed on copy. The real cause is usually a missing email — a transition that was never written because nobody mapped the journey end-to-end.</p>
+    <p>Sequence Gap Finder maps your entire lifecycle sequence the way a new subscriber experiences it and identifies the exact moment they lose momentum.</p>
+
+    <h3>Output in One Analysis</h3>
+    <div class="output-grid">
+      <div class="output-item">
+        <div class="label">Activation Journey Map</div>
+        <p>Every email in the sequence color-coded green, amber, or red based on where the reader is mentally after receiving it. Red is where momentum breaks.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Gap Detection</div>
+        <p>Every missing transition identified with severity rating (CRITICAL / MAJOR / MINOR), exact position in sequence, and the email recommended to fill it.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Transition Audit</div>
+        <p>Every email-to-email handoff rated: Strong (sets up next email), Weak (disconnected topic), or Broken (contradicts prior promise).</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Missing Email Briefs</div>
+        <p>A complete brief for every CRITICAL and MAJOR gap — three subject line variants, goal, hook direction, CTA language, and the activation impact of adding this email.</p>
+      </div>
+      <div class="output-item">
+        <div class="label">Sequence Health Score</div>
+        <p>Overall score /10 with breakdown across narrative coherence, transition strength, and activation clarity — plus an improvement potential estimate if critical gaps are filled.</p>
+      </div>
+    </div>
+
+    <h3>Inputs Needed</h3>
+    <div class="callout">
+      Subject line and goal for each email in the sequence · Overall activation goal · Sequence duration in days · Minimum 2 emails, maximum 15.
+    </div>
+
+    <h3>How to Use</h3>
+    <ol class="steps">
+      <li><strong>Enter the sequence in order.</strong> Start with Email 1. Add every email a new subscriber receives in sequence. The goal field per email is critical — without it the tool cannot detect narrative gaps.</li>
+      <li><strong>Set the activation goal.</strong> Be specific: "User creates first workflow" not "user engages." The more specific the goal, the more accurate the gap detection.</li>
+      <li><strong>Read the Activation Journey Map first.</strong> Red nodes are where momentum breaks. These are your priority gaps — fix them before rewriting anything else.</li>
+      <li><strong>Check gap severity.</strong> CRITICAL gaps are where activation stalls. Fix these before rewriting any existing email. One new email in the right place outperforms rewriting three existing ones.</li>
+      <li><strong>Use the Missing Email Briefs.</strong> Each brief is ready to hand to a copywriter or use directly in Email Rebuild (Tool 02). Subject line variants are pre-written.</li>
+      <li><strong>Track the score delta.</strong> Run again after adding missing emails. The Health Score should move from below 6 to above 8 after critical gaps are filled.</li>
+    </ol>
+
+    <h3>Who This Is For</h3>
+    <div class="callout">
+      Lifecycle managers and product marketers responsible for onboarding and activation sequences. Especially useful when activation rate is below benchmark and copy rewrites haven't moved the number, the sequence was built incrementally by multiple people, you are auditing a sequence before a full redesign, or a new product feature needs to be inserted into an existing flow.
+      <br><br>
+      At scale (100K+ list): one email added at a CRITICAL gap is estimated to move activation by 6–12 percentage points.
+    </div>
+
+    <h3>Access</h3>
+    <div class="callout">
+      Available at <a href="/sequence-gap-finder" style="color:var(--teal);text-decoration:none;">/sequence-gap-finder</a>. Architecture plan only. No monthly cap.
     </div>
   </div>
 
