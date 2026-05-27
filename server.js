@@ -276,6 +276,23 @@ app.get('/architecture-dashboard', async (req, res) => {
   res.redirect('/');
 });
 
+// ── GET /fatigue-detector ─────────────────────────────────────────────────────
+app.get('/fatigue-detector', async (req, res) => {
+  if (!req.session || !req.session.userEmail) return res.redirect('/login.html');
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('fatigue-detector.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
+    if (row?.tier === 'architecture') {
+      if (row.expires_at && new Date(row.expires_at) < new Date()) return res.redirect('/access-expired');
+      return res.sendFile('fatigue-detector.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) { console.error('[fatigue-detector] tier check:', e.message); }
+  res.redirect('/');
+});
+
 // ── GET /access-expired ───────────────────────────────────────────────────────
 app.get('/access-expired', (req, res) => {
   res.sendFile('access-expired.html', { root: path.join(__dirname, 'public') });
@@ -3865,6 +3882,75 @@ Return ONLY valid JSON:
   })();
 });
 // ─── END ARCHITECTURE ENDPOINT ────────────────────────────────────────────────
+
+// ─── FATIGUE DETECTOR ─────────────────────────────────────────────────────────
+app.post('/api/fatigue-detector', async (req, res) => {
+  const { emails } = req.body;
+  if (!Array.isArray(emails) || emails.length < 2) {
+    return res.status(400).json({ error: 'At least 2 emails are required.' });
+  }
+  const clipped = emails.slice(0, 12);
+
+  const emailsText = clipped.map((e, i) =>
+    `EMAIL ${i + 1}:\nSubject: ${e.subject || '(no subject)'}\nBody:\n${(e.body || '(no body)').slice(0, 1500)}`
+  ).join('\n\n---\n\n');
+
+  const prompt = `You are the Strategic Flow Fatigue Detector. Analyze the following email sequence (${clipped.length} emails) as a unit and return a complete diagnostic.
+
+${emailsText}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "sequenceScore": {
+    "overall": <number 1-10>,
+    "coherence": <number 1-10 — how well emails build on each other>,
+    "ctaVariety": <number 1-10 — 10 = fully varied CTAs, 1 = all identical>,
+    "hookDiversity": <number 1-10 — 10 = all opening lines structurally distinct>,
+    "cadenceRisk": <number 1-10 — 10 = low fatigue risk, 1 = critical fatigue risk>,
+    "summary": "<2-3 sentence overall sequence diagnostic>"
+  },
+  "ctaFatigue": {
+    "verdict": "<VARIED | FATIGUED | CRITICAL>",
+    "ctaList": [
+      { "email": <email number>, "cta": "<exact CTA text>", "verb": "<opening verb>" }
+    ],
+    "duplicates": [
+      { "verb": "<verb>", "emails": [<email numbers using this verb>] }
+    ]
+  },
+  "narrativeDrift": {
+    "driftDetected": <true | false>,
+    "breakEmail": <email number where drift starts, or null>,
+    "summary": "<1-2 sentence explanation of drift or coherence>",
+    "findings": [
+      { "label": "<short label>", "text": "<finding>", "detail": "<optional extra context>", "severity": "<ok | warning | critical>" }
+    ]
+  },
+  "hookRecycling": {
+    "summary": "<1-2 sentence summary of hook diversity>",
+    "recycledPatterns": [
+      { "pattern": "<the recycled opening structure or phrase>", "emails": [<email numbers>] }
+    ]
+  },
+  "cadenceRisk": {
+    "rating": "<LOW | MEDIUM | HIGH | CRITICAL>",
+    "summary": "<1-2 sentence overall cadence assessment>",
+    "recommendations": [
+      { "label": "<short label>", "text": "<specific actionable recommendation>", "severity": "<info | warning | critical>" }
+    ]
+  }
+}`;
+
+  try {
+    const result = await claudeJSON(prompt, 2000);
+    if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/fatigue-detector]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END FATIGUE DETECTOR ─────────────────────────────────────────────────────
 
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
 

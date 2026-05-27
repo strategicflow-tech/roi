@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Email Fatigue Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --navy: #0a0f1e;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --teal: #00E5CC;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+    --card-hover: rgba(244,242,237,0.07);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.92);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); text-decoration: none; }
+  .nav-logo span { color: var(--teal); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--teal); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  .page-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: var(--teal); text-transform: uppercase; margin-bottom: 16px; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .page-title em { font-style: italic; color: var(--teal); }
+  .page-sub { font-size: 15px; color: var(--mid); margin-bottom: 48px; line-height: 1.7; max-width: 600px; }
+
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* EMAIL BLOCKS */
+  .email-blocks { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+
+  .email-block {
+    border: 1px solid var(--border);
+    background: var(--card);
+    position: relative;
+  }
+
+  .email-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(244,242,237,0.03);
+  }
+
+  .email-block-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--teal);
+  }
+
+  .remove-block {
+    background: none;
+    border: none;
+    color: var(--mid);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 2px 6px;
+    transition: color 0.2s;
+  }
+  .remove-block:hover { color: var(--red); }
+
+  .email-block-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .field-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    background: rgba(244,242,237,0.04);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: var(--teal); }
+  input[type="text"]::placeholder, textarea::placeholder { color: rgba(168,163,155,0.5); }
+  textarea { min-height: 100px; }
+
+  /* ACTIONS */
+  .form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; padding: 11px 22px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--mid); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-teal { background: var(--teal); color: #0a0a08; font-weight: 600; }
+  .btn-teal:hover { background: #00ccb4; }
+  .btn-teal:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .email-count-note { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); margin-top: -8px; margin-bottom: 16px; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 32px 0; display: none; }
+  .progress-wrap.active { display: block; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); }
+  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--teal); }
+  .progress-bar { height: 2px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--teal); transition: width 0.4s ease; width: 0%; }
+
+  /* RESULTS */
+  .results-wrap { display: none; }
+  .results-wrap.active { display: block; }
+
+  .result-section { margin-bottom: 8px; border: 1px solid var(--border); }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    gap: 12px;
+  }
+  .result-header:hover { background: var(--card-hover); }
+
+  .result-header-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+  .result-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--mid); flex-shrink: 0; }
+  .result-title { font-size: 14px; font-weight: 600; color: var(--white); }
+
+  .result-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .badge-green { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-red { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .badge-teal { background: rgba(0,229,204,0.1); color: var(--teal); border: 1px solid rgba(0,229,204,0.2); }
+
+  .result-chevron { font-size: 12px; color: var(--mid); transition: transform 0.25s; flex-shrink: 0; }
+  .result-header.open .result-chevron { transform: rotate(180deg); }
+
+  .result-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--border); }
+  .result-body.open { display: block; }
+
+  /* SCORE GRID */
+  .score-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 20px 0; }
+  .score-cell { background: var(--black); padding: 16px 18px; }
+  .score-cell-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-bottom: 6px; }
+  .score-cell-val { font-family: 'DM Serif Display', serif; font-size: 32px; line-height: 1; }
+  .score-overall { font-size: 48px; }
+  .col-green { color: var(--green); }
+  .col-amber { color: var(--amber); }
+  .col-red { color: var(--red); }
+  .col-teal { color: var(--teal); }
+
+  /* CTA TABLE */
+  .data-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); margin: 20px 0; font-size: 13px; }
+  .data-table th { padding: 10px 14px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--mid); text-transform: uppercase; font-weight: 400; background: var(--card); border-bottom: 1px solid var(--border); text-align: left; }
+  .data-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--card); }
+  .dup-flag { font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 7px; background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  /* FINDING ITEMS */
+  .finding-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+  .finding-item { border-left: 2px solid var(--border); padding: 10px 16px; }
+  .finding-item.warning { border-left-color: var(--amber); }
+  .finding-item.critical { border-left-color: var(--red); }
+  .finding-item.ok { border-left-color: var(--green); }
+  .finding-item.info { border-left-color: var(--teal); }
+  .finding-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px; color: var(--mid); }
+  .finding-text { font-size: 13px; color: var(--white); line-height: 1.65; }
+  .finding-detail { font-size: 12px; color: var(--mid); margin-top: 5px; line-height: 1.6; }
+
+  /* CADENCE RATING */
+  .cadence-box { border: 1px solid var(--border); padding: 20px 24px; margin: 20px 0; }
+  .cadence-rating { font-family: 'DM Serif Display', serif; font-size: 36px; margin-bottom: 10px; }
+  .cadence-rec { font-size: 13px; color: var(--mid); line-height: 1.75; }
+
+  /* RESET */
+  .reset-row { margin-top: 32px; }
+  .section-divider { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin: 40px 0 20px; display: flex; align-items: center; gap: 12px; }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-links { display: none; }
+    main { padding: 80px 16px 60px; }
+    .score-grid { grid-template-columns: 1fr; }
+    .form-actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <div class="nav-links">
+    <a href="/architecture-dashboard" class="nav-link">Dashboard</a>
+    <a href="/assessment.html" class="nav-link">Assessment</a>
+    <a href="/report.html" class="nav-link">Report</a>
+    <a href="/fatigue-detector" class="nav-link active">Fatigue Detector</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-label">// Tool 15 — Intelligence</div>
+  <h1 class="page-title">Email Fatigue<br><em>Detector.</em></h1>
+  <p class="page-sub">Paste your full lifecycle sequence — subject lines and body text. Find where you lose the reader before they unsubscribe.</p>
+
+  <div id="formWrap">
+
+    <div class="section-divider">// Email sequence input</div>
+
+    <div class="email-blocks" id="emailBlocks"></div>
+
+    <div class="email-count-note" id="countNote">3 emails · add up to 9 more</div>
+
+    <div class="form-actions">
+      <button class="btn btn-ghost" id="addBtn" onclick="addBlock()">+ Add another email</button>
+      <button class="btn btn-teal" id="analyzeBtn" onclick="runAnalysis()">Analyze Sequence →</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Analyzing sequence…</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+  </div>
+
+  <div class="results-wrap" id="resultsWrap">
+
+    <div class="section-divider">// Sequence analysis</div>
+    <h2 style="font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:24px;">Your sequence diagnostic<em style="font-style:italic;color:var(--teal);">.</em></h2>
+
+    <div id="sec1" class="result-section"></div>
+    <div id="sec2" class="result-section"></div>
+    <div id="sec3" class="result-section"></div>
+    <div id="sec4" class="result-section"></div>
+    <div id="sec5" class="result-section"></div>
+
+    <div class="reset-row">
+      <button class="btn btn-ghost" onclick="resetForm()">← Analyze a new sequence</button>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let blockCount = 0;
+
+function addBlock(force) {
+  const container = document.getElementById('emailBlocks');
+  if (blockCount >= 12 && !force) return;
+  blockCount++;
+  const idx = blockCount;
+  const div = document.createElement('div');
+  div.className = 'email-block';
+  div.id = `block-${idx}`;
+  div.innerHTML = `
+    <div class="email-block-header">
+      <span class="email-block-num">Email ${idx}</span>
+      ${idx > 3 ? `<button class="remove-block" onclick="removeBlock(${idx})">✕ Remove</button>` : ''}
+    </div>
+    <div class="email-block-body">
+      <div>
+        <div class="field-label">Subject line</div>
+        <input type="text" id="subj-${idx}" placeholder="e.g. Your AI can write—but not execute—in 9,000 apps">
+      </div>
+      <div>
+        <div class="field-label">Body text</div>
+        <textarea id="body-${idx}" placeholder="Paste the email body here (plain text or HTML)…"></textarea>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  updateCountNote();
+  updateAddBtn();
+}
+
+function removeBlock(idx) {
+  const el = document.getElementById(`block-${idx}`);
+  if (el) el.remove();
+  updateCountNote();
+  updateAddBtn();
+}
+
+function getBlocks() {
+  return Array.from(document.querySelectorAll('.email-block')).map((b, i) => {
+    const id = b.id.replace('block-', '');
+    return {
+      index: i + 1,
+      subject: (document.getElementById(`subj-${id}`)?.value || '').trim(),
+      body: (document.getElementById(`body-${id}`)?.value || '').trim()
+    };
+  }).filter(b => b.subject || b.body);
+}
+
+function countBlocks() {
+  return document.querySelectorAll('.email-block').length;
+}
+
+function updateCountNote() {
+  const n = countBlocks();
+  const remaining = 12 - n;
+  const note = document.getElementById('countNote');
+  if (note) note.textContent = `${n} email${n !== 1 ? 's' : ''} · ${remaining > 0 ? `add up to ${remaining} more` : 'maximum reached'}`;
+}
+
+function updateAddBtn() {
+  const btn = document.getElementById('addBtn');
+  if (btn) btn.disabled = countBlocks() >= 12;
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+async function runAnalysis() {
+  const emails = getBlocks();
+  if (emails.length < 2) {
+    alert('Please add at least 2 emails to analyze a sequence.');
+    return;
+  }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('active');
+  setProgress(5, 'Parsing email sequence…');
+
+  const steps = [
+    [20, 'Mapping CTAs across sequence…'],
+    [40, 'Analyzing narrative coherence…'],
+    [60, 'Detecting hook recycling patterns…'],
+    [80, 'Scoring cadence risk…'],
+    [92, 'Generating report…'],
+  ];
+  let stepIdx = 0;
+  const ticker = setInterval(() => {
+    if (stepIdx < steps.length) {
+      const [pct, label] = steps[stepIdx++];
+      setProgress(pct, label);
+    }
+  }, 1800);
+
+  try {
+    const res = await fetch('/api/fatigue-detector', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ emails })
+    });
+
+    clearInterval(ticker);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Server error' }));
+      throw new Error(err.error || 'Analysis failed');
+    }
+
+    setProgress(100, 'Complete');
+    await new Promise(r => setTimeout(r, 400));
+
+    const data = await res.json();
+    renderResults(data);
+
+  } catch (err) {
+    clearInterval(ticker);
+    document.getElementById('progressWrap').classList.remove('active');
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('progressLabel').textContent = 'Error: ' + esc(err.message);
+  }
+}
+
+function toggleSection(id) {
+  const header = document.getElementById('hdr-' + id);
+  const body = document.getElementById('bdy-' + id);
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function scoreColor(n) {
+  if (n >= 8) return 'col-green';
+  if (n >= 5) return 'col-amber';
+  return 'col-red';
+}
+
+function verdictBadge(v) {
+  const vU = (v || '').toUpperCase();
+  if (vU === 'HEALTHY' || vU === 'VARIED' || vU === 'LOW' || vU === 'NONE') return `<span class="result-badge badge-green">${esc(v)}</span>`;
+  if (vU === 'MEDIUM' || vU === 'WARNING' || vU === 'MODERATE') return `<span class="result-badge badge-amber">${esc(v)}</span>`;
+  if (vU === 'HIGH' || vU === 'CRITICAL' || vU === 'FATIGUED' || vU === 'RECYCLED') return `<span class="result-badge badge-red">${esc(v)}</span>`;
+  return `<span class="result-badge badge-teal">${esc(v)}</span>`;
+}
+
+function renderSection(containerId, num, title, badge, bodyHtml) {
+  const id = 's' + num;
+  document.getElementById(containerId).innerHTML = `
+    <div class="result-header" id="hdr-${id}" onclick="toggleSection('${id}')">
+      <div class="result-header-left">
+        <span class="result-num">0${num}</span>
+        <span class="result-title">${esc(title)}</span>
+      </div>
+      ${badge}
+      <span class="result-chevron" id="chv-${id}">▼</span>
+    </div>
+    <div class="result-body" id="bdy-${id}">
+      ${bodyHtml}
+    </div>
+  `;
+  toggleSection(id);
+}
+
+function renderResults(d) {
+  document.getElementById('progressWrap').classList.remove('active');
+  document.getElementById('resultsWrap').classList.add('active');
+  document.getElementById('formWrap').style.display = 'none';
+
+  const sq = d.sequenceScore || {};
+  const overall = sq.overall || 0;
+
+  // Section 1 — Sequence Health Score
+  const overallClass = scoreColor(overall);
+  const scoreBodyHtml = `
+    <div class="score-grid" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;">
+      <div class="score-cell">
+        <div class="score-cell-label">Overall</div>
+        <div class="score-cell-val score-overall ${overallClass}">${overall}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);margin-top:4px;">/10</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Coherence</div>
+        <div class="score-cell-val ${scoreColor(sq.coherence || 0)}">${sq.coherence || '—'}</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">CTA Variety</div>
+        <div class="score-cell-val ${scoreColor(sq.ctaVariety || 0)}">${sq.ctaVariety || '—'}</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Hook Diversity</div>
+        <div class="score-cell-val ${scoreColor(sq.hookDiversity || 0)}">${sq.hookDiversity || '—'}</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Cadence Risk</div>
+        <div class="score-cell-val ${scoreColor(sq.cadenceRisk || 0)}">${sq.cadenceRisk || '—'}</div>
+      </div>
+    </div>
+    ${sq.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:4px;">${esc(sq.summary)}</p>` : ''}
+  `;
+  renderSection('sec1', 1, 'Sequence Health Score', verdictBadge(overall >= 8 ? 'Healthy' : overall >= 5 ? 'Warning' : 'Critical'), scoreBodyHtml);
+
+  // Section 2 — CTA Fatigue Map
+  const cta = d.ctaFatigue || {};
+  const ctaRows = (cta.ctaList || []).map(c => {
+    const isDup = (cta.duplicates || []).some(dp => dp.emails && dp.emails.includes(c.email) && dp.verb && dp.verb.toLowerCase() === (c.verb || '').toLowerCase());
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;color:var(--teal);">Email ${esc(c.email)}</td>
+      <td>${esc(c.cta)}</td>
+      <td style="font-family:'DM Mono',monospace;">${esc(c.verb || '—')}</td>
+      <td>${isDup ? '<span class="dup-flag">Duplicate</span>' : '<span style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--green);">Unique</span>'}</td>
+    </tr>`;
+  }).join('');
+  const dupRows = (cta.duplicates || []).map(dp => `
+    <div class="finding-item warning">
+      <div class="finding-tag">Duplicate verb: ${esc(dp.verb)}</div>
+      <div class="finding-text">Used in emails ${(dp.emails || []).join(', ')}</div>
+    </div>
+  `).join('');
+  const ctaBodyHtml = `
+    ${ctaRows ? `<table class="data-table">
+      <thead><tr><th>Email</th><th>CTA Text</th><th>Verb</th><th>Status</th></tr></thead>
+      <tbody>${ctaRows}</tbody>
+    </table>` : '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No CTAs detected.</p>'}
+    ${dupRows ? `<div class="finding-list">${dupRows}</div>` : ''}
+  `;
+  renderSection('sec2', 2, 'CTA Fatigue Map', verdictBadge(cta.verdict || '—'), ctaBodyHtml);
+
+  // Section 3 — Narrative Drift Detector
+  const nd = d.narrativeDrift || {};
+  const driftItems = (nd.findings || []).map(f => `
+    <div class="finding-item ${f.severity === 'critical' ? 'critical' : f.severity === 'warning' ? 'warning' : 'ok'}">
+      <div class="finding-tag">${esc(f.label || '')}</div>
+      <div class="finding-text">${esc(f.text)}</div>
+      ${f.detail ? `<div class="finding-detail">${esc(f.detail)}</div>` : ''}
+    </div>
+  `).join('');
+  const ndBodyHtml = `
+    ${nd.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:16px;margin-bottom:4px;">${esc(nd.summary)}</p>` : ''}
+    ${driftItems ? `<div class="finding-list">${driftItems}</div>` : ''}
+    ${nd.breakEmail ? `<div style="margin-top:16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--amber);">Drift detected at Email ${nd.breakEmail}</div>` : ''}
+  `;
+  const ndBadge = nd.driftDetected ? verdictBadge('Drift Detected') : verdictBadge('Coherent');
+  renderSection('sec3', 3, 'Narrative Drift Detector', ndBadge, ndBodyHtml);
+
+  // Section 4 — Hook Recycling Alert
+  const hr = d.hookRecycling || {};
+  const hookItems = (hr.recycledPatterns || []).map(p => `
+    <div class="finding-item ${p.emails && p.emails.length > 2 ? 'critical' : 'warning'}">
+      <div class="finding-tag">Recycled pattern</div>
+      <div class="finding-text">"${esc(p.pattern)}"</div>
+      <div class="finding-detail">Found in emails: ${(p.emails || []).join(', ')}</div>
+    </div>
+  `).join('');
+  const hookBodyHtml = `
+    ${hr.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:16px;margin-bottom:4px;">${esc(hr.summary)}</p>` : ''}
+    ${hookItems ? `<div class="finding-list">${hookItems}</div>` : '<div class="finding-list"><div class="finding-item ok"><div class="finding-tag">Result</div><div class="finding-text">No recycled hook patterns detected. Opening lines are diverse.</div></div></div>'}
+  `;
+  const hrBadge = (hr.recycledPatterns || []).length > 0 ? verdictBadge('Recycled') : verdictBadge('Varied');
+  renderSection('sec4', 4, 'Hook Recycling Alert', hrBadge, hookBodyHtml);
+
+  // Section 5 — Cadence Risk Rating
+  const cr = d.cadenceRisk || {};
+  const crRating = (cr.rating || 'UNKNOWN').toUpperCase();
+  const crClass = crRating === 'LOW' ? 'col-green' : crRating === 'MEDIUM' ? 'col-amber' : 'col-red';
+  const crItems = (cr.recommendations || []).map(r => `
+    <div class="finding-item ${r.severity === 'critical' ? 'critical' : r.severity === 'warning' ? 'warning' : 'info'}">
+      <div class="finding-tag">${esc(r.label || 'Recommendation')}</div>
+      <div class="finding-text">${esc(r.text)}</div>
+    </div>
+  `).join('');
+  const crBodyHtml = `
+    <div class="cadence-box" style="border-color:${crRating === 'LOW' ? 'rgba(34,197,94,0.25)' : crRating === 'MEDIUM' ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'};">
+      <div class="cadence-rating ${crClass}">${esc(crRating)}</div>
+      <div class="cadence-rec">${esc(cr.summary || '')}</div>
+    </div>
+    ${crItems ? `<div class="finding-list">${crItems}</div>` : ''}
+  `;
+  renderSection('sec5', 5, 'Cadence Risk Rating', verdictBadge(cr.rating || '—'), crBodyHtml);
+}
+
+function resetForm() {
+  document.getElementById('resultsWrap').classList.remove('active');
+  document.getElementById('formWrap').style.display = '';
+  document.getElementById('progressWrap').classList.remove('active');
+  document.getElementById('analyzeBtn').disabled = false;
+  setProgress(0, 'Analyzing sequence…');
+}
+
+// Init: 3 default blocks
+(function init() {
+  addBlock(true);
+  addBlock(true);
+  addBlock(true);
+})();
+</script>
+</body>
+</html>
