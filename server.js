@@ -4038,6 +4038,98 @@ Rules:
 });
 // ─── END AUDIENCE MIRROR ──────────────────────────────────────────────────────
 
+// ── GET /dead-email-resurrector ───────────────────────────────────────────────
+app.get('/dead-email-resurrector', async (req, res) => {
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('dead-email-resurrector.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    if (row?.tier === 'architecture') {
+      return res.sendFile('dead-email-resurrector.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) { console.error('[dead-email-resurrector] tier check:', e.message); }
+  res.redirect('/');
+});
+
+app.post('/api/dead-email-resurrector', async (req, res) => {
+  const { subject, body, openRate, clickRate, goal } = req.body;
+  if (!subject || !body) {
+    return res.status(400).json({ error: 'Subject line and email body are required.' });
+  }
+
+  const perfLine = [
+    openRate ? `Open rate: ${openRate}` : null,
+    clickRate ? `Click rate: ${clickRate}` : null,
+    goal ? `Email goal: ${goal}` : null,
+  ].filter(Boolean).join(' · ') || 'No performance data provided.';
+
+  const prompt = `You are the Strategic Flow Dead Email Resurrector. Diagnose why this email underperformed using the 6 Strategic Flow failure patterns, then deliver a complete rebuilt version.
+
+ORIGINAL EMAIL:
+Subject: ${subject}
+Body:
+${body.slice(0, 3000)}
+
+Performance data: ${perfLine}
+
+The 6 Strategic Flow failure patterns:
+1. Filing Label Subject — subject announces topic, names no consequence
+2. Feature Dump — lists capabilities instead of translating to outcomes
+3. Buried Lead — buries the most important point after preamble
+4. Weak CTA — uses passive verbs (learn, discover, explore) instead of ownership verbs
+5. Context Overload — too much background before the point
+6. Single-Reader Blindspot — written for the company, not for the specific reader's situation
+
+Return ONLY valid JSON with this exact structure:
+{
+  "causeOfDeath": {
+    "summary": "<1-2 sentence overall diagnosis>",
+    "patterns": [
+      {
+        "name": "<exact pattern name from the 6 above>",
+        "severity": "<CRITICAL | MAJOR | MINOR>",
+        "quote": "<exact line from original email that triggered this pattern>",
+        "why": "<one sentence explaining why this pattern killed performance>"
+      }
+    ]
+  },
+  "resurrectionScore": {
+    "originalScore": <number 1-10>,
+    "projectedScore": <number 1-10>,
+    "openRateLift": "<e.g. +4-6%>",
+    "clickRateLift": "<e.g. +0.8-1.2%>",
+    "note": "<optional 1-sentence caveat about the estimates>"
+  },
+  "rebuiltEmail": {
+    "subject": "<new subject line — curiosity gap or consequence-first, under 55 chars>",
+    "previewText": "<preview text that extends subject, never repeats it, under 90 chars>",
+    "lead": "<rebuilt lead — consequence before context, max 2 sentences>",
+    "body": "<rebuilt body — feature-to-outcome translation, 3-5 sentences>",
+    "cta": "<rebuilt CTA — ownership verb + specific outcome, max 6 words>"
+  },
+  "whatChanged": [
+    "<what was wrong → what was fixed → why it improves performance — specific to this email, never generic>"
+  ]
+}
+
+Rules:
+- causeOfDeath.patterns: minimum 2, maximum 5. Only include patterns actually present in this email.
+- resurrectionScore: originalScore must reflect actual quality; projectedScore must be realistically higher.
+- rebuiltEmail: write a complete, ready-to-send email. No placeholders. Subject under 55 chars.
+- whatChanged: 3-5 items, each formatted as "What was wrong → what was fixed → why it improves performance." Specific to this email only.`;
+
+  try {
+    const result = await claudeJSON(prompt, 2500);
+    if (!result) return res.status(500).json({ error: 'Resurrection failed — no response from Claude.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/dead-email-resurrector]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END DEAD EMAIL RESURRECTOR ───────────────────────────────────────────────
+
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
 
 // POST /stripe/checkout — creează Stripe Checkout Session

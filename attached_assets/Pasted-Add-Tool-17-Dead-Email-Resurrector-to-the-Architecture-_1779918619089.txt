@@ -1,0 +1,132 @@
+Add Tool 17 — Dead Email Resurrector to the 
+Architecture dashboard.
+
+WHAT IT DOES:
+User pastes an underperforming email (subject line + 
+body). The tool diagnoses exactly why it failed using 
+the 6 Strategic Flow failure patterns, then delivers 
+a complete rebuilt version ready to send — not a 
+report, a new email.
+
+INPUT:
+- Field 1: Original subject line
+- Field 2: Original email body (full text)
+- Field 3 (optional): "What was the open rate?" 
+  (helps calibrate severity)
+- Field 4 (optional): "What was the click rate?"
+- Field 5 (optional): "What was the goal of this email?"
+  (activate / convert / re-engage / inform)
+- Button: "Resurrect this email →"
+
+OUTPUT — 4 sections:
+
+1. CAUSE OF DEATH
+Which failure patterns killed this email.
+For each pattern found:
+- Pattern name (exact label)
+- Severity: CRITICAL / MAJOR / MINOR
+- The exact line from the original email that 
+  triggered the pattern
+- One sentence explaining why it killed performance
+
+Format:
+❌ CRITICAL — Filing Label Subject
+"Your April Product Update" — announces the topic, 
+names no consequence. Reader has no reason to open.
+
+2. RESURRECTION SCORE
+Original score /10
+Projected rebuilt score /10
+Estimated open rate lift: +X%
+Estimated click rate lift: +X%
+
+3. THE REBUILT EMAIL
+Full rebuilt version — ready to copy and paste 
+into any ESP.
+
+Includes:
+- New subject line (curiosity gap or consequence-first)
+- New preview text (extends subject, never repeats it)
+- Rebuilt lead (consequence before context)
+- Rebuilt body (feature-to-outcome translation)
+- Rebuilt CTA (ownership language)
+
+Format the rebuilt email exactly as it would appear 
+in an inbox — subject line labeled, preview text 
+labeled, then full body.
+
+Add "Copy full email" button that copies everything 
+to clipboard in one click.
+
+4. WHAT CHANGED AND WHY
+3-5 bullet points explaining the structural changes.
+Each point: what was wrong → what was fixed → 
+why it improves performance.
+Specific to this email — never generic.
+
+IN-TOOL WALKTHROUGH:
+Collapsible "How to use" section at top of page.
+
+Content:
+
+WHAT THIS TOOL IS FOR:
+Emails that were sent, underperformed, and are 
+sitting in your archive unfixed. Every lifecycle 
+team has 3-5 of these. This tool resurrects them 
+in 90 seconds.
+
+BEST CANDIDATES FOR RESURRECTION:
+- Open rate below 15% on a non-cold list
+- Click rate below 1.5%
+- Onboarding emails where activation dropped off
+- Re-engagement emails that got no response
+- Product update emails with low click-through
+
+STEP 1 — PASTE THE ORIGINAL
+Subject line + full body text.
+The more complete the original, the more accurate 
+the diagnosis.
+
+STEP 2 — ADD PERFORMANCE DATA (OPTIONAL BUT RECOMMENDED)
+Open rate and click rate tell the tool how severe 
+the damage is. A 6% open rate is a different 
+problem than a 14% open rate with 0.3% clicks.
+
+STEP 3 — READ CAUSE OF DEATH FIRST
+Understand what killed the email before reading 
+the rebuild. The rebuild will make more sense and 
+you will be able to apply the same fixes to other 
+emails independently.
+
+STEP 4 — COPY THE REBUILT EMAIL
+Click "Copy full email" and paste directly into 
+your ESP. Subject line, preview text, and body 
+are all included.
+
+STEP 5 — CHECK WHAT CHANGED AND WHY
+Use this section to brief your team or to document 
+the fix in your email standards library.
+
+DESIGN:
+- Match Architecture dashboard dark theme
+- Teal #00E5CC accents
+- CAUSE OF DEATH section: red left border on 
+  each pattern card
+- REBUILT EMAIL section: green left border, 
+  slightly lighter background to stand out
+- "Copy full email" button: teal, full width
+- Collapsible walkthrough: closed by default
+- Severity badges: CRITICAL red, MAJOR amber, 
+  MINOR grey
+
+DASHBOARD UPDATE:
+- Add Tool 17 card to architecture dashboard
+- Label: LIVE
+- Title: Dead Email Resurrector
+- Description: Paste any underperforming email. 
+  Get the diagnosis and the rebuilt version 
+  ready to send — in 90 seconds.
+- Update TOOLS ACTIVE from 15 to 16
+- Route: /dead-email-resurrector
+
+Do not change any other tools. Save and redeploy.

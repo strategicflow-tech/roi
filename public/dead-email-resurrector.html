@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow — Dead Email Resurrector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --teal: #00E5CC;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+    --card-hover: rgba(244,242,237,0.07);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,8,0.92);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); text-decoration: none; }
+  .nav-logo span { color: var(--teal); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--teal); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 100px 24px 80px;
+  }
+
+  .page-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: var(--teal); text-transform: uppercase; margin-bottom: 16px; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .page-title em { font-style: italic; color: var(--teal); }
+  .page-sub { font-size: 15px; color: var(--mid); margin-bottom: 40px; line-height: 1.7; max-width: 600px; }
+
+  /* WALKTHROUGH */
+  .walkthrough { border: 1px solid var(--border); margin-bottom: 36px; }
+  .walkthrough-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+    transition: background 0.2s; gap: 12px;
+  }
+  .walkthrough-header:hover { background: var(--card-hover); }
+  .walkthrough-header-left { display: flex; align-items: center; gap: 12px; }
+  .walkthrough-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); }
+  .walkthrough-title { font-size: 13px; font-weight: 600; color: var(--white); }
+  .walkthrough-chevron { font-size: 12px; color: var(--mid); transition: transform 0.25s; flex-shrink: 0; }
+  .walkthrough-chevron.open { transform: rotate(180deg); }
+  .walkthrough-body { display: none; border-top: 1px solid var(--border); padding: 24px 20px; }
+  .walkthrough-body.open { display: block; }
+  .wt-step { margin-bottom: 22px; }
+  .wt-step:last-child { margin-bottom: 0; }
+  .wt-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 5px; }
+  .wt-title { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 6px; }
+  .wt-body { font-size: 13px; color: var(--mid); line-height: 1.75; }
+  .wt-body ul { padding-left: 18px; margin-top: 6px; }
+  .wt-body li { margin-bottom: 4px; }
+  .wt-body strong { color: var(--white); }
+  .wt-tip { margin-top: 8px; padding: 10px 14px; background: rgba(0,229,204,0.06); border-left: 2px solid var(--teal); font-size: 12px; color: var(--mid); line-height: 1.65; }
+
+  /* FORM */
+  .section-divider { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin: 40px 0 20px; display: flex; align-items: center; gap: 12px; }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .field { margin-bottom: 18px; }
+  .field-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-bottom: 6px; }
+  .field-optional { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(168,163,155,0.5); margin-left: 8px; }
+  .field-hint { font-size: 12px; color: var(--mid); margin-bottom: 8px; line-height: 1.6; }
+
+  input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    background: rgba(244,242,237,0.04);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+    appearance: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus { border-color: var(--teal); }
+  input[type="text"]::placeholder, input[type="number"]::placeholder, textarea::placeholder { color: rgba(168,163,155,0.5); }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8a39b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; cursor: pointer; }
+  select option { background: #1a1a18; }
+
+  .optional-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ACTIONS */
+  .form-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; padding: 11px 22px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--mid); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-teal { background: var(--teal); color: #0a0a08; font-weight: 600; }
+  .btn-teal:hover { background: #00ccb4; }
+  .btn-teal:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-full { width: 100%; justify-content: center; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 32px 0; display: none; }
+  .progress-wrap.active { display: block; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); }
+  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--teal); }
+  .progress-bar { height: 2px; background: var(--border); }
+  .progress-fill { height: 100%; background: var(--teal); transition: width 0.4s ease; width: 0%; }
+
+  /* RESULTS */
+  .results-wrap { display: none; }
+  .results-wrap.active { display: block; }
+
+  .result-section { margin-bottom: 8px; border: 1px solid var(--border); }
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px; cursor: pointer; user-select: none;
+    transition: background 0.2s; gap: 12px;
+  }
+  .result-header:hover { background: var(--card-hover); }
+  .result-header-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+  .result-num { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--mid); flex-shrink: 0; }
+  .result-title { font-size: 14px; font-weight: 600; color: var(--white); }
+  .result-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 3px 10px; text-transform: uppercase; flex-shrink: 0; }
+  .badge-green { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-red { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .badge-teal { background: rgba(0,229,204,0.1); color: var(--teal); border: 1px solid rgba(0,229,204,0.2); }
+  .result-chevron { font-size: 12px; color: var(--mid); transition: transform 0.25s; flex-shrink: 0; }
+  .result-header.open .result-chevron { transform: rotate(180deg); }
+  .result-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--border); }
+  .result-body.open { display: block; }
+
+  /* CAUSE OF DEATH */
+  .pattern-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .pattern-card {
+    border-left: 3px solid var(--red);
+    background: rgba(239,68,68,0.04);
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .pattern-card.major { border-left-color: var(--amber); background: rgba(245,158,11,0.04); }
+  .pattern-card.minor { border-left-color: var(--mid); background: rgba(168,163,155,0.04); }
+  .pattern-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .pattern-name { font-size: 13px; font-weight: 600; color: var(--white); }
+  .sev-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; padding: 2px 8px; text-transform: uppercase; }
+  .sev-critical { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .sev-major { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+  .sev-minor { background: rgba(168,163,155,0.1); color: var(--mid); border: 1px solid rgba(168,163,155,0.2); }
+  .pattern-quote { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--mid); font-style: italic; margin-bottom: 7px; line-height: 1.6; }
+  .pattern-why { font-size: 13px; color: var(--mid); line-height: 1.65; }
+
+  /* SCORE GRID */
+  .score-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin: 20px 0; }
+  .score-cell { background: var(--black); padding: 16px 18px; }
+  .score-cell-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); margin-bottom: 6px; }
+  .score-val { font-family: 'DM Serif Display', serif; font-size: 36px; line-height: 1; }
+  .score-unit { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); margin-top: 3px; }
+  .lift-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 4px; }
+  .lift-item { display: flex; align-items: baseline; gap: 6px; }
+  .lift-val { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--green); }
+  .lift-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: 0.08em; }
+
+  /* REBUILT EMAIL */
+  .rebuilt-wrap {
+    border-left: 3px solid var(--green);
+    background: rgba(34,197,94,0.03);
+    border-top: 1px solid rgba(34,197,94,0.2);
+    border-right: 1px solid rgba(34,197,94,0.2);
+    border-bottom: 1px solid rgba(34,197,94,0.2);
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .rebuilt-field { margin-bottom: 16px; }
+  .rebuilt-field:last-child { margin-bottom: 0; }
+  .rebuilt-field-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .rebuilt-field-val { font-size: 14px; color: var(--white); line-height: 1.7; white-space: pre-wrap; }
+  .rebuilt-subject { font-size: 16px; font-weight: 600; }
+
+  .copy-flash { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--green); display: none; align-items: center; gap: 6px; }
+  .copy-flash.show { display: flex; }
+
+  /* WHAT CHANGED */
+  .change-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+  .change-item { border-left: 2px solid var(--teal); padding: 10px 16px; }
+  .change-item-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); margin-bottom: 5px; }
+  .change-item-text { font-size: 13px; color: var(--white); line-height: 1.7; }
+  .change-item-text em { color: var(--mid); font-style: normal; }
+
+  .reset-row { margin-top: 32px; }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-links { display: none; }
+    main { padding: 80px 16px 60px; }
+    .optional-row { grid-template-columns: 1fr; }
+    .score-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <div class="nav-links">
+    <a href="/architecture-dashboard" class="nav-link">Dashboard</a>
+    <a href="/assessment.html" class="nav-link">Assessment</a>
+    <a href="/report.html" class="nav-link">Report</a>
+    <a href="/dead-email-resurrector" class="nav-link active">Resurrector</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-label">// Tool 17 — Intelligence</div>
+  <h1 class="page-title">Dead Email<br><em>Resurrector.</em></h1>
+  <p class="page-sub">Paste any underperforming email. Get the diagnosis and the rebuilt version ready to send — in 90 seconds.</p>
+
+  <!-- WALKTHROUGH -->
+  <div class="walkthrough">
+    <div class="walkthrough-header" onclick="toggleWalkthrough()">
+      <div class="walkthrough-header-left">
+        <span class="walkthrough-label">How to use</span>
+        <span class="walkthrough-title">Step-by-step walkthrough</span>
+      </div>
+      <span class="walkthrough-chevron" id="wtChevron">▼</span>
+    </div>
+    <div class="walkthrough-body" id="wtBody">
+
+      <div class="wt-step">
+        <div class="wt-num">// What this tool is for</div>
+        <div class="wt-title">Emails that underperformed and are sitting in your archive unfixed</div>
+        <div class="wt-body">
+          Every lifecycle team has 3–5 of these. This tool resurrects them in 90 seconds.
+          <div class="wt-tip">
+            Best candidates: open rate below 15% on a non-cold list · click rate below 1.5% · onboarding emails where activation dropped · re-engagement emails that got no response · product update emails with low click-through
+          </div>
+        </div>
+      </div>
+
+      <div class="wt-step">
+        <div class="wt-num">// Step 1</div>
+        <div class="wt-title">Paste the original</div>
+        <div class="wt-body">Subject line and full body text. The more complete the original, the more accurate the diagnosis.</div>
+      </div>
+
+      <div class="wt-step">
+        <div class="wt-num">// Step 2</div>
+        <div class="wt-title">Add performance data (optional but recommended)</div>
+        <div class="wt-body">Open rate and click rate tell the tool how severe the damage is. A 6% open rate is a different problem than a 14% open rate with 0.3% clicks.</div>
+      </div>
+
+      <div class="wt-step">
+        <div class="wt-num">// Step 3</div>
+        <div class="wt-title">Read Cause of Death first</div>
+        <div class="wt-body">Understand what killed the email before reading the rebuild. The rebuild will make more sense and you will be able to apply the same fixes to other emails independently.</div>
+      </div>
+
+      <div class="wt-step">
+        <div class="wt-num">// Step 4</div>
+        <div class="wt-title">Copy the rebuilt email</div>
+        <div class="wt-body">Click "Copy full email" and paste directly into your ESP. Subject line, preview text, and body are all included.</div>
+      </div>
+
+      <div class="wt-step">
+        <div class="wt-num">// Step 5</div>
+        <div class="wt-title">Check What Changed and Why</div>
+        <div class="wt-body">Use this section to brief your team or to document the fix in your email standards library.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div id="formWrap">
+
+    <div class="section-divider">// Original email</div>
+
+    <div class="field">
+      <div class="field-label">Original subject line</div>
+      <input type="text" id="origSubject" placeholder="e.g. April Product Update" />
+    </div>
+
+    <div class="field">
+      <div class="field-label">Original email body</div>
+      <div class="field-hint">Paste the full email body — greeting, content, CTA, footer. The more complete, the more accurate the diagnosis.</div>
+      <textarea id="origBody" rows="10" placeholder="Paste the full email body here…"></textarea>
+    </div>
+
+    <div class="section-divider">// Performance data <span style="font-family:'DM Mono',monospace;font-size:10px;color:rgba(168,163,155,0.5);font-weight:400;letter-spacing:0.08em;text-transform:none;">(optional)</span></div>
+
+    <div class="optional-row">
+      <div class="field">
+        <div class="field-label">Open rate <span class="field-optional">optional</span></div>
+        <input type="text" id="openRate" placeholder="e.g. 12%" />
+      </div>
+      <div class="field">
+        <div class="field-label">Click rate <span class="field-optional">optional</span></div>
+        <input type="text" id="clickRate" placeholder="e.g. 0.8%" />
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">Email goal <span class="field-optional">optional</span></div>
+      <select id="emailGoal">
+        <option value="">— Select a goal</option>
+        <option value="activate">Activate (get users to take a first action)</option>
+        <option value="convert">Convert (move to paid / upgrade)</option>
+        <option value="re-engage">Re-engage (bring dormant users back)</option>
+        <option value="inform">Inform (product update, changelog)</option>
+      </select>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-teal" id="resurrectBtn" onclick="runResurrect()">Resurrect this email →</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progressLabel">Diagnosing failure patterns…</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-wrap" id="resultsWrap">
+
+    <div class="section-divider">// Resurrection report</div>
+    <h2 style="font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:24px;">Diagnosis &amp; rebuild<em style="font-style:italic;color:var(--teal);">.</em></h2>
+
+    <div id="sec1" class="result-section"></div>
+    <div id="sec2" class="result-section"></div>
+    <div id="sec3" class="result-section"></div>
+    <div id="sec4" class="result-section"></div>
+
+    <div class="reset-row">
+      <button class="btn btn-ghost" onclick="resetForm()">← Resurrect another email</button>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleWalkthrough() {
+  document.getElementById('wtBody').classList.toggle('open');
+  document.getElementById('wtChevron').classList.toggle('open');
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+async function runResurrect() {
+  const subject = (document.getElementById('origSubject').value || '').trim();
+  const body = (document.getElementById('origBody').value || '').trim();
+  if (!subject || !body) {
+    alert('Please provide both a subject line and email body.');
+    return;
+  }
+
+  document.getElementById('resurrectBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('active');
+  setProgress(5, 'Diagnosing failure patterns…');
+
+  const steps = [
+    [22, 'Identifying cause of death…'],
+    [44, 'Scoring original email…'],
+    [64, 'Building resurrection draft…'],
+    [82, 'Translating features to outcomes…'],
+    [92, 'Finalising rebuilt version…'],
+  ];
+  let si = 0;
+  const ticker = setInterval(() => {
+    if (si < steps.length) { const [p, l] = steps[si++]; setProgress(p, l); }
+  }, 1900);
+
+  try {
+    const res = await fetch('/api/dead-email-resurrector', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        subject,
+        body,
+        openRate: (document.getElementById('openRate').value || '').trim(),
+        clickRate: (document.getElementById('clickRate').value || '').trim(),
+        goal: document.getElementById('emailGoal').value
+      })
+    });
+
+    clearInterval(ticker);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Server error' }));
+      throw new Error(err.error || 'Resurrection failed');
+    }
+
+    setProgress(100, 'Complete');
+    await new Promise(r => setTimeout(r, 400));
+
+    const data = await res.json();
+    renderResults(data);
+
+  } catch (err) {
+    clearInterval(ticker);
+    document.getElementById('progressWrap').classList.remove('active');
+    document.getElementById('resurrectBtn').disabled = false;
+    document.getElementById('progressLabel').textContent = 'Error: ' + esc(err.message);
+  }
+}
+
+function toggleSection(id) {
+  document.getElementById('hdr-' + id).classList.toggle('open');
+  document.getElementById('bdy-' + id).classList.toggle('open');
+}
+
+function renderSection(containerId, num, title, badge, bodyHtml) {
+  const id = 's' + num;
+  document.getElementById(containerId).innerHTML = `
+    <div class="result-header" id="hdr-${id}" onclick="toggleSection('${id}')">
+      <div class="result-header-left">
+        <span class="result-num">0${num}</span>
+        <span class="result-title">${esc(title)}</span>
+      </div>
+      ${badge}
+      <span class="result-chevron" id="chv-${id}">▼</span>
+    </div>
+    <div class="result-body" id="bdy-${id}">
+      ${bodyHtml}
+    </div>
+  `;
+  toggleSection(id);
+}
+
+function sevClass(s) {
+  const u = (s || '').toUpperCase();
+  if (u === 'CRITICAL') return 'critical';
+  if (u === 'MAJOR') return 'major';
+  return 'minor';
+}
+
+function sevBadge(s) {
+  const u = (s || '').toUpperCase();
+  if (u === 'CRITICAL') return `<span class="sev-badge sev-critical">Critical</span>`;
+  if (u === 'MAJOR') return `<span class="sev-badge sev-major">Major</span>`;
+  return `<span class="sev-badge sev-minor">Minor</span>`;
+}
+
+function scoreColor(n) {
+  if (n >= 8) return 'col-green';
+  if (n >= 5) return 'col-amber';
+  return 'col-red';
+}
+
+function renderResults(d) {
+  document.getElementById('progressWrap').classList.remove('active');
+  document.getElementById('resultsWrap').classList.add('active');
+  document.getElementById('formWrap').style.display = 'none';
+
+  // Section 1 — Cause of Death
+  const cod = d.causeOfDeath || {};
+  const patterns = cod.patterns || [];
+  const critCount = patterns.filter(p => (p.severity || '').toUpperCase() === 'CRITICAL').length;
+  const codBadge = critCount > 0
+    ? `<span class="result-badge badge-red">${critCount} Critical</span>`
+    : `<span class="result-badge badge-amber">${patterns.length} Pattern${patterns.length !== 1 ? 's' : ''}</span>`;
+
+  const patternsHtml = patterns.map(p => `
+    <div class="pattern-card ${sevClass(p.severity)}">
+      <div class="pattern-top">
+        <span class="pattern-name">❌ ${esc(p.name)}</span>
+        ${sevBadge(p.severity)}
+      </div>
+      ${p.quote ? `<div class="pattern-quote">"${esc(p.quote)}"</div>` : ''}
+      <div class="pattern-why">${esc(p.why)}</div>
+    </div>
+  `).join('');
+
+  const codBodyHtml = `
+    ${cod.summary ? `<p style="font-size:13px;color:var(--mid);line-height:1.75;margin-top:16px;margin-bottom:8px;">${esc(cod.summary)}</p>` : ''}
+    <div class="pattern-list">${patternsHtml || '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No failure patterns identified.</p>'}</div>
+  `;
+  renderSection('sec1', 1, 'Cause of Death', codBadge, codBodyHtml);
+
+  // Section 2 — Resurrection Score
+  const rs = d.resurrectionScore || {};
+  const orig = rs.originalScore || 0;
+  const proj = rs.projectedScore || 0;
+  const origColor = orig >= 7 ? 'var(--green)' : orig >= 4 ? 'var(--amber)' : 'var(--red)';
+  const projColor = proj >= 7 ? 'var(--green)' : proj >= 4 ? 'var(--amber)' : 'var(--red)';
+
+  const scoreBodyHtml = `
+    <div class="score-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="score-cell">
+        <div class="score-cell-label">Original Score</div>
+        <div class="score-val" style="color:${origColor};">${orig}</div>
+        <div class="score-unit">/10</div>
+      </div>
+      <div class="score-cell">
+        <div class="score-cell-label">Projected Rebuilt Score</div>
+        <div class="score-val" style="color:${projColor};">${proj}</div>
+        <div class="score-unit">/10</div>
+      </div>
+    </div>
+    <div class="lift-row">
+      ${rs.openRateLift ? `<div class="lift-item"><span class="lift-val">${esc(rs.openRateLift)}</span><span class="lift-label">Estimated open rate lift</span></div>` : ''}
+      ${rs.clickRateLift ? `<div class="lift-item"><span class="lift-val">${esc(rs.clickRateLift)}</span><span class="lift-label">Estimated click rate lift</span></div>` : ''}
+    </div>
+    ${rs.note ? `<p style="font-size:12px;color:var(--mid);margin-top:14px;line-height:1.65;">${esc(rs.note)}</p>` : ''}
+  `;
+  const scoreBadge = `<span class="result-badge badge-teal">+${proj - orig} pts</span>`;
+  renderSection('sec2', 2, 'Resurrection Score', scoreBadge, scoreBodyHtml);
+
+  // Section 3 — The Rebuilt Email
+  const re = d.rebuiltEmail || {};
+  const fullEmailText = [
+    `Subject: ${re.subject || ''}`,
+    `Preview: ${re.previewText || ''}`,
+    '',
+    re.lead || '',
+    '',
+    re.body || '',
+    '',
+    `CTA: ${re.cta || ''}`
+  ].join('\n');
+
+  const rebuiltBodyHtml = `
+    <div class="rebuilt-wrap" id="rebuiltContent">
+      ${re.subject ? `<div class="rebuilt-field"><div class="rebuilt-field-label">Subject line</div><div class="rebuilt-field-val rebuilt-subject">${esc(re.subject)}</div></div>` : ''}
+      ${re.previewText ? `<div class="rebuilt-field"><div class="rebuilt-field-label">Preview text</div><div class="rebuilt-field-val">${esc(re.previewText)}</div></div>` : ''}
+      ${re.lead ? `<div class="rebuilt-field"><div class="rebuilt-field-label">Lead</div><div class="rebuilt-field-val">${esc(re.lead)}</div></div>` : ''}
+      ${re.body ? `<div class="rebuilt-field"><div class="rebuilt-field-label">Body</div><div class="rebuilt-field-val">${esc(re.body)}</div></div>` : ''}
+      ${re.cta ? `<div class="rebuilt-field"><div class="rebuilt-field-label">CTA</div><div class="rebuilt-field-val" style="font-weight:600;color:var(--teal);">${esc(re.cta)}</div></div>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+      <span class="copy-flash" id="copyFlash">✓ Copied to clipboard</span>
+      <button class="btn btn-teal btn-full" onclick="copyEmail(${JSON.stringify(fullEmailText).replace(/</g,'\\u003c')})">Copy full email</button>
+    </div>
+  `;
+  renderSection('sec3', 3, 'The Rebuilt Email', '<span class="result-badge badge-green">Ready to send</span>', rebuiltBodyHtml);
+
+  // Section 4 — What Changed and Why
+  const changes = d.whatChanged || [];
+  const changesHtml = changes.map((c, i) => `
+    <div class="change-item">
+      <div class="change-item-label">Change ${i + 1}</div>
+      <div class="change-item-text">${esc(c)}</div>
+    </div>
+  `).join('');
+  const changesBodyHtml = `
+    <div class="change-list">${changesHtml || '<p style="font-size:13px;color:var(--mid);margin-top:16px;">No changes documented.</p>'}</div>
+  `;
+  renderSection('sec4', 4, 'What Changed and Why', `<span class="result-badge badge-teal">${changes.length} Change${changes.length !== 1 ? 's' : ''}</span>`, changesBodyHtml);
+}
+
+function copyEmail(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const flash = document.getElementById('copyFlash');
+    if (flash) { flash.classList.add('show'); setTimeout(() => flash.classList.remove('show'), 2200); }
+  });
+}
+
+function resetForm() {
+  document.getElementById('resultsWrap').classList.remove('active');
+  document.getElementById('formWrap').style.display = '';
+  document.getElementById('resurrectBtn').disabled = false;
+  document.getElementById('origSubject').value = '';
+  document.getElementById('origBody').value = '';
+  document.getElementById('openRate').value = '';
+  document.getElementById('clickRate').value = '';
+  document.getElementById('emailGoal').value = '';
+  document.getElementById('progressWrap').classList.remove('active');
+  setProgress(0, 'Diagnosing failure patterns…');
+  ['sec1','sec2','sec3','sec4'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+}
+</script>
+</body>
+</html>
