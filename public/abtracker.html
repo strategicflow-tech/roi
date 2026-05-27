@@ -16,6 +16,7 @@
     --mid: #a8a39b;
     --border: rgba(244,242,237,0.12);
     --card: rgba(244,242,237,0.04);
+    --green: #34d399;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -55,17 +56,15 @@
     backdrop-filter: blur(16px);
   }
 
-  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); }
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); text-decoration: none; }
   .nav-logo span { color: var(--signal); }
-  .nav-links { display: flex; gap: 20px; flex-wrap: wrap; }
-  .nav-link { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
-  .nav-link:hover { color: var(--white); }
-  .nav-link.active { color: var(--signal); }
+  .nav-back { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--mid); text-decoration: none; transition: color 0.2s; }
+  .nav-back:hover { color: var(--white); }
 
   main {
     position: relative;
     z-index: 1;
-    max-width: 900px;
+    max-width: 860px;
     margin: 0 auto;
     padding: 100px 24px 80px;
   }
@@ -76,26 +75,15 @@
   .page-sub { font-size: 15px; color: var(--mid); margin-bottom: 40px; line-height: 1.7; }
 
   label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--mid); text-transform: uppercase; margin-bottom: 8px; }
-  input, select { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--white); font-family: 'DM Mono', monospace; font-size: 13px; padding: 12px 14px; outline: none; transition: border-color 0.2s; margin-bottom: 16px; -webkit-appearance: none; }
+  input, select { width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--white); font-family: 'DM Mono', monospace; font-size: 13px; padding: 12px 14px; outline: none; transition: border-color 0.2s; margin-bottom: 0; -webkit-appearance: none; }
   input:focus, select:focus { border-color: rgba(74,143,231,0.5); }
   input[type="number"] { -moz-appearance: textfield; }
   select option { background: #1a1a18; }
 
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .form-grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; }
-
-  .btn { font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.08em; padding: 12px 24px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
-  .btn-primary { background: var(--signal); color: var(--white); }
-  .btn-primary:hover { background: var(--signal-dim); }
-  .btn-ghost { background: transparent; color: var(--mid); border: 1px solid var(--border); }
-  .btn-ghost:hover { color: var(--white); border-color: rgba(244,242,237,0.3); }
-  .btn-sm { padding: 8px 16px; font-size: 11px; }
-
-  /* ADD TEST FORM */
   .add-form {
     border: 1px solid var(--border);
     padding: 28px 32px;
-    margin-bottom: 40px;
+    margin-bottom: 32px;
     background: var(--card);
   }
 
@@ -105,52 +93,146 @@
     letter-spacing: 0.14em;
     color: var(--signal);
     text-transform: uppercase;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
 
-  .variant-row {
-    display: grid;
-    grid-template-columns: 1fr 120px 100px 40px;
-    gap: 12px;
-    align-items: end;
-    margin-bottom: 12px;
-  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 140px; gap: 16px; margin-bottom: 20px; }
 
-  .variant-row label { margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
 
-  .remove-btn {
-    background: transparent;
+  .variant-block {
     border: 1px solid var(--border);
-    color: var(--mid);
-    font-size: 16px;
-    width: 36px;
-    height: 42px;
-    cursor: pointer;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    background: rgba(244,242,237,0.02);
+  }
+
+  .variant-label-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    gap: 10px;
     margin-bottom: 16px;
   }
 
-  .remove-btn:hover { color: var(--noise); border-color: rgba(255,77,46,0.3); }
-
-  .add-variant-btn {
+  .variant-badge {
     font-family: 'DM Mono', monospace;
     font-size: 11px;
-    color: var(--signal);
-    background: transparent;
-    border: 1px dashed rgba(74,143,231,0.3);
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: all 0.2s;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--black);
+    background: var(--signal);
+    padding: 3px 10px;
+  }
+
+  .variant-badge.b { background: var(--mid); }
+
+  .variant-inputs { display: grid; grid-template-columns: 1fr 130px 160px; gap: 14px; align-items: end; }
+
+  .btn { font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.08em; padding: 12px 24px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--signal); color: var(--white); }
+  .btn-primary:hover { background: var(--signal-dim); }
+  .btn-ghost { background: transparent; color: var(--mid); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--white); border-color: rgba(244,242,237,0.3); }
+
+  /* WINNER PANEL */
+  .winner-panel {
+    border: 1px solid rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.04);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    display: none;
+  }
+
+  .winner-panel.visible { display: block; }
+
+  .winner-panel-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 16px;
+  }
+
+  .winner-scores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .score-cell {
+    background: var(--black);
+    padding: 18px 20px;
+  }
+
+  .score-cell.is-winner {
+    background: rgba(52,211,153,0.06);
+  }
+
+  .score-cell-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--mid);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .winner-tag {
+    color: var(--green);
+    border: 1px solid rgba(52,211,153,0.35);
+    padding: 1px 7px;
+    font-size: 9px;
+  }
+
+  .score-cell-subject {
+    font-size: 13px;
+    color: var(--white);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .score-cell-rate {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    line-height: 1;
+  }
+
+  .score-cell-rate.wins { color: var(--green); }
+  .score-cell-rate.loses { color: var(--mid); }
+
+  .bar-track { height: 3px; background: var(--border); margin-top: 10px; }
+  .bar-fill { height: 100%; transition: width 0.7s ease; }
+  .bar-fill.wins { background: var(--green); }
+  .bar-fill.loses { background: var(--mid); }
+
+  .winner-insight {
+    font-size: 13px;
+    color: var(--white);
+    line-height: 1.7;
+    border-left: 2px solid var(--green);
+    padding-left: 14px;
+  }
+
+  /* HISTORY */
+  .history-section { margin-top: 40px; }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
   }
 
-  .add-variant-btn:hover { background: rgba(74,143,231,0.05); }
-
-  /* TESTS LIST */
-  .tests-list { display: flex; flex-direction: column; gap: 16px; }
+  .tests-list { display: flex; flex-direction: column; gap: 12px; }
 
   .test-card { border: 1px solid var(--border); transition: border-color 0.2s; }
   .test-card:hover { border-color: rgba(74,143,231,0.2); }
@@ -159,136 +241,203 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
     background: var(--card);
     cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
   }
 
-  .test-name { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 4px; }
+  .test-header.open { border-bottom-color: var(--border); }
+
+  .test-name { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 3px; }
   .test-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); }
 
-  .test-status {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 4px 10px;
-    border-radius: 2px;
+  .test-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex-shrink: 0;
   }
 
-  .status-active { color: var(--signal); border: 1px solid rgba(74,143,231,0.3); }
-  .status-complete { color: #a8a39b; border: 1px solid var(--border); }
-
-  .test-body { display: none; padding: 20px 24px; }
-  .test-body.open { display: block; }
-
-  /* VARIANT BARS */
-  .variant-bars { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-
-  .variant-bar-item { display: flex; flex-direction: column; gap: 6px; }
-
-  .variant-bar-header { display: flex; justify-content: space-between; align-items: center; }
-  .variant-label { font-size: 13px; color: var(--white); flex: 1; padding-right: 16px; }
-  .variant-rate { font-family: 'DM Mono', monospace; font-size: 13px; min-width: 48px; text-align: right; }
-  .variant-winner { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--signal); margin-left: 8px; }
-
-  .bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
-  .bar-fill.winner { background: var(--signal); }
-  .bar-fill.loser { background: var(--mid); }
-  .bar-fill.pending { background: rgba(74,143,231,0.3); }
-
-  /* INSIGHT BOX */
-  .insight-box {
-    border: 1px solid rgba(74,143,231,0.2);
-    background: rgba(74,143,231,0.04);
-    padding: 16px 20px;
-    margin-top: 16px;
+  .test-winner-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--green);
+    border: 1px solid rgba(52,211,153,0.3);
+    padding: 3px 9px;
   }
 
-  .insight-box-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--signal); text-transform: uppercase; margin-bottom: 8px; }
-  .insight-box-text { font-size: 13px; color: var(--white); line-height: 1.7; }
+  .delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--mid);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.2s;
+  }
+
+  .delete-btn:hover { color: var(--noise); }
+
+  .test-body { display: none; padding: 18px 20px; }
+  .test-body.open { display: block; }
+
+  .test-body-bars { display: flex; flex-direction: column; gap: 14px; }
+
+  .test-variant-row { display: flex; flex-direction: column; gap: 6px; }
+  .test-variant-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .test-variant-subject { font-size: 13px; color: var(--white); flex: 1; }
+  .test-variant-rate { font-family: 'DM Mono', monospace; font-size: 13px; min-width: 50px; text-align: right; }
+  .test-variant-rate.wins { color: var(--green); }
+  .test-variant-rate.loses { color: var(--mid); }
 
   /* PATTERNS */
-  .patterns-section { margin-top: 40px; }
-  .patterns-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .patterns-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
   .pattern-cell { background: var(--black); padding: 20px; }
   .pattern-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--mid); text-transform: uppercase; margin-bottom: 8px; }
-  .pattern-value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--signal); line-height: 1; margin-bottom: 4px; }
+  .pattern-value { font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--signal); line-height: 1; margin-bottom: 4px; }
   .pattern-note { font-size: 12px; color: var(--mid); line-height: 1.5; }
 
-  /* EMPTY */
-  .empty { text-align: center; padding: 60px 24px; border: 1px solid var(--border); }
-  .empty-title { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 10px; }
-  .empty-sub { font-size: 14px; color: var(--mid); line-height: 1.7; }
+  .empty { text-align: center; padding: 48px 24px; border: 1px solid var(--border); }
+  .empty-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; color: var(--mid); }
 
   @media (max-width: 640px) {
     nav { padding: 14px 20px; }
-    .nav-links { display: none; }
     main { padding: 80px 16px 60px; }
-    .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
-    .variant-row { grid-template-columns: 1fr 80px; }
-    .variant-row > *:nth-child(3), .variant-row > *:nth-child(4) { display: none; }
-    .patterns-grid { grid-template-columns: 1fr 1fr; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    .variant-inputs { grid-template-columns: 1fr 120px; }
+    .variant-inputs > *:last-child { grid-column: 1 / -1; }
+    .winner-scores { grid-template-columns: 1fr; }
+    .patterns-row { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
 <body>
 
 <nav>
-  <span class="nav-logo">Strategic Flow <span>Architecture</span></span>
-  <div class="nav-links">
-    <a href="/architecture.html" class="nav-link">Assessment</a>
-    <a href="/calendar.html" class="nav-link">Calendar</a>
-    <a href="/batch.html" class="nav-link">Batch</a>
-    <a href="/report.html" class="nav-link">Report</a>
-    <a href="/benchmark.html" class="nav-link">Benchmark</a>
-    <a href="/abtracker.html" class="nav-link active">A/B Tracker</a>
-  </div>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <a href="/architecture-dashboard" class="nav-back">← Dashboard</a>
 </nav>
 
 <main>
-  <div class="page-label">// A/B Test Tracker</div>
+  <div class="page-label">// Tool 04 — A/B Test Tracker</div>
   <h1 class="page-title">Track what actually<br><em>converts.</em></h1>
-  <p class="page-sub">Log your A/B tests, record real open rates, and see which subject line patterns consistently win across your emails.</p>
+  <p class="page-sub">Log A/B subject line tests, record real open or click rates, and see which pattern wins — with a running history of every test.</p>
 
   <!-- ADD TEST FORM -->
   <div class="add-form">
     <div class="form-title">// Log a new A/B test</div>
 
-    <div class="form-grid" style="margin-bottom:0;">
-      <div>
+    <div class="form-row" style="margin-bottom:20px;">
+      <div class="field">
         <label>Test name / email</label>
         <input type="text" id="testName" placeholder="e.g. April product update">
       </div>
-      <div>
+      <div class="field">
         <label>Date sent</label>
         <input type="date" id="testDate">
       </div>
     </div>
 
-    <div id="variantsContainer">
-      <!-- Variants added by JS -->
+    <!-- Variant A -->
+    <div class="variant-block">
+      <div class="variant-label-row">
+        <span class="variant-badge">A</span>
+      </div>
+      <div class="variant-inputs">
+        <div class="field">
+          <label>Subject line</label>
+          <input type="text" id="subjectA" placeholder="Variant A subject line">
+        </div>
+        <div class="field">
+          <label id="rateLabel">Open rate %</label>
+          <input type="number" id="rateA" placeholder="e.g. 28" min="0" max="100" step="0.1">
+        </div>
+        <div class="field">
+          <label>Subject type</label>
+          <select id="typeA">
+            <option value="">Select type…</option>
+            <option value="consequence">Consequence</option>
+            <option value="curiosity">Curiosity gap</option>
+            <option value="number">Number-led</option>
+            <option value="question">Question</option>
+            <option value="announcement">Announcement</option>
+            <option value="personal">Personal</option>
+          </select>
+        </div>
+      </div>
     </div>
 
-    <button class="add-variant-btn" onclick="addVariant()">+ Add variant</button>
+    <!-- Variant B -->
+    <div class="variant-block" style="margin-bottom:20px;">
+      <div class="variant-label-row">
+        <span class="variant-badge b">B</span>
+      </div>
+      <div class="variant-inputs">
+        <div class="field">
+          <label>Subject line</label>
+          <input type="text" id="subjectB" placeholder="Variant B subject line">
+        </div>
+        <div class="field">
+          <label>Open rate %</label>
+          <input type="number" id="rateB" placeholder="e.g. 34" min="0" max="100" step="0.1">
+        </div>
+        <div class="field">
+          <label>Subject type</label>
+          <select id="typeB">
+            <option value="">Select type…</option>
+            <option value="consequence">Consequence</option>
+            <option value="curiosity">Curiosity gap</option>
+            <option value="number">Number-led</option>
+            <option value="question">Question</option>
+            <option value="announcement">Announcement</option>
+            <option value="personal">Personal</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+      <label style="margin-bottom:0;white-space:nowrap;">Metric tracked:</label>
+      <select id="metricType" style="width:auto;flex:0 0 auto;margin-bottom:0;" onchange="updateRateLabels()">
+        <option value="open">Open rate</option>
+        <option value="click">Click rate</option>
+      </select>
+    </div>
 
     <div style="display:flex;gap:12px;">
-      <button class="btn btn-primary" onclick="saveTest()">Save Test →</button>
+      <button class="btn btn-primary" onclick="saveTest()">Save &amp; Compare →</button>
       <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
     </div>
   </div>
 
+  <!-- LIVE WINNER PANEL -->
+  <div class="winner-panel" id="winnerPanel">
+    <div class="winner-panel-label">// Result — Winner</div>
+    <div class="winner-scores" id="winnerScores"></div>
+    <div class="winner-insight" id="winnerInsight"></div>
+  </div>
+
   <!-- PATTERNS SUMMARY -->
-  <div class="patterns-section" id="patternsSection" style="display:none;">
-    <div class="page-label">// What's winning</div>
-    <div class="patterns-grid">
+  <div id="patternsSection" style="display:none; margin-bottom:0;">
+    <div class="page-label" style="margin-bottom:16px;">// What's winning</div>
+    <div class="patterns-row">
       <div class="pattern-cell">
         <div class="pattern-label">Tests logged</div>
         <div class="pattern-value" id="patternCount">0</div>
-        <div class="pattern-note">With open rate data</div>
+        <div class="pattern-note">With rate data</div>
       </div>
       <div class="pattern-cell">
         <div class="pattern-label">Avg winner rate</div>
@@ -298,212 +447,219 @@
       <div class="pattern-cell">
         <div class="pattern-label">Top pattern</div>
         <div class="pattern-value" id="patternTop" style="font-size:18px;padding-top:6px;">—</div>
-        <div class="pattern-note">Most common winner type</div>
+        <div class="pattern-note">Most common winner</div>
       </div>
     </div>
   </div>
 
-  <!-- TESTS LIST -->
-  <div style="margin-top:40px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <div class="page-label" style="margin-bottom:0;">// Your tests</div>
-      <select id="filterStatus" onchange="renderTests()" style="width:auto;margin-bottom:0;padding:8px 12px;font-size:11px;">
-        <option value="all">All tests</option>
-        <option value="active">Active</option>
-        <option value="complete">Complete</option>
-      </select>
+  <!-- HISTORY -->
+  <div class="history-section">
+    <div class="history-header">
+      <div class="page-label" style="margin-bottom:0;">// Session history</div>
+      <button class="btn btn-ghost" style="padding:8px 14px;font-size:11px;" onclick="clearAll()" id="clearAllBtn" style="display:none;">Clear all</button>
     </div>
     <div id="testsList"></div>
   </div>
 </main>
 
 <script>
-let tests = JSON.parse(localStorage.getItem('sf_ab_tests') || '[]');
-let variantCount = 0;
+let tests = JSON.parse(localStorage.getItem('sf_ab_tests_v2') || '[]');
 
 function save() {
-  localStorage.setItem('sf_ab_tests', JSON.stringify(tests));
+  localStorage.setItem('sf_ab_tests_v2', JSON.stringify(tests));
 }
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function addVariant() {
-  variantCount++;
-  const id = variantCount;
-  const container = document.getElementById('variantsContainer');
-  const div = document.createElement('div');
-  div.className = 'variant-row';
-  div.id = 'variant-row-' + id;
-  div.innerHTML = `
-    <div>
-      ${id === 1 ? '<label>Subject line variants</label>' : ''}
-      <input type="text" id="v-subject-${id}" placeholder="Subject line variant ${id}">
+function updateRateLabels() {
+  const metric = document.getElementById('metricType').value;
+  const label = metric === 'click' ? 'Click rate %' : 'Open rate %';
+  document.querySelectorAll('[id="rateLabel"], label[for="rateA"]').forEach(el => el.textContent = label);
+  document.querySelectorAll('.variant-block label').forEach(el => {
+    if (el.textContent.includes('rate')) el.textContent = label;
+  });
+}
+
+const TYPE_INSIGHTS = {
+  consequence: "Consequence-first subjects are winning — naming the reader's problem outperforms feature announcements.",
+  curiosity:   "Curiosity gaps are driving opens — the open loop compels action before intent is decided.",
+  number:      "Number-led subjects are outperforming — specificity creates credibility before the open.",
+  question:    "Questions are converting — but watch for fatigue if repeated every send.",
+  announcement:"Announcement subjects won this test — rarely the strongest long-term pattern.",
+  personal:    "Personal tone is resonating — conversational subjects feel less like broadcast."
+};
+
+function showWinner(a, b, metricLabel) {
+  const panel = document.getElementById('winnerPanel');
+  const scoresEl = document.getElementById('winnerScores');
+  const insightEl = document.getElementById('winnerInsight');
+
+  const hasRateA = a.rate !== null;
+  const hasRateB = b.rate !== null;
+
+  if (!hasRateA || !hasRateB) { panel.classList.remove('visible'); return; }
+
+  const aWins = a.rate >= b.rate;
+  const maxRate = Math.max(a.rate, b.rate);
+
+  scoresEl.innerHTML = `
+    <div class="score-cell ${aWins ? 'is-winner' : ''}">
+      <div class="score-cell-label">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;background:var(--signal);color:var(--black);padding:2px 8px;">A</span>
+        ${aWins ? '<span class="winner-tag">winner</span>' : ''}
+      </div>
+      <div class="score-cell-subject">${esc(a.subject)}</div>
+      <div class="score-cell-rate ${aWins ? 'wins' : 'loses'}">${a.rate}%</div>
+      <div class="bar-track"><div class="bar-fill ${aWins ? 'wins' : 'loses'}" style="width:${maxRate > 0 ? (a.rate/maxRate*100).toFixed(1) : 0}%"></div></div>
     </div>
-    <div>
-      ${id === 1 ? '<label>Open rate %</label>' : ''}
-      <input type="number" id="v-rate-${id}" placeholder="e.g. 31" min="0" max="100" step="0.1">
+    <div class="score-cell ${!aWins ? 'is-winner' : ''}">
+      <div class="score-cell-label">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;background:var(--mid);color:var(--black);padding:2px 8px;">B</span>
+        ${!aWins ? '<span class="winner-tag">winner</span>' : ''}
+      </div>
+      <div class="score-cell-subject">${esc(b.subject)}</div>
+      <div class="score-cell-rate ${!aWins ? 'wins' : 'loses'}">${b.rate}%</div>
+      <div class="bar-track"><div class="bar-fill ${!aWins ? 'wins' : 'loses'}" style="width:${maxRate > 0 ? (b.rate/maxRate*100).toFixed(1) : 0}%"></div></div>
     </div>
-    <div>
-      ${id === 1 ? '<label>Type</label>' : ''}
-      <select id="v-type-${id}">
-        <option value="">Type...</option>
-        <option value="consequence">Consequence</option>
-        <option value="curiosity">Curiosity gap</option>
-        <option value="number">Number-led</option>
-        <option value="question">Question</option>
-        <option value="announcement">Announcement</option>
-        <option value="personal">Personal</option>
-      </select>
-    </div>
-    <button class="remove-btn" onclick="removeVariant(${id})">×</button>
   `;
-  container.appendChild(div);
-}
 
-function removeVariant(id) {
-  document.getElementById('variant-row-' + id)?.remove();
-}
+  const winner = aWins ? a : b;
+  const diff = Math.abs(a.rate - b.rate).toFixed(1);
+  const typeInsight = winner.type ? (TYPE_INSIGHTS[winner.type] || '') : '';
+  insightEl.innerHTML = `<strong>Variant ${aWins ? 'A' : 'B'} wins by ${diff}${metricLabel}.</strong>${typeInsight ? ' ' + typeInsight : ''}`;
 
-function clearForm() {
-  document.getElementById('testName').value = '';
-  document.getElementById('testDate').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('variantsContainer').innerHTML = '';
-  variantCount = 0;
-  addVariant();
-  addVariant();
+  panel.classList.add('visible');
 }
 
 function saveTest() {
-  const name = document.getElementById('testName').value.trim();
-  if (!name) { alert('Please add a test name.'); return; }
+  const name    = document.getElementById('testName').value.trim();
+  const subjectA = document.getElementById('subjectA').value.trim();
+  const subjectB = document.getElementById('subjectB').value.trim();
+  const rateARaw = document.getElementById('rateA').value;
+  const rateBRaw = document.getElementById('rateB').value;
+  const typeA   = document.getElementById('typeA').value;
+  const typeB   = document.getElementById('typeB').value;
+  const metric  = document.getElementById('metricType').value;
 
-  const variants = [];
-  for (let i = 1; i <= variantCount; i++) {
-    const subj = document.getElementById('v-subject-' + i)?.value.trim();
-    const rate = parseFloat(document.getElementById('v-rate-' + i)?.value);
-    const type = document.getElementById('v-type-' + i)?.value;
-    if (subj) variants.push({ subject: subj, rate: isNaN(rate) ? null : rate, type: type || null });
+  if (!name)     { alert('Please enter a test name.'); return; }
+  if (!subjectA) { alert('Please enter Subject A.'); return; }
+  if (!subjectB) { alert('Please enter Subject B.'); return; }
+
+  const rateA = rateARaw !== '' ? parseFloat(rateARaw) : null;
+  const rateB = rateBRaw !== '' ? parseFloat(rateBRaw) : null;
+
+  const metricLabel = metric === 'click' ? '% click rate' : '% open rate';
+
+  const a = { subject: subjectA, rate: rateA, type: typeA || null };
+  const b = { subject: subjectB, rate: rateB, type: typeB || null };
+
+  showWinner(a, b, metricLabel);
+
+  const hasRates = rateA !== null && rateB !== null;
+  let winnerId = null;
+  let winnerType = null;
+
+  if (hasRates) {
+    winnerId = rateA >= rateB ? 0 : 1;
+    winnerType = winnerId === 0 ? (typeA || null) : (typeB || null);
   }
-
-  if (variants.length < 2) { alert('Please add at least 2 variants.'); return; }
 
   const test = {
     id: Date.now(),
     name,
     date: document.getElementById('testDate').value || new Date().toISOString().slice(0, 10),
-    variants,
-    status: variants.every(v => v.rate !== null) ? 'complete' : 'active',
+    metric,
+    variants: [a, b],
+    winnerId,
+    winnerType,
+    status: hasRates ? 'complete' : 'active',
     createdAt: new Date().toISOString()
   };
 
-  const withRates = variants.filter(v => v.rate !== null);
-  if (withRates.length > 0) {
-    const winner = withRates.reduce((a, b) => a.rate > b.rate ? a : b);
-    test.winnerId = variants.indexOf(winner);
-    test.winnerType = winner.type;
-  }
-
   tests.unshift(test);
   save();
-  clearForm();
   renderTests();
   updatePatterns();
 }
 
+function clearForm() {
+  document.getElementById('testName').value = '';
+  document.getElementById('testDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('subjectA').value = '';
+  document.getElementById('subjectB').value = '';
+  document.getElementById('rateA').value = '';
+  document.getElementById('rateB').value = '';
+  document.getElementById('typeA').value = '';
+  document.getElementById('typeB').value = '';
+  document.getElementById('winnerPanel').classList.remove('visible');
+}
+
 function renderTests() {
   const container = document.getElementById('testsList');
-  const filter = document.getElementById('filterStatus').value;
-  const filtered = tests.filter(t => filter === 'all' || t.status === filter);
+  document.getElementById('clearAllBtn').style.display = tests.length > 0 ? '' : 'none';
 
-  if (filtered.length === 0) {
+  if (tests.length === 0) {
     container.innerHTML = `
       <div class="empty">
-        <div class="empty-title">No tests yet.</div>
-        <div class="empty-sub">Log your first A/B test above to start tracking what converts.</div>
-      </div>
-    `;
+        <div class="empty-title">No tests logged yet.</div>
+        <div class="empty-sub">Fill in the form above and click Save &amp; Compare.</div>
+      </div>`;
     return;
   }
 
-  container.innerHTML = `<div class="tests-list">${filtered.map((test, idx) => renderTest(test, idx)).join('')}</div>`;
+  container.innerHTML = `<div class="tests-list">${tests.map(t => renderTestCard(t)).join('')}</div>`;
 }
 
-function renderTest(test, idx) {
-  const maxRate = Math.max(...test.variants.map(v => v.rate || 0));
-  const hasRates = test.variants.some(v => v.rate !== null);
+function renderTestCard(test) {
+  const [a, b] = test.variants;
+  const hasRates = a.rate !== null && b.rate !== null;
+  const maxRate = hasRates ? Math.max(a.rate, b.rate) : 0;
+  const metricSuffix = test.metric === 'click' ? '% CR' : '% OR';
 
-  const variantBars = test.variants.map((v, vi) => {
-    const isWinner = vi === test.winnerId && hasRates;
-    const rate = v.rate !== null ? v.rate : null;
-    const barWidth = maxRate > 0 && rate !== null ? (rate / maxRate * 100) : 0;
-    const rateClass = isWinner ? 'score-good' : '';
-    const fillClass = rate === null ? 'pending' : isWinner ? 'winner' : 'loser';
-
+  const varRows = test.variants.map((v, i) => {
+    const isWinner = i === test.winnerId && hasRates;
+    const label = i === 0 ? 'A' : 'B';
+    const barColor = isWinner ? 'wins' : 'loses';
+    const barW = hasRates && maxRate > 0 && v.rate !== null ? (v.rate / maxRate * 100).toFixed(1) : 0;
     return `
-      <div class="variant-bar-item">
-        <div class="variant-bar-header">
-          <span class="variant-label">${esc(v.subject)}</span>
-          <span style="display:flex;align-items:center;gap:4px;">
-            ${v.type ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);border:1px solid var(--border);padding:2px 6px;">${esc(v.type)}</span>` : ''}
-            <span class="variant-rate ${rateClass}">${rate !== null ? rate + '%' : '—'}</span>
-            ${isWinner ? '<span class="variant-winner">winner</span>' : ''}
-          </span>
+      <div class="test-variant-row">
+        <div class="test-variant-top">
+          <span style="font-family:'DM Mono',monospace;font-size:9px;background:${i===0?'var(--signal)':'var(--mid)'};color:var(--black);padding:1px 7px;margin-right:6px;">${label}</span>
+          <span class="test-variant-subject">${esc(v.subject)}</span>
+          <span class="test-variant-rate ${isWinner ? 'wins' : (hasRates ? 'loses' : '')}">${v.rate !== null ? v.rate + metricSuffix : '—'}${isWinner ? ' ✓' : ''}</span>
         </div>
-        <div class="bar-track">
-          <div class="bar-fill ${fillClass}" style="width:${barWidth}%"></div>
-        </div>
-      </div>
-    `;
+        ${hasRates ? `<div class="bar-track"><div class="bar-fill ${barColor}" style="width:${barW}%"></div></div>` : ''}
+      </div>`;
   }).join('');
 
-  let insight = '';
-  if (test.winnerType) {
-    const typeLabels = {
-      consequence: "Consequence-first subjects win for this audience — name the reader's problem, not your feature.",
-      curiosity: 'Curiosity gaps are working — the open loop drives opens before the reader decides if it\'s relevant.',
-      number: 'Number-led subjects are outperforming — specificity creates trust before the open.',
-      question: 'Questions are converting — but watch for fatigue if used every email.',
-      announcement: 'Announcement subjects won this time — but this is rarely the strongest pattern.',
-      personal: 'Personal tone is resonating — conversational subjects feel less like marketing.'
-    };
-    insight = typeLabels[test.winnerType] || '';
-  }
+  const winnerLabel = test.winnerId !== null ? `Variant ${test.winnerId === 0 ? 'A' : 'B'} won` : 'Pending';
 
   return `
     <div class="test-card">
-      <div class="test-header" onclick="toggleTest('${test.id}')">
+      <div class="test-header" id="th-${test.id}" onclick="toggleCard(${test.id})">
         <div>
           <div class="test-name">${esc(test.name)}</div>
-          <div class="test-meta">${test.date} · ${test.variants.length} variants${test.winnerType ? ` · winner: ${test.winnerType}` : ''}</div>
+          <div class="test-meta">${test.date}${test.winnerType ? ' · ' + test.winnerType : ''}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="test-status status-${test.status}">${test.status}</span>
-          <button onclick="deleteTest(${test.id}, event)" style="background:transparent;border:none;color:var(--mid);cursor:pointer;font-size:16px;padding:0 4px;" title="Delete">×</button>
+        <div class="test-header-right">
+          ${test.winnerId !== null ? `<span class="test-winner-badge">${winnerLabel}</span>` : ''}
+          <button class="delete-btn" onclick="deleteTest(${test.id}, event)" title="Delete">×</button>
         </div>
       </div>
-      <div class="test-body" id="test-body-${test.id}">
-        <div class="variant-bars">${variantBars}</div>
-        ${insight ? `
-          <div class="insight-box">
-            <div class="insight-box-label">Pattern insight</div>
-            <div class="insight-box-text">${esc(insight)}</div>
-          </div>
-        ` : ''}
-        ${test.status === 'active' ? `
-          <div style="margin-top:16px;">
-            <a href="/architecture.html" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);text-decoration:none;border-bottom:1px solid rgba(74,143,231,0.3);padding-bottom:2px;">Add results when test completes →</a>
-          </div>
-        ` : ''}
+      <div class="test-body" id="tb-${test.id}">
+        <div class="test-body-bars">${varRows}</div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function toggleTest(id) {
-  const body = document.getElementById('test-body-' + id);
-  body?.classList.toggle('open');
+function toggleCard(id) {
+  const header = document.getElementById('th-' + id);
+  const body   = document.getElementById('tb-' + id);
+  if (!body) return;
+  const isOpen = body.classList.toggle('open');
+  header.classList.toggle('open', isOpen);
 }
 
 function deleteTest(id, e) {
@@ -513,44 +669,40 @@ function deleteTest(id, e) {
   save();
   renderTests();
   updatePatterns();
+  document.getElementById('winnerPanel').classList.remove('visible');
+}
+
+function clearAll() {
+  if (!confirm('Clear all test history?')) return;
+  tests = [];
+  save();
+  renderTests();
+  updatePatterns();
+  document.getElementById('winnerPanel').classList.remove('visible');
 }
 
 function updatePatterns() {
-  const completed = tests.filter(t => t.status === 'complete' && t.winnerType);
+  const completed = tests.filter(t => t.status === 'complete');
+  const pSection = document.getElementById('patternsSection');
 
-  if (completed.length === 0) {
-    document.getElementById('patternsSection').style.display = 'none';
-    return;
-  }
+  if (completed.length === 0) { pSection.style.display = 'none'; return; }
 
-  document.getElementById('patternsSection').style.display = 'block';
+  pSection.style.display = 'block';
   document.getElementById('patternCount').textContent = completed.length;
 
-  const winnerRates = completed.map(t => {
-    const winner = t.variants[t.winnerId];
-    return winner?.rate || null;
-  }).filter(Boolean);
-
+  const winnerRates = completed.map(t => t.variants[t.winnerId]?.rate).filter(r => r !== null && r !== undefined);
   const avgRate = winnerRates.length > 0
     ? (winnerRates.reduce((a, b) => a + b, 0) / winnerRates.length).toFixed(1) + '%'
     : '—';
-
   document.getElementById('patternAvgRate').textContent = avgRate;
 
   const typeCounts = {};
-  completed.forEach(t => {
-    if (t.winnerType) typeCounts[t.winnerType] = (typeCounts[t.winnerType] || 0) + 1;
-  });
-
+  completed.forEach(t => { if (t.winnerType) typeCounts[t.winnerType] = (typeCounts[t.winnerType] || 0) + 1; });
   const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
   document.getElementById('patternTop').textContent = topType ? topType[0] : '—';
 }
 
 document.getElementById('testDate').value = new Date().toISOString().slice(0, 10);
-
-addVariant();
-addVariant();
-
 renderTests();
 updatePatterns();
 </script>
