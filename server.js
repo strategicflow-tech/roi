@@ -4214,6 +4214,113 @@ Rules:
 });
 // ─── END BEST SEND WINDOW ─────────────────────────────────────────────────────
 
+// ── GET /sequence-gap-finder ──────────────────────────────────────────────────
+app.get('/sequence-gap-finder', async (req, res) => {
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('sequence-gap-finder.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    if (row?.tier === 'architecture') {
+      return res.sendFile('sequence-gap-finder.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) { console.error('[sequence-gap-finder] tier check:', e.message); }
+  res.redirect('/');
+});
+
+app.post('/api/sequence-gap-finder', async (req, res) => {
+  const { emails, activationGoal, sequenceDays } = req.body;
+  if (!emails || emails.length < 2) {
+    return res.status(400).json({ error: 'At least 2 emails are required to detect gaps.' });
+  }
+  if (!activationGoal) {
+    return res.status(400).json({ error: 'Activation goal is required.' });
+  }
+
+  const emailList = emails.map(e => `  Email ${e.number}: Subject: "${e.subject || '(no subject)'}" | Goal: "${e.goal || '(no goal)'}"`).join('\n');
+  const daysLine = sequenceDays ? `\nSequence duration: ${sequenceDays}` : '';
+
+  const prompt = `You are the Strategic Flow Sequence Gap Finder. Analyze the email sequence below and return a complete gap analysis.
+
+Activation goal: ${activationGoal}${daysLine}
+Number of emails: ${emails.length}
+
+Sequence:
+${emailList}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "narrativeArc": "<One sentence describing the overall narrative arc and where it breaks down. Example: 'Your sequence takes the reader from awareness to feature discovery but never bridges the gap between discovery and first action.'>",
+  "journeyMap": [
+    {
+      "number": 1,
+      "subject": "<email subject>",
+      "readerState": "<Where is the reader mentally after receiving this email? One sentence. Specific to this email's content and goal.>",
+      "status": "<green|amber|red>"
+    }
+  ],
+  "gaps": [
+    {
+      "location": "<e.g. 'Between Email 3 and Email 4'>",
+      "readerState": "<What the reader experiences at this gap — what they know, what they're missing, why momentum stalls. 1-2 sentences.>",
+      "severity": "<CRITICAL|MAJOR|MINOR>",
+      "recommendedEmail": "<Title and goal of the email to insert. e.g. 'What happens after your first Zap runs — activation trigger email that names the immediate outcome'>"
+    }
+  ],
+  "transitions": [
+    {
+      "location": "<e.g. 'Email 1 → Email 2'>",
+      "quality": "<Strong|Weak|Broken>",
+      "description": "<One sentence on whether this transition sets up the next email or breaks the narrative.>"
+    }
+  ],
+  "missingBriefs": [
+    {
+      "position": "<e.g. 'After Email 3 — becomes Email 4'>",
+      "subjectVariants": [
+        { "type": "Curiosity gap", "line": "<subject line>" },
+        { "type": "Consequence-first", "line": "<subject line>" },
+        { "type": "Social proof", "line": "<subject line>" }
+      ],
+      "goal": "<What the reader should do or feel after this email.>",
+      "hookDirection": "<What problem or desire to open with — one sentence.>",
+      "cta": "<Exact ownership-language CTA recommendation.>",
+      "whyNeeded": "<One sentence on the activation impact of this missing email.>"
+    }
+  ],
+  "healthScore": {
+    "overall": <integer 1-10>,
+    "narrativeCoherence": <integer 1-10>,
+    "transitionStrength": <integer 1-10>,
+    "activationClarity": <integer 1-10>,
+    "gaps": {
+      "total": <integer>,
+      "critical": <integer>,
+      "major": <integer>
+    },
+    "improvementPotential": "<One sentence estimate of activation improvement if critical gaps are filled. Be specific: name the number of emails and percentage point estimate.>"
+  }
+}
+
+Rules:
+- journeyMap: one entry per email in the sequence. status = green (reader moving toward activation), amber (neutral, no clear direction), red (losing context or momentum).
+- gaps: only list real narrative gaps — missing transitions, topic jumps, activation dead ends. CRITICAL = activation will stall here. MAJOR = significant momentum loss. MINOR = smooth but suboptimal.
+- transitions: one entry per adjacent pair (Email 1→2, 2→3, etc.). Strong = email A creates expectation email B fulfils. Weak = new topic without connection. Broken = contradicts prior promise.
+- missingBriefs: only for CRITICAL and MAJOR gaps. Match the number of missing briefs to the number of critical+major gaps.
+- healthScore.overall: honest composite. Below 5 = serious structural problems. 5-7 = needs targeted work. 8-10 = strong sequence with minor gaps.
+- improvementPotential: specific, credible. Reference the gap count and realistic activation lift.`;
+
+  try {
+    const result = await claudeJSON(prompt, 4000);
+    if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/sequence-gap-finder]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END SEQUENCE GAP FINDER ──────────────────────────────────────────────────
+
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
 
 // POST /stripe/checkout — creează Stripe Checkout Session
