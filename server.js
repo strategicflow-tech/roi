@@ -240,8 +240,12 @@ app.get('/auth/verify/:token', async (req, res) => {
     return res.redirect('/architecture-dashboard');
   }
   try {
-    const r = await pool.query('SELECT tier FROM users WHERE email = $1', [data.email.toLowerCase().trim()]);
-    if (r.rows[0]?.tier === 'architecture') {
+    const r = await pool.query('SELECT tier, expires_at, access_type FROM users WHERE email = $1', [data.email.toLowerCase().trim()]);
+    const row = r.rows[0];
+    if (row?.tier === 'architecture') {
+      if (row.expires_at && new Date(row.expires_at) < new Date()) {
+        return res.redirect('/access-expired');
+      }
       return res.redirect('/architecture-dashboard');
     }
   } catch (e) {
@@ -257,14 +261,23 @@ app.get('/architecture-dashboard', async (req, res) => {
     return res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
   }
   try {
-    const r = await pool.query('SELECT tier FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
-    if (r.rows[0]?.tier === 'architecture') {
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
+    if (row?.tier === 'architecture') {
+      if (row.expires_at && new Date(row.expires_at) < new Date()) {
+        return res.redirect('/access-expired');
+      }
       return res.sendFile('architecture-dashboard.html', { root: path.join(__dirname, 'public') });
     }
   } catch (e) {
     console.error('[architecture-dashboard] tier check error:', e.message);
   }
   res.redirect('/');
+});
+
+// ── GET /access-expired ───────────────────────────────────────────────────────
+app.get('/access-expired', (req, res) => {
+  res.sendFile('access-expired.html', { root: path.join(__dirname, 'public') });
 });
 
 // ── GET /admin ────────────────────────────────────────────────────────────────
@@ -396,6 +409,20 @@ async function setupDB() {
       value      TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
     );
+  `);
+  // Add guest trial columns if not present (idempotent)
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS access_type VARCHAR(50) DEFAULT NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at  TIMESTAMP  DEFAULT NULL;
+  `);
+  // Insert/update guest trial user
+  await pool.query(`
+    INSERT INTO users (email, tier, access_type, expires_at, vip)
+    VALUES ('leah.miranda@zapier.com', 'architecture', 'guest_trial', NOW() + INTERVAL '3 days', false)
+    ON CONFLICT (email) DO UPDATE SET
+      tier        = 'architecture',
+      access_type = 'guest_trial',
+      expires_at  = NOW() + INTERVAL '3 days'
   `);
   // Continuous learning table — never deleted, append-only
   await pool.query(`

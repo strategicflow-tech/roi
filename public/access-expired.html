@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Access Expired — Strategic Flow Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --red: #f87171;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    border: 1px solid rgba(248,113,113,0.25);
+    background: rgba(10,10,8,0.97);
+    padding: 52px 44px;
+    text-align: center;
+  }
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    margin-bottom: 40px;
+  }
+  .logo span { color: var(--signal); }
+  .icon {
+    font-size: 36px;
+    margin-bottom: 24px;
+    display: block;
+  }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    color: var(--white);
+  }
+  p {
+    font-size: 14px;
+    color: var(--mid);
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+  .contact-link {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--signal);
+    text-decoration: none;
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 12px 28px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .contact-link:hover { background: rgba(74,143,231,0.08); }
+  .back-link {
+    display: block;
+    margin-top: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--white); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Strategic Flow <span>Architecture</span></div>
+  <span class="icon">🔒</span>
+  <h1>Your trial access<br>has expired.</h1>
+  <p>Your guest trial period has ended and access to the Architecture suite has been paused.</p>
+  <p>To continue, reach out and we'll get you set up on a full plan.</p>
+  <div class="divider"></div>
+  <a href="mailto:strategicflow@proton.me?subject=Architecture%20Access%20Renewal" class="contact-link">
+    Contact strategicflow@proton.me →
+  </a>
+  <a href="/" class="back-link">← Back to home</a>
+</div>
+</body>
+</html>
