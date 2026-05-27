@@ -303,6 +303,115 @@ td strong { color: var(--teal); font-weight: 600; }
 .output-item .label.gold-label { color: var(--gold); }
 .output-item p { color: var(--text2); margin: 0; font-size: 13px; }
 
+/* ── TABLE OF CONTENTS ── */
+.toc-wrap {
+  margin-bottom: 52px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.toc-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.toc-toggle:hover { background: #162033; }
+.toc-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toc-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.toc-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-weight: 600;
+}
+.toc-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.toc-chevron {
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+.toc-chevron.open { transform: rotate(180deg); }
+.toc-body {
+  display: none;
+  padding: 6px 0 10px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+}
+.toc-body.open { display: block; }
+.toc-group {
+  padding: 14px 22px 4px;
+}
+.toc-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.toc-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: color 0.15s;
+}
+.toc-item:hover .toc-item-title { color: var(--teal); }
+.toc-item-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 18px;
+  text-align: right;
+}
+.toc-item-title {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.4;
+  transition: color 0.15s;
+}
+.toc-item-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #00E5CC;
+  background: rgba(0,229,204,0.08);
+  border: 1px solid rgba(0,229,204,0.2);
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* ── DIVIDER ── */
 .divider {
   border: none;
@@ -334,8 +443,83 @@ td strong { color: var(--teal); font-weight: 600; }
   </div>
 
 
+  <!-- TABLE OF CONTENTS -->
+  <div class="toc-wrap">
+    <button class="toc-toggle" onclick="toggleTOC()" id="tocToggleBtn" aria-expanded="false">
+      <div class="toc-toggle-left">
+        <span class="toc-icon">☰</span>
+        <span class="toc-title">Cuprins</span>
+        <span class="toc-count">12 secțiuni</span>
+      </div>
+      <span class="toc-chevron" id="tocChevron">▼</span>
+    </button>
+    <div class="toc-body" id="tocBody">
+
+      <div class="toc-group">
+        <div class="toc-group-label">Ghid de utilizare</div>
+        <a href="#getting-started" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">01</span>
+          <span class="toc-item-title">Getting Started — First Rebuild is Free</span>
+        </a>
+        <a href="#choosing-a-plan" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">02</span>
+          <span class="toc-item-title">Choosing a Plan to Continue</span>
+        </a>
+        <a href="#rebuild-form" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">03</span>
+          <span class="toc-item-title">The Rebuild Form — Every Field Explained</span>
+        </a>
+        <a href="#brand-dna" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">04</span>
+          <span class="toc-item-title">Extracting Brand DNA</span>
+        </a>
+        <a href="#running-rebuild" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">05</span>
+          <span class="toc-item-title">Running the Rebuild</span>
+        </a>
+        <a href="#understanding-output" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">06</span>
+          <span class="toc-item-title">Understanding the Output</span>
+        </a>
+        <a href="#recommended-workflow" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">07</span>
+          <span class="toc-item-title">Recommended Workflow</span>
+        </a>
+        <a href="#tips-gotchas" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">08</span>
+          <span class="toc-item-title">Things Worth Knowing</span>
+        </a>
+      </div>
+
+      <div class="toc-group">
+        <div class="toc-group-label">Architecture Plan — Suite de unelte</div>
+        <a href="#architecture-plan" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">09</span>
+          <span class="toc-item-title">Architecture Plan — Full Suite Overview</span>
+        </a>
+        <a href="#tool-15" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">10</span>
+          <span class="toc-item-title">Tool 15 — Email Fatigue Detector</span>
+          <span class="toc-item-badge">Live</span>
+        </a>
+        <a href="#tool-16" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">11</span>
+          <span class="toc-item-title">Tool 16 — Audience Mirror</span>
+          <span class="toc-item-badge">Live</span>
+        </a>
+        <a href="#tool-17" class="toc-item" onclick="closeTOC()">
+          <span class="toc-item-num">12</span>
+          <span class="toc-item-title">Tool 17 — Dead Email Resurrector</span>
+          <span class="toc-item-badge">Live</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+
   <!-- SECTION 1: Getting Started -->
-  <div class="section">
+  <div class="section" id="getting-started">
     <div class="section-label">Step 1</div>
     <h2>Getting Started — First Rebuild is Free</h2>
     <p>Go to <strong style="color:var(--teal)">strategic-flow-audit.replit.app</strong>. You see a single email input in the center of the screen. Enter your email address and press <strong style="color:var(--text)">Continue</strong>.</p>
@@ -348,7 +532,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 2: Plans -->
-  <div class="section">
+  <div class="section" id="choosing-a-plan">
     <div class="section-label">Step 2 — After Your Free Rebuild</div>
     <h2>Choosing a Plan to Continue</h2>
     <p>After your free rebuild you will see an upgrade prompt in the results and, on your next visit, the pricing table. Pick the plan that fits your volume.</p>
@@ -401,7 +585,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 3: The Form -->
-  <div class="section">
+  <div class="section" id="rebuild-form">
     <div class="section-label">Step 3</div>
     <h2>The Rebuild Form — Every Field Explained</h2>
     <p>Your tier badge and usage counter appear at the top of the form. Fields visible to you depend on your tier.</p>
@@ -457,7 +641,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 4: Brand DNA -->
-  <div class="section">
+  <div class="section" id="brand-dna">
     <div class="section-label">Step 4 — Growth and High-Impact</div>
     <h2>Extracting Brand DNA</h2>
     <p>Brand DNA extraction is a separate step that runs before the rebuild. It pulls your actual brand signals from your website so the rebuild sounds like you — and the HTML output uses your real colors.</p>
@@ -501,7 +685,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 5: Generating -->
-  <div class="section">
+  <div class="section" id="running-rebuild">
     <div class="section-label">Step 5</div>
     <h2>Running the Rebuild</h2>
     <p>Once the form is filled, click <strong style="color:var(--text)">Rebuild with Strategic Flow</strong>. The screen switches to a loading view showing four steps animating in sequence:</p>
@@ -523,7 +707,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 6: Outputs -->
-  <div class="section">
+  <div class="section" id="understanding-output">
     <div class="section-label">Step 6</div>
     <h2>Understanding the Output</h2>
     <p>Results appear in panels based on your tier. Every tier receives the core rebuild. Higher tiers see additional panels below it.</p>
@@ -603,7 +787,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 7: Recommended Workflow -->
-  <div class="section">
+  <div class="section" id="recommended-workflow">
     <div class="section-label">Best Practice</div>
     <h2>Recommended Workflow</h2>
 
@@ -631,7 +815,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION 8: Tips -->
-  <div class="section">
+  <div class="section" id="tips-gotchas">
     <div class="section-label">Tips and Gotchas</div>
     <h2>Things Worth Knowing</h2>
     <div class="tips">
@@ -687,7 +871,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION: Architecture Plan -->
-  <div class="section">
+  <div class="section" id="architecture-plan">
     <div class="section-label">Architecture Plan</div>
     <h2>Architecture Plan — Full Suite Overview</h2>
     <p>A dedicated diagnostic and rebuild suite for SaaS teams and founders who send recurring email and need complete coverage — from single-email assessment through sequence audits, subject testing, changelog communication, and monthly performance tracking.</p>
@@ -750,7 +934,7 @@ td strong { color: var(--teal); font-weight: 600; }
 
 
   <!-- SECTION: Tool 15 — Email Fatigue Detector -->
-  <div class="section">
+  <div class="section" id="tool-15">
     <div class="section-label">Tool 15 — Email Fatigue Detector</div>
     <h2>Email Fatigue Detector</h2>
     <p>Most lifecycle sequences are built by multiple people over months. Nobody reads them end-to-end. Nobody knows where the reader drops off — until the unsubscribe spike happens. This tool reads your entire sequence as one unit and finds the structural problems invisible in per-email metrics.</p>
@@ -795,7 +979,7 @@ td strong { color: var(--teal); font-weight: 600; }
   </div>
 
   <!-- SECTION: Tool 16 — Audience Mirror -->
-  <div class="section">
+  <div class="section" id="tool-16">
     <div class="section-label">Tool 16 — Audience Mirror</div>
     <h2>Audience Mirror</h2>
     <p>Most email copy is written from the inside out — using the company's language, not the customer's. Audience Mirror reverses this. Paste raw customer language and the tool extracts exactly how your audience describes their problem, what words carry the most emotional weight, and which marketing terms your team uses that customers never do.</p>
@@ -850,7 +1034,7 @@ td strong { color: var(--teal); font-weight: 600; }
   </div>
 
   <!-- SECTION: Tool 17 — Dead Email Resurrector -->
-  <div class="section">
+  <div class="section" id="tool-17">
     <div class="section-label">Tool 17 — Dead Email Resurrector</div>
     <h2>Dead Email Resurrector</h2>
     <p>Every lifecycle team has 3–5 emails sitting in the archive with open rates under 15% and no one has time to fix them. Dead Email Resurrector diagnoses exactly why each email failed and delivers the complete rebuilt version ready to send — not a report, a new email.</p>
@@ -900,5 +1084,25 @@ td strong { color: var(--teal); font-weight: 600; }
   </div>
 
 </div>
+
+<script>
+function toggleTOC() {
+  var body = document.getElementById('tocBody');
+  var chevron = document.getElementById('tocChevron');
+  var btn = document.getElementById('tocToggleBtn');
+  var isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+  btn.setAttribute('aria-expanded', String(!isOpen));
+}
+function closeTOC() {
+  var body = document.getElementById('tocBody');
+  var chevron = document.getElementById('tocChevron');
+  var btn = document.getElementById('tocToggleBtn');
+  body.classList.remove('open');
+  chevron.classList.remove('open');
+  btn.setAttribute('aria-expanded', 'false');
+}
+</script>
 </body>
 </html>
