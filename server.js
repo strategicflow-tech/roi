@@ -4130,6 +4130,90 @@ Rules:
 });
 // ─── END DEAD EMAIL RESURRECTOR ───────────────────────────────────────────────
 
+// ── GET /best-send-window ─────────────────────────────────────────────────────
+app.get('/best-send-window', async (req, res) => {
+  if (BYPASS_EMAILS.has(req.session.userEmail)) {
+    return res.sendFile('best-send-window.html', { root: path.join(__dirname, 'public') });
+  }
+  try {
+    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    if (row?.tier === 'architecture') {
+      return res.sendFile('best-send-window.html', { root: path.join(__dirname, 'public') });
+    }
+  } catch (e) { console.error('[best-send-window] tier check:', e.message); }
+  res.redirect('/');
+});
+
+app.post('/api/best-send-window', async (req, res) => {
+  const { emailType, industry, geography, listSize, knownData } = req.body;
+  if (!emailType || !industry || !geography || !listSize) {
+    return res.status(400).json({ error: 'Email type, industry, geography, and list size are required.' });
+  }
+
+  const knownLine = knownData ? `\nAdditional context from the team: ${knownData.slice(0, 400)}` : '';
+
+  const prompt = `You are the Strategic Flow Best Send Window calculator. Based on the inputs below, calculate the optimal send window and output a complete scheduling recommendation.
+
+Email type: ${emailType}
+Industry: ${industry}
+Audience geography: ${geography}
+List size: ${listSize}${knownLine}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "optimalWindow": {
+    "primary": {
+      "day": "<day of week>",
+      "timeWindow": "<e.g. 9:00–10:30 AM recipient local time>",
+      "confidence": "<HIGH | MEDIUM | VARIES BY SEGMENT>"
+    },
+    "secondary": {
+      "day": "<day of week>",
+      "timeWindow": "<time range>",
+      "confidence": "<HIGH | MEDIUM | VARIES BY SEGMENT>"
+    }
+  },
+  "whyThisWindow": [
+    "<specific reason tied to email type and industry — not generic. 1-2 sentences each.>"
+  ],
+  "daysToAvoid": [
+    { "slot": "<e.g. Monday before 9am>", "reason": "<specific reason why this slot underperforms for this email type and audience>" }
+  ],
+  "weeklyCal": {
+    "mon": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "tue": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "wed": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "thu": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "fri": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "sat": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" },
+    "sun": { "morning": "<green|amber|red>", "afternoon": "<green|amber|red>", "evening": "<green|amber|red>" }
+  },
+  "segmentSplit": {
+    "singleSend": "<if list under 10K: one sentence single send recommendation — otherwise set this to null>",
+    "intro": "<if list 10K+: 1 sentence intro explaining the split strategy — otherwise omit>",
+    "segments": [
+      { "label": "<segment description e.g. Most Engaged>", "sendTime": "<day + time>", "description": "<1 sentence on why this timing for this segment>" }
+    ]
+  }
+}
+
+Rules:
+- whyThisWindow: exactly 3-4 reasons, each specific to the email type + industry combination provided.
+- daysToAvoid: exactly 3-4 slots with specific reasoning.
+- weeklyCal: every cell must be green, amber, or red. Reflect the specific email type and industry — not generic patterns.
+- segmentSplit: if listSize is "Under 1K" or "1K-10K", set singleSend to a recommendation string and segments to []. If 10K+, set singleSend to null and provide 3 segments (Most Engaged, Less Engaged, Dormant).`;
+
+  try {
+    const result = await claudeJSON(prompt, 2000);
+    if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/best-send-window]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+// ─── END BEST SEND WINDOW ─────────────────────────────────────────────────────
+
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
 
 // POST /stripe/checkout — creează Stripe Checkout Session
