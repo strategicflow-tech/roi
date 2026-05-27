@@ -16,6 +16,9 @@
     --mid: #a8a39b;
     --border: rgba(244,242,237,0.12);
     --card: rgba(244,242,237,0.04);
+    --teal: #00E5CC;
+    --green: #22c55e;
+    --red: #ef4444;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,26 +109,75 @@
   .results-wrap.active { display: block; }
 
   /* BENCHMARK TABLE */
-  .benchmark-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); margin-bottom: 32px; }
+  .benchmark-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); margin-bottom: 40px; }
   .benchmark-table th { padding: 12px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--mid); text-transform: uppercase; font-weight: 400; background: var(--card); border-bottom: 1px solid var(--border); text-align: left; }
   .benchmark-table th.yours { color: var(--signal); }
-  .benchmark-table td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  .benchmark-table th.winner-col { color: var(--teal); text-align: center; }
+  .benchmark-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
   .benchmark-table tr:last-child td { border-bottom: none; }
-  .benchmark-table .criteria { font-weight: 600; color: var(--white); }
-  .benchmark-table .score-cell { font-family: 'DM Mono', monospace; text-align: center; }
-  .score-good { color: var(--signal); }
-  .score-bad { color: var(--noise); }
+  .benchmark-table tr.delta-row td { background: rgba(244,242,237,0.02); font-family: 'DM Mono', monospace; font-size: 12px; }
+  .benchmark-table .criteria { font-weight: 600; color: var(--white); font-size: 13px; }
+  .benchmark-table .score-cell { font-family: 'DM Mono', monospace; text-align: center; font-size: 14px; }
+  .benchmark-table .winner-cell { text-align: center; font-size: 16px; }
+  .score-good { color: var(--green); }
+  .score-bad { color: var(--red); }
   .score-mid { color: #f59e0b; }
 
-  /* INSIGHTS */
-  .insight-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
-  .insight-item { border: 1px solid var(--border); padding: 20px 24px; }
-  .insight-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
-  .insight-tag.gap { color: var(--signal); }
-  .insight-tag.risk { color: var(--noise); }
-  .insight-tag.opportunity { color: #f59e0b; }
-  .insight-title { font-size: 14px; font-weight: 600; color: var(--white); margin-bottom: 6px; }
-  .insight-desc { font-size: 13px; color: var(--mid); line-height: 1.7; }
+  /* SECTION LABEL */
+  .section-label-row {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 40px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label-row::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* PATTERN TABLE */
+  .pattern-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); margin-bottom: 40px; font-size: 13px; }
+  .pattern-table th { padding: 10px 16px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--mid); text-transform: uppercase; font-weight: 400; background: var(--card); border-bottom: 1px solid var(--border); text-align: left; }
+  .pattern-table th.yours { color: var(--signal); text-align: center; }
+  .pattern-table th.comp-col { text-align: center; }
+  .pattern-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .pattern-table tr:last-child td { border-bottom: none; }
+  .pattern-table .pattern-name { color: var(--white); font-weight: 500; }
+  .pattern-table .pattern-mark { text-align: center; font-size: 15px; }
+  .pattern-table tr:hover td { background: rgba(244,242,237,0.015); }
+
+  /* SUBJECT COMPARE */
+  .subject-compare { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 40px; }
+  .subject-card { background: var(--black); padding: 20px 24px; }
+  .subject-card-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .subject-card-label.yours { color: var(--signal); }
+  .subject-card-label.comp { color: var(--mid); }
+  .subject-text { font-size: 15px; color: var(--white); font-weight: 600; line-height: 1.4; margin-bottom: 10px; }
+  .subject-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+  .subject-tag { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 9px; border: 1px solid var(--border); color: var(--mid); }
+  .subject-tag.angle { color: var(--signal); border-color: rgba(74,143,231,0.3); }
+  .subject-tag.rate { color: var(--green); border-color: rgba(34,197,94,0.3); }
+
+  /* LEAD / LAG */
+  .lead-lag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 40px; }
+  .lead-col { background: var(--black); padding: 24px; }
+  .lead-col-header { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 16px; }
+  .lead-col-header.leads { color: var(--green); }
+  .lead-col-header.lags { color: var(--red); }
+  .lead-item { display: flex; gap: 10px; font-size: 13px; line-height: 1.6; margin-bottom: 10px; color: var(--mid); }
+  .lead-item:last-child { margin-bottom: 0; }
+  .lead-dot { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+
+  /* ACTION BOX */
+  .action-box { border: 1px solid rgba(0,229,204,0.25); background: rgba(0,229,204,0.04); padding: 24px 28px; margin-bottom: 40px; }
+  .action-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 12px; }
+  .action-title { font-family: 'DM Serif Display', serif; font-size: 20px; line-height: 1.3; margin-bottom: 10px; color: var(--white); }
+  .action-desc { font-size: 13px; color: var(--mid); line-height: 1.75; }
+
+  .btn-teal { background: var(--teal); color: #0a0a08; }
+  .btn-teal:hover { background: #00ccb4; }
 
   @media (max-width: 640px) {
     nav { padding: 14px 20px; }
@@ -244,9 +296,12 @@
     <h2 style="font-family:'DM Serif Display',serif;font-size:32px;margin-bottom:32px;">Here's where you <em style="font-style:italic;color:var(--signal)">stand.</em></h2>
 
     <div id="benchmarkTable"></div>
-    <div id="insightsList"></div>
+    <div id="patternBreakdown"></div>
+    <div id="subjectCompare"></div>
+    <div id="leadLag"></div>
+    <div id="actionBox"></div>
 
-    <button class="btn btn-primary" onclick="resetBenchmark()">Run New Benchmark →</button>
+    <button class="btn btn-teal" onclick="resetBenchmark()">Run New Benchmark →</button>
   </div>
 
 </main>
@@ -328,99 +383,238 @@ async function runBenchmark() {
   renderBenchmark(results);
 }
 
+// ── 6 failure patterns ──────────────────────────────────────────────────────
+const FAILURE_PATTERNS = [
+  { id: 'filing_label',   label: 'Filing Label Subject',    keywords: ['filing label','filing-label','subject line','generic subject','weak subject','label subject'] },
+  { id: 'feature_first',  label: 'Feature-First Bias',      keywords: ['feature-first','feature first','feature-led','leads with feature','feature before','product-first'] },
+  { id: 'consequence',    label: 'Consequence After Caveat', keywords: ['consequence after','caveat','buried consequence','consequence is buried','caveat first'] },
+  { id: 'hierarchy',      label: 'Missing Hierarchy',        keywords: ['hierarchy','structure','missing hierarchy','no hierarchy','flat structure','no clear'] },
+  { id: 'social_proof',   label: 'Zero Social Proof',        keywords: ['social proof','no proof','missing proof','zero proof','no testimonial','no evidence'] },
+  { id: 'urgency',        label: 'Generic Urgency Theatre',  keywords: ['urgency','theatre','urgency theatre','fake urgency','generic urgency','urgency cue'] },
+];
+
+function bugHasPattern(bugs, patternKeywords) {
+  if (!bugs || !bugs.length) return false;
+  const haystack = bugs.map(b => (b.name + ' ' + (b.description || '')).toLowerCase()).join(' ');
+  return patternKeywords.some(kw => haystack.includes(kw));
+}
+
+function classifySubjectAngle(subject) {
+  const s = (subject || '').toLowerCase();
+  if (/\?/.test(s)) return 'Question';
+  if (/\d/.test(s)) return 'Number-led';
+  if (/\.\.\.|how |what happens|why |discover|secret|revealed/.test(s)) return 'Curiosity gap';
+  if (/you |your |never |stop |fail|miss|lose|get |now/.test(s)) return 'Consequence-first';
+  if (/announcing|introducing|new |update|launch|release|we've/.test(s)) return 'Announcement / Filing label';
+  return 'Filing label';
+}
+
+function scoreClass(val, invert) {
+  if (typeof val !== 'number') return '';
+  if (invert) return val <= 2 ? 'score-good' : val <= 4 ? 'score-mid' : 'score-bad';
+  return val >= 7 ? 'score-good' : val >= 5 ? 'score-mid' : 'score-bad';
+}
+
 function renderBenchmark(results) {
   document.getElementById('progressWrap').classList.remove('active');
   document.getElementById('resultsWrap').classList.add('active');
 
   const yours = results.find(r => r.isYours);
-  const comps = results.filter(r => !r.isYours);
+  const comps  = results.filter(r => !r.isYours);
+  if (!yours) return;
 
-  const headers = ['Criteria', `<span style="color:var(--signal)">${esc(yours?.company || 'You')}</span>`, ...comps.map(c => esc(c.company))].join('</th><th class="score-cell">');
+  // ── 1. SCORE COMPARISON TABLE ──────────────────────────────────────────────
+  const bestScore    = Math.max(...results.map(r => r.score || 0));
+  const bestBugs     = Math.min(...results.map(r => r.bugs?.length ?? 99));
+  const bestOpenRate = Math.max(...results.map(r => r.currentOpenRate || 0));
 
-  const rows = [
-    { label: 'Overall score', your: yours?.score, comp: comps.map(c => c.score) },
-    { label: 'Rebuilt score', your: yours?.rebuiltScore, comp: comps.map(c => c.rebuiltScore) },
-    { label: 'Bugs found', your: yours?.bugs?.length, comp: comps.map(c => c.bugs?.length), invert: true },
-    { label: 'Est. open rate', your: yours?.currentOpenRate ? Math.round(yours.currentOpenRate * 100) + '%' : '—', comp: comps.map(c => c.currentOpenRate ? Math.round(c.currentOpenRate * 100) + '%' : '—'), isText: true },
-    { label: 'Projected open rate', your: yours?.projectedOpenRate ? Math.round(yours.projectedOpenRate * 100) + '%' : '—', comp: comps.map(c => c.projectedOpenRate ? Math.round(c.projectedOpenRate * 100) + '%' : '—'), isText: true },
+  const compHeaders = comps.map(c => `<th class="score-cell">${esc(c.company)}</th>`).join('');
+  const winnerHeader = `<th class="winner-col">Winner</th>`;
+
+  function winnerMark(yourVal, compVals, invert) {
+    const nums = [yourVal, ...compVals].filter(v => typeof v === 'number');
+    if (nums.length < 2) return '<td class="winner-cell">—</td>';
+    const best = invert ? Math.min(...nums) : Math.max(...nums);
+    const yourWins = yourVal === best;
+    return `<td class="winner-cell">${yourWins ? '✓' : ''}</td>`;
+  }
+
+  const scoreRows = [
+    {
+      label: 'Overall score /10',
+      your: yours.score, comp: comps.map(c => c.score), invert: false,
+      delta: true
+    },
+    {
+      label: 'Rebuilt score /10',
+      your: yours.rebuiltScore, comp: comps.map(c => c.rebuiltScore), invert: false
+    },
+    {
+      label: 'Bugs found',
+      your: yours.bugs?.length, comp: comps.map(c => c.bugs?.length), invert: true
+    },
+    {
+      label: 'Est. open rate',
+      your: yours.currentOpenRate != null ? Math.round(yours.currentOpenRate * 100) + '%' : null,
+      comp: comps.map(c => c.currentOpenRate != null ? Math.round(c.currentOpenRate * 100) + '%' : null),
+      isText: true
+    },
+    {
+      label: 'Projected open rate',
+      your: yours.projectedOpenRate != null ? Math.round(yours.projectedOpenRate * 100) + '%' : null,
+      comp: comps.map(c => c.projectedOpenRate != null ? Math.round(c.projectedOpenRate * 100) + '%' : null),
+      isText: true
+    },
   ].map(row => {
-    const yourVal = row.your ?? '—';
-    const scoreClass = (val, invert) => {
-      if (typeof val !== 'number') return '';
-      if (invert) return val <= 2 ? 'score-good' : val <= 4 ? 'score-mid' : 'score-bad';
-      return val >= 8 ? 'score-good' : val >= 5 ? 'score-mid' : 'score-bad';
-    };
+    const yv = row.your ?? '—';
+    const yourClass = row.isText ? '' : scoreClass(row.your, row.invert);
+    const compCells = row.comp.map(v => {
+      const cv = v ?? '—';
+      const cls = row.isText ? '' : scoreClass(v, row.invert);
+      return `<td class="score-cell"><span class="${cls}">${cv}</span></td>`;
+    }).join('');
 
-    const cells = [
-      `<td class="criteria">${esc(row.label)}</td>`,
-      `<td class="score-cell"><span class="${scoreClass(yourVal, row.invert)}">${yourVal}</span></td>`,
-      ...row.comp.map(v => `<td class="score-cell"><span class="${scoreClass(v, row.invert)}">${v ?? '—'}</span></td>`)
-    ].join('');
+    const deltaRow = row.delta && typeof row.your === 'number' && comps.length > 0 ? (() => {
+      const avgComp = comps.reduce((a, c) => a + (c.score || 0), 0) / comps.length;
+      const diff = (row.your - avgComp).toFixed(1);
+      const sign = diff > 0 ? '+' : '';
+      const cls = diff > 0 ? 'score-good' : diff < 0 ? 'score-bad' : '';
+      return `<tr class="delta-row"><td class="criteria" style="color:var(--mid);font-weight:400;font-size:12px;">↳ Score delta vs avg</td><td class="score-cell"><span class="${cls}">${sign}${diff}</span></td>${comps.map(() => '<td></td>').join('')}<td></td></tr>`;
+    })() : '';
 
-    return `<tr>${cells}</tr>`;
+    return `<tr>
+      <td class="criteria">${esc(row.label)}</td>
+      <td class="score-cell"><span class="${yourClass}">${yv}</span></td>
+      ${compCells}
+      ${winnerMark(row.your, row.comp, row.invert)}
+    </tr>${deltaRow}`;
   }).join('');
 
   document.getElementById('benchmarkTable').innerHTML = `
+    <div class="section-label-row">// 01 — Score comparison</div>
     <table class="benchmark-table">
-      <thead><tr><th>${headers}</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <thead>
+        <tr>
+          <th>Criteria</th>
+          <th class="score-cell yours">${esc(yours.company)}</th>
+          ${compHeaders}
+          ${winnerHeader}
+        </tr>
+      </thead>
+      <tbody>${scoreRows}</tbody>
+    </table>`;
+
+  // ── 2. FAILURE PATTERN BREAKDOWN ───────────────────────────────────────────
+  const patternRows = FAILURE_PATTERNS.map(p => {
+    const yourHas  = bugHasPattern(yours.bugs, p.keywords);
+    const compCols = comps.map(c => {
+      const has = bugHasPattern(c.bugs, p.keywords);
+      return `<td class="pattern-mark">${has ? '❌' : '✅'}</td>`;
+    }).join('');
+    return `<tr>
+      <td class="pattern-name">${esc(p.label)}</td>
+      <td class="pattern-mark">${yourHas ? '❌' : '✅'}</td>
+      ${compCols}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('patternBreakdown').innerHTML = `
+    <div class="section-label-row">// 02 — Failure pattern breakdown</div>
+    <table class="pattern-table">
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th class="yours">${esc(yours.company)}</th>
+          ${comps.map(c => `<th class="comp-col">${esc(c.company)}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>${patternRows}</tbody>
     </table>
-  `;
+    <p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);margin-top:-28px;margin-bottom:40px;">✅ pattern absent &nbsp;·&nbsp; ❌ pattern present</p>`;
 
-  const insights = [];
-  const yourScore = yours?.score || 0;
-  const avgCompScore = comps.length > 0
-    ? comps.reduce((a, c) => a + (c.score || 0), 0) / comps.length
-    : 0;
-
-  if (yourScore < avgCompScore) {
-    insights.push({
-      type: 'risk',
-      title: 'Your emails score below the competitor average.',
-      desc: `Your average: ${yourScore}/10. Competitors: ${avgCompScore.toFixed(1)}/10. The gap is structural — subject line and hook are the most common differentiators.`
-    });
-  } else if (yourScore > avgCompScore) {
-    insights.push({
-      type: 'gap',
-      title: "You're ahead — but the gap can close.",
-      desc: `Your average: ${yourScore}/10. Competitors: ${avgCompScore.toFixed(1)}/10. After rebuild: ${yours?.rebuiltScore || '?'}/10. The rebuilt version widens the gap further.`
-    });
-  }
-
-  const worstComp = [...comps].sort((a, b) => (a.score || 10) - (b.score || 10))[0];
-  if (worstComp && worstComp.score < 4) {
-    insights.push({
-      type: 'opportunity',
-      title: `${worstComp.company} has the weakest email structure.`,
-      desc: `Score: ${worstComp.score}/10. Their readers are seeing the same filing labels and generic CTAs your rebuilt emails have already eliminated.`
-    });
-  }
-
-  const yourBugs = yours?.bugs?.length || 0;
-  const avgCompBugs = comps.length > 0
-    ? comps.reduce((a, c) => a + (c.bugs?.length || 0), 0) / comps.length
-    : 0;
-
-  if (yourBugs > avgCompBugs) {
-    insights.push({
-      type: 'risk',
-      title: 'You have more structural bugs than competitors.',
-      desc: `Your email has ${yourBugs} bugs. Competitor average: ${avgCompBugs.toFixed(1)}. Run a full rebuild in Architecture to close this gap.`
-    });
-  }
-
-  document.getElementById('insightsList').innerHTML = insights.length > 0 ? `
-    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">// Key insights</div>
-    <div class="insight-list">
-      ${insights.map(i => `
-        <div class="insight-item">
-          <div class="insight-tag ${i.type}">${i.type === 'gap' ? "You're ahead" : i.type === 'risk' ? 'Risk' : 'Opportunity'}</div>
-          <div class="insight-title">${esc(i.title)}</div>
-          <div class="insight-desc">${esc(i.desc)}</div>
+  // ── 3. SUBJECT LINE COMPARISON ─────────────────────────────────────────────
+  const gridCols = 1 + comps.length;
+  const subjectCards = [yours, ...comps].map((e, i) => {
+    const angle = classifySubjectAngle(e.subject);
+    const openRate = e.currentOpenRate != null ? Math.round(e.currentOpenRate * 100) + '% est. open rate' : null;
+    return `
+      <div class="subject-card">
+        <div class="subject-card-label ${i === 0 ? 'yours' : 'comp'}">${esc(e.company)}</div>
+        <div class="subject-text">${esc(e.subject || '(no subject provided)')}</div>
+        <div class="subject-meta">
+          <span class="subject-tag angle">${esc(angle)}</span>
+          ${openRate ? `<span class="subject-tag rate">${esc(openRate)}</span>` : ''}
         </div>
-      `).join('')}
-    </div>
-  ` : '';
+      </div>`;
+  }).join('');
+
+  document.getElementById('subjectCompare').innerHTML = `
+    <div class="section-label-row">// 03 — Subject line comparison</div>
+    <div class="subject-compare" style="grid-template-columns:repeat(${gridCols},1fr);">
+      ${subjectCards}
+    </div>`;
+
+  // ── 4. WHERE YOU LEAD / WHERE YOU LAG ──────────────────────────────────────
+  const leads = [];
+  const lags  = [];
+
+  FAILURE_PATTERNS.forEach(p => {
+    const yourHas  = bugHasPattern(yours.bugs, p.keywords);
+    const compHasAny = comps.some(c => bugHasPattern(c.bugs, p.keywords));
+    if (!yourHas && compHasAny) leads.push(`No <strong style="color:var(--white)">${p.label}</strong> detected — competitors show this pattern.`);
+    if (yourHas)  lags.push(`<strong style="color:var(--white)">${p.label}</strong> present in your email.`);
+  });
+
+  if (yours.score > (comps.reduce((a,c)=>a+(c.score||0),0)/Math.max(comps.length,1))) {
+    leads.push(`Overall score <strong style="color:var(--white)">${yours.score}/10</strong> is above the competitor average.`);
+  } else {
+    lags.push(`Overall score <strong style="color:var(--white)">${yours.score}/10</strong> is below the competitor average.`);
+  }
+
+  const leadsHtml = leads.length
+    ? leads.map(l => `<div class="lead-item"><span class="lead-dot">✓</span><span>${l}</span></div>`).join('')
+    : '<div class="lead-item" style="color:var(--mid);font-size:13px;">No clear advantages detected in this comparison.</div>';
+
+  const lagsHtml = lags.length
+    ? lags.map(l => `<div class="lead-item"><span class="lead-dot" style="color:var(--red)">✗</span><span>${l}</span></div>`).join('')
+    : '<div class="lead-item" style="color:var(--mid);font-size:13px;">No gaps found — your email is structurally clean.</div>';
+
+  document.getElementById('leadLag').innerHTML = `
+    <div class="section-label-row">// 04 — Where you lead / where you lag</div>
+    <div class="lead-lag-grid">
+      <div class="lead-col">
+        <div class="lead-col-header leads">Your advantages</div>
+        ${leadsHtml}
+      </div>
+      <div class="lead-col">
+        <div class="lead-col-header lags">Gaps to close</div>
+        ${lagsHtml}
+      </div>
+    </div>`;
+
+  // ── 5. RECOMMENDED ACTION ──────────────────────────────────────────────────
+  const firstLag = FAILURE_PATTERNS.find(p => bugHasPattern(yours.bugs, p.keywords));
+  const actionPatternDescriptions = {
+    filing_label:  'Your subject line reads like a folder label, not a reason to open. Rewrite it to name a consequence or outcome the reader experiences — not the feature you shipped.',
+    feature_first: 'Your email opens with what you built, not why it matters to the reader. Move the reader benefit to the first sentence. The feature becomes proof, not the pitch.',
+    consequence:   'The real reason to care is buried after a caveat or qualification. Flip the structure: consequence first, context second.',
+    hierarchy:     'Your email has no clear visual or structural hierarchy. The reader cannot scan it. Add one dominant claim, then supporting points beneath — never three equal-weight blocks.',
+    social_proof:  'No social proof appears in this email. Add one specific result, customer name, or metric. Generic trust claims ("thousands of customers") do not count.',
+    urgency:       'Your urgency signal is a generic deadline or "limited offer" with no mechanism. Replace it with a specific, believable consequence of inaction.',
+  };
+
+  const actionTitle = firstLag ? `Fix ${firstLag.label} first.` : 'No critical patterns detected.';
+  const actionDesc  = firstLag
+    ? (actionPatternDescriptions[firstLag.id] || 'Address the highest-priority structural pattern identified in the breakdown above.')
+    : 'Your email is structurally clean against all 6 failure patterns. Run an Email Rebuild to further close the gap on overall score.';
+
+  document.getElementById('actionBox').innerHTML = `
+    <div class="section-label-row">// 05 — Recommended action</div>
+    <div class="action-box">
+      <div class="action-label">Fix this first</div>
+      <div class="action-title">${esc(actionTitle)}</div>
+      <div class="action-desc">${esc(actionDesc)}</div>
+    </div>`;
 }
 
 function resetBenchmark() {
