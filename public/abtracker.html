@@ -309,6 +309,74 @@
   .pattern-value { font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--signal); line-height: 1; margin-bottom: 4px; }
   .pattern-note { font-size: 12px; color: var(--mid); line-height: 1.5; }
 
+  /* HOW TO USE */
+  .how-to-use {
+    border: 1px solid var(--border);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    background: rgba(74,143,231,0.03);
+  }
+
+  .how-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin-bottom: 20px;
+  }
+
+  .how-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .how-step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    font-size: 13px;
+    color: var(--mid);
+    line-height: 1.65;
+  }
+
+  .how-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--signal);
+    flex-shrink: 0;
+    padding-top: 1px;
+    min-width: 22px;
+  }
+
+  .how-step strong {
+    display: block;
+    color: var(--white);
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .how-tip {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .how-tip-icon {
+    font-family: 'DM Mono', monospace;
+    color: var(--signal);
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+
   .empty { text-align: center; padding: 48px 24px; border: 1px solid var(--border); }
   .empty-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 8px; }
   .empty-sub { font-size: 14px; color: var(--mid); }
@@ -335,6 +403,45 @@
   <div class="page-label">// Tool 04 — A/B Test Tracker</div>
   <h1 class="page-title">Track what actually<br><em>converts.</em></h1>
   <p class="page-sub">Log A/B subject line tests, record real open or click rates, and see which pattern wins — with a running history of every test.</p>
+
+  <!-- HOW TO USE -->
+  <div class="how-to-use">
+    <div class="how-title">// Cum funcționează</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <span class="how-num">01</span>
+        <div>
+          <strong>Completează un test</strong>
+          Introdu numele emailului testat, data trimiterii, și cele două variante de subject line (A și B).
+        </div>
+      </div>
+      <div class="how-step">
+        <span class="how-num">02</span>
+        <div>
+          <strong>Adaugă ratele reale</strong>
+          După ce testul s-a terminat, introdu open rate-ul sau click rate-ul real pentru fiecare variantă. Selectează metrica corectă din dropdown (Open rate / Click rate).
+        </div>
+      </div>
+      <div class="how-step">
+        <span class="how-num">03</span>
+        <div>
+          <strong>Apasă Save &amp; Compare</strong>
+          Toolul calculează câștigătorul, afișează diferența exactă dintre variante, și adaugă testul în istoricul de mai jos.
+        </div>
+      </div>
+      <div class="how-step">
+        <span class="how-num">04</span>
+        <div>
+          <strong>Urmărește pattern-urile</strong>
+          După câteva teste, secțiunea <em>What's winning</em> îți arată rata medie a câștigătorilor și tipul de subject care convertește cel mai des la audiența ta.
+        </div>
+      </div>
+    </div>
+    <div class="how-tip">
+      <span class="how-tip-icon">→</span>
+      Poți salva un test fără rate (câmpurile de rată sunt opționale) dacă testul e încă în desfășurare — îl găsești în istoric și poți relua comparația manual.
+    </div>
+  </div>
 
   <!-- ADD TEST FORM -->
   <div class="add-form">
