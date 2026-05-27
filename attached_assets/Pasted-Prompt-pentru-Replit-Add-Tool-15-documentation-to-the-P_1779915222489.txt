@@ -1,0 +1,80 @@
+Prompt pentru Replit:
+
+```
+Add Tool 15 documentation to the Platform Guide 
+page (/guide.html).
+
+Add a new section after the existing Architecture 
+plan section with this exact content:
+
+---
+
+SECTION TITLE: Tool 15 — Email Fatigue Detector
+
+WHAT IT DOES:
+Most lifecycle sequences are built by multiple people 
+over months. Nobody reads them end-to-end. Nobody knows 
+where the reader drops off — until the unsubscribe spike 
+happens. This tool reads your entire sequence as one unit 
+and finds the structural problems invisible in per-email 
+metrics.
+
+Four things it catches that your ESP never will:
+
+1. CTA Fatigue — when the same action verb appears in 
+3+ consecutive emails, click intent drops by ~40%. 
+The tool maps every CTA across the sequence and flags 
+the exact repetition pattern.
+
+2. Narrative Drift — when email 5 talks about something 
+email 1 never set up, the reader feels lost without 
+knowing why. The tool identifies the email where the 
+narrative breaks from the original promise.
+
+3. Hook Recycling — opening with a similar structure in 
+multiple emails trains readers to skip the first lines. 
+The tool detects recycled hook patterns across the sequence.
+
+4. Cadence Risk — email density + content overlap = 
+predictable fatigue. The tool rates your sequence 
+LOW / MEDIUM / HIGH / CRITICAL and tells you exactly 
+which gap to add or which email to cut.
+
+HOW TO USE:
+
+Step 1 — Paste your emails in sequence order.
+Each block needs: subject line + body text.
+Minimum 3 emails. Maximum 12.
+Tip: paste them in the order a new subscriber receives them.
+
+Step 2 — Click "Analyze Sequence →"
+Results generate in 60-90 seconds.
+
+Step 3 — Read the Sequence Health Score first.
+Below 6/10 means structural work needed before 
+optimizing individual emails.
+
+Step 4 — Fix in priority order:
+Start with CTA Fatigue. Then Narrative Drift. 
+Then Hook Recycling and Cadence Risk.
+
+WHO THIS IS FOR:
+Any team sending a lifecycle sequence of 3+ emails:
+onboarding flows, trial nurture, post-purchase, 
+re-engagement, product update sequences.
+
+Especially useful if:
+- The sequence was built by more than one person
+- It has not been audited end-to-end in over 6 months
+- Open rates are fine but activation is below benchmark
+- You are about to redesign the sequence and want to 
+  know what is broken before rewriting everything
+
+Route: /fatigue-detector
+
+---
+
+Match the existing guide page style and dark theme.
+All text fully visible — not muted.
+Do not change any other sections. Save and redeploy.
+```
