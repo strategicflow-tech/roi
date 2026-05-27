@@ -6,7 +6,8 @@ const TIER_CONFIGS = {
   single:      { limit: 1,        monthly: false, name: 'Single Rebuild',  price: '$49',     stripeUrl: 'https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04' },
   lite:        { limit: 4,        monthly: true,  name: 'Lite',            price: '$299/mo', stripeUrl: 'https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01' },
   growth:      { limit: 8,        monthly: true,  name: 'Growth',          price: '$499/mo', stripeUrl: 'https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02' },
-  high_impact: { limit: Infinity, monthly: true,  name: 'High-Impact',     price: '$899/mo', stripeUrl: 'https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03' }
+  high_impact:  { limit: Infinity, monthly: true,  name: 'High-Impact',     price: '$899/mo', stripeUrl: 'https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03' },
+  architecture: { limit: Infinity, monthly: true,  name: 'Architecture',    price: 'Suite',   stripeUrl: null }
 };
 
 const EMAIL_TYPE_STRATEGIES = {

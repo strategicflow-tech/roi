@@ -1980,7 +1980,7 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
     ${footerLogo}
     <p style="font-size:13px;font-weight:700;color:${footerText};margin:0 0 4px;">${company}</p>
     ${taglineText}
-    ${['lite','growth','high_impact'].includes(tier)
+    ${['lite','growth','high_impact','architecture'].includes(tier)
       ? `<p style="font-size:11px;color:${footerMuted};margin:8px 0 0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:${footerMuted};text-decoration:underline;">Manage preferences</a></p>`
       : `<p style="font-size:11px;color:${footerText};margin:8px 0 4px;">Rebuilt by <a href="https://strategic-flow-audit.replit.app" style="color:${accentColor};text-decoration:none;">Strategic Flow</a></p><p style="font-size:11px;color:${footerMuted};margin:0;"><a href="#" style="color:${footerMuted};text-decoration:underline;">Unsubscribe</a></p>`}
   </td></tr>
@@ -2552,7 +2552,7 @@ async function handleGenerate(req, res) {
     body = effectiveBody;
 
     const adminAccess = isAdmin(e);
-    const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact']);
+    const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact','architecture']);
 
     // Auto-enrol new visitors as free_trial; existing users keep their current tier.
     if (!adminAccess) {
@@ -2569,7 +2569,7 @@ async function handleGenerate(req, res) {
     const tier = adminAccess ? (ownerTierOverride || 'high_impact') : (user?.tier && ALLOWED_TIERS.has(user.tier) ? user.tier : null);
     if (!tier) return res.status(403).json({ error: 'no_tier' });
     // free_trial generates at high_impact quality — best output on the one free use
-    const promptTier = tier === 'free_trial' ? 'high_impact' : tier;
+    const promptTier = (tier === 'free_trial' || tier === 'architecture') ? 'high_impact' : tier;
 
     if (!adminAccess) {
       const lim = checkLimit(user);
@@ -3285,7 +3285,7 @@ async function handleGenerate(req, res) {
     if (tier === 'single') {
       notify(`📨 Single Rebuild — ${company || e}`, `<p>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
-    if (tier === 'high_impact' && user?.vip && !adminAccess) {
+    if ((tier === 'high_impact' || tier === 'architecture') && user?.vip && !adminAccess) {
       notify(`⚡ VIP URGENT — ${company || e}`, `<p><b>VIP Submission</b><br>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
   } catch (err) { console.error('[generate]', err); if (!res.headersSent) res.status(500).json({ error: err.message }); }
