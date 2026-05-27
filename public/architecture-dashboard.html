@@ -329,6 +329,50 @@
     line-height: 1.6;
   }
 
+  /* ── EMPTY GRID FILLER ── */
+  .tool-card-empty {
+    background: var(--black);
+    pointer-events: none;
+  }
+
+  /* ── FOOTER ── */
+  .dash-footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid rgba(0,229,204,0.2);
+    padding: 36px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .footer-links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .footer-links a {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: #00E5CC;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .footer-links a:hover { opacity: 0.75; }
+
+  .footer-copy {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+  }
+
   /* ── MOBILE ── */
   @media (max-width: 768px) {
     nav { padding: 14px 20px; }
@@ -337,6 +381,8 @@
     .stats-row { grid-template-columns: repeat(2, 1fr); }
     .tool-grid { grid-template-columns: 1fr; }
     .admin-grid { grid-template-columns: 1fr; }
+    .dash-footer { padding: 28px 20px; }
+    .footer-links { gap: 20px; }
   }
 </style>
 </head>
@@ -492,6 +538,8 @@
       <div class="tool-link">Open tool →</div>
     </a>
 
+    <div class="tool-card-empty"></div>
+
   </div>
 
   <div id="adminSection" style="display:none;">
@@ -511,6 +559,16 @@
   </div>
 
 </main>
+
+<footer class="dash-footer">
+  <div class="footer-links">
+    <a href="/glossary">Glossary</a>
+    <a href="/faq">FAQ</a>
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+    <a href="https://strategicflow-tech.github.io/showcase/" target="_blank" rel="noopener">Showcase</a>
+  </div>
+  <div class="footer-copy">Strategic Flow &copy; 2026 &nbsp;|&nbsp; Built for the Future of Tech Communication</div>
+</footer>
 
 <script>
 async function init() {
