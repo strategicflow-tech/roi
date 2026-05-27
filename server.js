@@ -3833,6 +3833,31 @@ Return ONLY valid JSON:
 
       await setJob(jobId, { status: 'complete', result });
 
+      // Persist to newsletters so /api/monthly-report can read it
+      const archEmail = req.session?.userEmail || null;
+      if (archEmail) {
+        try {
+          await pool.query(`
+            INSERT INTO newsletters
+              (email, company, original_subject, original_body, rebuilt_subject, rebuilt_body,
+               tier, rebuild_path, conversion_score, ab_subjects, content_calendar)
+            VALUES ($1,$2,$3,$4,$5,$6,'architecture','architecture',$7,$8,$9)
+          `, [
+            archEmail,
+            company || null,
+            subject,
+            body ? body.slice(0, 5000) : null,
+            rebuild.abSubjects?.[0]?.subject || null,
+            rebuild.rebuiltBody ? rebuild.rebuiltBody.slice(0, 10000) : null,
+            JSON.stringify({ score: diagnostic.score, rebuiltScore: rebuild.rebuiltScore || 9 }),
+            rebuild.abSubjects ? JSON.stringify(rebuild.abSubjects) : null,
+            calendar?.follow_ups ? JSON.stringify(calendar.follow_ups) : null
+          ]);
+        } catch (dbErr) {
+          console.error('[architecture] newsletters save failed:', dbErr.message);
+        }
+      }
+
     } catch (err) {
       console.error('[architecture] job failed:', err.message);
       await setJob(jobId, { status: 'failed', error: err.message });

@@ -16,6 +16,7 @@
     --mid: #a8a39b;
     --border: rgba(244,242,237,0.12);
     --card: rgba(244,242,237,0.04);
+    --teal: #00E5CC;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -116,6 +117,8 @@
   .btn { font-family: 'DM Mono', monospace; font-size: 13px; letter-spacing: 0.08em; padding: 12px 24px; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
   .btn-primary { background: var(--signal); color: var(--white); }
   .btn-primary:hover { background: var(--signal-dim); }
+  .btn-teal { background: var(--teal); color: #0a0a08; }
+  .btn-teal:hover { background: #00ccb4; }
 
   @media (max-width: 640px) {
     nav { padding: 14px 20px; }
@@ -170,7 +173,7 @@ async function loadReport() {
         <div class="empty">
           <div class="empty-title">No data yet.</div>
           <div class="empty-sub">Run your first assessment to start tracking your email performance.</div>
-          <a href="/architecture-dashboard" class="btn btn-primary">Run Assessment →</a>
+          <a href="/architecture-dashboard" class="btn btn-teal">Run Assessment →</a>
         </div>
       `;
       return;
@@ -251,7 +254,7 @@ async function loadReport() {
         </div>
       ` : ''}
 
-      <a href="/architecture-dashboard" class="btn btn-primary">Run New Assessment →</a>
+      <a href="/architecture-dashboard" class="btn btn-teal">Run New Assessment →</a>
     `;
 
   } catch (err) {
