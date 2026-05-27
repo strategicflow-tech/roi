@@ -121,6 +121,7 @@ setInterval(() => {
 // ── AUTH MIDDLEWARE ────────────────────────────────────────────────────────────
 const PROTECTED_PATHS = [
   '/architecture.html',
+  '/architecture-dashboard',
   '/assessment.html',
   '/api/architecture'
 ];
