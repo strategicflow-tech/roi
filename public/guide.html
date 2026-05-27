@@ -412,6 +412,80 @@ td strong { color: var(--teal); font-weight: 600; }
   margin-left: auto;
 }
 
+/* ── FAQ ACCORDION ── */
+.faq-section-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-family: var(--mono);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.faq-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.faq-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  margin-top: 32px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.faq-group-label:first-of-type { margin-top: 0; }
+.faq-item {
+  border-bottom: 1px solid var(--border);
+}
+.faq-item:last-child { border-bottom: none; }
+.faq-question {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.faq-question:hover .faq-q-text { color: var(--text); }
+.faq-q-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+  transition: color 0.15s;
+}
+.faq-toggle {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--teal);
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 2px;
+  transition: transform 0.2s;
+}
+.faq-toggle.open { transform: rotate(45deg); }
+.faq-answer {
+  display: none;
+  padding: 0 0 18px;
+  font-size: 14px;
+  color: rgba(238,241,247,0.7);
+  line-height: 1.8;
+}
+.faq-answer.open { display: block; }
+.faq-answer strong { color: var(--text); }
+.faq-answer ol { padding-left: 20px; margin-top: 8px; }
+.faq-answer ol li { margin-bottom: 6px; }
+
 /* ── DIVIDER ── */
 .divider {
   border: none;
@@ -1141,6 +1215,155 @@ td strong { color: var(--teal); font-weight: 600; }
     </div>
   </div>
 
+  <!-- SECTION: Common Questions -->
+  <div class="section" id="faq">
+    <div class="faq-section-label">Common Questions</div>
+
+    <div class="faq-group-label">General</div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">How long does a full rebuild take to deliver?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">60–90 seconds for the diagnostic. The rebuilt HTML is ready immediately after. On paid plans, complex sequence rebuilds are delivered within 4–48 hours depending on plan tier.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Do you audit emails in languages other than English?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">The diagnostic framework applies to any language. The failure patterns — Filing Label Subject, Feature-First Bias, Missing Hierarchy — are structural, not linguistic. Rebuilt versions are delivered in the same language as the original.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Can I request a specific failure pattern to focus on?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes. In any tool input, add a note specifying which pattern to prioritise. The engine will weight that pattern in the diagnosis and lead the rebuild with the corresponding fix.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What happens to my email data after the audit?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Email content submitted for analysis is used solely to generate the audit output. It is not stored, shared, or used to train any model. Contact <strong>strategicflow@proton.me</strong> for data handling specifics on enterprise plans.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Do you work with email templates or only plain text?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Both. Paste plain text or full HTML. The tool reads the structural and copy layer regardless of format. Visual hierarchy diagnostics are more accurate with HTML input.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Can I cancel a monthly plan at any time?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes. Monthly plans cancel before the next billing cycle. Everything delivered stays with you.</div>
+    </div>
+
+    <div class="faq-group-label">Architecture Plan</div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What is the Architecture plan and who is it for?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Architecture is the full Communication Intelligence Suite — 19 tools covering every layer of email performance, from subject line to sequence gap detection. It is built for lifecycle managers, copywriters, and email teams at companies sending recurring email at volume. If email is a core revenue channel for your business, Architecture is the plan.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">How is Architecture different from the other plans?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Lite and Growth give you audits and rebuilds on individual emails. Architecture gives you the full system — sequence analysis, competitor benchmarking, audience language extraction, fatigue detection, gap finding, send time optimisation, and monthly performance reporting. Not per email. The entire communication architecture.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Can my whole team use the Architecture dashboard?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes. Architecture supports unlimited users. Every team member with access can run any tool independently. Contact <strong>strategicflow@proton.me</strong> to add team members to your account.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What are the tools included in Architecture?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">19 tools across 4 categories:<br><br>
+        <strong>Core Email Tools:</strong> Email Assessment, Email Rebuild, Batch Assessment, A/B Tracker, Content Calendar, Competitor Benchmark.<br><br>
+        <strong>Specialised Audits:</strong> Changelog Audit, Onboarding Audit, LinkedIn Audit.<br><br>
+        <strong>Intelligence Tools:</strong> Open Rate Predictor, Pattern Intelligence, Monthly Report, Release Note System, Email Fatigue Detector, Audience Mirror, Dead Email Resurrector, Best Send Window, Sequence Gap Finder.<br><br>
+        <strong>Admin:</strong> Platform Stats and Users, Platform Guide.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Is Architecture a platform, a service, or both?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Both by design. The 19 tools are the platform — self-serve, available 24/7, no human in the loop. The service layer is available on request: sequence rebuilds, strategy calls, and Slack access on High-Impact tier. Use the platform independently or combine it with the service layer when you need a thinking partner.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">We are a team of 5 lifecycle managers. Can we all have access?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes. Architecture has no per-seat limit. One plan covers the full team. Each member logs in with their own email via magic link — no passwords, no IT involvement.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">How do the tools connect to each other?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Recommended workflow for new users:<br><br>
+        <strong>Week 1</strong> — Run Email Assessment on your 3 most important emails. Identify the dominant failure pattern across all three.<br>
+        <strong>Week 2</strong> — Run Sequence Gap Finder on your onboarding flow. Fix critical gaps before rewriting existing emails.<br>
+        <strong>Week 3</strong> — Run Competitor Benchmark against your closest competitor. Identify where you lead and where you lag.<br>
+        <strong>Week 4</strong> — Run Email Fatigue Detector on any sequence over 5 emails.<br><br>
+        The tools are independent but build on each other. Assessment finds the bug. Rebuild fixes it. Monthly Report tracks if it stayed fixed.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Can I use Architecture tools without running a full audit first?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes. Every tool is fully independent. You can start with Best Send Window, Audience Mirror, or Sequence Gap Finder without having run an Email Assessment. No prerequisite workflow required.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What is the recommended workflow for a new Architecture user in week one?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Start with Email Assessment on your last product update email. It takes 90 seconds and immediately shows you which failure pattern is most present in your current email architecture. That single result tells you which other tools to prioritise in week two.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">We already have an internal email review process. How does Architecture fit alongside it?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Architecture does not replace your process — it runs before it. The tools deliver the structural diagnostic in 90 seconds so your team reviews an email that has already been checked against 7 failure criteria. Your editors focus on brand voice and specifics. Architecture handles the architecture. No workflow changes, no new dependencies, no engineering involvement.</div>
+    </div>
+
+  </div>
+
   <hr class="divider">
 
   <div class="footer">
@@ -1166,6 +1389,14 @@ function closeTOC() {
   body.classList.remove('open');
   chevron.classList.remove('open');
   btn.setAttribute('aria-expanded', 'false');
+}
+function toggleFaq(questionEl) {
+  var answer = questionEl.nextElementSibling;
+  var toggle = questionEl.querySelector('.faq-toggle');
+  var isOpen = answer.classList.contains('open');
+  answer.classList.toggle('open', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  toggle.textContent = isOpen ? '+' : '×';
 }
 </script>
 </body>
