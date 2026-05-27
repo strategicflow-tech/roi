@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Note System — Strategic Flow Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a08;
+    --white: #f4f2ed;
+    --signal: #4A8FE7;
+    --signal-dim: rgba(74,143,231,0.1);
+    --mid: #a8a39b;
+    --border: rgba(244,242,237,0.12);
+    --card: rgba(244,242,237,0.04);
+    --green: #34d399;
+    --green-dim: rgba(52,211,153,0.08);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.08);
+    --amber: #f59e0b;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(244,242,237,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,242,237,0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(10,10,8,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--mid);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--signal); }
+
+  .nav-back {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: color 0.2s;
+  }
+
+  .nav-back:hover { color: var(--white); }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 100px 40px 80px;
+  }
+
+  .page-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 5vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .page-sub {
+    font-size: 15px;
+    color: var(--mid);
+    line-height: 1.7;
+    margin-bottom: 48px;
+    max-width: 560px;
+  }
+
+  .input-block {
+    margin-bottom: 32px;
+  }
+
+  .input-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mid);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 20px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: rgba(74,143,231,0.4); }
+  textarea::placeholder { color: var(--mid); }
+
+  .generate-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--black);
+    background: var(--signal);
+    border: none;
+    padding: 16px 36px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .generate-btn:hover { background: #3a7fd0; }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .spinner {
+    display: none;
+    text-align: center;
+    padding: 48px 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--mid);
+    letter-spacing: 0.1em;
+  }
+
+  .spinner.visible { display: block; }
+
+  .results { margin-top: 56px; display: none; }
+  .results.visible { display: block; }
+
+  .result-section {
+    margin-bottom: 32px;
+    border: 1px solid var(--border);
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  .result-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mid);
+  }
+
+  .score-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .score-high { color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+  .score-mid  { color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .score-low  { color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
+
+  .result-body {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--white);
+  }
+
+  .result-body.mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  .result-body.html-preview {
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    background: #ffffff;
+    color: #0a0a08;
+    padding: 32px;
+  }
+
+  .copy-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--signal);
+    background: transparent;
+    border: 1px solid rgba(74,143,231,0.3);
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { background: var(--signal-dim); }
+  .copy-btn.copied { color: var(--green); border-color: rgba(52,211,153,0.3); }
+
+  .failures-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .failure-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .failure-item:last-child { border-bottom: none; }
+
+  .failure-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    font-weight: 700;
+    min-width: 24px;
+    padding-top: 2px;
+  }
+
+  .failure-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--mid);
+  }
+
+  .failure-text strong { color: var(--white); }
+
+  .no-failures {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--green);
+    padding: 8px 0;
+  }
+
+  .error-msg {
+    display: none;
+    background: var(--red-dim);
+    border: 1px solid rgba(248,113,113,0.2);
+    color: var(--red);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 14px 20px;
+    margin-top: 16px;
+  }
+
+  .error-msg.visible { display: block; }
+
+  @media (max-width: 768px) {
+    nav { padding: 14px 20px; }
+    main { padding: 80px 20px 60px; }
+    .result-body.html-preview { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/architecture-dashboard" class="nav-logo">Strategic Flow <span>Architecture</span></a>
+  <a href="/architecture-dashboard" class="nav-back">← Dashboard</a>
+</nav>
+
+<main>
+  <div class="page-eyebrow">Tool 14 · Release Note System</div>
+  <h1>Release Note<br>to Email</h1>
+  <p class="page-sub">Paste raw changelog or release notes. The system transforms them into a consequence-first release email using the Strategic Flow Method.</p>
+
+  <div class="input-block">
+    <label class="input-label" for="rawInput">Raw changelog / release notes</label>
+    <textarea id="rawInput" placeholder="Paste your raw changelog here...
+
+Example:
+v2.4.0
+- Fixed bug in dashboard loading
+- Added CSV export
+- Improved search speed by 40%
+- New API rate limiting
+- Updated user permissions model"></textarea>
+  </div>
+
+  <button class="generate-btn" id="generateBtn" onclick="generate()">Generate Release Email →</button>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="spinner" id="spinner">// Analysing changelog and rebuilding...</div>
+
+  <div class="results" id="results">
+
+    <div class="result-section">
+      <div class="result-header">
+        <span class="result-label">Subject Line</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="score-badge" id="subjectScoreBadge"></span>
+          <button class="copy-btn" onclick="copyField('subjectLine', this)">Copy</button>
+        </div>
+      </div>
+      <div class="result-body mono" id="subjectLine"></div>
+    </div>
+
+    <div class="result-section">
+      <div class="result-header">
+        <span class="result-label">Preview Text</span>
+        <button class="copy-btn" onclick="copyField('previewText', this)">Copy</button>
+      </div>
+      <div class="result-body mono" id="previewText"></div>
+    </div>
+
+    <div class="result-section">
+      <div class="result-header">
+        <span class="result-label">Email Body — HTML</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="copy-btn" onclick="copyField('emailHtmlCode', this)">Copy HTML</button>
+          <button class="copy-btn" id="togglePreviewBtn" onclick="togglePreview()">Preview</button>
+        </div>
+      </div>
+      <div class="result-body html-preview" id="emailHtmlPreview" style="display:none;"></div>
+      <div class="result-body mono" id="emailHtmlCode" style="white-space:pre-wrap;font-size:12px;max-height:400px;overflow-y:auto;"></div>
+    </div>
+
+    <div class="result-section">
+      <div class="result-header">
+        <span class="result-label">Failure Patterns Detected</span>
+        <span class="score-badge" id="failureCount"></span>
+      </div>
+      <div class="result-body">
+        <ul class="failures-list" id="failuresList"></ul>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+let htmlOutput = '';
+
+async function generate() {
+  const raw = document.getElementById('rawInput').value.trim();
+  if (!raw || raw.length < 30) {
+    showError('Please paste at least 30 characters of changelog text.');
+    return;
+  }
+
+  setLoading(true);
+  hideError();
+  document.getElementById('results').classList.remove('visible');
+
+  try {
+    const res = await fetch('/release-note-system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: raw })
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      showError(data.error || 'Generation failed. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    renderResults(data);
+  } catch (e) {
+    showError('Connection error. Please try again.');
+  }
+
+  setLoading(false);
+}
+
+function renderResults(d) {
+  document.getElementById('subjectLine').textContent = d.subject_line || '—';
+
+  const score = d.subject_score || 0;
+  const badge = document.getElementById('subjectScoreBadge');
+  badge.textContent = score + '/10';
+  badge.className = 'score-badge ' + (score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low');
+
+  document.getElementById('previewText').textContent = d.preview_text || '—';
+
+  htmlOutput = d.email_html || '';
+  document.getElementById('emailHtmlCode').textContent = htmlOutput;
+  document.getElementById('emailHtmlPreview').innerHTML = htmlOutput;
+
+  const failures = d.failures || [];
+  document.getElementById('failureCount').textContent = failures.length + ' found';
+  document.getElementById('failureCount').className = 'score-badge ' + (failures.length === 0 ? 'score-high' : failures.length <= 2 ? 'score-mid' : 'score-low');
+
+  const list = document.getElementById('failuresList');
+  if (failures.length === 0) {
+    list.innerHTML = '<div class="no-failures">No major failure patterns detected.</div>';
+  } else {
+    list.innerHTML = failures.map((f, i) => `
+      <li class="failure-item">
+        <span class="failure-num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="failure-text"><strong>${f.pattern || ''}</strong>${f.explanation ? ' — ' + f.explanation : ''}</span>
+      </li>`).join('');
+  }
+
+  document.getElementById('results').classList.add('visible');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function togglePreview() {
+  const preview = document.getElementById('emailHtmlPreview');
+  const code = document.getElementById('emailHtmlCode');
+  const btn = document.getElementById('togglePreviewBtn');
+  const showing = preview.style.display !== 'none';
+  preview.style.display = showing ? 'none' : 'block';
+  code.style.display = showing ? 'block' : 'none';
+  btn.textContent = showing ? 'Preview' : 'Code';
+}
+
+function copyField(id, btn) {
+  const el = document.getElementById(id);
+  const text = id === 'emailHtmlCode' ? htmlOutput : (el.textContent || '');
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = id === 'emailHtmlCode' ? 'Copy HTML' : 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function setLoading(on) {
+  document.getElementById('generateBtn').disabled = on;
+  document.getElementById('generateBtn').textContent = on ? 'Generating...' : 'Generate Release Email →';
+  document.getElementById('spinner').classList.toggle('visible', on);
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function hideError() {
+  document.getElementById('errorMsg').classList.remove('visible');
+}
+
+document.getElementById('rawInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+});
+</script>
+</body>
+</html>

@@ -4856,6 +4856,58 @@ app.post('/linkedin-audit', async (req, res) => {
 });
 // ─── END LINKEDIN AUDIT ENDPOINT ─────────────────────────────────────────────
 
+// ── GET /release-note-system ─────────────────────────────────────────────────
+app.get('/release-note-system', (req, res) => {
+  res.sendFile('release-note-system.html', { root: path.join(__dirname, 'public') });
+});
+
+// ── POST /release-note-system ─────────────────────────────────────────────────
+app.post('/release-note-system', async (req, res) => {
+  const { text } = req.body;
+  if (!text || text.trim().length < 30) {
+    return res.status(400).json({ error: 'Paste at least 30 characters of changelog text.' });
+  }
+
+  const prompt = `You are an expert email copywriter trained on the Strategic Flow Method.
+
+A SaaS company has given you raw release notes / changelog text. Transform it into a consequence-first release email.
+
+STRATEGIC FLOW RULES:
+1. Subject line: outcome or consequence first, never a filing label ("New Feature", "Update", "Introducing" are banned). Use a curiosity gap or specific result.
+2. Preview text: extends the subject line tension, never repeats it.
+3. Email body: lead with the reader's outcome, not the product change. Group minor fixes at the bottom under a single "Also fixed" line. Use short paragraphs, one idea per paragraph.
+4. Ownership CTA: the reader does something, not just "Learn more". e.g. "Run your first export →"
+
+INPUT CHANGELOG:
+${text.trim().slice(0, 4000)}
+
+Return ONLY valid JSON with this exact schema:
+{
+  "subject_line": "consequence-first subject line",
+  "subject_score": 7,
+  "preview_text": "preview text that extends tension",
+  "email_html": "<full HTML email body as a string — inline styles, table-safe, dark background #0a0a08, white text #f4f2ed, blue CTA #4A8FE7>",
+  "failures": [
+    { "pattern": "Filing Label Subject", "explanation": "Original notes use feature-first framing" }
+  ]
+}
+
+subject_score: 1-10. Score +2 for a number, +2 for consequence/failure state, +1 for under 50 chars, +1 for no generic words, +2 for curiosity gap, +2 for specific outcome.
+failures: array of failure patterns found in the ORIGINAL raw notes (not in your rebuild). Max 5. Empty array if none found.
+email_html: complete standalone HTML email, inline styles only, no external CSS, renders in Gmail/Outlook. Include subject repeated as H1, preview text as hidden preheader span, body copy, and CTA button.`;
+
+  try {
+    const result = await claudeJSON(prompt, 3000);
+    if (!result || !result.subject_line) {
+      return res.status(500).json({ error: 'Generation failed — Claude returned unexpected output. Please try again.' });
+    }
+    res.json(result);
+  } catch (e) {
+    console.error('[release-note-system]', e.message);
+    res.status(500).json({ error: 'Generation failed. Please try again.' });
+  }
+});
+
 setupDB().then(async () => {
   await runMonthlyAudit();
   const PORT = process.env.PORT || 3000;
