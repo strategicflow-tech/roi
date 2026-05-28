@@ -4994,6 +4994,8 @@ app.post('/outreach-audit', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  console.log('[outreach-audit] req.body:', JSON.stringify(req.body));
+
   const { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
 
   if (!pageUrl || !prospectCompany) {
