@@ -5098,12 +5098,14 @@ async function ghRequest(method, path, body) {
 }
 
 app.post('/publish-teardown', async (req, res) => {
-  const { filename, html, title, company, score_before, score_after, bugs } = req.body;
+  const { filename, html, company, description, category, title } = req.body;
 
   if (!filename || !html || !company) {
     return res.status(400).json({ error: 'filename, html, and company are required' });
   }
 
+  const cat      = category || 'saas';
+  const pageUrl  = `https://${GITHUB_REPO_OWNER}.github.io/${GITHUB_REPO_NAME}/${filename}`;
   const repoPath = `/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents`;
 
   try {
@@ -5118,49 +5120,58 @@ app.post('/publish-teardown', async (req, res) => {
       console.log(`[publish-teardown] ${filename} is new`);
     }
 
-    const teardownPayload = {
+    await ghRequest('PUT', `${repoPath}/${filename}`, {
       message: `Add teardown: ${title || company}`,
       content: Buffer.from(html).toString('base64'),
       ...(teardownSha ? { sha: teardownSha } : {})
-    };
-    await ghRequest('PUT', `${repoPath}/${filename}`, teardownPayload);
+    });
     console.log(`[publish-teardown] STEP 1 done — committed ${filename}`);
 
-    // ── STEP 2: Fetch current index.html ──────────────────────────────────
+    // ── STEP 2: Fetch + patch index.html ──────────────────────────────────
     const indexData    = await ghRequest('GET', `${repoPath}/index.html`);
     const indexSha     = indexData.sha;
-    const indexDecoded = Buffer.from(indexData.content, 'base64').toString('utf8');
+    let   indexHtml    = Buffer.from(indexData.content, 'base64').toString('utf8');
 
     // Build the new card
-    const bug0 = (bugs && bugs[0]) ? bugs[0] : '';
-    const bug1 = (bugs && bugs[1]) ? bugs[1] : '';
-    const newCard = `<a href="${filename}" class="tear-card">
-  <div class="tear-co">${company}</div>
-  <div class="tear-scores">${score_before} → ${score_after}</div>
-  <div class="tear-bugs">${bug0}${bug1 ? ' · ' + bug1 : ''}</div>
+    const newCard = `<a href="${filename}" class="card" data-cat="${cat}">
+  <div class="card-arrow">↗</div>
+  <div class="card-brand">${company}</div>
+  <div class="card-desc">${description || ''}</div>
+  <div class="card-tags"><span class="tag teal">${cat}</span></div>
 </a>`;
 
-    // Inject before the first existing .tear-card (or before </section> as fallback)
-    let updatedIndex;
-    if (indexDecoded.includes('class="tear-card"')) {
-      updatedIndex = indexDecoded.replace('<a href=', `${newCard}\n<a href=`);
-    } else if (indexDecoded.includes('</section>')) {
-      updatedIndex = indexDecoded.replace('</section>', `${newCard}\n</section>`);
+    // Inject card — before the first <a class="card" or a <!-- cards --> comment; fallback to </main>
+    if (indexHtml.includes('<a class="card"') || indexHtml.includes("<a class='card'")) {
+      indexHtml = indexHtml.replace(/(<a\s[^>]*class="card")/, `${newCard}\n$1`);
+    } else if (indexHtml.includes('<!-- cards -->')) {
+      indexHtml = indexHtml.replace('<!-- cards -->', `<!-- cards -->\n${newCard}`);
+    } else if (indexHtml.includes('</main>')) {
+      indexHtml = indexHtml.replace('</main>', `${newCard}\n</main>`);
     } else {
-      updatedIndex = indexDecoded + '\n' + newCard;
+      indexHtml += '\n' + newCard;
     }
 
-    console.log(`[publish-teardown] STEP 2 done — index.html updated`);
+    // Inject JSON-LD hasPart entry
+    const newJsonLdEntry = `{"@type":"Article","name":${JSON.stringify(title || company)},"url":${JSON.stringify(pageUrl)}}`;
+    if (indexHtml.includes('"hasPart"')) {
+      // Insert before the closing ] of the hasPart array
+      indexHtml = indexHtml.replace(/(\"hasPart\"\s*:\s*\[)([\s\S]*?)(\])/, (_, open, inner, close) => {
+        const trimmed = inner.trimEnd();
+        const separator = trimmed.endsWith(',') || trimmed.trim() === '' ? '' : ',';
+        return `${open}${inner}${separator}${newJsonLdEntry}${close}`;
+      });
+    }
+
+    console.log(`[publish-teardown] STEP 2 done — index.html patched`);
 
     // ── STEP 3: Commit updated index.html ─────────────────────────────────
     await ghRequest('PUT', `${repoPath}/index.html`, {
       message: `Update showcase index: add ${company}`,
-      content: Buffer.from(updatedIndex).toString('base64'),
+      content: Buffer.from(indexHtml).toString('base64'),
       sha:     indexSha
     });
     console.log(`[publish-teardown] STEP 3 done — index.html committed`);
 
-    const pageUrl = `https://${GITHUB_REPO_OWNER}.github.io/${GITHUB_REPO_NAME}/${filename}`;
     res.json({ success: true, url: pageUrl });
 
   } catch (err) {
