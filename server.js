@@ -5071,6 +5071,106 @@ app.post('/outreach-audit', async (req, res) => {
 
 // ─── END OUTREACH AUDIT ───────────────────────────────────────────────────────
 
+// ─── PUBLISH TEARDOWN ─────────────────────────────────────────────────────────
+// POST /publish-teardown — commits a teardown HTML file to GitHub Pages and
+// injects a card into the showcase index.html. No auth required (internal use).
+
+const GITHUB_REPO_OWNER = 'strategicflow-tech';
+const GITHUB_REPO_NAME  = 'showcase';
+const GITHUB_API_BASE   = 'https://api.github.com';
+
+async function ghRequest(method, path, body) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error('GITHUB_TOKEN is not set');
+  const resp = await fetch(`${GITHUB_API_BASE}${path}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept':        'application/vnd.github+json',
+      'Content-Type':  'application/json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const json = await resp.json();
+  if (!resp.ok) throw new Error(`GitHub ${method} ${path} → ${resp.status}: ${json.message || JSON.stringify(json)}`);
+  return json;
+}
+
+app.post('/publish-teardown', async (req, res) => {
+  const { filename, html, title, company, score_before, score_after, bugs } = req.body;
+
+  if (!filename || !html || !company) {
+    return res.status(400).json({ error: 'filename, html, and company are required' });
+  }
+
+  const repoPath = `/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents`;
+
+  try {
+    // ── STEP 1: Commit the teardown HTML file ──────────────────────────────
+    let teardownSha;
+    try {
+      const existing = await ghRequest('GET', `${repoPath}/${filename}`);
+      teardownSha = existing.sha;
+      console.log(`[publish-teardown] ${filename} exists, SHA: ${teardownSha}`);
+    } catch (e) {
+      if (!e.message.includes('404')) throw e;
+      console.log(`[publish-teardown] ${filename} is new`);
+    }
+
+    const teardownPayload = {
+      message: `Add teardown: ${title || company}`,
+      content: Buffer.from(html).toString('base64'),
+      ...(teardownSha ? { sha: teardownSha } : {})
+    };
+    await ghRequest('PUT', `${repoPath}/${filename}`, teardownPayload);
+    console.log(`[publish-teardown] STEP 1 done — committed ${filename}`);
+
+    // ── STEP 2: Fetch current index.html ──────────────────────────────────
+    const indexData    = await ghRequest('GET', `${repoPath}/index.html`);
+    const indexSha     = indexData.sha;
+    const indexDecoded = Buffer.from(indexData.content, 'base64').toString('utf8');
+
+    // Build the new card
+    const bug0 = (bugs && bugs[0]) ? bugs[0] : '';
+    const bug1 = (bugs && bugs[1]) ? bugs[1] : '';
+    const newCard = `<a href="${filename}" class="tear-card">
+  <div class="tear-co">${company}</div>
+  <div class="tear-scores">${score_before} → ${score_after}</div>
+  <div class="tear-bugs">${bug0}${bug1 ? ' · ' + bug1 : ''}</div>
+</a>`;
+
+    // Inject before the first existing .tear-card (or before </section> as fallback)
+    let updatedIndex;
+    if (indexDecoded.includes('class="tear-card"')) {
+      updatedIndex = indexDecoded.replace('<a href=', `${newCard}\n<a href=`);
+    } else if (indexDecoded.includes('</section>')) {
+      updatedIndex = indexDecoded.replace('</section>', `${newCard}\n</section>`);
+    } else {
+      updatedIndex = indexDecoded + '\n' + newCard;
+    }
+
+    console.log(`[publish-teardown] STEP 2 done — index.html updated`);
+
+    // ── STEP 3: Commit updated index.html ─────────────────────────────────
+    await ghRequest('PUT', `${repoPath}/index.html`, {
+      message: `Update showcase index: add ${company}`,
+      content: Buffer.from(updatedIndex).toString('base64'),
+      sha:     indexSha
+    });
+    console.log(`[publish-teardown] STEP 3 done — index.html committed`);
+
+    const pageUrl = `https://${GITHUB_REPO_OWNER}.github.io/${GITHUB_REPO_NAME}/${filename}`;
+    res.json({ success: true, url: pageUrl });
+
+  } catch (err) {
+    console.error('[publish-teardown] error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── END PUBLISH TEARDOWN ─────────────────────────────────────────────────────
+
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
 app.post('/api/demo', async (req, res) => {
