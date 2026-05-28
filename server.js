@@ -478,6 +478,15 @@ async function setupDB() {
     ALTER TABLE newsletters ADD COLUMN IF NOT EXISTS og_image TEXT;
     ALTER TABLE rebuild_learning ADD COLUMN IF NOT EXISTS rebuild_path VARCHAR(20);
   `).catch(e => console.error('[DB] alter:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscribers (
+      id            SERIAL PRIMARY KEY,
+      email         TEXT UNIQUE NOT NULL,
+      source        TEXT DEFAULT 'checklist',
+      subscribed_at TIMESTAMPTZ DEFAULT NOW(),
+      sent          BOOLEAN DEFAULT FALSE
+    )
+  `).catch(e => console.error('[DB] subscribers:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -4773,6 +4782,163 @@ app.post('/webhook/stripe', async (req, res) => {
 });
 
 // ─── END WEBHOOK/STRIPE BLOCK ─────────────────────────────────────────────────
+
+// ─── LEAD MAGNET — /subscribe ─────────────────────────────────────────────────
+
+app.get('/subscribe', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Checklist — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0a0a08;--surface:#111110;--border:rgba(244,242,237,0.1);--text:#f4f2ed;--muted:#a8a39b;--dim:#6b6760;--teal:#00d4c8;--mono:'DM Mono',monospace;--serif:'DM Serif Display',serif}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{max-width:440px;width:100%;border:1px solid var(--border);padding:52px 40px;background:var(--surface)}
+  .label{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:32px}
+  h1{font-family:var(--serif);font-size:34px;font-weight:400;margin-bottom:14px;line-height:1.2}
+  h1 em{color:var(--teal);font-style:italic}
+  .sub{font-size:13px;color:var(--muted);margin-bottom:36px;line-height:1.7}
+  label{display:block;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+  input[type="email"]{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:14px;padding:14px 16px;outline:none;margin-bottom:16px;transition:border-color 0.2s}
+  input[type="email"]:focus{border-color:var(--teal)}
+  button{width:100%;background:var(--teal);color:#0a0a08;border:none;font-family:var(--mono);font-size:14px;font-weight:500;padding:16px;cursor:pointer;transition:opacity 0.2s}
+  button:hover{opacity:0.88}
+  button:disabled{opacity:0.4;cursor:not-allowed}
+  .fine{font-size:11px;color:var(--dim);margin-top:14px;text-align:center}
+  .err{color:#e05252;font-size:13px;margin-top:10px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Strategic Flow</div>
+  <h1>Get the <em>free</em> checklist.</h1>
+  <p class="sub">The 7-Point Email Audit — run before every send. Free.</p>
+  <form id="form" action="/subscribe" method="POST">
+    <label for="email">Your email</label>
+    <input type="email" id="email" name="email" placeholder="you@company.com" autocomplete="email" required>
+    <button type="submit" id="btn">Send me the checklist →</button>
+  </form>
+  <div class="err" id="err"></div>
+  <p class="fine">No spam. Unsubscribe anytime.</p>
+</div>
+<script>
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const btn = document.getElementById('btn');
+  const err = document.getElementById('err');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.href = '/subscribe/thanks';
+    } else {
+      err.textContent = data.error || 'Something went wrong. Try again.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Send me the checklist →';
+    }
+  } catch(e) {
+    err.textContent = 'Network error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Send me the checklist →';
+  }
+});
+</script>
+</body>
+</html>`);
+});
+
+app.post('/subscribe', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO subscribers (email, source) VALUES ($1, 'checklist')
+       ON CONFLICT (email) DO NOTHING`,
+      [email]
+    );
+  } catch (err) {
+    console.error('[subscribe] DB insert error:', err.message);
+    return res.status(500).json({ error: 'Could not save your email. Please try again.' });
+  }
+
+  try {
+    await resend.emails.send({
+      from: 'Strategic Flow <noreply@strategicflow.cc>',
+      to: email,
+      subject: 'Your 7-Point Email Audit Checklist',
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+        <p style="margin:0 0 16px;">Here is your free checklist:</p>
+        <p style="margin:0 0 16px;">
+          <a href="https://strategicflow-tech.github.io/showcase/email-audit-checklist.html" style="color:#00d4c8;">
+            https://strategicflow-tech.github.io/showcase/email-audit-checklist.html
+          </a>
+        </p>
+        <p style="margin:0 0 16px;">Run it before every send.<br>Score 1 point per check.<br>7/7 = ship it. Below 5 = rebuild.</p>
+        <p style="margin:0 0 16px;">If you want a full audit on one of your own emails, reply to this email and paste it.</p>
+        <p style="margin:0;">Alex<br>Strategic Flow<br>strategic-flow-audit.replit.app</p>
+      </div>`
+    });
+    await pool.query(`UPDATE subscribers SET sent = TRUE WHERE email = $1`, [email]);
+    console.log('[subscribe] checklist sent to:', email);
+  } catch (err) {
+    console.error('[subscribe] Resend error:', err.message);
+  }
+
+  res.json({ ok: true });
+});
+
+app.get('/subscribe/thanks', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check your inbox — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0a0a08;--surface:#111110;--border:rgba(244,242,237,0.1);--text:#f4f2ed;--muted:#a8a39b;--dim:#6b6760;--teal:#00d4c8;--mono:'DM Mono',monospace;--serif:'DM Serif Display',serif}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{max-width:440px;width:100%;border:1px solid var(--border);padding:52px 40px;background:var(--surface);text-align:center}
+  .icon{font-size:36px;margin-bottom:28px;display:block}
+  h1{font-family:var(--serif);font-size:34px;font-weight:400;margin-bottom:12px;line-height:1.2}
+  h1 em{color:var(--teal);font-style:italic}
+  .sub{font-size:14px;color:var(--muted);margin-bottom:36px;line-height:1.7}
+  .divider{height:1px;background:var(--border);margin:32px 0}
+  a.back{display:inline-block;font-size:13px;color:var(--teal);text-decoration:none}
+  a.back:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="icon">✓</span>
+  <h1>Check your <em>inbox.</em></h1>
+  <p class="sub">The checklist is on its way.</p>
+  <div class="divider"></div>
+  <a href="https://strategic-flow-audit.replit.app" class="back">← Back to Strategic Flow</a>
+</div>
+</body>
+</html>`);
+});
+
+// ─── END LEAD MAGNET ──────────────────────────────────────────────────────────
 
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
