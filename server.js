@@ -5072,8 +5072,9 @@ app.post('/outreach-audit', async (req, res) => {
 // ─── END OUTREACH AUDIT ───────────────────────────────────────────────────────
 
 // ─── PUBLISH TEARDOWN ─────────────────────────────────────────────────────────
-// POST /publish-teardown — commits a teardown HTML file to GitHub Pages and
-// injects a card into the showcase index.html. No auth required (internal use).
+// POST /publish-teardown — commits a teardown HTML file to GitHub Pages,
+// injects a card into the showcase index.html, and keeps teardown counts
+// in sync across all HTML files in the repo and locally. No auth required.
 
 const GITHUB_REPO_OWNER = 'strategicflow-tech';
 const GITHUB_REPO_NAME  = 'showcase';
@@ -5095,6 +5096,78 @@ async function ghRequest(method, path, body) {
   const json = await resp.json();
   if (!resp.ok) throw new Error(`GitHub ${method} ${path} → ${resp.status}: ${json.message || JSON.stringify(json)}`);
   return json;
+}
+
+// Regex that matches "49 teardowns", "51+ teardowns", "49 teardown" etc.
+const TEARDOWN_COUNT_RE = /\b(\d+)(\+?)\s*(teardown[s]?)\b/gi;
+
+// Update teardown count in all local static HTML files + DB + process.env.
+async function updateLocalTeardownCount(newCount) {
+  const localFiles = [
+    path.join(__dirname, 'public', 'index.html'),
+    path.join(__dirname, 'public', 'patterns.html')
+  ];
+  for (const filePath of localFiles) {
+    try {
+      const content = await fs.promises.readFile(filePath, 'utf8');
+      TEARDOWN_COUNT_RE.lastIndex = 0;
+      const updated = content.replace(TEARDOWN_COUNT_RE,
+        (_, _n, plus, word) => `${newCount}${plus} ${word}`);
+      if (updated !== content) {
+        await fs.promises.writeFile(filePath, updated, 'utf8');
+        console.log(`[teardown-count] local updated: ${path.basename(filePath)}`);
+      }
+    } catch (e) {
+      console.error(`[teardown-count] local file error (${path.basename(filePath)}):`, e.message);
+    }
+  }
+  process.env.TEARDOWN_COUNT = String(newCount);
+  try {
+    await pool.query(
+      `INSERT INTO system_config (key, value, updated_at) VALUES ('teardown_count', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [String(newCount)]
+    );
+  } catch (e) {
+    console.error('[teardown-count] DB persist failed:', e.message);
+  }
+  console.log(`[teardown-count] count set to ${newCount}`);
+}
+
+// Scan all .html files in the GitHub showcase repo and update any teardown
+// count references. Runs concurrently; safe to call after index.html commit.
+async function updateGitHubTeardownCounts(repoPath, newCount) {
+  let listing;
+  try {
+    listing = await ghRequest('GET', repoPath);
+  } catch (e) {
+    console.error('[teardown-count] GitHub listing failed:', e.message);
+    return;
+  }
+  const htmlFiles = Array.isArray(listing)
+    ? listing.filter(f => f.type === 'file' && f.name.endsWith('.html'))
+    : [];
+  console.log(`[teardown-count] scanning ${htmlFiles.length} GitHub HTML files`);
+
+  await Promise.all(htmlFiles.map(async (file) => {
+    try {
+      const fileData = await ghRequest('GET', `${repoPath}/${file.name}`);
+      const content  = Buffer.from(fileData.content, 'base64').toString('utf8');
+      TEARDOWN_COUNT_RE.lastIndex = 0;
+      if (!TEARDOWN_COUNT_RE.test(content)) return; // nothing to replace
+      TEARDOWN_COUNT_RE.lastIndex = 0;
+      const updated = content.replace(TEARDOWN_COUNT_RE,
+        (_, _n, plus, word) => `${newCount}${plus} ${word}`);
+      await ghRequest('PUT', `${repoPath}/${file.name}`, {
+        message: `Update teardown count to ${newCount}: ${file.name}`,
+        content: Buffer.from(updated).toString('base64'),
+        sha:     fileData.sha
+      });
+      console.log(`[teardown-count] GitHub updated: ${file.name}`);
+    } catch (e) {
+      console.error(`[teardown-count] GitHub file error (${file.name}):`, e.message);
+    }
+  }));
 }
 
 app.post('/publish-teardown', async (req, res) => {
@@ -5128,9 +5201,9 @@ app.post('/publish-teardown', async (req, res) => {
     console.log(`[publish-teardown] STEP 1 done — committed ${filename}`);
 
     // ── STEP 2: Fetch + patch index.html ──────────────────────────────────
-    const indexData    = await ghRequest('GET', `${repoPath}/index.html`);
-    const indexSha     = indexData.sha;
-    let   indexHtml    = Buffer.from(indexData.content, 'base64').toString('utf8');
+    const indexData = await ghRequest('GET', `${repoPath}/index.html`);
+    const indexSha  = indexData.sha;
+    let   indexHtml = Buffer.from(indexData.content, 'base64').toString('utf8');
 
     // Build the new card
     const newCard = `<a href="${filename}" class="card" data-cat="${cat}">
@@ -5140,7 +5213,7 @@ app.post('/publish-teardown', async (req, res) => {
   <div class="card-tags"><span class="tag teal">${cat}</span></div>
 </a>`;
 
-    // Inject card — before the first <a class="card" or a <!-- cards --> comment; fallback to </main>
+    // Inject card — before the first <a class="card"; fallback to <!-- cards -->; fallback to </main>
     if (indexHtml.includes('<a class="card"') || indexHtml.includes("<a class='card'")) {
       indexHtml = indexHtml.replace(/(<a\s[^>]*class="card")/, `${newCard}\n$1`);
     } else if (indexHtml.includes('<!-- cards -->')) {
@@ -5154,7 +5227,6 @@ app.post('/publish-teardown', async (req, res) => {
     // Inject JSON-LD hasPart entry
     const newJsonLdEntry = `{"@type":"Article","name":${JSON.stringify(title || company)},"url":${JSON.stringify(pageUrl)}}`;
     if (indexHtml.includes('"hasPart"')) {
-      // Insert before the closing ] of the hasPart array
       indexHtml = indexHtml.replace(/(\"hasPart\"\s*:\s*\[)([\s\S]*?)(\])/, (_, open, inner, close) => {
         const trimmed = inner.trimEnd();
         const separator = trimmed.endsWith(',') || trimmed.trim() === '' ? '' : ',';
@@ -5172,7 +5244,18 @@ app.post('/publish-teardown', async (req, res) => {
     });
     console.log(`[publish-teardown] STEP 3 done — index.html committed`);
 
-    res.json({ success: true, url: pageUrl });
+    // ── STEP 4: Count cards + sync teardown count everywhere ───────────────
+    const cardMatches = indexHtml.match(/<a\s[^>]*class="card"/g);
+    const newCount    = cardMatches ? cardMatches.length : 0;
+    console.log(`[publish-teardown] STEP 4 — new teardown count: ${newCount}`);
+
+    // Run both sync tasks concurrently; don't block the response on GitHub scan
+    updateLocalTeardownCount(newCount).catch(e =>
+      console.error('[publish-teardown] local count sync error:', e.message));
+    updateGitHubTeardownCounts(repoPath, newCount).catch(e =>
+      console.error('[publish-teardown] GitHub count sync error:', e.message));
+
+    res.json({ success: true, url: pageUrl, teardown_count: newCount });
 
   } catch (err) {
     console.error('[publish-teardown] error:', err.message);
@@ -6111,6 +6194,20 @@ email_html: complete standalone HTML email, inline styles only, no external CSS,
 
 setupDB().then(async () => {
   await runMonthlyAudit();
+
+  // Bootstrap TEARDOWN_COUNT from DB if not already set via env var
+  if (!process.env.TEARDOWN_COUNT) {
+    try {
+      const r = await pool.query(`SELECT value FROM system_config WHERE key = 'teardown_count'`);
+      if (r.rows.length) {
+        process.env.TEARDOWN_COUNT = r.rows[0].value;
+        console.log(`[startup] TEARDOWN_COUNT loaded from DB: ${process.env.TEARDOWN_COUNT}`);
+      }
+    } catch (e) {
+      console.error('[startup] TEARDOWN_COUNT load failed:', e.message);
+    }
+  }
+
   const PORT = process.env.PORT || 3000;
 
   app.use((req, res, next) => {
