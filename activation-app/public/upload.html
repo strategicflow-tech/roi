@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Sequence — Activation Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a08;
+    --surface: #111110;
+    --border: rgba(244,242,237,0.1);
+    --text: #f4f2ed;
+    --muted: #a8a39b;
+    --dim: #6b6760;
+    --signal: #4A8FE7;
+    --mono: 'DM Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; }
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px; border-bottom: 1px solid var(--border);
+  }
+  .nav-brand { font-size: 13px; letter-spacing: 0.08em; }
+  .nav-brand span { color: var(--signal); }
+  .nav-back { font-size: 12px; color: var(--dim); text-decoration: none; }
+  .nav-back:hover { color: var(--text); }
+  main { max-width: 720px; margin: 0 auto; padding: 56px 40px; }
+  .page-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 20px; }
+  h1 { font-family: var(--serif); font-size: 36px; font-weight: 400; margin-bottom: 12px; line-height: 1.2; }
+  h1 em { color: var(--signal); font-style: italic; }
+  .sub { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 48px; }
+  .field { margin-bottom: 28px; }
+  label { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  .field-hint { font-size: 12px; color: var(--dim); margin-bottom: 10px; line-height: 1.6; }
+  textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 16px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.7;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--signal); }
+  input[type="text"] {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: var(--signal); }
+  .divider { height: 1px; background: var(--border); margin: 36px 0; }
+  .submit-btn {
+    background: var(--signal);
+    color: #fff;
+    border: none;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 18px 40px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    width: 100%;
+  }
+  .submit-btn:hover { opacity: 0.88; }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .err { color: #e05252; font-size: 13px; margin-top: 12px; display: none; }
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    main { padding: 40px 20px; }
+    h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-brand">Activation <span>Intelligence</span></div>
+  <a href="/dashboard" class="nav-back">← Dashboard</a>
+</nav>
+<main>
+  <div class="page-label">New Analysis</div>
+  <h1>Upload your <em>sequence.</em></h1>
+  <p class="sub">Paste your onboarding emails below. We'll identify gaps, failure patterns, and rebuild every email for higher activation.</p>
+
+  <form id="uploadForm">
+    <div class="field">
+      <label for="sequence">Onboarding sequence *</label>
+      <div class="field-hint">Paste emails one by one, separated by --- (three dashes). Include subject line and body for each email.</div>
+      <textarea id="sequence" name="sequence" rows="18" placeholder="Subject: Welcome to [Product] — here's where to start
+
+Hi [Name],
+
+You just signed up for [Product]. Here's how to get your first result in 5 minutes...
+
+[CTA: Start now →]
+
+---
+
+Subject: Did you complete your setup?
+
+Hi [Name],
+
+You signed up 2 days ago but haven't completed your setup..."></textarea>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label for="goal">Activation goal <span style="color:var(--dim);font-size:10px;">(optional)</span></label>
+      <input type="text" id="goal" name="goal" placeholder="e.g. User completes first workflow, User sends first campaign">
+    </div>
+
+    <div class="field">
+      <label for="days">Sequence duration <span style="color:var(--dim);font-size:10px;">(optional)</span></label>
+      <input type="text" id="days" name="days" placeholder="e.g. 14 days, 30 days">
+    </div>
+
+    <div class="err" id="errMsg"></div>
+    <button type="submit" class="submit-btn" id="submitBtn">Analyze Sequence →</button>
+  </form>
+</main>
+
+<script>
+async function init() {
+  const res = await fetch('/auth/me').catch(() => null);
+  if (!res || !res.ok) { window.location.href = '/login.html'; return; }
+  const data = await res.json();
+  if (!data.signedIn) { window.location.href = '/login.html'; }
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const sequence = document.getElementById('sequence').value.trim();
+  const goal = document.getElementById('goal').value.trim();
+  const days = document.getElementById('days').value.trim();
+  const btn = document.getElementById('submitBtn');
+  const err = document.getElementById('errMsg');
+  err.style.display = 'none';
+
+  if (!sequence || sequence.length < 50) {
+    err.textContent = 'Please paste your email sequence (at least 50 characters).';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+
+  try {
+    const res = await fetch('/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence, goal, days })
+    });
+    const data = await res.json();
+    if (data.id) {
+      window.location.href = '/results/' + data.id;
+    } else {
+      err.textContent = data.error || 'Upload failed. Please try again.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Analyze Sequence →';
+    }
+  } catch (e) {
+    err.textContent = 'Network error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Analyze Sequence →';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

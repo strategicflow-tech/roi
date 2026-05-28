@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis Results — Activation Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a08;
+    --surface: #111110;
+    --surface2: #161614;
+    --border: rgba(244,242,237,0.1);
+    --border-strong: rgba(244,242,237,0.18);
+    --text: #f4f2ed;
+    --muted: #a8a39b;
+    --dim: #6b6760;
+    --signal: #4A8FE7;
+    --green: #5cb85c;
+    --amber: #e8a838;
+    --red: #e05252;
+    --mono: 'DM Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; }
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  .nav-brand { font-size: 13px; letter-spacing: 0.08em; }
+  .nav-brand span { color: var(--signal); }
+  .nav-back { font-size: 12px; color: var(--dim); text-decoration: none; }
+  .nav-back:hover { color: var(--text); }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 40px 80px; }
+  .loading { text-align: center; padding: 80px 0; }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--signal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .loading-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+
+  /* Section layout */
+  .section { margin-bottom: 64px; }
+  .section-header {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  h2 { font-family: var(--serif); font-size: 28px; font-weight: 400; margin-bottom: 24px; }
+  h2 em { color: var(--signal); font-style: italic; }
+
+  /* Score */
+  .score-block { display: flex; align-items: flex-end; gap: 16px; }
+  .score-number { font-family: var(--serif); font-size: 96px; line-height: 1; }
+  .score-denom { font-size: 24px; color: var(--dim); padding-bottom: 16px; }
+  .score-label { font-size: 13px; color: var(--muted); padding-bottom: 18px; }
+  .score-green { color: var(--green); }
+  .score-amber { color: var(--amber); }
+  .score-red { color: var(--red); }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 12px;
+  }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border: 1px solid;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-critical { color: var(--red); border-color: rgba(224,82,82,0.35); }
+  .badge-major { color: var(--amber); border-color: rgba(232,168,56,0.35); }
+  .badge-minor { color: var(--muted); border-color: var(--border); }
+  .card-body { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .card-body p { margin-bottom: 8px; }
+  .card-body strong { color: var(--text); }
+
+  /* Subject variants */
+  .subject-variants { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .subject-variant {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .subject-variant em { color: var(--signal); font-style: normal; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 14px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; line-height: 1.6; }
+  td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .sev-cell.critical { color: var(--red); }
+  .sev-cell.major { color: var(--amber); }
+  .sev-cell.minor { color: var(--muted); }
+
+  /* CTA fatigue */
+  .fatigue-verdict { display: inline-block; font-size: 13px; font-weight: 500; padding: 10px 20px; border: 1px solid; margin-bottom: 20px; }
+  .fatigue-fatigued { color: var(--red); border-color: rgba(224,82,82,0.35); }
+  .fatigue-critical { color: var(--red); border-color: rgba(224,82,82,0.35); }
+  .fatigue-varied { color: var(--green); border-color: rgba(92,184,92,0.35); }
+  .verb-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .verb-chip { background: var(--surface); border: 1px solid var(--border); padding: 6px 14px; font-size: 12px; color: var(--muted); }
+  .fatigue-detail { font-size: 12px; color: var(--dim); }
+
+  /* Before/after */
+  .ba-block { background: var(--surface); border: 1px solid var(--border); margin-bottom: 12px; }
+  .ba-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .ba-title { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+  .copy-btn {
+    font-family: var(--mono); font-size: 11px; color: var(--signal);
+    background: none; border: 1px solid rgba(74,143,231,0.3); padding: 5px 14px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .copy-btn:hover { background: rgba(74,143,231,0.1); }
+  .ba-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .ba-col { padding: 20px; }
+  .ba-col + .ba-col { border-left: 1px solid var(--border); }
+  .ba-col-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+  .ba-subject { font-size: 13px; color: var(--text); margin-bottom: 8px; }
+  .ba-preview { font-size: 12px; color: var(--muted); margin-bottom: 12px; font-style: italic; }
+  .ba-body { font-size: 12px; color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
+  .ba-cta { display: inline-block; margin-top: 12px; font-size: 12px; color: var(--signal); border: 1px solid rgba(74,143,231,0.4); padding: 6px 16px; }
+  @media (max-width: 600px) { .ba-row { grid-template-columns: 1fr; } .ba-col + .ba-col { border-left: none; border-top: 1px solid var(--border); } }
+
+  /* Psychology map */
+  .psych-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .psych-card { background: var(--surface); border: 1px solid var(--border); padding: 24px; }
+  .psych-day { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--signal); margin-bottom: 16px; }
+  .psych-row { margin-bottom: 12px; }
+  .psych-key { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+  .psych-val { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* First fix */
+  .first-fix-card {
+    background: var(--surface);
+    border: 1px solid var(--signal);
+    padding: 32px;
+  }
+  .first-fix-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--signal); margin-bottom: 16px; }
+  .first-fix-text { font-size: 18px; color: var(--text); line-height: 1.5; font-family: var(--serif); }
+
+  footer { text-align: center; padding: 40px; font-size: 11px; color: var(--dim); border-top: 1px solid var(--border); margin-top: 40px; }
+  @media (max-width: 600px) { nav { padding: 16px 20px; } main { padding: 40px 20px 60px; } }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-brand">Activation <span>Intelligence</span></div>
+  <a href="/dashboard" class="nav-back">← Dashboard</a>
+</nav>
+<main id="main">
+  <div class="loading" id="loading">
+    <div class="loading-label">Activation Intelligence</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Analyzing your sequence…<br>This takes about 30–60 seconds.</div>
+  </div>
+</main>
+<footer>Activation Intelligence · Strategic Flow © 2026</footer>
+
+<script>
+const id = window.location.pathname.split('/').pop();
+let pollInterval;
+
+async function checkAuth() {
+  const res = await fetch('/auth/me').catch(() => null);
+  if (!res || !res.ok) { window.location.href = '/login.html'; return false; }
+  const data = await res.json();
+  if (!data.signedIn) { window.location.href = '/login.html'; return false; }
+  return true;
+}
+
+async function loadResult() {
+  try {
+    const res = await fetch('/api/sequences/' + id);
+    if (!res.ok) throw new Error('Not found');
+    const data = await res.json();
+    if (data.status === 'processing') return;
+    clearInterval(pollInterval);
+    if (data.status === 'error') {
+      document.getElementById('main').innerHTML = '<div style="padding:80px 0;text-align:center;color:#e05252;font-size:13px;">Analysis failed. Please try again or contact support.</div>';
+      return;
+    }
+    renderResults(data);
+  } catch (e) {
+    clearInterval(pollInterval);
+    document.getElementById('main').innerHTML = '<div style="padding:80px 0;text-align:center;color:#e05252;font-size:13px;">Could not load results. Please try again.</div>';
+  }
+}
+
+function sev(s) {
+  s = (s || '').toLowerCase();
+  if (s === 'critical') return 'badge-critical';
+  if (s === 'major') return 'badge-major';
+  return 'badge-minor';
+}
+function sevCell(s) {
+  s = (s || '').toLowerCase();
+  if (s === 'critical') return 'critical';
+  if (s === 'major') return 'major';
+  return 'minor';
+}
+function scoreClass(n) {
+  if (n >= 7) return 'score-green';
+  if (n >= 5) return 'score-amber';
+  return 'score-red';
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderResults(seq) {
+  const r = seq.result_json;
+  let html = '';
+
+  // Score
+  const sc = r.health_score || 0;
+  html += `<div class="section">
+    <div class="section-header">01 — Sequence Health Score</div>
+    <div class="score-block">
+      <div class="score-number ${scoreClass(sc)}">${sc}</div>
+      <div class="score-denom">/10</div>
+      <div class="score-label">${sc >= 7 ? 'Healthy' : sc >= 5 ? 'Needs work' : 'Critical issues found'}</div>
+    </div>
+  </div>`;
+
+  // Gaps
+  const gaps = r.gaps || [];
+  html += `<div class="section">
+    <div class="section-header">02 — Activation Gaps (${gaps.length})</div>`;
+  if (gaps.length === 0) {
+    html += '<p style="font-size:13px;color:var(--muted);">No gaps detected.</p>';
+  } else {
+    gaps.forEach(g => {
+      const mb = g.missing_email_brief || {};
+      const variants = (mb.subject_variants || []).map(v => `<div class="subject-variant"><em>→</em> ${esc(v)}</div>`).join('');
+      html += `<div class="card">
+        <div class="card-header">
+          <div class="card-title">${esc(g.position)}</div>
+          <span class="badge ${sev(g.severity)}">${esc(g.severity)}</span>
+        </div>
+        <div class="card-body">
+          <p>${esc(g.description)}</p>
+          ${mb.title ? `<p><strong>Missing email:</strong> ${esc(mb.title)}</p>` : ''}
+          ${mb.goal ? `<p><strong>Goal:</strong> ${esc(mb.goal)}</p>` : ''}
+          ${mb.hook_direction ? `<p><strong>Hook direction:</strong> ${esc(mb.hook_direction)}</p>` : ''}
+          ${mb.cta ? `<p><strong>CTA:</strong> ${esc(mb.cta)}</p>` : ''}
+          ${variants ? `<div class="subject-variants">${variants}</div>` : ''}
+        </div>
+      </div>`;
+    });
+  }
+  html += '</div>';
+
+  // Failure patterns
+  const patterns = r.failure_patterns || [];
+  html += `<div class="section">
+    <div class="section-header">03 — Failure Pattern Breakdown (${patterns.length})</div>`;
+  if (patterns.length === 0) {
+    html += '<p style="font-size:13px;color:var(--muted);">No failure patterns detected.</p>';
+  } else {
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>Email</th><th>Pattern</th><th>Severity</th><th>Exact line</th><th>Fix</th></tr></thead>
+      <tbody>`;
+    patterns.forEach(p => {
+      html += `<tr>
+        <td>#${p.email_number || '?'}</td>
+        <td>${esc(p.pattern)}</td>
+        <td class="sev-cell ${sevCell(p.severity)}">${esc(p.severity)}</td>
+        <td style="font-style:italic;">"${esc(p.exact_line)}"</td>
+        <td>${esc(p.fix)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+
+  // CTA fatigue
+  const cta = r.cta_fatigue || {};
+  const verdictClass = cta.verdict === 'VARIED' ? 'fatigue-varied' : 'fatigue-fatigued';
+  const verbs = (cta.repeated_verbs || []).map(v => `<div class="verb-chip">${esc(v)}</div>`).join('');
+  html += `<div class="section">
+    <div class="section-header">04 — CTA Fatigue Map</div>
+    <div class="fatigue-verdict ${verdictClass}">${esc(cta.verdict || 'N/A')}</div>
+    ${verbs ? `<div class="verb-list">${verbs}</div>` : ''}
+    ${(cta.affected_emails || []).length ? `<div class="fatigue-detail">Affected emails: ${cta.affected_emails.map(n => '#'+n).join(', ')}</div>` : ''}
+  </div>`;
+
+  // Rebuilt emails
+  const rebuilt = r.rebuilt_emails || [];
+  html += `<div class="section">
+    <div class="section-header">05 — Rebuilt Emails (${rebuilt.length})</div>`;
+  rebuilt.forEach((e, i) => {
+    const copyId = 'copy-' + i;
+    const bodyContent = [
+      e.rebuilt_subject ? 'Subject: ' + e.rebuilt_subject : '',
+      e.rebuilt_preview ? 'Preview: ' + e.rebuilt_preview : '',
+      '',
+      e.rebuilt_body || '',
+      '',
+      e.rebuilt_cta ? 'CTA: ' + e.rebuilt_cta : ''
+    ].filter(Boolean).join('\n');
+    html += `<div class="ba-block">
+      <div class="ba-header">
+        <span class="ba-title">Email #${e.email_number}</span>
+        <button class="copy-btn" onclick="copyEmail(${i})">Copy rebuilt →</button>
+      </div>
+      <div class="ba-row">
+        <div class="ba-col">
+          <div class="ba-col-label">Original</div>
+          <div class="ba-subject">${esc(e.original_subject)}</div>
+        </div>
+        <div class="ba-col">
+          <div class="ba-col-label">Rebuilt</div>
+          <div class="ba-subject">${esc(e.rebuilt_subject)}</div>
+          ${e.rebuilt_preview ? `<div class="ba-preview">${esc(e.rebuilt_preview)}</div>` : ''}
+          <div class="ba-body" id="${copyId}">${esc(e.rebuilt_body)}</div>
+          ${e.rebuilt_cta ? `<div class="ba-cta">${esc(e.rebuilt_cta)}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+    window['_copy_' + i] = bodyContent;
+  });
+  html += '</div>';
+
+  // Psychology map
+  const psych = r.psychology_map || [];
+  html += `<div class="section">
+    <div class="section-header">06 — User Psychology Map</div>
+    <div class="psych-grid">`;
+  psych.forEach(p => {
+    html += `<div class="psych-card">
+      <div class="psych-day">${esc(p.day)}</div>
+      <div class="psych-row"><div class="psych-key">User thought</div><div class="psych-val">${esc(p.user_thought)}</div></div>
+      <div class="psych-row"><div class="psych-key">Friction</div><div class="psych-val">${esc(p.friction)}</div></div>
+      <div class="psych-row"><div class="psych-key">Objection</div><div class="psych-val">${esc(p.objection)}</div></div>
+    </div>`;
+  });
+  html += '</div></div>';
+
+  // First fix
+  html += `<div class="section">
+    <div class="section-header">07 — Recommended First Fix</div>
+    <div class="first-fix-card">
+      <div class="first-fix-label">Start here</div>
+      <div class="first-fix-text">${esc(r.recommended_first_fix || 'See failure patterns above.')}</div>
+    </div>
+  </div>`;
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function copyEmail(i) {
+  const text = window['_copy_' + i] || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const btns = document.querySelectorAll('.copy-btn');
+    const btn = btns[i];
+    if (btn) { const orig = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = orig, 1500); }
+  });
+}
+
+async function init() {
+  if (!await checkAuth()) return;
+  loadResult();
+  pollInterval = setInterval(loadResult, 4000);
+}
+
+init();
+</script>
+</body>
+</html>
