@@ -79,7 +79,8 @@ setInterval(() => {
   for (const [id, job] of jobs) { if (job.created < cutoff) jobs.delete(id); }
 }, 10 * 60 * 1000);
 
-app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use('/stripe/webhook',  express.raw({ type: 'application/json' }));
+app.use('/webhook/stripe',  express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
 
 app.use((req, res, next) => {
@@ -4488,6 +4489,219 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
 });
 
 // ─── END STRIPE BLOCK ─────────────────────────────────────────────────────────
+
+// ─── STRIPE WEBHOOK (activation flow) ────────────────────────────────────────
+// POST /webhook/stripe — handles checkout + subscription lifecycle for Architecture tier
+
+async function getCustomerEmail(customerId) {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    return customer.deleted ? null : (customer.email || null);
+  } catch (e) {
+    console.error('[webhook/stripe] customer lookup failed:', e.message);
+    return null;
+  }
+}
+
+const WELCOME_EMAIL_HTML = `
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+  <p style="margin:0 0 16px;">Hi,</p>
+  <p style="margin:0 0 16px;">Your access is ready. Log in here:<br>
+    <a href="https://strategic-flow-audit.replit.app/login.html" style="color:#4A8FE7;">
+      https://strategic-flow-audit.replit.app/login.html
+    </a>
+  </p>
+  <p style="margin:0 0 16px;">Enter this email address and click the magic link we send you. You will land directly on the Architecture dashboard.</p>
+  <p style="margin:0 0 16px;">Questions? Reply to this email.</p>
+  <p style="margin:0;">Alex<br>Strategic Flow</p>
+</div>`;
+
+app.post('/webhook/stripe', async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('[webhook/stripe] signature verification failed:', err.message);
+    return res.status(400).send('Webhook signature verification failed');
+  }
+
+  console.log('[webhook/stripe] received event:', event.type);
+
+  // Always return 200 immediately — Stripe must not retry
+  res.json({ received: true });
+
+  try {
+    // ── 1. checkout.session.completed ──────────────────────────────────────
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const email = session.customer_email || session.customer_details?.email;
+
+      if (!email) {
+        console.error('[webhook/stripe] checkout.session.completed — no email found, session:', session.id);
+        return;
+      }
+
+      // Check product name in metadata or line_items
+      const metaProduct = (session.metadata?.product || session.metadata?.name || '').toLowerCase();
+      let productName = metaProduct;
+
+      if (!productName && session.line_items) {
+        try {
+          const expanded = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ['line_items']
+          });
+          const item = expanded.line_items?.data?.[0];
+          productName = (item?.description || item?.price?.nickname || '').toLowerCase();
+        } catch (e) {
+          console.error('[webhook/stripe] line_items expand failed:', e.message);
+        }
+      }
+
+      const isActivation = productName.includes('activation audit') || productName.includes('activation') || metaProduct.includes('activation');
+
+      if (!isActivation && productName) {
+        console.log('[webhook/stripe] checkout.session.completed — product not activation, skipping:', productName);
+        return;
+      }
+
+      console.log('[webhook/stripe] checkout activation for:', email);
+
+      await pool.query(
+        `INSERT INTO users (email, tier, expires_at, access_type)
+         VALUES ($1, 'architecture', NULL, 'activation_paid')
+         ON CONFLICT (email) DO UPDATE
+           SET tier = 'architecture', expires_at = NULL, access_type = 'activation_paid'`,
+        [email.toLowerCase().trim()]
+      );
+
+      await resend.emails.send({
+        from: SENDER,
+        to: email,
+        subject: 'Your Activation Intelligence access is ready',
+        html: WELCOME_EMAIL_HTML
+      });
+
+      console.log('[webhook/stripe] checkout — user upserted + welcome email sent:', email);
+    }
+
+    // ── 2. customer.subscription.created ───────────────────────────────────
+    else if (event.type === 'customer.subscription.created') {
+      const subscription = event.data.object;
+      const email = await getCustomerEmail(subscription.customer);
+
+      if (!email) {
+        console.error('[webhook/stripe] subscription.created — no email for customer:', subscription.customer);
+        return;
+      }
+
+      console.log('[webhook/stripe] subscription created for:', email);
+
+      await pool.query(
+        `INSERT INTO users (email, tier, expires_at, access_type)
+         VALUES ($1, 'architecture', NULL, 'activation_retainer')
+         ON CONFLICT (email) DO UPDATE
+           SET tier = 'architecture', expires_at = NULL, access_type = 'activation_retainer'`,
+        [email.toLowerCase().trim()]
+      );
+
+      await resend.emails.send({
+        from: SENDER,
+        to: email,
+        subject: 'Your Activation Intelligence access is ready',
+        html: WELCOME_EMAIL_HTML
+      });
+
+      console.log('[webhook/stripe] subscription.created — user upserted + welcome email sent:', email);
+    }
+
+    // ── 3. customer.subscription.updated ───────────────────────────────────
+    else if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object;
+      const email = await getCustomerEmail(subscription.customer);
+
+      if (!email) {
+        console.error('[webhook/stripe] subscription.updated — no email for customer:', subscription.customer);
+        return;
+      }
+
+      const status = subscription.status;
+      console.log('[webhook/stripe] subscription updated for:', email, '— status:', status);
+
+      if (status === 'active') {
+        await pool.query(
+          `UPDATE users SET tier = 'architecture', expires_at = NULL WHERE email = $1`,
+          [email.toLowerCase().trim()]
+        );
+        console.log('[webhook/stripe] subscription.updated — tier restored to architecture:', email);
+
+      } else if (status === 'past_due' || status === 'unpaid') {
+        await pool.query(
+          `UPDATE users SET tier = 'suspended' WHERE email = $1`,
+          [email.toLowerCase().trim()]
+        );
+
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your Strategic Flow access has been suspended',
+          html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+            <p>Your access has been suspended due to a payment issue. Update your payment method to restore access.</p>
+            <p>Questions? Reply to this email.</p>
+            <p>Alex<br>Strategic Flow</p>
+          </div>`
+        });
+
+        console.log('[webhook/stripe] subscription.updated — tier suspended, email sent:', email);
+      }
+    }
+
+    // ── 4. customer.subscription.deleted ───────────────────────────────────
+    else if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const email = await getCustomerEmail(subscription.customer);
+
+      if (!email) {
+        console.error('[webhook/stripe] subscription.deleted — no email for customer:', subscription.customer);
+        return;
+      }
+
+      console.log('[webhook/stripe] subscription deleted for:', email);
+
+      await pool.query(
+        `UPDATE users SET tier = 'expired', expires_at = NOW() WHERE email = $1`,
+        [email.toLowerCase().trim()]
+      );
+
+      await resend.emails.send({
+        from: SENDER,
+        to: email,
+        subject: 'Your Activation Intelligence subscription has been cancelled',
+        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+          <p>Your Activation Intelligence subscription has been cancelled. Your access has been removed.</p>
+          <p>Reply to this email if this was a mistake.</p>
+          <p>Alex<br>Strategic Flow</p>
+        </div>`
+      });
+
+      console.log('[webhook/stripe] subscription.deleted — tier expired, email sent:', email);
+    }
+
+    else {
+      console.log('[webhook/stripe] unhandled event type (ignored):', event.type);
+    }
+
+  } catch (err) {
+    console.error('[webhook/stripe] internal processing error (200 already sent):', err.message);
+  }
+});
+
+// ─── END WEBHOOK/STRIPE BLOCK ─────────────────────────────────────────────────
 
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
