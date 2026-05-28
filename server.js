@@ -4600,24 +4600,53 @@ app.post('/webhook/stripe', async (req, res) => {
         return;
       }
 
-      console.log('[webhook/stripe] subscription created for:', email);
+      console.log('[webhook/stripe] subscription created for:', email, '— status:', subscription.status);
 
-      await pool.query(
-        `INSERT INTO users (email, tier, expires_at, access_type)
-         VALUES ($1, 'architecture', NULL, 'activation_retainer')
-         ON CONFLICT (email) DO UPDATE
-           SET tier = 'architecture', expires_at = NULL, access_type = 'activation_retainer'`,
-        [email.toLowerCase().trim()]
-      );
+      if (subscription.status === 'trialing') {
+        const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null;
+        await pool.query(
+          `INSERT INTO users (email, tier, expires_at, access_type)
+           VALUES ($1, 'architecture', $2, 'architecture_trial')
+           ON CONFLICT (email) DO UPDATE
+             SET tier = 'architecture', expires_at = $2, access_type = 'architecture_trial'`,
+          [email.toLowerCase().trim(), trialEnd]
+        );
 
-      await resend.emails.send({
-        from: SENDER,
-        to: email,
-        subject: 'Your Activation Intelligence access is ready',
-        html: WELCOME_EMAIL_HTML
-      });
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your 3-day Architecture trial has started',
+          html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+            <p style="margin:0 0 16px;">Your trial access is active.</p>
+            <p style="margin:0 0 16px;">Log in here:<br>
+              <a href="https://strategic-flow-audit.replit.app/login.html" style="color:#4A8FE7;">https://strategic-flow-audit.replit.app/login.html</a>
+            </p>
+            <p style="margin:0 0 16px;">You have full access to all 19 Architecture tools for 3 days. Your card will only be charged if you do not cancel before the trial ends.</p>
+            <p style="margin:0 0 16px;">Questions? Reply to this email.</p>
+            <p style="margin:0;">Alex<br>Strategic Flow</p>
+          </div>`
+        });
 
-      console.log('[webhook/stripe] subscription.created — user upserted + welcome email sent:', email);
+        console.log('[webhook/stripe] subscription.created — trial upserted + trial email sent:', email, 'expires:', trialEnd);
+
+      } else {
+        await pool.query(
+          `INSERT INTO users (email, tier, expires_at, access_type)
+           VALUES ($1, 'architecture', NULL, 'activation_retainer')
+           ON CONFLICT (email) DO UPDATE
+             SET tier = 'architecture', expires_at = NULL, access_type = 'activation_retainer'`,
+          [email.toLowerCase().trim()]
+        );
+
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your Activation Intelligence access is ready',
+          html: WELCOME_EMAIL_HTML
+        });
+
+        console.log('[webhook/stripe] subscription.created — user upserted + welcome email sent:', email);
+      }
     }
 
     // ── 3. customer.subscription.updated ───────────────────────────────────
@@ -4631,9 +4660,29 @@ app.post('/webhook/stripe', async (req, res) => {
       }
 
       const status = subscription.status;
-      console.log('[webhook/stripe] subscription updated for:', email, '— status:', status);
+      const previousStatus = event.data.previous_attributes?.status;
+      console.log('[webhook/stripe] subscription updated for:', email, '— status:', status, 'prev:', previousStatus);
 
-      if (status === 'active') {
+      if (status === 'active' && previousStatus === 'trialing') {
+        await pool.query(
+          `UPDATE users SET tier = 'architecture', expires_at = NULL, access_type = 'architecture_paid' WHERE email = $1`,
+          [email.toLowerCase().trim()]
+        );
+
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your Architecture trial converted',
+          html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+            <p style="margin:0 0 16px;">Full access continues. All 19 tools remain active.</p>
+            <p style="margin:0 0 16px;">Questions? Reply to this email.</p>
+            <p style="margin:0;">Alex<br>Strategic Flow</p>
+          </div>`
+        });
+
+        console.log('[webhook/stripe] subscription.updated — trial converted to paid:', email);
+
+      } else if (status === 'active') {
         await pool.query(
           `UPDATE users SET tier = 'architecture', expires_at = NULL WHERE email = $1`,
           [email.toLowerCase().trim()]
@@ -4673,23 +4722,45 @@ app.post('/webhook/stripe', async (req, res) => {
 
       console.log('[webhook/stripe] subscription deleted for:', email);
 
+      // Check current access_type to decide which email to send
+      const userRow = await pool.query(
+        `SELECT access_type FROM users WHERE email = $1`,
+        [email.toLowerCase().trim()]
+      );
+      const accessType = userRow.rows[0]?.access_type || '';
+
       await pool.query(
         `UPDATE users SET tier = 'expired', expires_at = NOW() WHERE email = $1`,
         [email.toLowerCase().trim()]
       );
 
-      await resend.emails.send({
-        from: SENDER,
-        to: email,
-        subject: 'Your Activation Intelligence subscription has been cancelled',
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
-          <p>Your Activation Intelligence subscription has been cancelled. Your access has been removed.</p>
-          <p>Reply to this email if this was a mistake.</p>
-          <p>Alex<br>Strategic Flow</p>
-        </div>`
-      });
-
-      console.log('[webhook/stripe] subscription.deleted — tier expired, email sent:', email);
+      if (accessType === 'architecture_trial') {
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your Architecture trial has ended',
+          html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+            <p style="margin:0 0 16px;">Your trial access has expired.</p>
+            <p style="margin:0 0 16px;">Reactivate anytime at:<br>
+              <a href="https://strategic-flow-pro.replit.app/packages" style="color:#4A8FE7;">https://strategic-flow-pro.replit.app/packages</a>
+            </p>
+            <p style="margin:0;">Alex<br>Strategic Flow</p>
+          </div>`
+        });
+        console.log('[webhook/stripe] subscription.deleted — trial ended, email sent:', email);
+      } else {
+        await resend.emails.send({
+          from: SENDER,
+          to: email,
+          subject: 'Your Activation Intelligence subscription has been cancelled',
+          html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
+            <p>Your Activation Intelligence subscription has been cancelled. Your access has been removed.</p>
+            <p>Reply to this email if this was a mistake.</p>
+            <p>Alex<br>Strategic Flow</p>
+          </div>`
+        });
+        console.log('[webhook/stripe] subscription.deleted — tier expired, email sent:', email);
+      }
     }
 
     else {
