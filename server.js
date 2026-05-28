@@ -4990,6 +4990,10 @@ async function resolveLatestBlogUrl(baseUrl) {
 }
 
 app.post('/outreach-audit', async (req, res) => {
+  if (req.headers['x-sf-key'] !== 'sf-internal-2026') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
 
   if (!pageUrl || !prospectCompany) {
