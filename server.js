@@ -4940,6 +4940,81 @@ app.get('/subscribe/thanks', (req, res) => {
 
 // ─── END LEAD MAGNET ──────────────────────────────────────────────────────────
 
+// ─── OUTREACH AUDIT ───────────────────────────────────────────────────────────
+// POST /outreach-audit — internal lead-gen endpoint, no auth required
+// Runs a full /generate call with bypass email and returns a simplified audit
+// suitable for personalised cold outreach.
+
+app.post('/outreach-audit', async (req, res) => {
+  const { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
+
+  if (!pageUrl || !prospectCompany) {
+    return res.status(400).json({ error: 'pageUrl and prospectCompany are required' });
+  }
+
+  const internalPort = process.env.PORT || 3000;
+  const generateUrl  = `http://localhost:${internalPort}/generate`;
+
+  let generateResult;
+  try {
+    const resp = await fetch(generateUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:   'strategicflow@proton.me',
+        subject: `${prospectCompany} homepage audit`,
+        pageUrl
+      })
+    });
+    generateResult = await resp.json();
+  } catch (err) {
+    console.error('[outreach-audit] internal /generate call failed:', err.message);
+    return res.status(502).json({ error: 'Internal generation failed', detail: err.message });
+  }
+
+  if (generateResult.error) {
+    console.error('[outreach-audit] /generate returned error:', generateResult.error);
+    return res.status(422).json({ error: generateResult.error, detail: generateResult.message });
+  }
+
+  // Extract only the required fields
+  const originalScore = generateResult.conversion_score?.original_score ?? null;
+  const topBugs       = (generateResult.removed_elements || []).slice(0, 2);
+  const topFixes      = (generateResult.key_changes     || []).slice(0, 2);
+  const bestSubject   = generateResult.ab_subjects?.[0]
+    ? {
+        subject:       generateResult.ab_subjects[0].subject       || '',
+        angle:         generateResult.ab_subjects[0].angle         || '',
+        predicted_lift: generateResult.ab_subjects[0].predicted_lift || ''
+      }
+    : null;
+
+  const bug1  = topBugs[0]  || '';
+  const fix1  = topFixes[0] || '';
+  const score = originalScore !== null ? originalScore : '?';
+
+  const msg1 = `Hi ${prospectName || '[name]'},\n\n${prospectCompany}'s homepage scores ${score}/10 on the Strategic Flow audit.\n\nBiggest structural gap: ${bug1}\n\nRebuilt version: ${fix1}\n\nWant the full breakdown — score, rebuilt copy, 3 variants?\nNo pitch, just the output.\n\n-- Alex\nstrategicflow.carrd.co`;
+
+  console.log(`[outreach-audit] completed for ${prospectCompany} (${pageUrl}) — score: ${score}`);
+
+  res.json({
+    prospect: {
+      name:    prospectName    || '',
+      company: prospectCompany || '',
+      title:   prospectTitle   || ''
+    },
+    audit: {
+      original_score: originalScore,
+      top_bugs:       topBugs,
+      top_fixes:      topFixes,
+      best_subject:   bestSubject
+    },
+    msg1_template: msg1
+  });
+});
+
+// ─── END OUTREACH AUDIT ───────────────────────────────────────────────────────
+
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
 app.post('/api/demo', async (req, res) => {
