@@ -4945,12 +4945,61 @@ app.get('/subscribe/thanks', (req, res) => {
 // Runs a full /generate call with bypass email and returns a simplified audit
 // suitable for personalised cold outreach.
 
+// Attempt to find the latest blog post URL from a domain's RSS feed.
+// Tries common RSS paths in order; returns the first <item> URL or null.
+async function resolveLatestBlogUrl(baseUrl) {
+  let origin;
+  try {
+    origin = new URL(baseUrl).origin; // e.g. https://heygen.com
+  } catch {
+    return null;
+  }
+
+  const RSS_PATHS = ['/feed', '/rss', '/blog/feed', '/rss.xml'];
+
+  for (const path of RSS_PATHS) {
+    const feedUrl = origin + path;
+    try {
+      const resp = await fetch(feedUrl, {
+        signal:  AbortSignal.timeout(5000),
+        headers: { 'Accept': 'application/rss+xml, application/xml, text/xml, */*' }
+      });
+      if (!resp.ok) continue;
+
+      const xml = await resp.text();
+      // Must look like XML with at least one <item>
+      if (!xml.includes('<item') && !xml.includes('<entry')) continue;
+
+      // RSS 2.0: <link>https://...</link> inside <item>
+      // Atom: <link href="https://..."/> inside <entry>
+      let match =
+        xml.match(/<item[\s\S]*?<link>(https?:\/\/[^<]+)<\/link>/i) ||
+        xml.match(/<entry[\s\S]*?<link[^>]+href="(https?:\/\/[^"]+)"/i);
+
+      if (match && match[1]) {
+        const resolved = match[1].trim();
+        console.log(`[outreach-audit] RSS found at ${feedUrl} → ${resolved}`);
+        return resolved;
+      }
+    } catch {
+      // Timeout or network error — try next path
+    }
+  }
+
+  return null; // No RSS found
+}
+
 app.post('/outreach-audit', async (req, res) => {
   const { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
 
   if (!pageUrl || !prospectCompany) {
     return res.status(400).json({ error: 'pageUrl and prospectCompany are required' });
   }
+
+  // Resolve to latest blog post if an RSS feed exists; otherwise use original URL
+  const latestBlogUrl = await resolveLatestBlogUrl(pageUrl);
+  const contentUrl    = latestBlogUrl || pageUrl;
+  console.log(`[outreach-audit] content_url resolved: ${contentUrl} (rss: ${!!latestBlogUrl})`);
 
   const internalPort = process.env.PORT || 3000;
   const generateUrl  = `http://localhost:${internalPort}/generate`;
@@ -4963,7 +5012,7 @@ app.post('/outreach-audit', async (req, res) => {
       body: JSON.stringify({
         email:   'strategicflow@proton.me',
         subject: `${prospectCompany} homepage audit`,
-        pageUrl
+        pageUrl: contentUrl
       })
     });
     generateResult = await resp.json();
@@ -4983,8 +5032,8 @@ app.post('/outreach-audit', async (req, res) => {
   const topFixes      = (generateResult.key_changes     || []).slice(0, 2);
   const bestSubject   = generateResult.ab_subjects?.[0]
     ? {
-        subject:       generateResult.ab_subjects[0].subject       || '',
-        angle:         generateResult.ab_subjects[0].angle         || '',
+        subject:        generateResult.ab_subjects[0].subject        || '',
+        angle:          generateResult.ab_subjects[0].angle          || '',
         predicted_lift: generateResult.ab_subjects[0].predicted_lift || ''
       }
     : null;
@@ -4995,7 +5044,7 @@ app.post('/outreach-audit', async (req, res) => {
 
   const msg1 = `Hi ${prospectName || '[name]'},\n\n${prospectCompany}'s homepage scores ${score}/10 on the Strategic Flow audit.\n\nBiggest structural gap: ${bug1}\n\nRebuilt version: ${fix1}\n\nWant the full breakdown — score, rebuilt copy, 3 variants?\nNo pitch, just the output.\n\n-- Alex\nstrategicflow.carrd.co`;
 
-  console.log(`[outreach-audit] completed for ${prospectCompany} (${pageUrl}) — score: ${score}`);
+  console.log(`[outreach-audit] completed for ${prospectCompany} (${contentUrl}) — score: ${score}`);
 
   res.json({
     prospect: {
@@ -5009,6 +5058,7 @@ app.post('/outreach-audit', async (req, res) => {
       top_fixes:      topFixes,
       best_subject:   bestSubject
     },
+    content_url:   contentUrl,
     msg1_template: msg1
   });
 });
