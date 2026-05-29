@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Strategic Flow — Zapier MCP Feature Guide Teardown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --sf-bg:#efefec;--sf-card:#fff;--sf-border:rgba(0,0,0,0.09);
+  --sf-text:#1a1a18;--sf-muted:#6b6b66;
+  --sf-green:#1D9E75;--sf-green-light:#E1F5EE;--sf-green-dark:#085041;--sf-green-mid:#0F6E56;
+  --sf-amber-bg:#fff8f0;--sf-amber:#7a5a00;
+  /* Zapier palette */
+  --zap-orange:#FF4F00;
+  --zap-orange-dark:#C93D00;
+  --zap-bg:#FFFFFF;
+  --zap-bg2:#FFF5F0;
+  --zap-text:#1A1A1A;
+  --zap-muted:#6B7280;
+  --zap-border:#E5E7EB;
+  --zap-dark:#111;
+}
+html,body{width:100%;margin:0;padding:0;background:var(--sf-bg);}
+body{font-family:'Figtree',sans-serif;color:var(--sf-text);padding:32px 16px;}
+
+/* SF scaffold */
+.page-header{max-width:720px;margin:0 auto 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.page-title{font-family:'DM Serif Display',serif;font-size:30px;color:var(--sf-text);line-height:1.2;}
+.page-title em{font-style:italic;color:var(--sf-green);}
+.page-sub{font-size:12px;color:var(--sf-muted);font-family:'DM Mono',monospace;letter-spacing:.04em;}
+.sf-wrap{max-width:720px;margin:0 auto;}
+.toggle-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.toggle-btn{padding:7px 18px;font-family:'Figtree',sans-serif;font-size:13px;font-weight:500;border-radius:20px;border:1px solid rgba(0,0,0,0.18);background:transparent;color:var(--sf-muted);cursor:pointer;transition:all .2s;}
+.toggle-btn:hover{background:#f5f5f3;}
+.toggle-btn.active{background:var(--sf-text);color:#fff;border-color:var(--sf-text);}
+.shell{border:1px solid var(--sf-border);border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 4px 32px rgba(0,0,0,0.06);}
+.toolbar{background:#f5f5f3;padding:10px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--sf-border);}
+.dot{width:12px;height:12px;border-radius:50%;}
+.pill{font-size:11px;font-weight:500;padding:3px 10px;border-radius:12px;letter-spacing:.04em;text-transform:uppercase;font-family:'DM Mono',monospace;}
+.pill-before{background:#F7C1C1;color:#791F1F;}
+.pill-after{background:#9FE1CB;color:#085041;}
+.pill-notes{background:#CECBF6;color:#3C3489;}
+.meta-bar{padding:14px 22px;border-bottom:1px solid var(--sf-border);}
+.meta-row{font-size:12px;color:var(--sf-muted);line-height:1.9;}
+.meta-row span{color:var(--sf-text);font-weight:500;}
+.meta-title{font-size:17px;font-weight:600;color:var(--sf-text);margin-top:4px;line-height:1.3;}
+.panel{display:none;}.panel.active{display:block;}
+
+/* ── ZAPIER NAV ── */
+.zap-nav{background:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--zap-border);}
+.zap-logo{display:flex;align-items:center;gap:0;}
+.zap-logo-underscore{font-size:22px;font-weight:900;color:var(--zap-orange);letter-spacing:-.04em;font-family:'Figtree',sans-serif;}
+.zap-logo-text{font-size:22px;font-weight:900;color:#1A1A1A;letter-spacing:-.04em;font-family:'Figtree',sans-serif;}
+.zap-nav-links{display:flex;gap:20px;align-items:center;}
+.zap-nav-link{font-size:13px;color:#555;font-weight:500;cursor:pointer;}
+.zap-nav-cta{background:var(--zap-orange);color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'Figtree',sans-serif;}
+
+/* Breadcrumb */
+.zap-breadcrumb{background:#fff;padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--zap-border);}
+.zap-back-btn{width:28px;height:28px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.zap-back-text{font-size:12px;color:#888;}
+.zap-crumb-sep{font-size:12px;color:#ccc;}
+.zap-crumb-current{font-size:12px;color:var(--zap-text);font-weight:500;}
+
+/* Article hero — BEFORE */
+.zap-hero{background:#fff;padding:36px 20px 28px;border-bottom:1px solid var(--zap-border);}
+.zap-hero-badge{font-size:11px;font-weight:600;color:var(--zap-muted);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:14px;}
+.zap-hero-title{font-size:28px;font-weight:800;color:var(--zap-text);line-height:1.15;margin-bottom:20px;letter-spacing:-.02em;}
+.zap-author-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.zap-author-avatar{width:36px;height:36px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;background:var(--zap-orange);}
+.zap-author-name{font-size:13px;font-weight:600;color:var(--zap-text);}
+.zap-author-meta{font-size:11px;color:var(--zap-muted);}
+.zap-read-time{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--zap-muted);background:#f9fafb;padding:4px 10px;border-radius:20px;border:1px solid var(--zap-border);}
+
+/* Body */
+.zap-body{background:#fff;padding:0 20px 32px;}
+.zap-intro{font-size:14px;color:#555;line-height:1.8;padding:20px 0 0;margin-bottom:18px;}
+.zap-h2{font-size:18px;font-weight:700;color:var(--zap-text);margin:28px 0 10px;line-height:1.25;}
+.zap-copy{font-size:13px;color:#555;line-height:1.78;margin-bottom:12px;}
+.zap-toc{background:#f9fafb;border:1px solid var(--zap-border);border-radius:10px;padding:18px 20px;margin:0 0 24px;}
+.zap-toc-title{font-size:11px;font-weight:700;color:var(--zap-text);font-family:'DM Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;}
+.zap-toc-item{font-size:12px;color:var(--zap-orange);margin-bottom:7px;display:flex;gap:8px;align-items:baseline;}
+.zap-toc-item span{color:#6b7280;}
+.zap-feature-list{margin:14px 0;}
+.zap-feature-item{font-size:12px;color:#555;line-height:1.65;margin-bottom:10px;display:flex;gap:8px;}
+.zap-feature-dot{width:6px;height:6px;border-radius:50%;background:var(--zap-orange);margin-top:6px;flex-shrink:0;}
+.zap-cta-inline{background:var(--zap-bg2);border:1px solid #ffd0b8;border-radius:10px;padding:18px 20px;margin:20px 0;}
+.zap-cta-inline-title{font-size:13px;font-weight:700;color:var(--zap-text);margin-bottom:6px;}
+.zap-cta-inline-desc{font-size:12px;color:var(--zap-muted);line-height:1.55;margin-bottom:12px;}
+.zap-cta-inline-btn{background:var(--zap-orange);color:#fff;padding:9px 18px;border-radius:6px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'Figtree',sans-serif;}
+.zap-divider{border:none;border-top:1px solid var(--zap-border);margin:20px 0;}
+.zap-footer-bar{background:#f9fafb;padding:16px 20px;text-align:center;font-size:11px;color:var(--zap-muted);border-top:1px solid var(--zap-border);}
+
+/* Issues panel */
+.issues{margin:0 20px 20px;padding:15px;background:var(--sf-amber-bg);border-left:3px solid #F09F27;border-radius:0 8px 8px 0;}
+.issue-item{font-size:12px;color:var(--sf-amber);margin-bottom:8px;display:flex;gap:8px;line-height:1.55;}
+
+/* ── AFTER — SF on Zapier chrome ── */
+.aft-hero{background:#fff;padding:36px 20px 28px;border-bottom:3px solid var(--zap-orange);}
+.aft-kicker{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--zap-orange);font-family:'DM Mono',monospace;margin-bottom:12px;}
+.aft-h1{font-family:'DM Serif Display',serif;font-size:26px;line-height:1.2;color:var(--zap-text);margin-bottom:14px;max-width:520px;}
+.aft-h1 em{font-style:italic;color:var(--zap-orange);}
+.aft-lead{font-size:13px;color:#555;line-height:1.75;max-width:500px;margin-bottom:22px;}
+.aft-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+.stat{background:#fff5f0;border:1px solid #ffd0b8;border-radius:10px;padding:13px;text-align:center;}
+.stat-n{font-family:'DM Serif Display',serif;font-size:22px;color:var(--zap-orange);line-height:1;}
+.stat-l{font-size:10px;color:var(--zap-muted);margin-top:4px;font-family:'DM Mono',monospace;}
+.aft-ctas{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.aft-btn{background:var(--zap-orange);color:#fff;padding:11px 22px;border-radius:7px;font-size:13px;font-weight:700;text-decoration:none;display:inline-block;}
+.aft-ghost{font-size:12px;color:#888;border-bottom:1px solid #ccc;padding-bottom:1px;cursor:pointer;}
+
+.aft-body{background:#fff;}
+.aft-sec{padding:20px;border-bottom:1px solid var(--zap-border);}
+.aft-sec:last-child{border-bottom:none;}
+.aft-sec-label{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;color:var(--zap-orange);text-transform:uppercase;margin-bottom:7px;}
+.aft-sec-title{font-size:15px;font-weight:700;color:var(--zap-text);margin-bottom:8px;line-height:1.3;}
+.aft-sec-body{font-size:13px;color:#555;line-height:1.7;}
+.aft-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.aft-card{background:#fff5f0;border-radius:8px;padding:13px;border-left:2px solid var(--zap-orange);}
+.aft-card-name{font-size:11px;font-weight:700;color:var(--zap-text);margin-bottom:4px;}
+.aft-card-desc{font-size:11px;color:var(--zap-muted);line-height:1.55;}
+
+.aft-verdict{background:#1A1A1A;padding:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+.aft-verdict-text{flex:1;font-size:13px;color:rgba(255,255,255,.65);line-height:1.65;}
+.aft-verdict-text strong{color:#fff;}
+.aft-verdict-btn{flex-shrink:0;display:inline-block;background:var(--zap-orange);color:#fff;padding:10px 18px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+
+.aft-footer{background:#f9fafb;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid var(--zap-border);}
+.aft-footer-links{display:flex;gap:16px;}
+.aft-footer-link{font-size:11px;color:var(--zap-muted);text-decoration:none;}
+.aft-footer-note{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;}
+
+/* Notes */
+.notes-body{padding:28px;}
+.notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
+.note-card{padding:16px;border-radius:10px;font-size:12px;line-height:1.75;}
+.note-card.bad{border:1px solid #F7C1C1;background:#fff9f9;}
+.note-card.good{border:1px solid #9FE1CB;background:#f9fffe;}
+.note-lbl{font-weight:600;margin-bottom:8px;font-size:13px;}
+.note-lbl.bad{color:#791F1F;}.note-lbl.good{color:#085041;}
+.note-card p{color:var(--sf-muted);}
+.up-title{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--sf-text);}
+.up-item{padding:14px;background:#f5f5f3;border-radius:10px;border-left:2px solid var(--sf-green);margin-bottom:10px;}
+.up-head{font-size:12px;font-weight:600;color:var(--sf-text);margin-bottom:5px;}
+.up-desc{font-size:11px;color:var(--sf-muted);line-height:1.65;}
+.cta-note{padding:15px;background:var(--sf-green-light);border-radius:10px;margin-top:6px;}
+.cta-note-title{font-size:12px;font-weight:600;color:var(--sf-green-dark);margin-bottom:5px;}
+.cta-note-body{font-size:11px;color:var(--sf-green-mid);line-height:1.65;}
+.page-footer{max-width:720px;margin:28px auto 0;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--sf-muted);font-family:'DM Mono',monospace;}
+.page-footer a{color:var(--sf-green);text-decoration:none;}
+
+@media(max-width:560px){
+  .notes-grid{grid-template-columns:1fr;}
+  .aft-stats{grid-template-columns:1fr 1fr;}
+  .aft-cards{grid-template-columns:1fr;}
+  .aft-verdict{flex-direction:column;}
+  .zap-nav-links{display:none;}
+  body{padding:16px 10px;}
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Zapier MCP Guide — <em>Rebuilt.</em></div>
+    <div class="page-sub">Strategic Flow Teardown · Feature Guide · May 2026</div>
+  </div>
+  <div class="page-sub">strategicflow.carrd.co</div>
+</div>
+
+<div class="sf-wrap">
+  <div class="toggle-row">
+    <button class="toggle-btn active" onclick="switchPanel('before',this)">Before</button>
+    <button class="toggle-btn" onclick="switchPanel('after',this)">After</button>
+    <button class="toggle-btn" onclick="switchPanel('notes',this)">Notes</button>
+  </div>
+
+  <div class="shell">
+    <div class="toolbar">
+      <div class="dot" style="background:#FF5F57;"></div>
+      <div class="dot" style="background:#FEBC2E;"></div>
+      <div class="dot" style="background:#28C840;"></div>
+      <div class="pill pill-before" id="panel-pill">Original post</div>
+    </div>
+
+    <!-- ══════ BEFORE ══════ -->
+    <div class="panel active" id="panel-before">
+      <div class="meta-bar">
+        <div class="meta-row"><span>Source:</span> zapier.com/blog/zapier-mcp</div>
+        <div class="meta-row"><span>Type:</span> Feature Guide · Blog Post</div>
+        <div class="meta-row"><span>Score:</span> 3/10 original · Failure patterns: Filing Label Title · Feature-First Bias · Consequence-After-Caveat</div>
+        <div class="meta-title">Zapier MCP: Perform tens of thousands of actions in your AI tool</div>
+      </div>
+
+      <!-- Zapier nav chrome -->
+      <div class="zap-nav">
+        <div class="zap-logo">
+          <span class="zap-logo-underscore">_</span><span class="zap-logo-text">zapier</span>
+        </div>
+        <div class="zap-nav-links">
+          <span class="zap-nav-link">Product</span>
+          <span class="zap-nav-link">Solutions</span>
+          <span class="zap-nav-link">Resources</span>
+          <span class="zap-nav-link">Pricing</span>
+        </div>
+        <button class="zap-nav-cta">Get started free</button>
+      </div>
+
+      <div class="zap-breadcrumb">
+        <div class="zap-back-btn"><span style="font-size:12px;color:#666;">←</span></div>
+        <span class="zap-back-text">Blog</span>
+        <span class="zap-crumb-sep">›</span>
+        <span class="zap-crumb-current">Zapier feature guides</span>
+      </div>
+
+      <div class="zap-hero">
+        <div class="zap-hero-badge">Zapier feature guides · 7 min read</div>
+        <div class="zap-hero-title">Zapier MCP: Perform tens of thousands of actions in your AI tool</div>
+        <div class="zap-author-row">
+          <div class="zap-author-avatar">S</div>
+          <div>
+            <div class="zap-author-name">Steph Spector</div>
+            <div class="zap-author-meta">May 21, 2026 · 7 min read</div>
+          </div>
+        </div>
+        <div class="zap-read-time">📖 7 min read</div>
+      </div>
+
+      <div class="zap-body">
+        <div class="zap-intro">Large language models can extract, classify, summarize, and write for us. They just can't execute those tasks on their own. Or not without some seriously cumbersome technical upkeep, anyway.</div>
+
+        <div class="zap-toc">
+          <div class="zap-toc-title">Table of contents</div>
+          <div class="zap-toc-item">→ <span>What is Zapier MCP?</span></div>
+          <div class="zap-toc-item">→ <span>What you can do with Zapier MCP</span></div>
+          <div class="zap-toc-item">→ <span>Zapier MCP vs Zapier Agents</span></div>
+          <div class="zap-toc-item">→ <span>Is Zapier MCP enterprise-ready?</span></div>
+          <div class="zap-toc-item">→ <span>How to get started with Zapier MCP</span></div>
+        </div>
+
+        <div class="zap-copy">For AI to do something in an app you use, a developer has to build a complex integration. Or, much preferred these days, you can fast-track the process with the Model Context Protocol (MCP). It's a translator between AI tools and apps that lets your AI act on your behalf.</div>
+
+        <div class="zap-h2">What is Zapier MCP?</div>
+        <div class="zap-copy">MCP is a standard, a protocol. It injects your AI with a menu of apps and actions that you choose — like sending a DM in Slack or drafting an email in Outlook — then, at your command, it calls those tools for you.</div>
+
+        <div class="zap-copy">Key features of Zapier MCP include:</div>
+        <div class="zap-feature-list">
+          <div class="zap-feature-item"><div class="zap-feature-dot"></div><div><strong>More than 9,000 app connections:</strong> Connect your AI to thousands of apps in our library — without having to build or maintain integrations.</div></div>
+          <div class="zap-feature-item"><div class="zap-feature-dot"></div><div><strong>Code-free setup:</strong> Easily connect Zapier MCP to tools like Claude or ChatGPT in minutes without coding.</div></div>
+          <div class="zap-feature-item"><div class="zap-feature-dot"></div><div><strong>Flexible developer setup:</strong> For greater control, invoke via OpenAI's Responses API, Anthropic's Messages API, or Python and TypeScript.</div></div>
+          <div class="zap-feature-item"><div class="zap-feature-dot"></div><div><strong>On/off toggles:</strong> Quickly disable access to an action without deleting it.</div></div>
+          <div class="zap-feature-item"><div class="zap-feature-dot"></div><div><strong>Centralized audit log:</strong> Admins can see all server and tool changes in one place.</div></div>
+        </div>
+
+        <div class="zap-h2">Zapier MCP vs Zapier Agents</div>
+        <div class="zap-copy">Both enable AI to take action in your apps, but they serve different needs. If you want an AI teammate that works independently, use Zapier Agents. If you work primarily in an AI chatbot, install Zapier MCP.</div>
+
+        <div class="zap-cta-inline">
+          <div class="zap-cta-inline-title">Install Zapier MCP in your AI</div>
+          <div class="zap-cta-inline-desc">Connect to 9,000+ apps. No code required. Available on all plans.</div>
+          <button class="zap-cta-inline-btn">Get started free →</button>
+        </div>
+
+        <div class="zap-footer-bar">© 2026 Zapier Inc. · zapier.com</div>
+      </div>
+
+      <!-- Issues -->
+      <div class="issues">
+        <div class="issue-item"><span>⚠</span><strong>Filing Label Title</strong> — "Zapier MCP: Perform tens of thousands of actions in your AI tool" announces a feature capability, not the reader's problem. An ops manager spending 3 hours/week copy-pasting between tools gets zero signal this solves their situation. The title is a product brochure headline, not a diagnostic.</div>
+        <div class="issue-item"><span>⚠</span><strong>Feature-First Bias in the lead</strong> — The opening sentence explains what LLMs can and can't do as a technical disclaimer before naming any reader consequence. The reader's actual pain (AI that can't execute, manual workflow overhead, constant context switching) is never named. The lead earns a skim, not a read.</div>
+        <div class="issue-item"><span>⚠</span><strong>Consequence-After-Caveat throughout</strong> — Every section leads with what the product does ("MCP is a standard, a protocol. It injects your AI with a menu...") before naming what changes for the person using it. The benefit is always the second sentence. It should always be the first.</div>
+        <div class="issue-item"><span>⚠</span><strong>Zero Social Proof</strong> — 9,000+ app connections is a number, but it's a product stat, not a user result. No named team, no "X saved Y hours," no specific workflow outcome anyone achieved. The reader has no evidence this works for someone like them.</div>
+        <div class="issue-item"><span>⚠</span><strong>Guest Language CTA</strong> — "Get started free" describes the brand's offer. The reader is not thinking about getting started — they are thinking about whether their Monday morning is about to get easier. The CTA should name the outcome of the action, not the action itself.</div>
+      </div>
+    </div>
+
+    <!-- ══════ AFTER ══════ -->
+    <div class="panel" id="panel-after">
+      <div class="meta-bar">
+        <div class="meta-row"><span>Source:</span> zapier.com/blog/zapier-mcp</div>
+        <div class="meta-row"><span>Rebuilt by:</span> Strategic Flow · strategicflow.carrd.co</div>
+        <div class="meta-row"><span>Score:</span> 3/10 original → 9/10 rebuilt</div>
+        <div class="meta-title">Your AI can already think. It still can't touch your Salesforce, your Slack, or your calendar. Zapier MCP closes that gap — without a single line of code.</div>
+      </div>
+
+      <!-- Same nav chrome -->
+      <div class="zap-nav">
+        <div class="zap-logo">
+          <span class="zap-logo-underscore">_</span><span class="zap-logo-text">zapier</span>
+        </div>
+        <div class="zap-nav-links">
+          <span class="zap-nav-link">Product</span>
+          <span class="zap-nav-link">Solutions</span>
+          <span class="zap-nav-link">Resources</span>
+          <span class="zap-nav-link">Pricing</span>
+        </div>
+        <button class="zap-nav-cta">Get started free</button>
+      </div>
+      <div class="zap-breadcrumb">
+        <div class="zap-back-btn"><span style="font-size:12px;color:#666;">←</span></div>
+        <span class="zap-back-text">Blog</span>
+        <span class="zap-crumb-sep">›</span>
+        <span class="zap-crumb-current">Zapier feature guides</span>
+      </div>
+
+      <!-- Rebuilt hero -->
+      <div class="aft-hero">
+        <div class="aft-kicker">Automation Intelligence · Zapier MCP</div>
+        <div class="aft-h1">Your AI can think.<br>It still can't touch your apps.<br><em>Until now.</em></div>
+        <div class="aft-lead">You're already prompting AI for summaries, drafts, and analysis. But every output still lands in your clipboard — waiting for you to paste it somewhere. Zapier MCP connects your AI directly to 9,000+ apps. You describe what needs to happen. It happens.</div>
+        <div class="aft-stats">
+          <div class="stat"><div class="stat-n">9k+</div><div class="stat-l">app connections</div></div>
+          <div class="stat"><div class="stat-n">0</div><div class="stat-l">lines of code</div></div>
+          <div class="stat"><div class="stat-n">30k+</div><div class="stat-l">actions available</div></div>
+          <div class="stat"><div class="stat-n">SOC2</div><div class="stat-l">compliance built in</div></div>
+        </div>
+        <div class="aft-ctas">
+          <a href="https://zapier.com/mcp" class="aft-btn">Connect my AI to my apps →</a>
+          <span class="aft-ghost">See what it can do ↓</span>
+        </div>
+      </div>
+
+      <div class="aft-body">
+        <div class="aft-sec">
+          <div class="aft-sec-label">If your AI still can't act on its own output</div>
+          <div class="aft-sec-title">The gap isn't intelligence. It's execution. Your AI knows what to do — it has no way to do it.</div>
+          <div class="aft-sec-body">Every AI workflow hits the same wall: great output, manual next step. You get the Salesforce summary — then you paste it into Slack yourself. You get the ticket classification — then you route it manually. MCP is a protocol that gives your AI a direct line into the apps where the work actually lives. Zapier's version connects to 9,000 of them. You choose which ones, which actions, and which limits. Your AI gets access to exactly what you authorize and nothing else.</div>
+        </div>
+
+        <div class="aft-sec">
+          <div class="aft-sec-label">If you're not a developer</div>
+          <div class="aft-sec-title">You don't need to be. The whole setup takes under 10 minutes in plain English.</div>
+          <div class="aft-sec-body">Connect Zapier MCP to Claude or ChatGPT without writing a single line of code. Add the apps you want your AI to reach, choose the specific actions it's allowed to take, and describe what you need in natural language. Your AI handles the rest. For teams that want deeper control — API routing, custom logic, Python or TypeScript — that's available too. But it's not required.</div>
+          <div class="aft-cards">
+            <div class="aft-card"><div class="aft-card-name">Weekly pipeline review</div><div class="aft-card-desc">Pull Salesforce data, calculate weighted forecast, push summary to Google Sheets and Slack. No human in the middle.</div></div>
+            <div class="aft-card"><div class="aft-card-name">Slack catch-up</div><div class="aft-card-desc">Read unread threads, surface action items, draft replies. Skip the scroll, keep the context.</div></div>
+            <div class="aft-card"><div class="aft-card-name">Support ticket routing</div><div class="aft-card-desc">Read unassigned Zendesk tickets, classify by type, route to the right team automatically.</div></div>
+            <div class="aft-card"><div class="aft-card-name">Client recap emails</div><div class="aft-card-desc">Turn meeting notes into a polished summary with decisions and next steps. Lands in Gmail as a draft.</div></div>
+          </div>
+        </div>
+
+        <div class="aft-sec">
+          <div class="aft-sec-label">If you manage a team and your IT team controls access</div>
+          <div class="aft-sec-title">Governance isn't bolted on. It's the foundation Zapier was built on for 15 years.</div>
+          <div class="aft-sec-body">SOC 2 compliance, OAuth-managed credentials, fine-grained action controls, audit logs exportable on demand. Admins decide which apps each team can reach and which specific actions are available inside those apps. A team that can look up a Salesforce contact cannot delete one. Any agent that tries gets blocked at the governance layer before it touches anything. No unofficial integrations, no overly broad access — just the connections you set, with the limits you define.</div>
+        </div>
+
+        <div class="aft-sec">
+          <div class="aft-sec-label">Zapier MCP vs Zapier Agents</div>
+          <div class="aft-sec-title">One runs in the background. One runs in your chatbot. You probably want both.</div>
+          <div class="aft-cards">
+            <div class="aft-card"><div class="aft-card-name">Use Zapier Agents when...</div><div class="aft-card-desc">You want an AI that works independently on multi-step tasks, even when your laptop is closed. No prompting required.</div></div>
+            <div class="aft-card"><div class="aft-card-name">Use Zapier MCP when...</div><div class="aft-card-desc">You're already in Claude or ChatGPT and want to act on your apps without switching windows. One request, one result.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="aft-verdict">
+        <div class="aft-verdict-text"><strong>Start here:</strong> Pick one manual step in your current AI workflow — the moment where you copy output and paste it somewhere else. That's the first thing Zapier MCP eliminates. Setup takes 10 minutes. Available on every plan.</div>
+        <a href="https://zapier.com/mcp" class="aft-verdict-btn">Connect my AI to my apps →</a>
+      </div>
+
+      <div class="aft-footer">
+        <div class="aft-footer-links">
+          <a href="https://zapier.com/blog" class="aft-footer-link">Blog</a>
+          <a href="https://zapier.com/pricing" class="aft-footer-link">Pricing</a>
+          <a href="https://zapier.com/mcp" class="aft-footer-link">Zapier MCP</a>
+        </div>
+        <div class="aft-footer-note">© 2026 Zapier Inc.</div>
+      </div>
+    </div>
+
+    <!-- ══════ NOTES ══════ -->
+    <div class="panel" id="panel-notes">
+      <div class="notes-body">
+        <div class="notes-grid">
+          <div class="note-card bad">
+            <div class="note-lbl bad">❌ Before</div>
+            <p><strong>Title:</strong> Zapier MCP: Perform tens of thousands of actions in your AI tool<br><br>Filing Label. Announces product capability as a feature spec. An ops manager who pastes AI output into apps manually all day gets no signal this article is about their Tuesday morning. "Tens of thousands of actions" is a product number, not a consequence.</p>
+          </div>
+          <div class="note-card good">
+            <div class="note-lbl good">✅ After</div>
+            <p><strong>Title:</strong> Your AI can think. It still can't touch your apps. Until now.<br><br>Names the failure state the reader is already living. "Can't touch your apps" is the exact gap every AI user hits after the first week. The rebuild earns the click before explaining what the product does.</p>
+          </div>
+        </div>
+
+        <div class="up-title">The 5 upgrades — and why they work</div>
+
+        <div class="up-item">
+          <div class="up-head">1 · Title: capability announcement → failure state</div>
+          <div class="up-desc">"Perform tens of thousands of actions" tells the reader what the product can do. "Your AI can think. It still can't touch your apps." tells them which gap they currently have. The rebuild opens with the diagnosis. The reader recognizes their situation before the article explains the fix.</div>
+        </div>
+        <div class="up-item">
+          <div class="up-head">2 · Lead: technical disclaimer → consequence-first</div>
+          <div class="up-desc">Original lead: "Large language models can extract, classify, summarize, and write for us. They just can't execute those tasks on their own." — context before consequence. The rebuild inverts it: "every output still lands in your clipboard — waiting for you to paste it somewhere." The reader's manual step is named in line 1. The protocol explanation comes after.</div>
+        </div>
+        <div class="up-item">
+          <div class="up-head">3 · Sections organized by failure state, not by feature</div>
+          <div class="up-desc">Original headers: "What is Zapier MCP?", "Key features", "MCP vs Agents" — product taxonomy. Rebuilt headers: "If your AI still can't act on its own output", "If you're not a developer", "If you manage a team and IT controls access" — each one a situation the reader recognizes as their own. A non-technical marketing manager and an enterprise IT admin both find their section immediately.</div>
+        </div>
+        <div class="up-item">
+          <div class="up-head">4 · Feature list → workflow outcomes</div>
+          <div class="up-desc">Original: "9,000+ app connections", "Code-free setup", "On/off toggles" — feature inventory. Rebuilt: "Weekly pipeline review", "Slack catch-up", "Support ticket routing", "Client recap emails" — outcomes tied to real workflows. The reader stops reading feature lists and starts recognizing their own Monday morning.</div>
+        </div>
+        <div class="up-item">
+          <div class="up-head">5 · CTA: brand offer → ownership language</div>
+          <div class="up-desc">"Get started free" describes what Zapier offers. "Connect my AI to my apps" describes what the reader does. The reader is not thinking about getting started — they are thinking about whether the clipboard-pasting ends. The rebuilt CTA names the decision, not the product funnel step.</div>
+        </div>
+
+        <div class="cta-note">
+          <div class="cta-note-title">This is the Strategic Flow method</div>
+          <div class="cta-note-body">Reader's failure state before the product's solution. Sections organized by situation, not by feature. CTAs that name what the reader does, not what the brand offers. Visit <a href="https://strategicflow.carrd.co/" style="color:var(--sf-green-mid);text-decoration:underline;">strategicflow.carrd.co</a> to get your content rebuilt.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .shell -->
+
+  <div class="page-footer">
+    <span>Strategic Flow © 2026</span>
+    <a href="https://strategicflow.carrd.co/">strategicflow.carrd.co</a>
+  </div>
+</div>
+
+<script>
+function switchPanel(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  var pill=document.getElementById('panel-pill');
+  var map={before:['pill-before','Original post'],after:['pill-after','Strategic Flow rewrite'],notes:['pill-notes','Analysis']};
+  pill.className='pill '+map[id][0];
+  pill.textContent=map[id][1];
+}
+</script>
+<div style="text-align:center;padding:24px;border-top:1px solid rgba(0,0,0,0.08)">
+  <a href="index.html" style="font-size:12px;color:rgba(0,0,0,0.4);text-decoration:none">← Back to all teardowns</a>
+</div>
+</body>
+</html>
