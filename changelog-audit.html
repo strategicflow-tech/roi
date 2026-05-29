@@ -537,6 +537,10 @@
       <button id="downloadBtn" data-i18n="shared.downloadHTML" style="padding:10px 18px;background:#4A8FE7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">Download</button>
     </div>
     <div id="downloadStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
+    <div id="showcaseGate" style="display:none;margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
+      <button id="showcaseBtn" style="padding:10px 18px;background:transparent;color:#69F0AE;border:1.5px solid #69F0AE;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">+ Add to Showcase</button>
+      <div id="showcaseStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
+    </div>
   </div>
 
 </div>
@@ -930,6 +934,8 @@ document.getElementById('runAuditBtn').onclick = function() {
     }
     if(!localStorage.getItem('sf_admin'))localStorage.setItem('sf_used_audit','true');
     var dg=document.getElementById('downloadGate');if(dg)dg.style.display='block';
+    window._sfAuditData = a;
+    if (new URLSearchParams(window.location.search).get('admin') === 'true') { var sg=document.getElementById('showcaseGate'); if(sg) sg.style.display='block'; }
     var elTitle=document.querySelector('.article-title');if(elTitle)elTitle.style.visibility='visible';
     var heroBlock=document.getElementById('hero-block');
     if(heroBlock){
@@ -1003,6 +1009,50 @@ if (downloadBtn) {
       downloadBtn.textContent = 'Download';
     });
   });
+}
+
+var showcaseBtn = document.getElementById('showcaseBtn');
+if (showcaseBtn) {
+  showcaseBtn.onclick = function() {
+    var data = window._sfAuditData;
+    if (!data) { document.getElementById('showcaseStatus').textContent = 'Run an audit first.'; return; }
+    var company = data.company || 'Company';
+    var slug = company.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    var rawDesc = (data.rebuilt_lead || data.rebuilt_title || '').split(/[.!?]/)[0].trim();
+    var desc = rawDesc ? rawDesc + '.' : company + ' teardown by Strategic Flow.';
+    var ss = document.getElementById('showcaseStatus');
+    ss.textContent = 'Publishing...';
+    ss.style.color = 'rgba(255,255,255,.4)';
+    showcaseBtn.disabled = true;
+    fetch('https://strategic-flow-audit.replit.app/publish-teardown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: slug + '-teardown.html',
+        html: document.documentElement.outerHTML,
+        company: company,
+        description: desc,
+        category: 'saas',
+        title: company + ' Teardown \u2014 Strategic Flow'
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+      if (result.url) {
+        ss.innerHTML = 'Published: <a href="' + result.url + '" target="_blank" style="color:#69F0AE;font-weight:700;">' + result.url + '</a>';
+        ss.style.color = '';
+      } else {
+        ss.textContent = 'Error: ' + (result.error || 'Unknown error');
+        ss.style.color = '#FF6B6B';
+      }
+      showcaseBtn.disabled = false;
+    })
+    .catch(function(e) {
+      ss.textContent = 'Error: ' + e.message;
+      ss.style.color = '#FF6B6B';
+      showcaseBtn.disabled = false;
+    });
+  };
 }
 
 // PATCH 4 — Extract Brand: calls /brand-dna, falls back to local presets

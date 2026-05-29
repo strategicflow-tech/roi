@@ -269,6 +269,10 @@
       <button class="dl-btn" id="downloadBtn">Download</button>
     </div>
     <div class="dl-status" id="downloadStatus"></div>
+    <div id="showcaseGate" style="display:none;margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
+      <button id="showcaseBtn" style="padding:10px 18px;background:transparent;color:#69F0AE;border:1.5px solid #69F0AE;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">+ Add to Showcase</button>
+      <div id="showcaseStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
+    </div>
   </div>
   <div id="usedBanner">You have used your free audit. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank">Get unlimited access via Architecture</a></div>
 </div>
@@ -542,6 +546,8 @@ if (btn) {
         var ub = el('usedBanner'); if (ub) ub.style.display = 'block';
       }
       var dg = el('downloadGate'); if (dg) dg.style.display = 'block';
+      window._sfAuditData = a;
+      if (new URLSearchParams(window.location.search).get('admin') === 'true') { var sg = el('showcaseGate'); if (sg) sg.style.display = 'block'; }
 
       btn.textContent = 'Run Audit'; btn.disabled = false;
       document.querySelector('.company-bar').scrollIntoView({behavior:'smooth'});
@@ -574,6 +580,50 @@ if (dlBtn) {
       else { dlStatus.innerHTML='Download included in Architecture. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:var(--blue);font-weight:700;">Book access</a>'; }
     })
     .catch(function() { dlStatus.textContent='Error. Try again.'; dlStatus.style.color='var(--red)'; });
+  };
+}
+
+var showcaseBtn = el('showcaseBtn');
+if (showcaseBtn) {
+  showcaseBtn.onclick = function() {
+    var data = window._sfAuditData;
+    if (!data) { el('showcaseStatus').textContent = 'Run an audit first.'; return; }
+    var company = data.company || 'Company';
+    var slug = company.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    var rawDesc = (data.rebuilt_lead || data.rebuilt_title || '').split(/[.!?]/)[0].trim();
+    var desc = rawDesc ? rawDesc + '.' : company + ' teardown by Strategic Flow.';
+    var ss = el('showcaseStatus');
+    ss.textContent = 'Publishing...';
+    ss.style.color = 'rgba(255,255,255,.4)';
+    showcaseBtn.disabled = true;
+    fetch('https://strategic-flow-audit.replit.app/publish-teardown', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: slug + '-teardown.html',
+        html: document.documentElement.outerHTML,
+        company: company,
+        description: desc,
+        category: 'saas',
+        title: company + ' Teardown \u2014 Strategic Flow'
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+      if (result.url) {
+        ss.innerHTML = 'Published: <a href="' + result.url + '" target="_blank" style="color:#69F0AE;font-weight:700;">' + result.url + '</a>';
+        ss.style.color = '';
+      } else {
+        ss.textContent = 'Error: ' + (result.error || 'Unknown error');
+        ss.style.color = '#FF6B6B';
+      }
+      showcaseBtn.disabled = false;
+    })
+    .catch(function(e) {
+      ss.textContent = 'Error: ' + e.message;
+      ss.style.color = '#FF6B6B';
+      showcaseBtn.disabled = false;
+    });
   };
 }
 
