@@ -5058,6 +5058,56 @@ app.get('/test-sequence', async (req, res) => {
   res.json({ ok: true, email, results });
 });
 
+// ─── REBUILD REQUEST SUBMISSION ───────────────────────────────────────────────
+
+app.post('/submit-rebuild', async (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  });
+
+  const { email, company, content } = req.body || {};
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = path.join(__dirname, 'rebuild-requests.json');
+    let requests = [];
+    if (fs.existsSync(filePath)) {
+      try { requests = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (_) {}
+    }
+    requests.push({ email: email || '', company: company || '', content: content || '', timestamp: new Date().toISOString() });
+    fs.writeFileSync(filePath, JSON.stringify(requests, null, 2));
+  } catch (err) {
+    console.error('[submit-rebuild] File write error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not save request.' });
+  }
+
+  try {
+    const label = company || email || 'unknown';
+    await resend.emails.send({
+      from: 'Strategic Flow <alex@strategicflow.tech>',
+      to: 'alex@strategicflow.tech',
+      subject: `New rebuild request from ${label}`,
+      text: `New rebuild request\n\nEmail: ${email || '—'}\nCompany: ${company || '—'}\n\nContent:\n${content || '—'}`
+    });
+  } catch (err) {
+    console.error('[submit-rebuild] Resend error:', err.message);
+    return res.status(500).json({ success: false, error: 'Could not send notification.' });
+  }
+
+  res.json({ success: true });
+});
+
+app.options('/submit-rebuild', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  }).sendStatus(204);
+});
+
 app.get('/subscribe/thanks', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
