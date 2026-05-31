@@ -10,6 +10,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const session = require('express-session');
 const crypto  = require('crypto');
 const pgSession = require('connect-pg-simple')(session);
+const cron    = require('node-cron');
 
 const {
   TIER_CONFIGS, getAuditPrompt,
@@ -487,6 +488,12 @@ async function setupDB() {
       sent          BOOLEAN DEFAULT FALSE
     )
   `).catch(e => console.error('[DB] subscribers:', e.message));
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq1_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq2_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq3_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq4_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq5_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq6_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   console.log('[DB] All tables ready');
 }
 
@@ -4783,6 +4790,147 @@ app.post('/webhook/stripe', async (req, res) => {
 
 // ─── END WEBHOOK/STRIPE BLOCK ─────────────────────────────────────────────────
 
+// ─── EMAIL SEQUENCE ENGINE ────────────────────────────────────────────────────
+
+const SEQ_SENDER = 'Alex at Strategic Flow <alex@strategicflow.tech>';
+
+const SEQ_EMAILS = [
+  {
+    num: 1,
+    delayDays: 0,
+    col: 'seq1_sent',
+    subject: 'Your 7-Point Email Audit Checklist',
+    html: () => seqWrap(`
+      <p>Your checklist is here: <a href="https://strategicflow-tech.github.io/showcase/email-audit-checklist.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/email-audit-checklist.html</a></p>
+      <p>Run it before every send. Score 1 point per check. 7/7 = ship it. Below 5 = rebuild.</p>
+      <p>Most teams never check it. They just hit send.</p>
+      <p>If you want a full audit on one of your own emails, reply and paste it.</p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  },
+  {
+    num: 2,
+    delayDays: 2,
+    col: 'seq2_sent',
+    subject: 'What a broken SaaS email looks like (before and after)',
+    html: () => seqWrap(`
+      <p>Most product update emails fail on the first line.</p>
+      <p>Here is what that looks like:</p>
+      <p>Before: "New Feature: Dashboard Update" — After: "Your reports now load 4x faster"</p>
+      <p>Same email. Same feature. Same product. Different architecture.</p>
+      <p>This is Check #1 in the Strategic Flow Audit: Filing Label Subject. A subject line that announces the topic like a folder tab instead of naming a consequence. The reader's brain filters for relevance to their situation — not product capability. One change. Different open rate.</p>
+      <p>55 more rebuilds: <a href="https://strategicflow-tech.github.io/showcase/teardowns.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/teardowns.html</a></p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  },
+  {
+    num: 3,
+    delayDays: 4,
+    col: 'seq3_sent',
+    subject: 'Copy problem vs architecture problem',
+    html: () => seqWrap(`
+      <p>Most teams think they need better copy. Usually they need a different structure.</p>
+      <p>Here is why: Subject line. First line. CTA. These three decisions happen before the copy exists. If the structure is wrong, better words make no difference.</p>
+      <p>A subject line that announces the feature instead of naming the consequence. A lead that opens with context instead of the reader's problem. A CTA that says "Learn more" instead of naming what the reader owns after clicking.</p>
+      <p>That is not a copy problem. That is an architecture problem. And it is the only thing Strategic Flow fixes.</p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  },
+  {
+    num: 4,
+    delayDays: 6,
+    col: 'seq4_sent',
+    subject: 'The 3 failures we see in almost every SaaS email',
+    html: () => seqWrap(`
+      <p>Across 55+ teardowns, most SaaS emails fail on the same three points.</p>
+      <p>1. Filing Label Subject — the subject announces the topic instead of naming a consequence.<br>
+         2. Feature-First Bias — the email leads with what the product does instead of what the reader gains.<br>
+         3. Generic Urgency Theatre — the CTA says "Learn more" — describing the brand's action, not the reader's gain.</p>
+      <p>These three failures account for most of the conversion gap in SaaS email. The fix is not rewriting the copy. It is rebuilding the sequence of decisions that happens before the copy.</p>
+      <p>Full teardown archive: <a href="https://strategicflow-tech.github.io/showcase/teardowns.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/teardowns.html</a></p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  },
+  {
+    num: 5,
+    delayDays: 8,
+    col: 'seq5_sent',
+    subject: 'One email. Before score: 2/10. After: 9/10.',
+    html: () => seqWrap(`
+      <p>A SaaS team sent us a product update email.</p>
+      <p>Subject: "Introducing Advanced Reporting" — Lead: "We are excited to announce our most powerful reporting update yet." — CTA: "Explore the new features" — Score: 2/10.</p>
+      <p>Filing Label Subject. Feature-First Bias. Generic Urgency Theatre. Zero Social Proof.</p>
+      <p>After the rebuild — Subject: "Your reports now update in real time — no manual refresh" — Lead: "If you have ever refreshed a dashboard three times waiting for data to load — that problem is gone." — CTA: "See my live dashboard" — Score: 9/10.</p>
+      <p>Same product. Same send list. Different architecture. This is what Strategic Flow does. Not copy edits. Architecture rebuilds.</p>
+      <p>Full teardown archive: <a href="https://strategicflow-tech.github.io/showcase/teardowns.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/teardowns.html</a></p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  },
+  {
+    num: 6,
+    delayDays: 10,
+    col: 'seq6_sent',
+    subject: 'We are taking on 5 architecture rebuild clients this month',
+    html: () => seqWrap(`
+      <p>Over 55 teardowns, one pattern is consistent. SaaS emails that score below 5 share the same structural failures. Filing Label Subject. Feature-First Bias. Missing Hierarchy. Generic Urgency Theatre. These are not copy problems. They are architecture problems.</p>
+      <p>Strategic Flow rebuilds the architecture behind your emails — not just the words.</p>
+      <p>This month we are taking on 5 clients at founder pricing. First month 50% off while we build your initial rebuild library.</p>
+      <p>Growth: $499 → $249/mo — High-Impact: $899 → $449/mo — Architecture retainer: $2,500 → $1,250/mo — Activation Intelligence: $1,500 → $750/mo</p>
+      <p>5 spots. First month only.</p>
+      <p>See what is included: <a href="https://strategicflow-tech.github.io/showcase/packages-promo.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/packages-promo.html</a></p>
+      <p>Reply to this email to start this week.</p>
+      <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
+    `)
+  }
+];
+
+function seqWrap(inner) {
+  return `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">${
+    inner.trim().replace(/<p>/g, '<p style="margin:0 0 16px;">')
+  }</div>`;
+}
+
+async function sendSeqEmail(emailAddr, seqItem) {
+  await resend.emails.send({
+    from: SEQ_SENDER,
+    to: emailAddr,
+    subject: seqItem.subject,
+    html: seqItem.html()
+  });
+  await pool.query(`UPDATE subscribers SET ${seqItem.col} = TRUE WHERE email = $1`, [emailAddr]);
+  console.log(`[seq] email ${seqItem.num} sent to ${emailAddr}`);
+}
+
+async function processSequence() {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM subscribers`);
+    for (const sub of rows) {
+      const now = Date.now();
+      const subscribedAt = new Date(sub.subscribed_at).getTime();
+      for (const seqItem of SEQ_EMAILS) {
+        if (seqItem.num === 1) continue; // Email 1 sent immediately on subscribe
+        if (sub[seqItem.col]) continue;  // Already sent
+        const readyAt = subscribedAt + seqItem.delayDays * 24 * 60 * 60 * 1000;
+        if (now >= readyAt) {
+          try {
+            await sendSeqEmail(sub.email, seqItem);
+          } catch (err) {
+            console.error(`[seq] failed to send email ${seqItem.num} to ${sub.email}:`, err.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[seq] processSequence error:', err.message);
+  }
+}
+
+// Run every hour at minute 0
+cron.schedule('0 * * * *', () => {
+  console.log('[seq] cron tick — processing sequence');
+  processSequence();
+});
+
 // ─── LEAD MAGNET — /subscribe ─────────────────────────────────────────────────
 
 app.get('/subscribe', (req, res) => {
@@ -4879,29 +5027,35 @@ app.post('/subscribe', async (req, res) => {
   }
 
   try {
-    await resend.emails.send({
-      from: 'Strategic Flow <noreply@strategicflow.cc>',
-      to: email,
-      subject: 'Your 7-Point Email Audit Checklist',
-      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1a1a1a;padding:40px 32px;">
-        <p style="margin:0 0 16px;">Here is your free checklist:</p>
-        <p style="margin:0 0 16px;">
-          <a href="https://strategicflow-tech.github.io/showcase/email-audit-checklist.html" style="color:#00d4c8;">
-            https://strategicflow-tech.github.io/showcase/email-audit-checklist.html
-          </a>
-        </p>
-        <p style="margin:0 0 16px;">Run it before every send.<br>Score 1 point per check.<br>7/7 = ship it. Below 5 = rebuild.</p>
-        <p style="margin:0 0 16px;">If you want a full audit on one of your own emails, reply to this email and paste it.</p>
-        <p style="margin:0;">Alex<br>Strategic Flow<br>strategic-flow-audit.replit.app</p>
-      </div>`
-    });
+    await sendSeqEmail(email, SEQ_EMAILS[0]);
     await pool.query(`UPDATE subscribers SET sent = TRUE WHERE email = $1`, [email]);
-    console.log('[subscribe] checklist sent to:', email);
   } catch (err) {
-    console.error('[subscribe] Resend error:', err.message);
+    console.error('[subscribe] Email 1 send error:', err.message);
   }
 
   res.json({ ok: true });
+});
+
+app.get('/test-sequence', async (req, res) => {
+  const email = (req.query.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'Provide ?email=...' });
+  const results = [];
+  for (const seqItem of SEQ_EMAILS) {
+    try {
+      await resend.emails.send({
+        from: SEQ_SENDER,
+        to: email,
+        subject: `[TEST – Day ${seqItem.delayDays}] ${seqItem.subject}`,
+        html: seqItem.html()
+      });
+      results.push({ num: seqItem.num, status: 'sent' });
+      console.log(`[seq-test] email ${seqItem.num} sent to ${email}`);
+    } catch (err) {
+      results.push({ num: seqItem.num, status: 'error', error: err.message });
+      console.error(`[seq-test] email ${seqItem.num} failed:`, err.message);
+    }
+  }
+  res.json({ ok: true, email, results });
 });
 
 app.get('/subscribe/thanks', (req, res) => {
