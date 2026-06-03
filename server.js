@@ -5933,7 +5933,13 @@ Never return empty strings for any wc field. If the original content does not ha
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
-The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.`;
+The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.
+
+CONTENT DENSITY RULES — never return single-sentence values for any of these fields:
+- rebuilt_lead: minimum 3 sentences. Sentence 1 names the reader's operational change. Sentence 2 names the specific consequence they gain. Sentence 3 closes with the new behavior state or a social proof anchor.
+- entry1_after: minimum 4 sentences. Sentence 1 names what the reader no longer has to do. Sentence 2 gives the specific outcome. Sentence 3 anchors it with a number, time saving, or behavioral contrast. Sentence 4 names the new workflow state.
+- after_contrast: full Before block (2 sentences naming the specific friction state and its cost) then full After block (2 sentences naming the resolved state and its measurable or behavioral marker). Use explicit "Before:" and "After:" labels.
+- wc[].after: minimum 2 sentences. Sentence 1 is the rebuilt copy or structural description. Sentence 2 names why this architecture change improves conversion or reader behaviour.`;
 
 app.get('/changelog-audit-test', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');

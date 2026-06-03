@@ -886,13 +886,17 @@ document.getElementById('runAuditBtn').onclick = function() {
     status.textContent = 'Done: ' + (a.company||'?') + ' ' + (a.original_score||'?') + '->' + (a.rebuilt_score||'?');
     document.getElementById('runAuditBtn').textContent = 'Run Audit';
     document.getElementById('runAuditBtn').disabled = false;
-    var ids = {'score-before':'Original: '+(a.original_score||2)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score||9)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'entry1-after':a.entry1_after,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast,'after-contrast':a.after_contrast};
+    var ids = {'score-before':'Original: '+(a.original_score/10)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score/10)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast};
     for(var id in ids){var el=document.getElementById(id);if(el&&ids[id])el.textContent=ids[id];}
-    // FIX — original-lead and rebuilt-lead preserve line breaks
+    function toParas(t){return t?'<p>'+t.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')+'</p>':'';}
     var olEl = document.getElementById('original-lead');
-    if (olEl && a.original_lead) olEl.innerHTML = '<p>' + a.original_lead.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>') + '</p>';
+    if (olEl && a.original_lead) olEl.innerHTML = toParas(a.original_lead);
     var rlEl = document.getElementById('rebuilt-lead');
-    if (rlEl && a.rebuilt_lead) rlEl.innerHTML = '<p>' + a.rebuilt_lead.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>') + '</p>';
+    if (rlEl && a.rebuilt_lead) rlEl.innerHTML = toParas(a.rebuilt_lead);
+    var e1aEl = document.getElementById('entry1-after');
+    if (e1aEl && a.entry1_after) e1aEl.innerHTML = toParas(a.entry1_after);
+    var acEl = document.getElementById('after-contrast');
+    if (acEl && a.after_contrast) acEl.innerHTML = toParas(a.after_contrast);
     if (a.wc && a.wc.length) {
       var wcRows = document.querySelectorAll('.wc .wc-row');
       a.wc.forEach(function(item, i) {
@@ -908,8 +912,8 @@ document.getElementById('runAuditBtn').onclick = function() {
     }
     var sbBefore = document.getElementById('sb-score-before');
     var sbAfter = document.getElementById('sb-score-after');
-    if (sbBefore) sbBefore.textContent = a.original_score + ' / 10';
-    if (sbAfter) sbAfter.textContent = a.rebuilt_score + ' / 10';
+    if (sbBefore) sbBefore.textContent = (a.original_score / 10) + ' / 10';
+    if (sbAfter) sbAfter.textContent = (a.rebuilt_score / 10) + ' / 10';
     if (a.bugs && a.bugs.length) {
       var bugCards = document.querySelectorAll('.ann-card.bug');
       a.bugs.forEach(function(bug, i) {
@@ -990,7 +994,10 @@ if (downloadBtn) {
       if (data.allowed) {
         var statusEl = document.getElementById('downloadStatus');
         if (statusEl) statusEl.textContent = 'Access confirmed. Downloading...';
+        var _sb = document.getElementById('scraperBar');
+        if (_sb) _sb.style.display = 'none';
         var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+        if (_sb) _sb.style.display = '';
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
