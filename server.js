@@ -6127,12 +6127,19 @@ app.post('/changelog-audit', async (req, res) => {
     return res.status(422).json(errBody);
   }
 
+  let companyHint = '';
+  if (url) {
+    try {
+      const _host = new URL(url.startsWith('http') ? url : 'https://' + url).hostname.replace(/^www\./, '');
+      companyHint = `SOURCE DOMAIN: ${_host}. The company publishing this content is the owner of that domain. Use the brand name matching ${_host} as the "company" field — do not use company names that merely appear as examples or case studies within the content.\n\n`;
+    } catch(e) {}
+  }
   try {
     const response = await claude.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       system: getLangInstruction(lang) + '\n\n' + CHANGELOG_AUDIT_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
+      messages: [{ role: 'user', content: `${companyHint}Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
     });
 
     const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();

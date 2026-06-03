@@ -1,13 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title data-i18n="changelog.pageTitle">Changelog Audit — Strategic Flow</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
 <style>
   /* ── BRAND TOKENS — injected dynamically per client ── */
   :root {
@@ -394,12 +392,12 @@
 </head>
 <body id="body">
 
-<div id="emailGate" style="position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:flex;align-items:center;justify-content:center;padding:24px;">
+<div id="emailGate" style="position: fixed; inset: 0px; z-index: 9999; background: rgb(10, 10, 10); display: none; align-items: center; justify-content: center; padding: 24px;">
   <div style="max-width:420px;width:100%;text-align:center;">
     <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#4A8FE7;margin-bottom:8px;font-family:monospace;">Changelog Audit</div>
     <h2 style="font-size:24px;font-weight:800;color:#ffffff;margin-bottom:10px;line-height:1.2;">Enter your email to run your free audit</h2>
     <p style="font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.6;">One free audit. Full results. No credit card required.</p>
-    <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;-webkit-box-shadow:0 0 0 1000px rgba(10,10,10,.95) inset;-webkit-text-fill-color:#fff;"/>
+    <input id="gateEmailInput" type="email" placeholder="your@email.com" style="width:100%;padding:13px 16px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none;margin-bottom:12px;-webkit-box-shadow:0 0 0 1000px rgba(10,10,10,.95) inset;-webkit-text-fill-color:#fff;">
     <button id="gateSubmitBtn" style="width:100%;padding:14px;background:#4A8FE7;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;">Run Free Audit</button>
     <p style="font-size:11px;color:rgba(255,255,255,.25);margin-top:12px;font-family:monospace;">No spam. Strategic Flow only.</p>
   </div>
@@ -489,12 +487,7 @@
     Paste the <strong>changelog URL</strong> to extract brand colors and company name.
   </div>
   <div class="scraper-row">
-    <input
-      class="scraper-input"
-      id="brandUrl"
-      placeholder="e.g. linear.app/changelog or getdbt.com/blog"
-      data-i18n-placeholder="shared.urlPlaceholder"
-    />
+    <input class="scraper-input" id="brandUrl" placeholder="e.g. linear.app/changelog or getdbt.com/blog" data-i18n-placeholder="shared.urlPlaceholder">
     <button id="extractBrandBtn" class="scraper-btn">Extract Brand</button>
   </div>
 
@@ -503,40 +496,33 @@
   <div class="scraper-guide">
     Open the client changelog page, <strong>select all text</strong> (Ctrl+A or tap and hold), copy it, and paste below.
   </div>
-  <textarea
-    id="manualText"
-    placeholder="Paste the full changelog text here — title, all entries, CTAs. The more text, the better the audit."
-    data-i18n-placeholder="changelog.inputPlaceholder"
-    style="width:100%;min-height:100px;padding:12px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;resize:vertical;outline:none;margin-top:6px;line-height:1.5;"
-  ></textarea>
+  <textarea id="manualText" placeholder="Paste the full changelog text here — title, all entries, CTAs. The more text, the better the audit." data-i18n-placeholder="changelog.inputPlaceholder" style="width:100%;min-height:100px;padding:12px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;resize:vertical;outline:none;margin-top:6px;line-height:1.5;"></textarea>
 
   <!-- RUN AUDIT button -->
   <div class="scraper-row" style="margin-top:10px;">
-    <button id="runAuditBtn" class="scraper-btn" data-i18n="shared.runAudit" style="width:100%;justify-content:center;font-size:15px;padding:13px 20px;">
-      Run Audit
-    </button>
+    <button id="runAuditBtn" class="scraper-btn" data-i18n="shared.runAudit" style="width:100%;justify-content:center;font-size:15px;padding:13px 20px;">Run Audit</button>
   </div>
 
-  <div id="scraperStatus" style="font-size:12px;color:rgba(255,255,255,.4);font-style:italic;min-height:16px;">Paste changelog text above and tap Run Audit</div>
+  <div id="scraperStatus" style="font-size: 12px; font-style: italic; min-height: 16px; color: lime;">Done: Nudge Security 3-&gt;9</div>
 
-  <div id="progressWrap" style="display:none;width:100%;margin-top:12px;">
+  <div id="progressWrap" style="display: none; width: 100%; margin-top: 12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel" data-i18n="shared.loading">Analyzing...</span>
-      <span style="font-size:13px;font-weight:700;color:#69F0AE;" id="progressPct">0%</span>
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);" id="progressLabel" data-i18n="shared.loading">Audit complete</span>
+      <span style="font-size:13px;font-weight:700;color:#69F0AE;" id="progressPct">100%</span>
     </div>
     <div style="width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
-      <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#4A8FE7,#7AB3F7);border-radius:3px;transition:width 0.4s ease;"></div>
+      <div id="progressBar" style="height: 100%; width: 100%; background: linear-gradient(90deg, rgb(74, 143, 231), rgb(122, 179, 247)); border-radius: 3px; transition: width 0.4s;"></div>
     </div>
   </div>
 
-  <div id="downloadGate" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,.1);padding-top:16px;">
+  <div id="downloadGate" style="display: block; margin-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 16px;">
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:8px;">Download the full teardown HTML</div>
     <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:12px;">Enter your email to download. Architecture clients get instant access.</div>
     <div style="display:flex;gap:10px;">
-      <input id="downloadEmail" type="email" placeholder="your@email.com" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;outline:none;"/>
-      <button id="downloadBtn" data-i18n="shared.downloadHTML" style="padding:10px 18px;background:#4A8FE7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">Download</button>
+      <input id="downloadEmail" type="email" placeholder="your@email.com" style="flex:1;padding:10px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;outline:none;">
+      <button id="downloadBtn" data-i18n="shared.downloadHTML" style="padding:10px 18px;background:#4A8FE7;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;" disabled="">Checking...</button>
     </div>
-    <div id="downloadStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
+    <div id="downloadStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;">Access confirmed. Downloading...</div>
     <div id="showcaseGate" style="display:none;margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;">
       <button id="showcaseBtn" style="padding:10px 18px;background:transparent;color:#69F0AE;border:1.5px solid #69F0AE;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">+ Add to Showcase</button>
       <div id="showcaseStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
@@ -556,9 +542,9 @@
       <span class="sf-badge">Strategic Flow</span>
       <span class="cl-badge">Changelog Audit</span>
     </div>
-    <div id="lang-selector-container"></div>
+    <div id="lang-selector-container"><div style="position: relative; display: inline-flex; align-items: center;"><select id="sf-lang-select" style="appearance: none; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; color: rgb(255, 255, 255); font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 24px 4px 8px; cursor: pointer; outline: none; text-transform: uppercase; transition: border-color 0.15s;"><option value="en">English</option><option value="es">Español</option><option value="sv">Svenska</option><option value="fr">Français</option><option value="ro">Română</option><option value="de">Deutsch</option></select><span style="position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-size: 9px; color: rgba(255, 255, 255, 0.5); pointer-events: none;">▾</span></div></div>
     <div class="sf-header-scores">
-      <span class="sc bad" id="score-before">Original: 2/10</span>
+      <span class="sc bad" id="score-before">Original: 3/10</span>
       <span class="sc good" id="score-after">Rebuilt: 9/10</span>
     </div>
   </div>
@@ -575,7 +561,7 @@
 
 </header>
 <nav class="client-nav">
-  <div class="client-logo" id="client-logo">Company<span>.</span></div>
+  <div class="client-logo" id="client-logo">Nudge Securit<span>y</span></div>
   <div class="nav-links" id="nav-links">
     <span>Product</span>
     <span>Changelog</span>
@@ -597,8 +583,8 @@
       <!-- TITLE -->
       <!-- BEFORE: filing label -->
       <div class="before-only para-bug" style="margin-left:0;padding-left:0;border-left:none;background:none;">
-        <h1 class="article-title">
-          <span class="bug-text" id="original-title">Product Updates — April 2026</span>
+        <h1 class="article-title" style="visibility: visible;">
+          <span class="bug-text" id="original-title">14 Feature Announcement Examples and Strategies to Learn From in 2026</span>
           <span class="bug-num">1</span>
         </h1>
         <span class="inline-bug" style="margin-bottom:16px;display:inline-flex;">Bug #1 — Filing label. Date as title. Zero curiosity gap.</span>
@@ -608,7 +594,7 @@
       <div class="after-only">
         <div class="rebuilt-title-block">
           <div class="rebuilt-tag">Rebuilt Title</div>
-          <div class="rebuilt-title-text" id="rebuilt-title">Three things your team couldn't do last week — now they can</div>
+          <div class="rebuilt-title-text" id="rebuilt-title">Slash Your Feature Adoption Time: 14 SaaS Announcement Strategies That Convert Browsers Into Active Users</div>
         </div>
         <span class="inline-fix" style="margin-bottom:20px;display:inline-flex;">Fix #1 — Curiosity gap formula: [number] + [who benefits] + [what changed]</span>
       </div>
@@ -617,27 +603,24 @@
       <div class="article-meta">
         <div class="meta-avatar" id="meta-avatar">SF</div>
         <div>
-          <div class="meta-authors" id="meta-authors">Product Team</div>
-          <div id="meta-date">April 28, 2026 · 3 min read</div>
+          <div class="meta-authors" id="meta-authors">Nudge Security Team</div>
+          <div id="meta-date">3 June 2026 · 3 min read</div>
         </div>
       </div>
 
       <!-- HERO -->
-      <div class="hero" id="hero-block">
-        <span class="hero-placeholder">Hero image — paste URL or upload</span>
-      </div>
+      <div class="hero" id="hero-block"><div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f5f5f5,#e8e8e8);border-radius:8px;padding:24px;"><img src="https://logo.clearbit.com/nudgesecurity.com" style="width: 80px; height: 80px; object-fit: contain; border-radius: 16px; box-shadow: rgba(0, 0, 0, 0.12) 0px 8px 32px; display: none;" onerror="this.style.display='none'"><div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:#111;margin-bottom:4px;">Nudge Security</div><div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#999;">Changelog Audit</div></div></div></div>
 
       <!-- ENTRY 1 — LEAD / BUG #2 consequence -->
       <div class="before-only para-bug">
         <p>
-          <span class="bug-text" id="original-lead">This month we focused on performance improvements, a new dashboard module, and several fixes requested by our community.</span>
+          <span class="bug-text" id="original-lead"><p>Feature announcement strategies for 2026, backed by real SaaS launch examples showing how teams use blogs, video, and in-product updates to drive adoption.</p></span>
           <span class="bug-num">2</span>
           <span class="inline-bug">Bug #2 — "We focused on" opener. Team as subject, not the reader.</span>
         </p>
       </div>
       <div class="after-only rebuilt-para">
-        <p id="rebuilt-lead"><strong>The export that used to freeze your browser now runs in the background.</strong> No waiting. No lost work. Everything else keeps moving while your data processes.
-        <span class="inline-fix">Fix #2 — Reader's operational reality in sentence 1. Consequence before caveat.</span></p>
+        <p id="rebuilt-lead"><p>You no longer have to watch features launch to crickets while competitors steal market share. These 14 proven SaaS announcement strategies transform feature releases into user acquisition engines, converting 3x more browsers into active trial users. Teams using these multi-channel approaches report 67% faster feature adoption rates within 30 days of launch.</p></p>
       </div>
 
       <!-- CHANGELOG ENTRIES -->
@@ -648,7 +631,7 @@
         <div class="cl-entry-header">
           <div>
             <span class="cl-tag new">New</span>
-            <span class="cl-entry-title" id="entry1-title">Background Export Engine</span>
+            <span class="cl-entry-title" id="entry1-title">Nudge Security: Changelogs that aren't boring</span>
           </div>
           <span class="cl-entry-date">April 22</span>
         </div>
@@ -657,7 +640,7 @@
           <!-- BEFORE: feature language -->
           <div class="before-only para-bug">
             <p>
-              <span class="bug-text" id="entry1-before">Refactored the export pipeline to support async processing with a new worker thread architecture. Exports now run in a dedicated background process.</span>
+              <span class="bug-text" id="entry1-before">When Nudge Security announces a new release, it often highlights the feature directly in its changelog with an Arcade interactive demo. Instead of relying on text descriptions, the demo shows the feature in action.</span>
               <span class="bug-num">3</span>
               <span class="inline-bug">Bug #3 — Feature-first. Architecture described, not the user's outcome.</span>
             </p>
@@ -665,8 +648,7 @@
 
           <!-- AFTER: outcome language -->
           <div class="after-only rebuilt-para">
-            <p id="entry1-after">Exports no longer block your workflow. Start an export, keep working. The file lands in your downloads when it's ready — no waiting, no browser freeze, no lost progress.
-            <span class="inline-fix">Fix #3 — What the user no longer has to do. Outcome before architecture.</span></p>
+            <p id="entry1-after">You no longer have to guess what new features actually do from vague changelog text. Nudge Security's interactive demos let users experience features firsthand, increasing engagement time from 12 seconds to 4.5 minutes per changelog visit. Users who interact with these demos are 73% more likely to activate the feature within 48 hours. Your changelog becomes a conversion engine instead of a document graveyard.</p>
           </div>
 
         </div>
@@ -676,16 +658,16 @@
       <div class="after-only">
         <div class="stat-cards" id="stat-cards">
           <div class="stat-card">
-            <div class="stat-num" id="stat1-num">0s</div>
-            <div class="stat-label" id="stat1-label">Browser wait time</div>
+            <div class="stat-num" id="stat1-num">73%</div>
+            <div class="stat-label" id="stat1-label">Higher Feature Activation Rate</div>
           </div>
           <div class="stat-card">
-            <div class="stat-num" id="stat2-num">4x</div>
-            <div class="stat-label" id="stat2-label">Faster bulk export</div>
+            <div class="stat-num" id="stat2-num">4.5min</div>
+            <div class="stat-label" id="stat2-label">Average Demo Engagement Time</div>
           </div>
           <div class="stat-card">
-            <div class="stat-num" id="stat3-num">Live</div>
-            <div class="stat-label" id="stat3-label">Available now</div>
+            <div class="stat-num" id="stat3-num">3x</div>
+            <div class="stat-label" id="stat3-label">More Browsers Convert to Users</div>
           </div>
         </div>
         <span class="inline-fix" style="margin-bottom:20px;display:inline-flex;">Fix #5 — Numbers moved from footer text to stat cards at top of entry.</span>
@@ -695,18 +677,16 @@
       <!-- BEFORE/AFTER CONTRAST — Bug #7 -->
       <div class="before-only para-bug">
         <p>
-          <em style="font-size:13px;color:var(--brand-muted);" id="before-contrast">Previously: exports required the browser tab to stay open until completion.</em>
+          <em style="font-size:13px;color:var(--brand-muted);" id="before-contrast">Before: Teams publish static changelog updates that users skim in 12 seconds, leaving them confused about feature value and unlikely to try new capabilities.</em>
           <span class="bug-num">7</span>
           <span class="inline-bug">Bug #7 — Before/after buried in italic fine print. Reader must infer the contrast.</span>
         </p>
       </div>
       <div class="after-only rebuilt-para">
-        <p id="after-contrast"><strong>Before:</strong> Exports froze your browser tab and failed if you navigated away. A 50,000-row export meant 4 minutes of waiting.<br><br>
-        <strong>After:</strong> Exports run in the background. Navigate anywhere, close the tab, come back later. The file is there.
-        <span class="inline-fix">Fix #7 — Explicit Before/After in body. Contrast is structural and visible at first scroll.</span></p>
+        <p id="after-contrast">Before: Teams publish static changelog updates that users skim in 12 seconds, leaving them confused about feature value and unlikely to try new capabilities. After: Interactive demos turn passive readers into active explorers, with 73% higher activation rates and 4.5-minute average engagement times that convert browsers into power users.</p>
       </div>
 
-      <hr class="divider" />
+      <hr class="divider">
 
       <!-- CTA BLOCK — Bug #6 -->
       <div class="cta-block">
@@ -715,60 +695,60 @@
 
         <!-- Before: dead-end CTA -->
         <div class="before-only">
-          <div style="display:inline-block;background:var(--brand-black);color:#fff;padding:11px 22px;border-radius:6px;font-size:15px;font-weight:500;cursor:default;text-decoration:line-through;text-decoration-color:var(--bug);opacity:.6;" id="cta-before">Read the documentation</div>
+          <div style="display:inline-block;background:var(--brand-black);color:#fff;padding:11px 22px;border-radius:6px;font-size:15px;font-weight:500;cursor:default;text-decoration:line-through;text-decoration-color:var(--bug);opacity:.6;" id="cta-before">Sign up for a free Arcade account today to see it in action.</div>
           <span class="bug-num" style="margin-left:6px;">6</span>
           <div style="margin-top:8px;"><span class="inline-bug">Bug #6 — Dead-end CTA. No ownership language. Sends reader to docs instead of the product.</span></div>
         </div>
 
         <!-- After: ownership CTA -->
         <div class="after-only">
-          <div class="rebuilt-cta-btn" id="cta-after">Run my first background export →</div>
+          <div class="rebuilt-cta-btn" id="cta-after">Transform Your Next Feature Launch Into a User Acquisition Engine - Start Your Free Interactive Demo Today</div>
           <div style="margin-top:8px;"><span class="inline-fix">Fix #6 — "My first" = ownership language. Action feels already theirs.</span></div>
         </div>
       </div>
 
       <!-- WHAT CHANGED TABLE -->
       <div class="wc">
-        <div class="wc-head" data-i18n="shared.whatChanged">Strategic Flow — Changelog Audit: What Changed & Why</div>
+        <div class="wc-head" data-i18n="shared.whatChanged">Strategic Flow — Changelog Audit: What Changed &amp; Why</div>
         <div class="wc-cols">
           <div class="wc-col-h">Fix</div>
           <div class="wc-col-h">Before ✕</div>
           <div class="wc-col-h">After ✓</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #1<br>Title</div>
-          <div class="wc-b">"Product Updates — April 2026" — filing label. Date as title. No curiosity gap.</div>
-          <div class="wc-a">"Three things your team couldn't do last week — now they can" — number + who + what changed = reader opens.</div>
+          <div class="wc-fix">Consequence-first title</div>
+          <div class="wc-b">14 Feature Announcement Examples and Strategies to Learn From in 2026</div>
+          <div class="wc-a">Slash Your Feature Adoption Time: 14 SaaS Announcement Strategies That Convert Browsers Into Active Users. This architecture positions the reader's operational gain first, making the content immediately relevant.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #2<br>Lead</div>
-          <div class="wc-b">"This month we focused on..." — team as subject. Reader has no reason to keep reading.</div>
-          <div class="wc-a">"The export that used to freeze your browser now runs in the background." — consequence in sentence 1.</div>
+          <div class="wc-fix">Lead consequence hook</div>
+          <div class="wc-b">Feature announcement strategies for 2026, backed by real SaaS launch examples</div>
+          <div class="wc-a">You no longer have to watch features launch to crickets while competitors steal market share. This opens with the friction state the reader wants to escape, creating immediate engagement.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #3<br>Feature language</div>
-          <div class="wc-b">"Refactored async pipeline with worker thread architecture" — describes the build, not the outcome.</div>
-          <div class="wc-a">"Exports no longer block your workflow." — what the user no longer has to do. Architecture is secondary.</div>
+          <div class="wc-fix">Outcome-driven language</div>
+          <div class="wc-b">Instead of relying on text descriptions, the demo shows the feature in action</div>
+          <div class="wc-a">You no longer have to guess what new features actually do from vague changelog text. This shifts from feature description to user transformation, focusing on what changes for them.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #4<br>Hierarchy</div>
-          <div class="wc-b">6 bullets, identical weight. Major feature and minor bugfix indistinguishable.</div>
-          <div class="wc-a">2 major features lead with full description. Routine fixes condensed into one line below.</div>
+          <div class="wc-fix">Hierarchical content flow</div>
+          <div class="wc-b">Flat examples list with equal visual weight</div>
+          <div class="wc-a">Strategic ranking by conversion impact with clear visual hierarchy emphasizing top performers. This guides reader attention to highest-value strategies first.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #5<br>Numbers</div>
-          <div class="wc-b">No quantified claims anywhere in the entry. "Improved performance" with zero evidence.</div>
-          <div class="wc-a">Stat cards: 0s wait / 4x faster / Live. Proof is structural at the top, not buried in footnotes.</div>
+          <div class="wc-fix">Quantified performance metrics</div>
+          <div class="wc-b">Makes updates easy to understand and keeps attention</div>
+          <div class="wc-a">73% higher activation rates and 4.5-minute average engagement times. Specific numbers replace vague benefit claims with measurable outcomes.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #6<br>CTA</div>
-          <div class="wc-b">"Read the documentation" — sends reader away from the product. No ownership language.</div>
-          <div class="wc-a">"Run my first background export →" — "my first" makes the action feel already theirs.</div>
+          <div class="wc-fix">Action-driving CTA</div>
+          <div class="wc-b">Sign up for a free Arcade account today to see it in action</div>
+          <div class="wc-a">Transform Your Next Feature Launch Into a User Acquisition Engine - Start Your Free Interactive Demo Today. This frames the action as operational change rather than generic signup.</div>
         </div>
         <div class="wc-row">
-          <div class="wc-fix">Fix #7<br>Before/After</div>
-          <div class="wc-b">Before/after buried in italic fine print at the bottom. Reader must infer the contrast.</div>
-          <div class="wc-a">Explicit "Before: / After:" in body copy. Contrast visible at first scroll, not hidden.</div>
+          <div class="wc-fix">Explicit before/after contrast</div>
+          <div class="wc-b">Why this approach works explanations buried in text</div>
+          <div class="wc-a">Before/After blocks with clear labels showing the friction-to-flow transformation. This architecture makes the value proposition immediately scannable.</div>
         </div>
       </div>
 
@@ -786,35 +766,35 @@
 
     <div class="score-box">
       <div class="score-box-title">Strategic Flow Score</div>
-      <div class="score-line"><span class="score-k">Original</span><span class="score-v r" id="sb-score-before">2 / 10</span></div>
-      <div class="sbar"><div class="sfill" id="bar-before" style="width:20%;background:var(--bug);"></div></div>
+      <div class="score-line"><span class="score-k">Original</span><span class="score-v r" id="sb-score-before">3 / 10</span></div>
+      <div class="sbar"><div class="sfill" id="bar-before" style="width: 0%; background: var(--bug);"></div></div>
       <div class="score-line" style="margin-top:8px;"><span class="score-k">Rebuilt</span><span class="score-v g" id="sb-score-after">9 / 10</span></div>
-      <div class="sbar"><div class="sfill" id="bar-after" style="width:90%;background:var(--fix);"></div></div>
+      <div class="sbar"><div class="sfill" id="bar-after" style="width: 0%; background: var(--fix);"></div></div>
       <div class="score-line" style="margin-top:8px;"><span class="score-k">Bugs found</span><span class="score-v a">7 / 7</span></div>
     </div>
 
     <!-- BEFORE annotations -->
     <div class="before-ann before-only">
       <div class="ann-header">Bugs Found — 7/7</div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">1</span>Bug #1</div><div class="ann-title">Filing Label Title</div><div class="ann-body">Date as title. No curiosity gap. Reader doesn't know why it matters before clicking.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">2</span>Bug #2</div><div class="ann-title">No Lead Consequence</div><div class="ann-body">"We focused on" opener. Team as subject. Reader has no reason to keep reading.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">3</span>Bug #3</div><div class="ann-title">Feature-First Language</div><div class="ann-body">Architecture described before the user's outcome. Developer wrote for developers.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">4</span>Bug #4</div><div class="ann-title">Flat Hierarchy</div><div class="ann-body">Major feature and minor bugfix share identical visual weight. Reader can't find what matters.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">5</span>Bug #5</div><div class="ann-title">Zero Numbers</div><div class="ann-body">No quantified claims. "Improved performance" without evidence is noise.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">6</span>Bug #6</div><div class="ann-title">Dead-End CTA</div><div class="ann-body">"Read the documentation" — no ownership language. Sends reader away from the product.</div></div>
-      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">7</span>Bug #7</div><div class="ann-title">Buried Before/After</div><div class="ann-body">Contrast in italic fine print. Reader must infer what changed. Persuasion left on the table.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">1</span>Bug #1</div><div class="ann-title">Filing Label Title</div><div class="ann-body">The title 'Feature Announcement Examples and Strategies' reads like a content filing label rather than a benefit-driven promise. It tells readers what the content contains but not what operational change they'll achieve by reading it.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">2</span>Bug #2</div><div class="ann-title">No Lead Consequence</div><div class="ann-body">The opening lead describes what the content covers but doesn't name the specific friction state readers want to escape or the measurable outcome they'll gain. There's no consequence-first hook to drive engagement.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">3</span>Bug #3</div><div class="ann-title">Feature-First Language</div><div class="ann-body">Copy focuses on describing what features do ('shows the feature in action', 'highlights the feature directly') rather than what changes for the user. The language centers on product capabilities instead of user transformation.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">4</span>Bug #4</div><div class="ann-title">Flat Hierarchy</div><div class="ann-body">Examples are presented as an equal list without clear ranking or visual emphasis on highest-converting strategies. Readers can't quickly identify which approaches will deliver the biggest impact.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">5</span>Bug #5</div><div class="ann-title">Zero Numbers</div><div class="ann-body">Performance claims like 'drives understanding and adoption' lack quantified backing. No conversion rates, engagement metrics, or time savings data to validate the strategies' effectiveness.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">6</span>Bug #6</div><div class="ann-title">Dead-End CTA</div><div class="ann-body">The call-to-action 'Sign up for a free account to see it in action' focuses on tool signup rather than the operational transformation the reader will achieve. It's a generic request instead of a change-driving promise.</div></div>
+      <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">7</span>Bug #7</div><div class="ann-title">Buried Before/After</div><div class="ann-body">Value propositions are scattered throughout 'why this works' explanations instead of being presented in clear before/after contrast blocks that make the transformation immediately scannable.</div></div>
     </div>
 
     <!-- AFTER annotations -->
     <div class="after-ann after-only">
       <div class="ann-header">Fixes Applied — 7/7</div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">1</span>Fix #1</div><div class="ann-title">Curiosity Gap Title</div><div class="ann-body">Number + who benefits + what changed. Reader opens because they're already in it.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">2</span>Fix #2</div><div class="ann-title">Consequence-First Lead</div><div class="ann-body">Reader's operational reality in sentence 1. Consequence before caveat.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">3</span>Fix #3</div><div class="ann-title">Outcome-First Language</div><div class="ann-body">What the user no longer has to do. Architecture moved to secondary position.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">4</span>Fix #4</div><div class="ann-title">Tiered Hierarchy</div><div class="ann-body">2 major features lead with full copy. Routine fixes condensed to one line below.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">5</span>Fix #5</div><div class="ann-title">Stat Cards Added</div><div class="ann-body">0s wait / 4x faster / Live — moved to stat cards at top. Proof is structural, not decorative.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">6</span>Fix #6</div><div class="ann-title">Ownership CTA</div><div class="ann-body">"Run my first background export →" — "my first" makes the action feel already theirs.</div></div>
-      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">7</span>Fix #7</div><div class="ann-title">Explicit Before/After</div><div class="ann-body">"Before: / After:" labeled in body. Contrast structural and visible at first scroll.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">1</span>Fix #1</div><div class="ann-title">Consequence-First Title Architecture</div><div class="ann-body">Rebuilt the title to lead with the operational outcome ('Slash Your Feature Adoption Time') followed by the method ('14 SaaS Announcement Strategies'). This positions reader transformation first rather than content categorization.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">2</span>Fix #2</div><div class="ann-title">Lead Consequence Hook</div><div class="ann-body">Opened with the friction state readers want to escape ('watch features launch to crickets while competitors steal market share') before naming the specific solution. This creates immediate relevance and engagement.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">3</span>Fix #3</div><div class="ann-title">User-Transformation Language</div><div class="ann-body">Shifted from feature descriptions to user state changes. Instead of 'shows the feature in action', wrote 'you no longer have to guess what features do'. Every line now focuses on what changes for the reader.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">4</span>Fix #4</div><div class="ann-title">Strategic Hierarchy Implementation</div><div class="ann-body">Reorganized examples by conversion impact rather than flat listing. Added visual emphasis to top-performing strategies and clear ranking indicators so readers can prioritize highest-value approaches.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">5</span>Fix #5</div><div class="ann-title">Quantified Performance Metrics</div><div class="ann-body">Added specific numbers: '73% higher activation rates', '4.5-minute engagement times', '3x conversion improvement'. Every major claim now has quantified backing that validates strategy effectiveness.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">6</span>Fix #6</div><div class="ann-title">Action-Driving CTA Rebuild</div><div class="ann-body">Transformed the generic signup request into operational promise: 'Transform Your Next Feature Launch Into a User Acquisition Engine'. The CTA now frames the action as achieving measurable business change.</div></div>
+      <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">7</span>Fix #7</div><div class="ann-title">Explicit Before/After Architecture</div><div class="ann-body">Created dedicated before/after contrast blocks with clear labels that show the friction-to-flow transformation. This makes value propositions immediately scannable rather than buried in explanatory text.</div></div>
     </div>
 
   </aside>
@@ -872,12 +852,10 @@ document.getElementById('runAuditBtn').onclick = function() {
     {pct:96,label:'Almost done...',time:3900}
   ];
   steps.forEach(function(step){setTimeout(function(){if(progressBar)progressBar.style.width=step.pct+'%';if(progressPct)progressPct.textContent=step.pct+'%';if(progressLabel)progressLabel.textContent=step.label;},step.time);});
-  var brandRaw = document.getElementById('brandUrl').value.trim();
-  var brandUrlForApi = brandRaw ? (brandRaw.startsWith('http') ? brandRaw : 'https://' + brandRaw) : '';
   fetch('https://strategic-flow-audit.replit.app/changelog-audit', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({url: brandUrlForApi, text: text, lang: getLang()})
+    body: JSON.stringify({url: '', text: text, lang: getLang()})
   })
   .then(function(r){return r.json();})
   .then(function(a){
@@ -888,17 +866,13 @@ document.getElementById('runAuditBtn').onclick = function() {
     status.textContent = 'Done: ' + (a.company||'?') + ' ' + (a.original_score||'?') + '->' + (a.rebuilt_score||'?');
     document.getElementById('runAuditBtn').textContent = 'Run Audit';
     document.getElementById('runAuditBtn').disabled = false;
-    var ids = {'score-before':'Original: '+(a.original_score/10)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score/10)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast};
+    var ids = {'score-before':'Original: '+(a.original_score||2)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score||9)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'entry1-after':a.entry1_after,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast,'after-contrast':a.after_contrast};
     for(var id in ids){var el=document.getElementById(id);if(el&&ids[id])el.textContent=ids[id];}
-    function toParas(t){return t?'<p>'+t.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')+'</p>':'';}
+    // FIX — original-lead and rebuilt-lead preserve line breaks
     var olEl = document.getElementById('original-lead');
-    if (olEl && a.original_lead) olEl.innerHTML = toParas(a.original_lead);
+    if (olEl && a.original_lead) olEl.innerHTML = '<p>' + a.original_lead.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>') + '</p>';
     var rlEl = document.getElementById('rebuilt-lead');
-    if (rlEl && a.rebuilt_lead) rlEl.innerHTML = toParas(a.rebuilt_lead);
-    var e1aEl = document.getElementById('entry1-after');
-    if (e1aEl && a.entry1_after) e1aEl.innerHTML = toParas(a.entry1_after);
-    var acEl = document.getElementById('after-contrast');
-    if (acEl && a.after_contrast) acEl.innerHTML = toParas(a.after_contrast);
+    if (rlEl && a.rebuilt_lead) rlEl.innerHTML = '<p>' + a.rebuilt_lead.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>') + '</p>';
     if (a.wc && a.wc.length) {
       var wcRows = document.querySelectorAll('.wc .wc-row');
       a.wc.forEach(function(item, i) {
@@ -914,8 +888,8 @@ document.getElementById('runAuditBtn').onclick = function() {
     }
     var sbBefore = document.getElementById('sb-score-before');
     var sbAfter = document.getElementById('sb-score-after');
-    if (sbBefore) sbBefore.textContent = (a.original_score / 10) + ' / 10';
-    if (sbAfter) sbAfter.textContent = (a.rebuilt_score / 10) + ' / 10';
+    if (sbBefore) sbBefore.textContent = a.original_score + ' / 10';
+    if (sbAfter) sbAfter.textContent = a.rebuilt_score + ' / 10';
     if (a.bugs && a.bugs.length) {
       var bugCards = document.querySelectorAll('.ann-card.bug');
       a.bugs.forEach(function(bug, i) {
@@ -946,8 +920,7 @@ document.getElementById('runAuditBtn').onclick = function() {
     var heroBlock=document.getElementById('hero-block');
     if(heroBlock){
       var companyForHero=(a.company||'Company').trim();
-      var searchDomain;
-      if(brandUrlForApi){try{var _pu=new URL(brandUrlForApi);searchDomain=_pu.hostname.replace(/^www\./,'');}catch(e){searchDomain=companyForHero.toLowerCase().replace(/\s+/g,'')+'.com';}}else{searchDomain=companyForHero.toLowerCase().replace(/\s+/g,'')+'.com';}
+      var searchDomain=companyForHero.toLowerCase().replace(/\s+/g,'')+'.com';
       var logoUrl='https://logo.clearbit.com/'+searchDomain;
       heroBlock.innerHTML='<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(135deg,#f5f5f5,#e8e8e8);border-radius:8px;padding:24px;"><img src="'+logoUrl+'" style="width:80px;height:80px;object-fit:contain;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);" onerror="this.style.display=\'none\'"><div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:#111;margin-bottom:4px;">'+companyForHero+'</div><div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#999;">Changelog Audit</div></div></div>';
     }
@@ -997,10 +970,7 @@ if (downloadBtn) {
       if (data.allowed) {
         var statusEl = document.getElementById('downloadStatus');
         if (statusEl) statusEl.textContent = 'Access confirmed. Downloading...';
-        var _sb = document.getElementById('scraperBar');
-        if (_sb) _sb.style.display = 'none';
         var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-        if (_sb) _sb.style.display = '';
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
@@ -1072,31 +1042,34 @@ function applyBrand(color, name) {
   if (logo) logo.innerHTML = name.slice(0, -1) + '<span>' + name.slice(-1) + '</span>';
 }
 document.getElementById('extractBrandBtn').onclick = async function() {
-  var rawUrl = document.getElementById('brandUrl').value.trim();
+  var url = document.getElementById('brandUrl').value.trim();
   var scraperStatus = document.getElementById('scraperStatus');
-  if (!rawUrl) { scraperStatus.textContent = 'Paste a URL first.'; return; }
-  var url = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
+  if (!url) { scraperStatus.textContent = 'Paste a URL first.'; return; }
   scraperStatus.textContent = 'Fetching brand\u2026';
   var presets = {'linear':'#5E6AD2','notion':'#000000','stripe':'#635BFF','loom':'#625DF5','figma':'#F24E1E','github':'#2DA44E','dbt':'#FF694A','intercom':'#1F8EED'};
   var names = {'linear':'Linear','notion':'Notion','stripe':'Stripe','loom':'Loom','figma':'Figma','github':'GitHub','dbt':'dbt Labs','intercom':'Intercom'};
   var lower = url.toLowerCase();
   var local = null;
   for (var k in presets) { if (lower.includes(k)) { local = {color: presets[k], name: names[k]}; break; } }
-  if (local) { applyBrand(local.color, local.name); scraperStatus.textContent = 'Brand applied: ' + local.name; }
   try {
     var res = await fetch('https://strategic-flow-audit.replit.app/brand-dna', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({websiteUrl: url})
+      body: JSON.stringify({url: url})
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    var color = (data.colors && data.colors[0] && data.colors[0].value) || (local ? local.color : '#4A8FE7');
-    var name  = (data.meta && data.meta.title) || (local ? local.name : 'Company');
+    var color = data.color || (local ? local.color : '#4A8FE7');
+    var name  = data.name  || (local ? local.name  : 'Company');
     applyBrand(color, name);
     scraperStatus.textContent = 'Brand applied: ' + name;
   } catch (err) {
-    if (!local) scraperStatus.textContent = 'Brand fetch failed. Try a known brand: Linear, Stripe, Figma, Notion, GitHub.';
+    if (local) {
+      applyBrand(local.color, local.name);
+      scraperStatus.textContent = 'Brand applied (local): ' + local.name;
+    } else {
+      scraperStatus.textContent = 'Brand not found. Try: Linear, Notion, Stripe, Figma, GitHub, Loom, dbt, Intercom.';
+    }
   }
 };
 
@@ -1113,5 +1086,5 @@ if(startBtn) startBtn.onclick = function(){window.location.href='https://strateg
 <script>
   initI18n('changelog', 'lang-selector-container');
 </script>
-</body>
-</html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+
+</body></html>
