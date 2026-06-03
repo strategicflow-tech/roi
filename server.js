@@ -3961,7 +3961,7 @@ Return ONLY valid JSON with this exact structure:
   try {
     const result = await claudeJSON(prompt, 2000);
     if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[api/fatigue-detector]', err.message);
     res.status(500).json({ error: err.message });
@@ -4047,7 +4047,7 @@ Rules:
   try {
     const result = await claudeJSON(prompt, 2500);
     if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[api/audience-mirror]', err.message);
     res.status(500).json({ error: err.message });
@@ -4139,7 +4139,7 @@ Rules:
   try {
     const result = await claudeJSON(prompt, 2500);
     if (!result) return res.status(500).json({ error: 'Resurrection failed — no response from Claude.' });
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[api/dead-email-resurrector]', err.message);
     res.status(500).json({ error: err.message });
@@ -4223,7 +4223,7 @@ Rules:
   try {
     const result = await claudeJSON(prompt, 2000);
     if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[api/best-send-window]', err.message);
     res.status(500).json({ error: err.message });
@@ -4330,7 +4330,7 @@ Rules:
   try {
     const result = await claudeJSON(prompt, 4000);
     if (!result) return res.status(500).json({ error: 'Analysis failed — no response from Claude.' });
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[api/sequence-gap-finder]', err.message);
     res.status(500).json({ error: err.message });
@@ -6150,7 +6150,8 @@ app.post('/changelog-audit', async (req, res) => {
     }
     console.log('CHANGELOG RESPONSE:', JSON.stringify(result, null, 2));
     console.log('[changelog-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
-    res.json(result);
+        const { generateChangelogAuditHtml } = require('./showcase-generator');
+        res.json({...result, downloadHtml: generateChangelogAuditHtml(result)});
   } catch (err) {
     console.error('[changelog-audit] Claude error:', err.message);
     res.status(500).json({ error: err.message });
@@ -6246,7 +6247,7 @@ app.post('/onboarding-audit', async (req, res) => {
       return res.status(500).json({ error: 'Claude returned invalid JSON' });
     }
     console.log('[onboarding-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[onboarding-audit] Claude error:', err.message);
     res.status(500).json({ error: err.message });
@@ -6349,7 +6350,7 @@ app.post('/linkedin-audit', async (req, res) => {
       return res.status(500).json({ error: 'Claude returned invalid JSON' });
     }
     console.log('[linkedin-audit] response (200): company=', result.company, 'bugs_found=', result.bugs_found);
-    res.json(result);
+      res.json(result);
   } catch (err) {
     console.error('[linkedin-audit] Claude error:', err.message);
     res.status(500).json({ error: err.message });
@@ -6402,7 +6403,7 @@ email_html: complete standalone HTML email, inline styles only, no external CSS,
     if (!result || !result.subject_line) {
       return res.status(500).json({ error: 'Generation failed — Claude returned unexpected output. Please try again.' });
     }
-    res.json(result);
+      res.json(result);
   } catch (e) {
     console.error('[release-note-system]', e.message);
     res.status(500).json({ error: 'Generation failed. Please try again.' });

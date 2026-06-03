@@ -479,3 +479,92 @@ function extractVisualAssets(rawHtml, baseUrl) {
 }
 
 module.exports = { generateShowcaseHtml, extractVisualAssets };
+
+function generateChangelogAuditHtml(result) {
+  const accent = '#00e5a0';
+  const BG = '#07090f';
+  const CARD_BG = '#0f1119';
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const safeArr = a => Array.isArray(a) ? a : [];
+
+  const bugsHtml = safeArr(result.bugs).map(b => `
+    <div style="background:${CARD_BG};border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px 24px;margin-bottom:12px;">
+      <div style="color:#ff6b6b;font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:6px;">BUG #${b.number}</div>
+      <div style="font-weight:700;font-size:16px;margin-bottom:8px;">${esc(b.title)}</div>
+      <div style="color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;">${esc(b.body)}</div>
+    </div>`).join('');
+
+  const fixesHtml = safeArr(result.fixes).map(f => `
+    <div style="background:${CARD_BG};border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px 24px;margin-bottom:12px;">
+      <div style="color:${accent};font-size:11px;font-weight:700;letter-spacing:.08em;margin-bottom:6px;">FIX #${f.number}</div>
+      <div style="font-weight:700;font-size:16px;margin-bottom:8px;">${esc(f.title)}</div>
+      <div style="color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;">${esc(f.body)}</div>
+    </div>`).join('');
+
+  const wcHtml = safeArr(result.wc).map(w => `
+    <tr>
+      <td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-weight:600;">${esc(w.fix)}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);color:#ff6b6b;font-size:13px;">${esc(w.before)}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06);color:${accent};font-size:13px;">${esc(w.after)}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(result.company||'Strategic Flow')} — Changelog Audit</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:${BG};color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;padding:40px 24px;}
+.wrap{max-width:860px;margin:0 auto;}
+h1{font-size:28px;font-weight:800;margin-bottom:8px;}
+h2{font-size:20px;font-weight:700;margin:40px 0 16px;}
+.score-row{display:flex;gap:16px;margin:24px 0;}
+.score-card{flex:1;background:${CARD_BG};border-radius:12px;padding:20px;text-align:center;border:1px solid rgba(255,255,255,.08);}
+.score-num{font-size:36px;font-weight:800;}
+.score-label{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;}
+table{width:100%;border-collapse:collapse;background:${CARD_BG};border-radius:12px;overflow:hidden;}
+th{padding:12px 16px;text-align:left;font-size:12px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.08);}
+.footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.3);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin-bottom:32px;">
+    <div style="font-size:12px;color:${accent};font-weight:700;letter-spacing:.08em;margin-bottom:8px;">STRATEGIC FLOW — CHANGELOG AUDIT</div>
+    <h1>${esc(result.company||'Company')} Changelog Audit</h1>
+    <p style="color:rgba(255,255,255,.55);font-size:15px;margin-top:8px;">Structural diagnosis · ${result.bugs_found||7} bugs found</p>
+  </div>
+
+  <div class="score-row">
+    <div class="score-card">
+      <div class="score-num" style="color:#ff6b6b;">${result.original_score||'-'}<span style="font-size:18px;color:rgba(255,255,255,.3)">/10</span></div>
+      <div class="score-label">Original Score</div>
+    </div>
+    <div style="display:flex;align-items:center;color:rgba(255,255,255,.3);font-size:24px;">→</div>
+    <div class="score-card">
+      <div class="score-num" style="color:${accent};">${result.rebuilt_score||'-'}<span style="font-size:18px;color:rgba(255,255,255,.3)">/10</span></div>
+      <div class="score-label">Rebuilt Score</div>
+    </div>
+  </div>
+
+  <h2>Before / After</h2>
+  <table style="margin-bottom:40px;">
+    <thead><tr><th>Fix</th><th>Before ✕</th><th>After ✓</th></tr></thead>
+    <tbody>${wcHtml}</tbody>
+  </table>
+
+  <h2>Bugs Found — ${result.bugs_found||7}/${result.bugs_found||7}</h2>
+  ${bugsHtml}
+
+  <h2>Fixes Applied — ${result.bugs_found||7}/${result.bugs_found||7}</h2>
+  ${fixesHtml}
+
+  <div class="footer">Teardown by Strategic Flow · strategicflow.tech</div>
+</div>
+</body>
+</html>`;
+}
+
+module.exports.generateChangelogAuditHtml = generateChangelogAuditHtml;
