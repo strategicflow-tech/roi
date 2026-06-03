@@ -876,7 +876,7 @@ window.addEventListener('load', function() {
   if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; };
 
   if (extractBtn) {
-    extractBtn.onclick = function() {
+    extractBtn.onclick = async function() {
       var urlRaw = document.getElementById('brandUrl').value.trim();
       var status = document.getElementById('scraperStatus');
       if (!urlRaw) { status.textContent = 'Paste a URL first.'; return; }
@@ -900,9 +900,29 @@ window.addEventListener('load', function() {
       document.documentElement.style.setProperty('--brand-primary', preset.primary);
       var logo = document.getElementById('client-logo');
       if (logo) logo.innerHTML = preset.name.slice(0,-1) + '<span>' + preset.name.slice(-1) + '</span>';
-      status.textContent = 'Brand applied: ' + preset.name;
-      status.style.color = '#69F0AE';
-      status.style.fontStyle = 'normal';
+      status.textContent = 'Fetching brand\u2026';
+      status.style.color = 'rgba(255,255,255,.4)';
+      status.style.fontStyle = 'italic';
+      try {
+        var res = await fetch('https://strategic-flow-audit.replit.app/brand-dna', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ websiteUrl: url })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var data = await res.json();
+        var color = (data.colors && data.colors[0] && data.colors[0].value) || preset.primary;
+        var name  = (data.meta && data.meta.title) || preset.name;
+        document.documentElement.style.setProperty('--brand-primary', color);
+        if (logo) logo.innerHTML = name.slice(0,-1) + '<span>' + name.slice(-1) + '</span>';
+        status.textContent = 'Brand applied: ' + name;
+        status.style.color = '#69F0AE';
+        status.style.fontStyle = 'normal';
+      } catch (err) {
+        status.textContent = 'Brand applied: ' + preset.name;
+        status.style.color = '#69F0AE';
+        status.style.fontStyle = 'normal';
+      }
     };
   }
 

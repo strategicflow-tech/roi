@@ -1069,34 +1069,31 @@ function applyBrand(color, name) {
   if (logo) logo.innerHTML = name.slice(0, -1) + '<span>' + name.slice(-1) + '</span>';
 }
 document.getElementById('extractBrandBtn').onclick = async function() {
-  var url = document.getElementById('brandUrl').value.trim();
+  var rawUrl = document.getElementById('brandUrl').value.trim();
   var scraperStatus = document.getElementById('scraperStatus');
-  if (!url) { scraperStatus.textContent = 'Paste a URL first.'; return; }
+  if (!rawUrl) { scraperStatus.textContent = 'Paste a URL first.'; return; }
+  var url = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
   scraperStatus.textContent = 'Fetching brand\u2026';
   var presets = {'linear':'#5E6AD2','notion':'#000000','stripe':'#635BFF','loom':'#625DF5','figma':'#F24E1E','github':'#2DA44E','dbt':'#FF694A','intercom':'#1F8EED'};
   var names = {'linear':'Linear','notion':'Notion','stripe':'Stripe','loom':'Loom','figma':'Figma','github':'GitHub','dbt':'dbt Labs','intercom':'Intercom'};
   var lower = url.toLowerCase();
   var local = null;
   for (var k in presets) { if (lower.includes(k)) { local = {color: presets[k], name: names[k]}; break; } }
+  if (local) { applyBrand(local.color, local.name); scraperStatus.textContent = 'Brand applied: ' + local.name; }
   try {
     var res = await fetch('https://strategic-flow-audit.replit.app/brand-dna', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: url})
+      body: JSON.stringify({websiteUrl: url})
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    var color = data.color || (local ? local.color : '#4A8FE7');
-    var name  = data.name  || (local ? local.name  : 'Company');
+    var color = (data.colors && data.colors[0] && data.colors[0].value) || (local ? local.color : '#4A8FE7');
+    var name  = (data.meta && data.meta.title) || (local ? local.name : 'Company');
     applyBrand(color, name);
     scraperStatus.textContent = 'Brand applied: ' + name;
   } catch (err) {
-    if (local) {
-      applyBrand(local.color, local.name);
-      scraperStatus.textContent = 'Brand applied (local): ' + local.name;
-    } else {
-      scraperStatus.textContent = 'Brand not found. Try: Linear, Notion, Stripe, Figma, GitHub, Loom, dbt, Intercom.';
-    }
+    if (!local) scraperStatus.textContent = 'Brand fetch failed. Try a known brand: Linear, Stripe, Figma, Notion, GitHub.';
   }
 };
 
