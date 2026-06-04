@@ -343,13 +343,29 @@
     <p class="panel-sub">Paste any email. Get the complete 7-bug diagnostic, rebuilt subject lines, hook and CTA rewrite, A/B variants, and ROI projection.</p>
 
     <div class="form-group">
-      <label>Email subject line</label>
+      <label for="aSubject" id="subjectLabel">Subject line</label>
       <input type="text" id="aSubject" placeholder="e.g. Q1 product update — new dashboard features">
     </div>
 
     <div class="form-group">
-      <label>Email body — paste raw text or HTML</label>
+      <label for="aBody" id="bodyLabel">Email body — paste raw text or HTML</label>
       <textarea id="aBody" placeholder="Paste the full email body here..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="aContentType">Content type</label>
+        <select id="aContentType" onchange="handleContentTypeChange()">
+          <option value="email">Email</option>
+          <option value="blog_post">Blog Post</option>
+          <option value="product_update">Product Update</option>
+          <option value="feature_guide">Feature Guide</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="aUrl">Original URL <span style="color:var(--mid);font-size:10px;">(optional)</span></label>
+        <input type="url" id="aUrl" placeholder="https://...">
+      </div>
     </div>
 
     <div class="form-row">
@@ -358,20 +374,19 @@
         <input type="text" id="aCompany" placeholder="e.g. Acme SaaS">
       </div>
       <div class="form-group">
-        <label>Subscriber count</label>
+        <label for="aSubscribers" id="subscribersLabel">Subscriber count</label>
         <input type="number" id="aSubscribers" placeholder="e.g. 25000" min="100">
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>Industry</label>
+        <label for="aIndustry">Industry</label>
         <select id="aIndustry">
           <option value="saas">SaaS / Software</option>
           <option value="fintech">Fintech</option>
           <option value="ecommerce">E-commerce</option>
-          <option value="healthcare">Healthcare</option>
-          <option value="agency">Agency / Services</option>
+          <option value="health">Health / Wellness</option>
           <option value="other">Other</option>
         </select>
       </div>
@@ -527,15 +542,19 @@ async function runAssessment() {
   showPanel(2);
   setProgress(0, 'Initialising...');
   addLog('Assessment engine initialised');
-  addLog('Email received: "' + subject.slice(0, 55) + (subject.length > 55 ? '...' : '') + '"');
+  const ctLabels = { email: 'Email', blog_post: 'Blog post', product_update: 'Product update', feature_guide: 'Feature guide' };
+  const ctLabel  = ctLabels[document.getElementById('aContentType').value] || 'Content';
+  addLog(ctLabel + ' received: "' + subject.slice(0, 55) + (subject.length > 55 ? '...' : '') + '"');
 
   try {
     setProgress(10, 'Submitting...');
+    const contentType = document.getElementById('aContentType').value;
+    const url         = document.getElementById('aUrl').value.trim();
     const res = await fetch('/api/architecture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ subject, body, company, subscribers, industry, emailsPerMonth })
+      body: JSON.stringify({ subject, body, company, subscribers, industry, emailsPerMonth, contentType, url })
     });
 
     if (res.status === 401) {
@@ -704,6 +723,29 @@ function renderResults(result, subscribers) {
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function handleContentTypeChange() {
+  const type = document.getElementById('aContentType').value;
+  const labels = {
+    email:          { subject: 'Subject line',  body: 'Email body — paste raw text or HTML', subscribers: 'Subscriber count' },
+    blog_post:      { subject: 'Post title',    body: 'Post body / excerpt',                 subscribers: 'Monthly readers' },
+    product_update: { subject: 'Update title',  body: 'Update body',                         subscribers: 'Subscriber count' },
+    feature_guide:  { subject: 'Guide title',   body: 'Guide body / excerpt',                subscribers: 'Monthly readers' },
+  };
+  const l = labels[type] || labels.email;
+  document.getElementById('subjectLabel').textContent     = l.subject;
+  document.getElementById('bodyLabel').textContent        = l.body;
+  document.getElementById('subscribersLabel').textContent = l.subscribers;
+  const placeholders = {
+    email:          { subject: 'e.g. Q1 product update — new dashboard features', body: 'Paste the full email body here...' },
+    blog_post:      { subject: 'Your blog post title...',                          body: 'Paste the full post or first 1000 words...' },
+    product_update: { subject: 'Your update title...',                             body: 'Paste your product update body...' },
+    feature_guide:  { subject: 'Your guide title...',                              body: 'Paste the full guide or key sections...' },
+  };
+  const p = placeholders[type] || placeholders.email;
+  document.getElementById('aSubject').placeholder = p.subject;
+  document.getElementById('aBody').placeholder    = p.body;
 }
 </script>
 </body>

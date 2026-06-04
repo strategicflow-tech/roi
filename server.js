@@ -3731,7 +3731,9 @@ app.post('/api/score-subject', async (req, res) => {
 
 // ─── STRATEGIC FLOW ARCHITECTURE ENDPOINT ────────────────────────────────────
 app.post('/api/architecture', async (req, res) => {
-  const { subject, body, company, subscribers, industry, emailsPerMonth } = req.body;
+  const { subject, body, company, subscribers, industry, emailsPerMonth, contentType, url } = req.body;
+  const ct = contentType || 'email';
+  const contentTypeLabel = { email: 'SaaS email', blog_post: 'blog post', product_update: 'product update announcement', feature_guide: 'feature guide' }[ct] || 'SaaS email';
 
   if (!subject || !body) {
     return res.status(400).json({ error: 'subject and body are required' });
@@ -3743,27 +3745,56 @@ app.post('/api/architecture', async (req, res) => {
 
   (async () => {
     try {
-      const diagnosticPrompt = `You are the Strategic Flow diagnostic engine. Analyse this SaaS email for structural failures.
+      const bugsByType = {
+        email: `1. Filing label subject — subject announces the product, not the reader's problem
+2. Caveat opener — email opens with disclaimer/rollout notice before value
+3. Feature-first language — describes architecture not reader outcome
+4. Flat visual hierarchy — major and minor updates at same visual weight
+5. Zero quantified claims — no numbers, benchmarks, or time-saved data
+6. Weak or missing CTA — no ownership language ("Learn more" vs "Fix my X")
+7. Buried contrast — before/after comparison hidden in fine print`,
+
+        blog_post: `1. Filing label title — title announces the topic, not the reader's problem
+2. Caveat opener — post opens with context or disclaimer before reader consequence
+3. Feature-first language — describes what the product does, not what the reader gains
+4. Flat section hierarchy — all sections at equal weight, no clear priority
+5. Zero quantified claims — no numbers, benchmarks, or specific outcomes
+6. Weak or missing CTA — no ownership language
+7. Buried contrast — benefit comparison hidden deep in the post`,
+
+        product_update: `1. Filing label title — title announces the feature, not the unblocked problem
+2. Caveat opener — opens with rollout notice before user consequence
+3. Feature-first language — describes the feature not the workflow outcome
+4. Flat hierarchy — all updates at same visual weight regardless of impact
+5. Zero quantified claims — no time saved, no specific improvement data
+6. Weak or missing CTA — no ownership language
+7. Buried contrast — improvement over old behaviour not surfaced`,
+
+        feature_guide: `1. Filing label title — title announces capability, not the reader's pain
+2. Caveat opener — opens with technical context before naming the reader's problem
+3. Feature-first language — explains what the feature does before what changes for the user
+4. Flat section hierarchy — sections organised by product taxonomy, not reader situation
+5. Zero quantified claims — no workflows named, no time saved, no user outcome
+6. Weak or missing CTA — brand offer language not reader action language
+7. Buried contrast — no comparison to reader's current manual or broken workflow`,
+      };
+
+      const diagnosticPrompt = `You are the Strategic Flow diagnostic engine. Analyse this ${contentTypeLabel} for structural failures.
 
 Company: ${company || 'Unknown'}
-Subject: ${subject}
+${url ? `URL: ${url}` : ''}
+Title/Subject: ${subject}
 Body:
 ${body.slice(0, 3000)}
 
 Run the 7-bug diagnostic. For each bug found, return it in the bugs array.
 
 The 7 structural bugs to check:
-1. Filing label subject — subject announces the product, not the reader's problem
-2. Caveat opener — email opens with disclaimer/rollout notice before value
-3. Feature-first language — describes architecture not reader outcome
-4. Flat visual hierarchy — major and minor updates at same visual weight
-5. Zero quantified claims — no numbers, benchmarks, or time-saved data
-6. Weak or missing CTA — no ownership language ("Learn more" vs "Fix my X")
-7. Buried contrast — before/after comparison hidden in fine print
+${bugsByType[ct] || bugsByType.email}
 
 Also assign a Strategic Flow score from 1-10 where:
 1-3 = 5+ bugs present
-4-6 = 3-4 bugs present  
+4-6 = 3-4 bugs present
 7-8 = 1-2 bugs present
 9-10 = 0 bugs, consequence-first architecture throughout
 
@@ -3771,20 +3802,21 @@ Return ONLY valid JSON:
 {
   "score": <number 1-10>,
   "bugs": [
-    { "name": "<bug name>", "description": "<one sentence explaining the specific problem in this email>" }
+    { "name": "<bug name>", "description": "<one sentence explaining the specific problem in this ${contentTypeLabel}>" }
   ],
-  "currentOpenRate": <estimated current open rate as decimal e.g. 0.18>,
+  "currentOpenRate": <estimated engagement rate as decimal e.g. 0.18>,
   "assessment": "<two sentence overall diagnostic>"
 }`;
 
       const diagnostic = await claudeJSON(diagnosticPrompt, 1500);
       if (!diagnostic) throw new Error('Diagnostic failed');
 
-      const rebuildPrompt = `You are the Strategic Flow rebuild engine. Apply the Strategic Flow Method to rebuild this email.
+      const rebuildPrompt = `You are the Strategic Flow rebuild engine. Apply the Strategic Flow Method to rebuild this ${contentTypeLabel}.
 
 Company: ${company || 'Unknown'}
 Industry: ${industry || 'saas'}
-Original subject: ${subject}
+${url ? `Original URL: ${url}` : ''}
+Original title/subject: ${subject}
 Original body:
 ${body.slice(0, 3000)}
 
@@ -3792,11 +3824,11 @@ Diagnostic score: ${diagnostic.score}/10
 Bugs found: ${(diagnostic.bugs || []).map(b => b.name).join(', ')}
 
 Apply all 5 Strategic Flow fixes:
-Fix 1: Consequence-first subject line — announces reader's problem, not the product
-Fix 2: Preview text that completes the subject thought
+Fix 1: Consequence-first title — announces reader's failure state, not the product
+Fix 2: Subtitle or preview text that completes the title thought
 Fix 3: Hook that names the consequence the reader is already experiencing
-Fix 4: Single CTA with ownership language ("Fix my X →" not "Learn more")
-Fix 5: Remove everything that doesn't move the decision
+Fix 4: Single CTA with ownership language ("Connect my AI to my apps" not "Get started free")
+Fix 5: Sections organised by reader situation, not by product feature taxonomy
 
 Return ONLY valid JSON:
 {
@@ -3807,10 +3839,10 @@ Return ONLY valid JSON:
     { "subject": "<variant 2 — consequence-first>", "openRate": "<e.g. 31%>" },
     { "subject": "<variant 3 — specific number or name>", "openRate": "<e.g. 28%>" }
   ],
-  "rebuiltBody": "<full rebuilt email body as plain HTML, consequence-first>",
+  "rebuiltBody": "<full rebuilt ${contentTypeLabel} body as plain HTML, consequence-first>",
   "whatChanged": [
-    { "fix": "Fix 1 — Subject line", "before": "<original>", "after": "<rebuilt>", "why": "<one sentence diagnostic reason>" },
-    { "fix": "Fix 2 — Preview text", "before": "<original or inferred>", "after": "<rebuilt>", "why": "<reason>" },
+    { "fix": "Fix 1 — Title", "before": "<original>", "after": "<rebuilt>", "why": "<one sentence diagnostic reason>" },
+    { "fix": "Fix 2 — Preview / subtitle", "before": "<original or inferred>", "after": "<rebuilt>", "why": "<reason>" },
     { "fix": "Fix 3 — Hook", "before": "<original first line>", "after": "<rebuilt first line>", "why": "<reason>" },
     { "fix": "Fix 4 — CTA", "before": "<original CTA>", "after": "<rebuilt CTA>", "why": "<reason>" }
   ]
@@ -3862,7 +3894,9 @@ Return ONLY valid JSON:
           week2: rebuild.calendarWeek2 || '',
           week3: rebuild.calendarWeek3 || '',
           week4: rebuild.calendarWeek4 || ''
-        }
+        },
+        contentType: ct,
+        url: url || null
       };
 
       await setJob(jobId, { status: 'complete', result });
