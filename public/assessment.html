@@ -426,6 +426,19 @@
     <div class="panel-label">// Assessment complete</div>
     <h2 class="panel-title">Here's what we<br><em>found and fixed.</em></h2>
 
+    <div style="display:flex;align-items:center;justify-content:space-between;
+margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;
+    letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;
+    margin-bottom:4px;">Strategic Flow Architecture</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:18px;
+    color:var(--white);" id="resultBrandTitle">Email Assessment</div>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;
+  color:var(--mid);">strategicflow.tech</div>
+    </div>
+
     <div class="score-row">
       <div class="score-cell">
         <div class="score-cell-label">Original score</div>
@@ -484,6 +497,7 @@
     <div class="run-again">
       <button class="btn btn-primary" onclick="resetForm()">Run another assessment →</button>
       <a href="/architecture-dashboard" class="btn btn-ghost">← Dashboard</a>
+      <button class="btn btn-ghost" onclick="downloadHTML()" id="downloadBtn">&#8595; Download teardown HTML</button>
     </div>
   </div>
 
@@ -634,6 +648,16 @@ function renderResults(result, subscribers) {
   document.getElementById('newScore').textContent = rebuilt + '/10';
   document.getElementById('bugsFound').textContent = bugs.length + '/7';
 
+  const brandTitles = {
+    email: 'Email Assessment',
+    blog_post: 'Blog Post Teardown',
+    product_update: 'Product Update Teardown',
+    feature_guide: 'Feature Guide Teardown'
+  };
+  const ct = document.getElementById('aContentType')?.value || 'email';
+  const brandTitleEl = document.getElementById('resultBrandTitle');
+  if (brandTitleEl) brandTitleEl.textContent = brandTitles[ct] || 'Content Assessment';
+
   const noteEl = document.getElementById('assessmentNote');
   noteEl.textContent = result.assessment || '';
   noteEl.style.display = result.assessment ? 'block' : 'none';
@@ -723,6 +747,137 @@ function renderResults(result, subscribers) {
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function downloadHTML() {
+  const ct = document.getElementById('aContentType')?.value || 'email';
+  const subject = document.getElementById('aSubject')?.value || 'assessment';
+  const company = document.getElementById('aCompany')?.value || 'Company';
+  const titles = {
+    email: 'Email Assessment',
+    blog_post: 'Blog Post Teardown',
+    product_update: 'Product Update Teardown',
+    feature_guide: 'Feature Guide Teardown'
+  };
+  const pageTitle = titles[ct] || 'Assessment';
+  const origScore  = document.getElementById('origScore')?.textContent || '—';
+  const newScore   = document.getElementById('newScore')?.textContent || '—';
+  const bugsFound  = document.getElementById('bugsFound')?.textContent || '—';
+  const assessNote = document.getElementById('assessmentNote')?.textContent || '';
+  const bugListHTML     = document.getElementById('bugList')?.innerHTML || '';
+  const subjectRebuild  = document.getElementById('subjectRebuild')?.innerHTML || '';
+  const variantListHTML = document.getElementById('variantList')?.innerHTML || '';
+  const changesListHTML = document.getElementById('changesList')?.innerHTML || '';
+  const rebuiltBodyHTML = document.getElementById('rebuiltBody')?.innerHTML || '';
+  const url = document.getElementById('aUrl')?.value?.trim() || '';
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>${pageTitle} — ${company} — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--black:#0a0a08;--white:#f4f2ed;--signal:#4A8FE7;--noise:#ff4d2e;--mid:#a8a39b;--border:rgba(244,242,237,0.12);--card:rgba(244,242,237,0.04);}
+body{background:var(--black);color:var(--white);font-family:'Instrument Sans',sans-serif;font-size:15px;line-height:1.6;padding:48px 24px 80px;max-width:800px;margin:0 auto;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(244,242,237,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(244,242,237,0.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.sf-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border);margin-bottom:32px;position:relative;z-index:1;}
+.sf-logo{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.08em;color:var(--white);}
+.sf-logo span{color:var(--signal);}
+.sf-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);}
+.page-title{font-family:'DM Serif Display',serif;font-size:36px;line-height:1.1;letter-spacing:-0.02em;margin-bottom:6px;position:relative;z-index:1;}
+.page-title em{font-style:italic;color:var(--signal);}
+.page-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);margin-bottom:32px;position:relative;z-index:1;}
+.score-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:32px;position:relative;z-index:1;}
+.score-cell{background:var(--black);padding:24px;}
+.score-cell-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--mid);text-transform:uppercase;margin-bottom:8px;}
+.score-num{font-family:'DM Serif Display',serif;font-size:44px;line-height:1;margin-bottom:4px;}
+.score-num.low{color:var(--noise);}
+.score-num.high{color:var(--signal);}
+.score-note{font-size:12px;color:var(--mid);line-height:1.5;}
+.section-title{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.14em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;margin-top:32px;position:relative;z-index:1;}
+.assessment-note{font-size:13px;color:var(--mid);line-height:1.7;border:1px solid var(--border);padding:16px 20px;margin-bottom:32px;background:var(--card);position:relative;z-index:1;}
+.bug-list{border:1px solid var(--border);margin-bottom:32px;position:relative;z-index:1;}
+.bug-item{display:flex;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border);align-items:flex-start;}
+.bug-item:last-child{border-bottom:none;}
+.bug-icon{font-size:14px;flex-shrink:0;margin-top:2px;}
+.bug-title{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.bug-desc{font-size:12px;color:var(--mid);line-height:1.6;}
+.rebuild-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:32px;position:relative;z-index:1;}
+.rebuild-cell{background:var(--black);padding:24px;}
+.rebuild-tag{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.rebuild-tag.before{color:var(--noise);}
+.rebuild-tag.after{color:var(--signal);}
+.rebuild-tag::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;}
+.rebuild-text{font-size:13px;line-height:1.7;color:var(--white);}
+.rebuild-why{font-size:11px;color:var(--mid);margin-top:8px;line-height:1.5;}
+.variant-list{display:flex;flex-direction:column;gap:10px;margin-bottom:32px;position:relative;z-index:1;}
+.variant-item{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1px solid var(--border);background:rgba(74,143,231,0.04);}
+.variant-tag{font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);letter-spacing:0.1em;flex-shrink:0;padding-top:1px;}
+.variant-text{font-size:13px;color:var(--white);line-height:1.5;flex:1;}
+.variant-rate{font-family:'DM Mono',monospace;font-size:11px;color:var(--signal);flex-shrink:0;}
+.rebuilt-body-block{border:1px solid var(--border);background:var(--card);padding:24px;font-size:13px;line-height:1.8;color:var(--white);margin-bottom:32px;position:relative;z-index:1;}
+.sf-footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);position:relative;z-index:1;}
+.sf-footer a{color:var(--signal);text-decoration:none;}
+@media(max-width:640px){.score-row{grid-template-columns:1fr;}.rebuild-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="sf-header">
+  <div class="sf-logo">Strategic <span>Flow</span></div>
+  <div class="sf-meta">strategicflow.tech · ${pageTitle}</div>
+</div>
+<div style="position:relative;z-index:1;">
+  <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;
+  color:var(--signal);text-transform:uppercase;margin-bottom:12px;">
+    Strategic Flow — ${pageTitle}
+  </div>
+  <div class="page-title">${company} — <em>Rebuilt.</em></div>
+  <div class="page-sub">${subject}${url ? ' · ' + url : ''}</div>
+</div>
+<div class="score-row">
+  <div class="score-cell">
+    <div class="score-cell-label">Original score</div>
+    <div class="score-num low">${origScore}</div>
+    <div class="score-note">Before Strategic Flow rebuild</div>
+  </div>
+  <div class="score-cell">
+    <div class="score-cell-label">Rebuilt score</div>
+    <div class="score-num high">${newScore}</div>
+    <div class="score-note">After applying all 5 fixes</div>
+  </div>
+  <div class="score-cell">
+    <div class="score-cell-label">Bugs found</div>
+    <div class="score-num" style="color:var(--white);">${bugsFound}</div>
+    <div class="score-note">Structural issues identified</div>
+  </div>
+</div>
+${assessNote ? '<div class="assessment-note">' + assessNote + '</div>' : ''}
+<div class="section-title">// 7-bug diagnostic</div>
+<div class="bug-list">${bugListHTML}</div>
+<div class="section-title">// Subject line rebuild</div>
+<div class="rebuild-grid">${subjectRebuild}</div>
+<div class="section-title">// A/B subject variants</div>
+<div class="variant-list">${variantListHTML}</div>
+<div class="section-title">// What changed and why</div>
+<div style="margin-bottom:32px;">${changesListHTML}</div>
+${rebuiltBodyHTML ? '<div class="section-title">// Rebuilt body</div><div class="rebuilt-body-block">' + rebuiltBodyHTML + '</div>' : ''}
+<div class="sf-footer">
+  <span>Strategic Flow © 2026</span>
+  <a href="https://strategicflow.tech">strategicflow.tech</a>
+</div>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const slug = company.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-');
+  a.download = 'sf-teardown-' + slug + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 function handleContentTypeChange() {
