@@ -677,7 +677,7 @@ const safeVal = (val) => {
 
 const JSON_SYSTEM_INSTRUCTION = 'Return ONLY valid JSON. Use straight ASCII quotes only — no curly quotes (\u201C\u201D\u2018\u2019), no em dashes (\u2014), no en dashes (\u2013), no ellipsis characters (\u2026), no non-breaking spaces, no other Unicode. No markdown fences. No text before or after the JSON object.';
 
-async function claudeJSON(prompt, maxTokens = 2000) {
+async function claudeJSON(prompt, maxTokens = 2000, debugTag = null) {
   const retries = 3;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -690,6 +690,9 @@ async function claudeJSON(prompt, maxTokens = 2000) {
       });
       const raw = msg.content[0].text.trim();
       console.log(`[claudeJSON] response length=${raw.length} stop_reason=${msg.stop_reason}`);
+      if (debugTag) {
+        console.error(`[${debugTag}] RAW_RESPONSE:`, raw.slice(0, 800));
+      }
       if (msg.stop_reason === 'max_tokens') {
         console.warn('[claudeJSON] TRUNCATED — hit max_tokens limit. Response cut off. Increase max_tokens or shorten prompt.');
       }
@@ -3848,7 +3851,8 @@ Return ONLY valid JSON:
   ]
 }`;
 
-      const rebuild = await claudeJSON(rebuildPrompt, 2000);
+      const rebuild = await claudeJSON(rebuildPrompt, 2000, 'REBUILD');
+      console.error('[REBUILD] parsed keys:', rebuild ? Object.keys(rebuild).join(', ') : 'null — parse failed');
       if (!rebuild) throw new Error('Rebuild failed');
 
       // STEP 3: CONTENT CALENDAR
