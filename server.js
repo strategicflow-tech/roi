@@ -3811,7 +3811,7 @@ Return ONLY valid JSON:
   "assessment": "<two sentence overall diagnostic>"
 }`;
 
-      const diagnostic = await claudeJSON(diagnosticPrompt, 1500);
+      const diagnostic = await claudeJSON(diagnosticPrompt, 2000);
       if (!diagnostic) throw new Error('Diagnostic failed');
 
       const rebuildPrompt = `You are the Strategic Flow rebuild engine. Apply the Strategic Flow Method to rebuild this ${contentTypeLabel}.
@@ -3851,7 +3851,7 @@ Return ONLY valid JSON:
   ]
 }`;
 
-      const rebuild = await claudeJSON(rebuildPrompt, 2000, 'REBUILD');
+      const rebuild = await claudeJSON(rebuildPrompt, 3500, 'REBUILD');
       console.error('[REBUILD] parsed keys:', rebuild ? Object.keys(rebuild).join(', ') : 'null — parse failed');
       if (!rebuild) throw new Error('Rebuild failed');
 
