@@ -5290,7 +5290,7 @@ app.post('/outreach-audit', async (req, res) => {
   const fix1  = topFixes[0] || '';
   const score = originalScore !== null ? originalScore : '?';
 
-  const msg1 = `Hi ${prospectName || '[name]'},\n\n${prospectCompany}'s homepage scores ${score}/10 on the Strategic Flow audit.\n\nBiggest structural gap: ${bug1}\n\nRebuilt version: ${fix1}\n\nWant the full breakdown — score, rebuilt copy, 3 variants?\nNo pitch, just the output.\n\n-- Alex\nstrategicflow.carrd.co`;
+  const msg1 = `Hi ${prospectName || '[name]'},\n\n${prospectCompany}'s homepage scores ${score}/10 on the Strategic Flow audit.\n\nBiggest structural gap: ${bug1}\n\nRebuilt version: ${fix1}\n\nWant the full breakdown — score, rebuilt copy, 3 variants?\nNo pitch, just the output.\n\n-- Alex\nstrategicflow.tech`;
 
   console.log(`[outreach-audit] completed for ${prospectCompany} (${contentUrl}) — score: ${score}`);
 
