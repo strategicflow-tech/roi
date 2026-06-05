@@ -1214,7 +1214,7 @@ function tierClass(tier) { return { free_trial:'tier-free', single:'tier-single'
 
 // ─── FLOW ──────────────────────────────────────────────────────────────────────
 async function checkEmail() {
-  const email = document.getElementById('emailInput').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
   if (!email || !email.includes('@')) { setErr('errEmail','Enter a valid email address.'); return; }
   setErr('errEmail','');
   currentEmail = email;
@@ -1480,15 +1480,15 @@ async function submitGenerate() {
   currentOrigBody    = body;
   currentEmail       = email;
 
+  showOnly('stateLoading');
+  animateLoading();
+
   // If tier not yet determined (direct form load), run email check now
   if (!currentTier) {
     try {
       const checkData = await api('/check-email', { email });
       if (checkData.status === 'trial_used') {
         showOnly('stateTrialUsed');
-        return;
-      } else if (checkData.status === 'new') {
-        showOnly('statePricing');
         return;
       } else if (checkData.status === 'admin') {
         currentTier = 'high_impact'; currentIsAdmin = true; currentVip = true;
@@ -1497,8 +1497,13 @@ async function submitGenerate() {
         if (checkData.company && !currentCompany) currentCompany = checkData.company;
       } else if (checkData.status === 'free_trial') {
         currentTier = 'free_trial';
+      } else {
+        // no_email or unexpected status → send to pricing
+        showOnly('statePricing');
+        return;
       }
     } catch (e) {
+      showOnly('stateForm');
       setErr('errForm', 'Could not verify email: ' + e.message);
       return;
     }
@@ -1510,9 +1515,6 @@ async function submitGenerate() {
   // Hide any previous URL fetch warning before starting
   const urlWarn = document.getElementById('urlFetchWarning');
   if (urlWarn) urlWarn.style.display = 'none';
-
-  showOnly('stateLoading');
-  animateLoading();
 
   try {
     // Step 1: Start the job — returns immediately with a jobId (< 1 s)
