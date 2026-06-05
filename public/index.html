@@ -182,6 +182,8 @@ textarea{resize:vertical;line-height:1.7;}
 .loading-steps li{font-size:12px;color:var(--muted);padding:6px 0;display:flex;gap:10px;font-family:var(--mono);}
 .loading-steps li.done{color:var(--teal);}
 .loading-steps li.active{color:var(--text);}
+#loadingTitle{font-size:22px;font-weight:700;margin-bottom:4px;}
+#loadingPhase{letter-spacing:0.06em;text-transform:lowercase;}
 
 /* MISC */
 .error-msg{background:var(--red-dim);border:1px solid rgba(232,69,90,0.3);color:#ff8a95;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;display:none;}
@@ -837,12 +839,13 @@ textarea{resize:vertical;line-height:1.7;}
   <div id="stateLoading" hidden>
     <div class="card loading-wrap">
       <div class="spinner"></div>
-      <h3>Rebuilding your newsletter…</h3>
+      <h3 id="loadingTitle">Diagnosing your email architecture.</h3>
+      <p id="loadingPhase" style="font-size:11px;color:var(--teal);font-family:var(--mono);margin:4px 0 20px;min-height:16px;"></p>
       <ul class="loading-steps" id="loadingSteps">
-        <li id="step1">→ Analyzing email structure</li>
-        <li id="step2">→ Applying Strategic Flow Method</li>
-        <li id="step3">→ Generating rebuild</li>
-        <li id="step4" id="step4">→ Running tier features</li>
+        <li id="step1">→ <span></span></li>
+        <li id="step2">→ <span></span></li>
+        <li id="step3">→ <span></span></li>
+        <li id="step4">→ <span></span></li>
       </ul>
     </div>
   </div>
@@ -1481,11 +1484,11 @@ async function submitGenerate() {
   currentEmail       = email;
 
   showOnly('stateLoading');
-  animateLoading();
 
   // If tier not yet determined (direct form load), run email check now
   if (!currentTier) {
     try {
+      animateLoading('check');
       const checkData = await api('/check-email', { email });
       if (checkData.status === 'trial_used') {
         showOnly('stateTrialUsed');
@@ -1508,6 +1511,8 @@ async function submitGenerate() {
       return;
     }
   }
+
+  animateLoading('generate');
 
   const emailType    = document.getElementById('fEmailType')?.value || '';
   const roadmapNotes = document.getElementById('fRoadmap')?.value || '';
@@ -1588,13 +1593,67 @@ async function pollJob(jobId, maxWaitMs = 240000, intervalMs = 3000) {
   throw new Error('Generation timed out. Please try again.');
 }
 
-function animateLoading() {
-  const steps = ['step1','step2','step3','step4'];
+function animateLoading(phase) {
+  const phases = {
+    check: {
+      title: 'Verifying your account.',
+      subtitle: 'Checking email and tier...',
+      steps: [
+        'Account lookup initialised',
+        'Checking usage limits',
+        'Verifying tier access',
+        'Preparing your workspace'
+      ]
+    },
+    generate: {
+      title: 'Diagnosing your email architecture.',
+      subtitle: 'Rebuilding subject line...',
+      steps: [
+        'Assessment engine initialised',
+        'Checking filing label and caveat opener patterns',
+        'Analysing feature-first language and hierarchy',
+        'Applying consequence-first subject architecture',
+        'Creating subject line variants with open rate projections',
+        'Applying ownership language to CTA'
+      ]
+    }
+  };
+
+  const cfg = phases[phase] || phases.generate;
+  const stepIds = ['step1','step2','step3','step4'];
+
+  // reset
+  stepIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('active','done');
+      el.querySelector('span').textContent = '';
+    }
+  });
+
+  document.getElementById('loadingTitle').textContent = cfg.title;
+  document.getElementById('loadingPhase').textContent = cfg.subtitle;
+
+  // populeaza primii 4 pasi
+  const visible = cfg.steps.slice(0, 4);
+  visible.forEach((txt, idx) => {
+    const el = document.getElementById(stepIds[idx]);
+    if (el) el.querySelector('span').textContent = txt;
+  });
+
+  // subtitle cycling
+  const subtitles = cfg.steps;
   let i = 0;
+  const phaseEl = document.getElementById('loadingPhase');
   const iv = setInterval(() => {
-    if (i > 0) document.getElementById(steps[i-1])?.classList.replace('active','done');
-    if (i < steps.length) { document.getElementById(steps[i])?.classList.add('active'); i++; }
-    else clearInterval(iv);
+    if (i > 0) document.getElementById(stepIds[Math.min(i-1,3)])?.classList.replace('active','done');
+    if (i < stepIds.length) {
+      document.getElementById(stepIds[i])?.classList.add('active');
+      if (phaseEl && subtitles[i]) phaseEl.textContent = subtitles[i] + '...';
+      i++;
+    } else {
+      clearInterval(iv);
+    }
   }, 1200);
 }
 
