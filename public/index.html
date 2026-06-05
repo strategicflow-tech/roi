@@ -689,6 +689,12 @@ textarea{resize:vertical;line-height:1.7;}
 
       <!-- Core fields (always visible) -->
       <div class="field">
+        <label>Your Email</label>
+        <input type="email" id="fEmail" placeholder="you@company.com" autocomplete="email" />
+        <span style="font-size:11px;color:var(--muted);margin-top:3px;">We'll send your rebuilt newsletter here and use this to check your account.</span>
+      </div>
+
+      <div class="field">
         <label>Company / Brand Name <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px;">(optional)</span></label>
         <input type="text" id="fCompany" placeholder="e.g. Acme Analytics" />
       </div>
@@ -728,12 +734,6 @@ textarea{resize:vertical;line-height:1.7;}
         <strong>For best results:</strong><br>
         → Copy the article or page text and paste it in the body field above<br>
         → Or upload the page's HTML file directly
-      </div>
-
-      <div class="field">
-        <label>Your Email</label>
-        <input type="email" id="fEmail" placeholder="you@company.com" autocomplete="email" />
-        <span style="font-size:11px;color:var(--muted);margin-top:3px;">We'll send your rebuilt newsletter here. No spam.</span>
       </div>
 
       <!-- Advanced options toggle -->
@@ -1479,6 +1479,30 @@ async function submitGenerate() {
   currentOrigSubject = subject;
   currentOrigBody    = body;
   currentEmail       = email;
+
+  // If tier not yet determined (direct form load), run email check now
+  if (!currentTier) {
+    try {
+      const checkData = await api('/check-email', { email });
+      if (checkData.status === 'trial_used') {
+        showOnly('stateTrialUsed');
+        return;
+      } else if (checkData.status === 'new') {
+        showOnly('statePricing');
+        return;
+      } else if (checkData.status === 'admin') {
+        currentTier = 'high_impact'; currentIsAdmin = true; currentVip = true;
+      } else if (checkData.status === 'has_tier') {
+        currentTier = checkData.tier; currentVip = checkData.vip || false;
+        if (checkData.company && !currentCompany) currentCompany = checkData.company;
+      } else if (checkData.status === 'free_trial') {
+        currentTier = 'free_trial';
+      }
+    } catch (e) {
+      setErr('errForm', 'Could not verify email: ' + e.message);
+      return;
+    }
+  }
 
   const emailType    = document.getElementById('fEmailType')?.value || '';
   const roadmapNotes = document.getElementById('fRoadmap')?.value || '';
@@ -2415,8 +2439,8 @@ document.getElementById('emailInput').addEventListener('keydown', e => { if (e.k
 
 // Auto-show email entry on first load for non-preview users
 if (!window._previewMode) {
-  showOnly('stateEmail');
-  document.getElementById('emailInput').focus();
+  showOnly('stateForm');
+  document.getElementById('fEmail').focus();
 }
 
 function downloadShowcase() {
