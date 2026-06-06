@@ -3,216 +3,243 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Strategic Flow — Sign In</title>
+<title>Activation Intelligence — Sign In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --black: #0a0a08;
-    --white: #f4f2ed;
-    --signal: #4A8FE7;
-    --signal-dim: #2D6BE4;
-    --noise: #ff4d2e;
-    --mid: #a8a39b;
-    --border: rgba(244,242,237,0.12);
-    --card: rgba(244,242,237,0.04);
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0a08;--surface:#111110;--border:#1e1e1c;
+    --text:#f5f5f0;--muted:#8a8a85;--faint:#3a3a38;
+    --accent:#4A8FE7;--accent-hover:#3d7fd4;
+    --mono:"DM Mono",monospace;--sans:"Instrument Sans",sans-serif;--serif:"DM Serif Display",serif;
   }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'Instrument Sans', sans-serif;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .card{width:100%;max-width:400px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:40px}
+  .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+  .brand-name{font-family:var(--serif);font-size:18px;color:var(--text);letter-spacing:-0.01em}
+  h1{font-family:var(--serif);font-size:30px;line-height:1.15;margin-bottom:10px;letter-spacing:-0.02em}
+  .subtitle{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:36px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+  input[type="email"]{
+    width:100%;padding:13px 16px;background:var(--surface);border:1px solid var(--border);
+    border-radius:9px;color:var(--text);font-size:15px;font-family:var(--sans);outline:none;
+    transition:border-color .15s;
   }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
+  input[type="email"]:focus{border-color:var(--accent)}
+  input[type="email"]::placeholder{color:var(--faint)}
+  button[type="submit"]{
+    width:100%;padding:13px;margin-top:12px;background:var(--accent);border:none;border-radius:9px;
+    color:#fff;font-size:15px;font-weight:600;font-family:var(--sans);cursor:pointer;
+    transition:background .15s,transform .1s;
   }
-
-  .card {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    border: 1px solid var(--border);
-    background: rgba(10,10,8,0.95);
-    padding: 48px 40px;
-    animation: fadeUp 0.5s ease forwards;
+  button[type="submit"]:hover{background:var(--accent-hover)}
+  button[type="submit"]:active{transform:scale(0.99)}
+  button[type="submit"]:disabled{opacity:.5;cursor:not-allowed}
+  .status{margin-top:20px;padding:14px 16px;border-radius:9px;font-size:14px;line-height:1.6;display:none}
+  .status.success{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#4ade80}
+  .status.error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171}
+  .status.info{background:rgba(74,143,231,.08);border:1px solid rgba(74,143,231,.2);color:#93c5fd}
+  .dev-link{margin-top:10px;display:none}
+  .dev-link a{color:var(--accent);font-family:var(--mono);font-size:12px;word-break:break-all;text-decoration:none;border-bottom:1px solid rgba(74,143,231,.3)}
+  .footer{margin-top:48px;font-size:12px;color:var(--faint);text-align:center}
+  .error-banner{
+    margin-bottom:20px;padding:12px 16px;background:rgba(239,68,68,.08);
+    border:1px solid rgba(239,68,68,.2);border-radius:9px;color:#f87171;font-size:13px;display:none;
   }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: translateY(0); }
+  /* How it works guide */
+  .guide{width:100%;max-width:400px;margin-top:24px}
+  .guide-toggle{
+    width:100%;display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;
+    color:var(--muted);font-family:var(--sans);transition:border-color .15s,color .15s;
+    text-align:left;
   }
-
-  .logo {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    color: var(--mid);
-    margin-bottom: 40px;
+  .guide-toggle:hover{border-color:#2a2a28;color:var(--text)}
+  .guide-toggle.open{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent;color:var(--text)}
+  .guide-arrow{font-size:9px;transition:transform .2s;flex-shrink:0}
+  .guide-toggle.open .guide-arrow{transform:rotate(180deg)}
+  .guide-body{
+    display:none;padding:20px 18px;background:var(--surface);
+    border:1px solid var(--border);border-top:none;
+    border-bottom-left-radius:10px;border-bottom-right-radius:10px;
   }
-
-  .logo span { color: var(--signal); }
-
-  h1 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 32px;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: 12px;
+  .guide-body.open{display:block}
+  .guide-steps{display:flex;flex-direction:column;gap:18px}
+  .guide-step-title{font-size:11px;font-weight:700;color:var(--accent);font-family:var(--mono);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+  .guide-step p{font-size:13px;color:var(--muted);line-height:1.65}
+  /* FAQ */
+  .faq{width:100%;max-width:400px;margin-top:12px}
+  .faq-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--faint);font-family:var(--mono);margin-bottom:10px;padding-left:2px}
+  .faq-item{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;background:var(--surface)}
+  .faq-q{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 18px;background:none;border:none;color:var(--text);
+    font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;text-align:left;
+    transition:color .15s;
   }
-
-  h1 em { font-style: italic; color: var(--signal); }
-
-  .sub {
-    font-size: 14px;
-    color: var(--mid);
-    line-height: 1.7;
-    margin-bottom: 36px;
-  }
-
-  label {
-    display: block;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    color: var(--mid);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  input[type="email"] {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 14px;
-    padding: 14px 16px;
-    outline: none;
-    transition: border-color 0.2s;
-    margin-bottom: 16px;
-    -webkit-appearance: none;
-  }
-
-  input[type="email"]:focus {
-    border-color: rgba(74,143,231,0.5);
-  }
-
-  button {
-    width: 100%;
-    background: var(--signal);
-    color: var(--white);
-    border: none;
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    padding: 15px 24px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  button:hover { background: var(--signal-dim); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .error {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--noise);
-    margin-top: 12px;
-    display: none;
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 32px 0;
-  }
-
-  .note {
-    font-size: 12px;
-    color: var(--mid);
-    line-height: 1.7;
-    text-align: center;
-  }
+  .faq-q:hover{color:var(--accent)}
+  .faq-icon{font-size:16px;color:var(--faint);flex-shrink:0;transition:transform .2s;line-height:1}
+  .faq-item.open .faq-icon{transform:rotate(45deg);color:var(--accent)}
+  .faq-a{display:none;padding:0 18px 14px;font-size:13px;color:var(--muted);line-height:1.7}
+  .faq-item.open .faq-a{display:block}
+  .faq-a a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(74,143,231,.3)}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="logo">Strategic Flow <span>Architecture</span></div>
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span class="brand-name">Activation Intelligence</span>
+  </div>
+  <h1>Sign in to your account</h1>
+  <p class="subtitle">Enter your email and we'll send you a magic link. No password needed.</p>
+  <div class="error-banner" id="error-banner"></div>
+  <form id="magic-form">
+    <label for="email">Email address</label>
+    <input type="email" id="email" name="email" placeholder="you@company.com" autocomplete="email" required>
+    <button type="submit" id="submit-btn">Send magic link</button>
+  </form>
+  <div class="status" id="status"></div>
+  <div class="dev-link" id="dev-link"><a id="dev-link-a" href="#">Click here to sign in (dev)</a></div>
+  <p class="footer">Magic links expire after 15 minutes.</p>
+</div>
+<div class="guide">
+  <button class="guide-toggle" id="guide-toggle" aria-expanded="false">
+    How Activation Intelligence works
+    <span class="guide-arrow">▼</span>
+  </button>
+  <div class="guide-body" id="guide-body">
+    <div class="guide-steps">
+      <div class="guide-step">
+        <div class="guide-step-title">Step 1 — Sign in</div>
+        <p>Enter your email. We send a magic link. Click it and you land directly on your dashboard. No password. No account setup.</p>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-title">Step 2 — Upload your sequence</div>
+        <p>Paste your onboarding emails separated by ---. Include subject line and body for each email. Add your activation goal (optional but recommended). Minimum 3 emails. Maximum 12.</p>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-title">Step 3 — Get the diagnosis</div>
+        <p>The engine analyzes your sequence as a system. Results appear in 30–60 seconds. You get: health score, activation gaps, failure pattern breakdown, rebuilt emails, user psychology map, and recommended first fix.</p>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-title">Step 4 — Ship the rebuild</div>
+        <p>Every rebuilt email is ready to copy and paste into HubSpot, Customer.io, Intercom, Klaviyo, or ActiveCampaign. No engineering involvement.</p>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <h1>Sign in to<br><em>Strategic Flow.</em></h1>
-  <p class="sub">Enter your email and we'll send you a secure sign-in link. No password required.</p>
+<div class="faq">
+  <div class="faq-label">Frequently Asked Questions</div>
 
-  <label>Work email</label>
-  <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email">
-  <button id="submitBtn" onclick="sendMagicLink()">Send Sign-In Link →</button>
-  <div class="error" id="errorMsg"></div>
+  <div class="faq-item">
+    <button class="faq-q">FAQ: What do I receive exactly?<span class="faq-icon">+</span></button>
+    <div class="faq-a">A complete diagnosis of your onboarding sequence: health score /10, a list of gaps with briefs for missing emails, failure patterns with exact fixes, all emails rebuilt and ready to send, 5 subject line variants per email, a 30-day playbook, competitor benchmark, and a user psychology map for days 1, 3, and 7.</div>
+  </div>
 
-  <div class="divider"></div>
-  <p class="note">First time here? Enter your email and you'll receive a sign-in link instantly.<br>Free trial included — no credit card required.</p>
+  <div class="faq-item">
+    <button class="faq-q">FAQ: How long does an analysis take?<span class="faq-icon">+</span></button>
+    <div class="faq-a">30–60 seconds. Submit your sequence and you're redirected immediately to the results page, which updates automatically once the analysis is complete.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q">FAQ: What format should the emails be in?<span class="faq-icon">+</span></button>
+    <div class="faq-a">Paste emails separated by <strong>---</strong> (three dashes). Include the subject line and body for each email. Works with 3–12 emails. If you have preview text, include it — it helps the analysis.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q">FAQ: Does it work for any type of SaaS?<span class="faq-icon">+</span></button>
+    <div class="faq-a">Yes. The analysis adapts to your activation goal (which you specify at upload). It has been tested on onboarding sequences for B2B SaaS, productivity tools, automation platforms, and consumer apps.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q">FAQ: Can I share the results with my team?<span class="faq-icon">+</span></button>
+    <div class="faq-a">Yes. Every analysis generates a read-only share link (<code style="font-family:var(--mono);font-size:12px">/share/…</code>) you can send to anyone without requiring an account. You can also send the report by email directly from the results page.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q">FAQ: Are the rebuilt emails ready to use?<span class="faq-icon">+</span></button>
+    <div class="faq-a">Yes. Copy them directly or download as <code style="font-family:var(--mono);font-size:12px">.html</code> files ready to import into HubSpot, Customer.io, Intercom, Klaviyo, or ActiveCampaign. You can download all emails as a single ZIP.</div>
+  </div>
+
+  <div class="faq-item">
+    <button class="faq-q">FAQ: What does it cost?<span class="faq-icon">+</span></button>
+    <div class="faq-a">Two options: a one-time audit at $3,500 or a monthly subscription at $1,500/month with a 3-day free trial. If you have an access code, you go directly to the dashboard after sign in.</div>
+  </div>
 </div>
 
 <script>
-async function sendMagicLink() {
-  const email = document.getElementById('emailInput').value.trim();
-  const btn = document.getElementById('submitBtn');
-  const err = document.getElementById('errorMsg');
-
-  if (!email || !email.includes('@')) {
-    showError('Please enter a valid email address.');
-    return;
+  const params = new URLSearchParams(location.search);
+  if (params.get('error')) {
+    const b = document.getElementById('error-banner');
+    b.textContent = params.get('error') === 'invalid' ? 'That link has expired or already been used.' : 'Something went wrong. Please try again.';
+    b.style.display = 'block';
   }
 
-  btn.disabled = true;
-  btn.textContent = 'Sending...';
-  err.style.display = 'none';
+  document.getElementById('guide-toggle').addEventListener('click', function() {
+    const open = this.classList.toggle('open');
+    this.setAttribute('aria-expanded', String(open));
+    document.getElementById('guide-body').classList.toggle('open', open);
+  });
 
-  try {
-    const res = await fetch('/auth/magic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
     });
+  });
 
-    const data = await res.json();
+  document.getElementById('magic-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const btn = document.getElementById('submit-btn');
+    const status = document.getElementById('status');
+    const devLink = document.getElementById('dev-link');
 
-    if (res.ok && data.ok) {
-      window.location.href = '/magic.html?email=' + encodeURIComponent(email);
-    } else {
-      showError(data.error || 'Something went wrong. Try again.');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    status.style.display = 'none';
+    devLink.style.display = 'none';
+
+    try {
+      const res = await fetch('/auth/magic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+
+      if (data.magicLinkUrl) {
+        status.className = 'status info';
+        status.textContent = 'No email provider configured — use the link below:';
+        status.style.display = 'block';
+        devLink.style.display = 'block';
+        document.getElementById('dev-link-a').href = data.magicLinkUrl;
+      } else {
+        status.className = 'status success';
+        status.textContent = data.message || 'Check your email for the magic link.';
+        status.style.display = 'block';
+      }
+      btn.textContent = 'Sent ✓';
+    } catch (err) {
+      status.className = 'status error';
+      status.textContent = err.message || 'Failed to send magic link. Please try again.';
+      status.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = 'Send Sign-In Link →';
+      btn.textContent = 'Send magic link';
     }
-  } catch (e) {
-    showError('Connection error. Please try again.');
-    btn.disabled = false;
-    btn.textContent = 'Send Sign-In Link →';
-  }
-}
-
-function showError(msg) {
-  const err = document.getElementById('errorMsg');
-  err.textContent = msg;
-  err.style.display = 'block';
-}
-
-document.getElementById('emailInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMagicLink();
-});
+  });
 </script>
 </body>
 </html>
