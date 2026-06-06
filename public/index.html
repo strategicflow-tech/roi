@@ -285,6 +285,7 @@ textarea{resize:vertical;line-height:1.7;}
       </button>
       <a href="#" onclick="showReturningUser();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,229,160,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Returning user →</a>
       <a href="/patterns" style="font-size:11px;color:var(--muted);text-decoration:none;font-family:var(--mono);letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--border);border-radius:20px;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--teal)';this.style.borderColor='rgba(0,229,160,0.4)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">📈 Pattern Intelligence</a>
+      <button class="guide-toggle" onclick="openFaq()" style="font-size:11px;">FAQ</button>
     </div>
   </div>
 
@@ -1143,6 +1144,142 @@ textarea{resize:vertical;line-height:1.7;}
 <div class="footer">
   <p>Strategic Flow © 2026 &nbsp;|&nbsp; Built for the Future of Tech Communication &nbsp;|&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> &nbsp;|&nbsp; <a href="https://strategic-flow-audit.replit.app/guide.html" target="_blank">Platform Guide</a></p>
 </div>
+
+<style>
+/* ─── FAQ MODAL ──────────────────────────────────────────────────────────── */
+#faqOverlay{position:fixed;inset:0;z-index:9000;background:rgba(4,8,15,0.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;}
+#faqOverlay.open{opacity:1;pointer-events:all;}
+#faqModal{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;transform:translateY(16px);transition:transform .2s;position:relative;}
+#faqOverlay.open #faqModal{transform:translateY(0);}
+#faqModalHeader{display:flex;align-items:center;justify-content:space-between;padding:24px 28px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#faqModalHeader h2{font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.01em;margin:0;}
+#faqClose{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 10px;transition:color .15s,border-color .15s;}
+#faqClose:hover{color:var(--text);border-color:var(--teal);}
+#faqBody{overflow-y:auto;padding:8px 28px 24px;}
+.faq-item{border-bottom:1px solid var(--border);}
+.faq-item:last-child{border-bottom:none;}
+.faq-question{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);line-height:1.45;user-select:none;}
+.faq-question:hover{color:var(--teal);}
+.faq-icon{font-size:18px;color:var(--teal);flex-shrink:0;font-family:var(--mono);font-weight:400;width:18px;text-align:center;transition:transform .2s;}
+.faq-answer{font-size:13px;color:var(--text2);line-height:1.75;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .2s;}
+.faq-item.open .faq-answer{max-height:400px;padding-bottom:16px;}
+.faq-item.open .faq-icon{transform:rotate(45deg);}
+</style>
+
+<!-- FAQ MODAL -->
+<div id="faqOverlay" onclick="handleFaqOverlayClick(event)">
+  <div id="faqModal">
+    <div id="faqModalHeader">
+      <h2>Frequently Asked Questions</h2>
+      <button id="faqClose" onclick="closeFaq()" aria-label="Close">×</button>
+    </div>
+    <div id="faqBody">
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What does the audit analyze?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Seven structural points: subject line construction, lead framing, feature-to-outcome translation, visual hierarchy, before/after contrast, social proof placement, and CTA language. This is not a deliverability audit. We do not check SPF, DKIM, or inbox placement. We diagnose why your email fails to convert after it is opened.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What do I receive after the audit?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">A conversion score from 1–10, named failure patterns with explanations, before/after rewrites on all 7 structural points, 3 A/B subject line variants with predicted open rate lift, and a rebuilt HTML file delivered in the same session.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          How long does the audit take?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">90 seconds. Paste your email body or a URL. The system runs the full 7-point structural diagnosis automatically. No forms to fill out. No waiting for a human reviewer.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          Is it free?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Your first rebuild is free — no account or payment required. The rebuilt HTML and full diagnosis are included. Additional rebuilds are available in paid plans starting at $49 one-time or $299/month.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What is Feature-First Bias?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Feature-First Bias is when a SaaS email leads with what the product does instead of what the reader gains. Example: "We've added custom reporting" instead of "You can now see which campaigns actually drove revenue." Found in over 80% of audited emails. The fix: lead with the reader consequence, name the feature second.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What is a Filing Label Subject line?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">A subject line that announces the topic like a folder tab — "New Feature: Reporting Dashboard" — instead of naming a reader consequence. It tells the reader what the email is about, not why opening it changes anything for them. Appears in 83% of audited emails. The fix: replace the label with a consequence, outcome, or tension.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What is Guest Language CTA?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">"Learn more", "Explore what's new", "View update" — these describe the brand's offer from the brand's perspective. Guest Language treats the reader as a visitor rather than an owner. The fix: rewrite CTAs in first-person ownership language: "Fix my reporting", "See my data", "Get my first lesson."</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What is the difference between a deliverability audit and an architecture audit?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Deliverability audits check whether your email reaches the inbox — SPF, DKIM, DMARC, sender reputation. Architecture audits check whether your email converts after it is opened. Most SaaS emails reach the inbox. They fail at conversion. These are two separate problems requiring two separate diagnostics.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What email types can I audit?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Any SaaS email: onboarding, product update, trial conversion, re-engagement, upsell, feature launch, newsletter, event announcement. Paste the text directly into the form or submit a URL to a live page. The system classifies the email type automatically and applies type-specific diagnosis.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          How is the 1–10 score calculated?
+          <span class="faq-icon">+</span>
+        </div>
+        <div class="faq-answer">Seven binary checkpoints: subject line construction (2 pts), lead framing (2 pts), feature-to-outcome translation (1 pt), visual hierarchy (1 pt), before/after contrast (1 pt), social proof placement (1 pt), CTA language (2 pts). Total = 10. Average original score across 54 audited emails: 3/10.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── FAQ MODAL ─────────────────────────────────────────────────────────────────
+function openFaq() {
+  document.getElementById('faqOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeFaq() {
+  document.getElementById('faqOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function handleFaqOverlayClick(e) {
+  if (e.target === document.getElementById('faqOverlay')) closeFaq();
+}
+function toggleFaq(questionEl) {
+  const item = questionEl.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFaq(); });
+</script>
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
