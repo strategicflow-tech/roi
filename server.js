@@ -5150,6 +5150,21 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 }
 
 .err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+
+@media(min-width:768px){
+  .wrap{max-width:640px}
+  h1{font-size:44px}
+  .sub{font-size:17px}
+  .stat-hero{padding:32px 24px}
+  .stat-hero .num{font-size:72px}
+  .stat-hero .label{font-size:15px}
+  .ba-box{padding:18px 20px;font-size:15px}
+  .proof-item{padding:16px 12px;font-size:13px}
+  .proof-item strong{font-size:18px}
+  input[type="email"]{font-size:16px;padding:16px 18px}
+  button{font-size:17px;padding:18px}
+  .logo{font-size:13px}
+}
 </style>
 </head>
 <body>
