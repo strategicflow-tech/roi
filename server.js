@@ -5150,50 +5150,61 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 }
 
 .err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+
+@media(min-width:768px){
+  body{padding:80px 40px;align-items:center}
+  .wrap{max-width:960px;display:flex;gap:64px;align-items:flex-start}
+  .col-left{flex:1;min-width:0}
+  .col-right{width:400px;flex-shrink:0}
+  h1{font-size:56px;line-height:1.1}
+  .stat-hero{margin-bottom:0}
+  .logo{margin-bottom:48px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="logo">Strategic Flow</div>
-
-  <h1>Most SaaS emails fail before the CTA.</h1>
-
-  <p class="sub">
-    Not because of copy.<br>
-    <em>Because the structure breaks before the reader reaches it.</em><br><br>
-    Subject line, hierarchy, consequence framing, CTA momentum — 7 structural checks.
-  </p>
-
-  <div class="stat-hero">
-    <div class="num">81%</div>
-    <div class="label">of SaaS emails fail Check #1</div>
-  </div>
-
-  <div class="ba-row">
-    <div class="ba-box ba-before">
-      <div class="ba-tag"><span>✕</span> Before</div>
-      New Feature: Dashboard Update
-    </div>
-    <div class="ba-box ba-after">
-      <div class="ba-tag"><span>✓</span> After</div>
-      Your reports now load 4x faster
+  <div class="col-left">
+    <div class="logo">Strategic Flow</div>
+    <h1>Most SaaS emails fail before the CTA.</h1>
+    <p class="sub">
+      Not because of copy.<br>
+      <em>Because the structure breaks before the reader reaches it.</em><br><br>
+      Subject line, hierarchy, consequence framing, CTA momentum — 7 structural checks.
+    </p>
+    <div class="stat-hero">
+      <div class="num">81%</div>
+      <div class="label">of SaaS emails fail Check #1</div>
     </div>
   </div>
-  <p class="ba-caption">Check #1 failed. Same feature. Different architecture.</p>
 
-  <div class="proof-row">
-    <div class="proof-item"><strong>54</strong>SaaS emails rebuilt</div>
-    <div class="proof-item"><strong>3.4/7</strong>avg score before</div>
-    <div class="proof-item"><strong>9/10</strong>avg score after</div>
+  <div class="col-right">
+    <div class="ba-row">
+      <div class="ba-box ba-before">
+        <div class="ba-tag"><span>✕</span> Before</div>
+        New Feature: Dashboard Update
+      </div>
+      <div class="ba-box ba-after">
+        <div class="ba-tag"><span>✓</span> After</div>
+        Your reports now load 4x faster
+      </div>
+    </div>
+    <p class="ba-caption">Check #1 failed. Same feature. Different architecture.</p>
+
+    <div class="proof-row">
+      <div class="proof-item"><strong>54</strong>SaaS emails rebuilt</div>
+      <div class="proof-item"><strong>3.4/7</strong>avg score before</div>
+      <div class="proof-item"><strong>9/10</strong>avg score after</div>
+    </div>
+
+    <form id="form" action="/subscribe" method="POST">
+      <input type="email" id="email" name="email" placeholder="Work email" autocomplete="email" required>
+      <button type="submit" id="btn">Get the 7-Point Checklist — free</button>
+    </form>
+    <div class="err" id="err"></div>
+    <p class="reassurance">No pitch. No spam. Just the diagnostic.</p>
   </div>
-
-  <form id="form" action="/subscribe" method="POST">
-    <input type="email" id="email" name="email" placeholder="Work email" autocomplete="email" required>
-    <button type="submit" id="btn">Get the 7-Point Checklist — free</button>
-  </form>
-  <div class="err" id="err"></div>
-  <p class="reassurance">No pitch. No spam. Just the diagnostic.</p>
 
 </div>
 <script>
