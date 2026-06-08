@@ -4977,153 +4977,223 @@ app.get('/subscribe', (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Free 7-Point Checklist — Strategic Flow</title>
+<title>The 7-Point Email Diagnostic — Strategic Flow</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#ffffff;--text:#0d1117;--muted:#4b5563;--dim:#9ca3af;--teal:#1D9E75;--teal-light:#e8f7f2;--red-light:#fef2f2;--red-border:#fca5a5;--green-light:#f0fdf4;--green-border:#86efac;--border:#e5e7eb;--radius:8px}
-  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;padding:40px 20px 60px}
-  .wrap{max-width:600px;margin:0 auto}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --surface:#131920;
+  --border:rgba(29,158,117,0.12);
+  --text:#f5f4f0;
+  --muted:#8b9aaa;
+  --dim:#4a5568;
+  --teal:#1D9E75;
+  --teal-dim:rgba(29,158,117,0.15);
+  --red:#e74a4a;
+  --red-dim:rgba(231,74,74,0.12);
+  --radius:6px;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:48px 20px 64px;
+  background-image:
+    linear-gradient(rgba(29,158,117,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29,158,117,0.04) 1px, transparent 1px);
+  background-size:40px 40px;
+}
+.wrap{max-width:480px;width:100%}
 
-  /* HEADER */
-  .header{margin-bottom:48px}
-  .logo{font-size:15px;font-weight:700;color:var(--teal);letter-spacing:-0.01em}
+.logo{
+  font-family:monospace;
+  font-size:12px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:40px;
+}
 
-  /* HERO */
-  .hero{margin-bottom:48px}
-  .hero h1{font-size:clamp(26px,5vw,36px);font-weight:700;line-height:1.2;letter-spacing:-0.02em;margin-bottom:16px;color:var(--text)}
-  .hero .sub{font-size:16px;color:var(--muted);line-height:1.65;margin-bottom:28px}
-  .form-row{display:flex;gap:10px;flex-wrap:wrap}
-  .form-row input[type="email"]{flex:1;min-width:0;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:15px;padding:13px 16px;color:var(--text);outline:none;transition:border-color 0.2s;background:#fff}
-  .form-row input[type="email"]::placeholder{color:var(--dim)}
-  .form-row input[type="email"]:focus{border-color:var(--teal)}
-  .form-row button{background:var(--teal);color:#fff;border:none;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:15px;font-weight:600;padding:13px 22px;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
-  .form-row button:hover{opacity:0.88}
-  .form-row button:disabled{opacity:0.45;cursor:not-allowed}
-  .fine{font-size:12px;color:var(--dim);margin-top:10px}
-  .err{color:#dc2626;font-size:13px;margin-top:10px;display:none}
+h1{
+  font-size:clamp(24px,6vw,32px);
+  font-weight:700;
+  line-height:1.18;
+  letter-spacing:-0.025em;
+  color:var(--text);
+  margin-bottom:16px;
+}
 
-  /* DIVIDER */
-  .divider{border:none;border-top:1px solid var(--border);margin:48px 0}
+.sub{
+  font-size:15px;
+  color:var(--muted);
+  line-height:1.7;
+  margin-bottom:32px;
+}
+.sub em{color:var(--text);font-style:normal;font-weight:500}
 
-  /* CHECKS SECTION */
-  .section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--dim);margin-bottom:20px}
-  .checks{list-style:none;display:flex;flex-direction:column;gap:12px}
-  .checks li{display:flex;gap:14px;align-items:flex-start;font-size:15px;color:var(--text);line-height:1.55}
-  .check-num{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--teal-light);color:var(--teal);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
-  .check-label{font-weight:600;color:var(--text)}
-  .check-desc{color:var(--muted)}
+.stat-hero{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px 20px;
+  text-align:center;
+  margin-bottom:20px;
+}
+.stat-hero .num{
+  font-size:48px;
+  font-weight:700;
+  color:var(--teal);
+  letter-spacing:-0.03em;
+  line-height:1;
+  margin-bottom:6px;
+}
+.stat-hero .label{
+  font-size:13px;
+  color:var(--muted);
+  letter-spacing:0.02em;
+}
 
-  /* BEFORE/AFTER */
-  .ba-wrap{display:flex;flex-direction:column;gap:12px;margin-bottom:12px}
-  .ba-box{border-radius:var(--radius);padding:18px 20px;font-size:15px;font-weight:600;line-height:1.4}
-  .ba-box .ba-tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px}
-  .ba-before{background:var(--red-light);border:1.5px solid var(--red-border)}
-  .ba-before .ba-tag{color:#dc2626}
-  .ba-after{background:var(--green-light);border:1.5px solid var(--green-border)}
-  .ba-after .ba-tag{color:#16a34a}
-  .ba-caption{font-size:13px;color:var(--muted);line-height:1.5}
+.ba-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+.ba-box{
+  border-radius:var(--radius);
+  padding:14px 16px;
+  font-size:13px;
+  font-weight:500;
+  line-height:1.45;
+}
+.ba-tag{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.ba-before{background:var(--red-dim);border:1px solid rgba(231,74,74,0.25);color:var(--text)}
+.ba-before .ba-tag{color:var(--red)}
+.ba-after{background:var(--teal-dim);border:1px solid rgba(29,158,117,0.3);color:var(--text)}
+.ba-after .ba-tag{color:var(--teal)}
+.ba-caption{font-size:12px;color:var(--dim);margin-bottom:32px;line-height:1.5}
 
-  /* STATS */
-  .stats{display:flex;gap:12px;flex-wrap:wrap}
-  .stat-box{flex:1;min-width:140px;background:#f9fafb;border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px;text-align:center}
-  .stat-num{font-size:28px;font-weight:700;color:var(--teal);letter-spacing:-0.02em;line-height:1}
-  .stat-lbl{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+.proof-row{
+  display:flex;
+  gap:0;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  margin-bottom:32px;
+}
+.proof-item{
+  flex:1;
+  padding:12px 10px;
+  text-align:center;
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.5;
+  border-right:1px solid var(--border);
+}
+.proof-item:last-child{border-right:none}
+.proof-item strong{display:block;font-size:15px;font-weight:700;color:var(--teal);letter-spacing:-0.01em;margin-bottom:2px}
 
-  /* FOOTER */
-  .footer{margin-top:56px;padding-top:24px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);text-align:center;line-height:1.7}
-  .footer a{color:var(--teal);text-decoration:none}
+input[type="email"]{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:15px;
+  padding:14px 16px;
+  outline:none;
+  transition:border-color 0.2s;
+  margin-bottom:10px;
+  -webkit-appearance:none;
+}
+input[type="email"]::placeholder{color:var(--dim)}
+input[type="email"]:focus{border-color:var(--teal)}
+
+button{
+  width:100%;
+  background:var(--teal);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius);
+  font-family:'Inter',sans-serif;
+  font-size:15px;
+  font-weight:600;
+  padding:15px;
+  cursor:pointer;
+  transition:opacity 0.2s;
+  letter-spacing:-0.01em;
+}
+button:hover{opacity:0.88}
+button:disabled{opacity:0.4;cursor:not-allowed}
+
+.reassurance{
+  font-size:12px;
+  color:var(--dim);
+  text-align:center;
+  margin-top:12px;
+  line-height:1.5;
+}
+
+.err{color:var(--red);font-size:13px;margin-top:8px;display:none}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="header">
-    <div class="logo">Strategic Flow</div>
+  <div class="logo">Strategic Flow</div>
+
+  <h1>Most SaaS emails fail before the CTA.</h1>
+
+  <p class="sub">
+    Not because of copy.<br>
+    <em>Because the structure breaks before the reader reaches it.</em><br><br>
+    Subject line, hierarchy, consequence framing, CTA momentum — 7 structural checks.
+  </p>
+
+  <div class="stat-hero">
+    <div class="num">81%</div>
+    <div class="label">of SaaS emails fail Check #1</div>
   </div>
 
-  <div class="hero">
-    <h1>Your last email scored 3.4 out of 7.</h1>
-    <p class="sub">81% of the 54 SaaS emails I audited failed the first check. Here are all 7 — free.</p>
-    <form id="form" action="/subscribe" method="POST">
-      <div class="form-row">
-        <input type="email" id="email" name="email" placeholder="you@company.com" autocomplete="email" required>
-        <button type="submit" id="btn">Send me the checklist</button>
-      </div>
-    </form>
-    <div class="err" id="err"></div>
-    <p class="fine">No spam. Unsubscribe anytime.</p>
-  </div>
-
-  <hr class="divider">
-
-  <div class="section-title">What the checklist covers</div>
-  <ul class="checks">
-    <li>
-      <div class="check-num">1</div>
-      <div><span class="check-label">Subject line</span> <span class="check-desc">— filing label or consequence signal?</span></div>
-    </li>
-    <li>
-      <div class="check-num">2</div>
-      <div><span class="check-label">Lead construction</span> <span class="check-desc">— consequence before caveat?</span></div>
-    </li>
-    <li>
-      <div class="check-num">3</div>
-      <div><span class="check-label">Feature-to-outcome translation</span> <span class="check-desc">— does it name what changes for the reader?</span></div>
-    </li>
-    <li>
-      <div class="check-num">4</div>
-      <div><span class="check-label">Visual hierarchy</span> <span class="check-desc">— does the most important claim lead?</span></div>
-    </li>
-    <li>
-      <div class="check-num">5</div>
-      <div><span class="check-label">Before/after contrast</span> <span class="check-desc">— is the transformation explicit?</span></div>
-    </li>
-    <li>
-      <div class="check-num">6</div>
-      <div><span class="check-label">Social proof</span> <span class="check-desc">— is there a named result or third-party voice?</span></div>
-    </li>
-    <li>
-      <div class="check-num">7</div>
-      <div><span class="check-label">CTA language</span> <span class="check-desc">— ownership language or guest language?</span></div>
-    </li>
-  </ul>
-
-  <hr class="divider">
-
-  <div class="section-title">What a structural fix looks like</div>
-  <div class="ba-wrap">
+  <div class="ba-row">
     <div class="ba-box ba-before">
-      <div class="ba-tag">Before</div>
+      <div class="ba-tag"><span>✕</span> Before</div>
       New Feature: Dashboard Update
     </div>
     <div class="ba-box ba-after">
-      <div class="ba-tag">After</div>
+      <div class="ba-tag"><span>✓</span> After</div>
       Your reports now load 4x faster
     </div>
   </div>
-  <p class="ba-caption">Same feature. Different architecture. Check 1 failed.</p>
+  <p class="ba-caption">Check #1 failed. Same feature. Different architecture.</p>
 
-  <hr class="divider">
-
-  <div class="stats">
-    <div class="stat-box">
-      <div class="stat-num">54</div>
-      <div class="stat-lbl">SaaS emails audited</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num">3.4/7</div>
-      <div class="stat-lbl">Average score before rebuild</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-num">9/10</div>
-      <div class="stat-lbl">Average score after rebuild</div>
-    </div>
+  <div class="proof-row">
+    <div class="proof-item"><strong>54</strong>SaaS emails rebuilt</div>
+    <div class="proof-item"><strong>3.4/7</strong>avg score before</div>
+    <div class="proof-item"><strong>9/10</strong>avg score after</div>
   </div>
 
-  <div class="footer">
-    Strategic Flow &middot; Behavioral Email Architecture &middot; <a href="https://strategicflow.tech">strategicflow.tech</a>
-  </div>
+  <form id="form" action="/subscribe" method="POST">
+    <input type="email" id="email" name="email" placeholder="Work email" autocomplete="email" required>
+    <button type="submit" id="btn">Get the 7-Point Checklist — free</button>
+  </form>
+  <div class="err" id="err"></div>
+  <p class="reassurance">No pitch. No spam. Just the diagnostic.</p>
 
 </div>
 <script>
@@ -5148,13 +5218,13 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       err.textContent = data.error || 'Something went wrong. Try again.';
       err.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = 'Send me the checklist';
+      btn.textContent = 'Get the 7-Point Checklist — free';
     }
   } catch(e) {
     err.textContent = 'Network error. Please try again.';
     err.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Send me the checklist';
+    btn.textContent = 'Get the 7-Point Checklist — free';
   }
 });
 </script>
