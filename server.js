@@ -5000,9 +5000,9 @@ body{
   font-family:'Inter',sans-serif;
   min-height:100vh;
   display:flex;
-  align-items:flex-start;
+  align-items:center;
   justify-content:center;
-  padding:48px 20px 64px;
+  padding:48px 20px;
   background-image:
     linear-gradient(rgba(29,158,117,0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(29,158,117,0.04) 1px, transparent 1px);
@@ -5152,8 +5152,8 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 .err{color:var(--red);font-size:13px;margin-top:8px;display:none}
 
 @media(min-width:768px){
-  body{padding:80px 40px;align-items:center}
-  .wrap{max-width:960px;display:flex;gap:64px;align-items:flex-start}
+  body{padding:48px 40px}
+  .wrap{max-width:960px;display:flex;flex-direction:row;gap:64px;align-items:flex-start}
   .col-left{flex:1;min-width:0}
   .col-right{width:400px;flex-shrink:0}
   h1{font-size:56px;line-height:1.1}
