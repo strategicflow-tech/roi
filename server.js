@@ -167,6 +167,17 @@ app.get('/patterns', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/patterns.html'));
 });
 
+app.get('/api/teardown-count', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT value FROM system_config WHERE key = 'teardown_count'`);
+    const count = r.rows.length ? parseInt(r.rows[0].value, 10) : (parseInt(process.env.TEARDOWN_COUNT, 10) || 0);
+    res.json({ count });
+  } catch {
+    const count = parseInt(process.env.TEARDOWN_COUNT, 10) || 0;
+    res.json({ count });
+  }
+});
+
 app.use(express.static('public'));
 
 // ── ROOT — always serve app (no auth wall for free users) ─────────────────────
