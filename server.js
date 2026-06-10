@@ -168,14 +168,27 @@ app.get('/patterns', (req, res) => {
 });
 
 app.get('/api/teardown-count', async (req, res) => {
+  const MAIN_PAGES = new Set([
+    'index.html','teardowns.html','glossary.html','scorecard.html','architecture.html',
+    'why-saas-emails-get-opened-but-not-clicked.html','how-to-fix-saas-email-ctr.html',
+    'saas-email-conversion-failure.html','email-architecture-audit.html',
+  ]);
+  try {
+    const ghRes = await fetch('https://api.github.com/repos/strategicflow-tech/showcase/contents/', {
+      headers: { Authorization: `token ${process.env.GITHUB_TOKEN}`, 'User-Agent': 'strategic-flow' }
+    });
+    const files = await ghRes.json();
+    const count = Array.isArray(files)
+      ? files.filter(f => f.type === 'file' && f.name.endsWith('.html') && !MAIN_PAGES.has(f.name)).length
+      : 0;
+    return res.json({ count });
+  } catch {}
+  // Fallback: DB → env
   try {
     const r = await pool.query(`SELECT value FROM system_config WHERE key = 'teardown_count'`);
-    const count = r.rows.length ? parseInt(r.rows[0].value, 10) : (parseInt(process.env.TEARDOWN_COUNT, 10) || 0);
-    res.json({ count });
-  } catch {
-    const count = parseInt(process.env.TEARDOWN_COUNT, 10) || 0;
-    res.json({ count });
-  }
+    if (r.rows.length) return res.json({ count: parseInt(r.rows[0].value, 10) });
+  } catch {}
+  res.json({ count: parseInt(process.env.TEARDOWN_COUNT, 10) || 0 });
 });
 
 app.use(express.static('public'));
