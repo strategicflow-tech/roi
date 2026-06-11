@@ -250,16 +250,19 @@ textarea{resize:vertical;line-height:1.7;}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 [hidden]{display:none!important;}
-@media(max-width:640px){
+@media(max-width:768px){
   .pricing-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:640px){
   .panel-row,.before-after,.field-row,.admin-stats{grid-template-columns:1fr;}
+}
+@media(max-width:560px){
+  .pricing-grid{grid-template-columns:1fr;}
+  .plan-card{padding:20px 16px;}
 }
 @media(max-width:600px){
   .ab-item,.cal-item,.flag-item,.segment-card{width:100%;box-sizing:border-box;}
   .panel-row,.before-after{grid-template-columns:1fr;}
-}
-@media(max-width:420px){
-  .pricing-grid{grid-template-columns:1fr;}
 }
 .upsell-pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
 @media(max-width:700px){.upsell-pricing-grid{grid-template-columns:1fr 1fr;}}
@@ -404,6 +407,8 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- Lite -->
         <div class="plan-card">
           <div class="plan-name" style="color:var(--teal);">LITE</div>
+          <div class="plan-price">$299</div>
+          <div class="plan-period">/ month</div>
           <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Four newsletters a month, rebuilt professionally.</strong>Each one gets 3 alternative subject lines to A/B test, a conversion score before and after, and a full breakdown of what changed and why. Plus a human review option — send any rebuild to our team and get written feedback within 48 hours.</p>
           <ul class="plan-features">
             <li>4 newsletters/month</li>
@@ -418,6 +423,8 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- Growth -->
         <div class="plan-card">
           <div class="plan-name" style="color:#a78bfa;">GROWTH</div>
+          <div class="plan-price">$499</div>
+          <div class="plan-period">/ month</div>
           <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:12px 0 16px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Your brand voice, preserved at scale.</strong>We extract your brand DNA — colors, tone, voice, audience language — from your website before every rebuild. Every newsletter sounds like you, not a template. Includes a 3-email content calendar after each rebuild. Eight newsletters every month.</p>
           <ul class="plan-features">
             <li>8 newsletters/month</li>
@@ -433,6 +440,8 @@ textarea{resize:vertical;line-height:1.7;}
         <!-- High-Impact -->
         <div class="plan-card featured">
           <div class="plan-name" style="color:var(--gold);">HIGH-IMPACT</div>
+          <div class="plan-price" style="color:var(--gold);">$899</div>
+          <div class="plan-period">/ month</div>
           <div style="border:1px solid #00d4c8;border-radius:8px;padding:14px;margin:12px 0 16px;background:rgba(0,229,160,0.05);">
             <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0 0 10px;text-align:left;"><strong style="color:#eef1f7;display:block;margin-bottom:5px;">Full-funnel thinking. Direct access.</strong>Rebuilds every month. Every email checked for full-funnel cohesion — does it fit your sequence, your audience, your conversion goal? Includes a monthly audit of your entire email program.</p>
             <p style="font-size:13px;color:#00d4c8;line-height:1.6;margin:0;text-align:left;">⚡ <strong>VIP Access:</strong> You get a dedicated Slack channel with direct async access to the Strategic Flow team. Urgent copy hotfix before a launch? Skip the queue — fast turnaround guaranteed. This is the plan for founders and marketing leads who treat email as a revenue channel, not a checkbox.</p>

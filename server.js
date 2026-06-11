@@ -167,6 +167,11 @@ app.get('/patterns', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/patterns.html'));
 });
 
+app.get('/pattern-intelligence', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/pattern-intelligence.html'));
+});
+
 app.get('/api/teardown-count', async (req, res) => {
   const MAIN_PAGES = new Set([
     'index.html','teardowns.html','glossary.html','scorecard.html','architecture.html',
