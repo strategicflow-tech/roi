@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "kind": "business",
+  "name": "Strategic Flow",
+  "legal_name": "Strategic Flow Tech",
+  "url": "https://strategicflow.tech",
+  "description": "Behavioral email architecture diagnostics for B2B SaaS. Strategic Flow diagnoses why SaaS emails get opened but not clicked, using the Decision Friction Model, a 7-point structural framework. 54 public teardowns published with an average score lift from 3.4 to 9.0 out of 10.",
+  "founder": {
+    "name": "Alex Iliescu",
+    "role": "Founder and diagnostic operator",
+    "wikidata": "https://www.wikidata.org/wiki/Q140164294"
+  },
+  "location": {
+    "locality": "Arona, Costa Adeje",
+    "region": "Canary Islands",
+    "country": "ES",
+    "service_area": "Worldwide"
+  },
+  "contact": {
+    "email": "alex@strategicflow.tech",
+    "linkedin": "https://www.linkedin.com/in/strategic-flow-tech"
+  },
+  "capabilities": [
+    "Email architecture audits for SaaS product, lifecycle, and onboarding emails",
+    "Structural scoring against the 7-point Decision Friction Model",
+    "Email rebuilds with documented before/after scores",
+    "Public teardown publication and benchmark data for SaaS email patterns"
+  ],
+  "tools": [
+    {
+      "name": "Strategic Flow Audit Tool",
+      "description": "Paste any email, receive a 7-point structural audit with score and rebuilt version in about 90 seconds. No signup required.",
+      "url": "https://strategic-flow-audit.replit.app",
+      "free": true
+    },
+    {
+      "name": "SaaS Email Architecture Pack",
+      "description": "Subject Line Formula Sheet, 7 Point Audit Checklist, CTA Language Guide, 7 rebuilt templates, Teardown Masterclass. Instant download.",
+      "url": "https://strategicflowtech.gumroad.com/l/koczgh",
+      "free": false
+    },
+    {
+      "name": "Teardown Archive",
+      "description": "54 public structural teardowns of SaaS emails including Semrush, HeyGen, Revolut, ElevenLabs, and Zapier, each with scored before/after rebuilds.",
+      "url": "https://strategicflow.tech/teardowns.html",
+      "free": true
+    }
+  ],
+  "pricing": {
+    "single_audit": "USD 49 one-time",
+    "plans_url": "https://strategic-flow-pro.replit.app/packages"
+  },
+  "trust": {
+    "wikidata": "https://www.wikidata.org/wiki/Q140086009",
+    "crunchbase": "https://www.crunchbase.com/organization/strategic-flow-tech",
+    "product_hunt": "https://www.producthunt.com/products/strategic-flow-audit-app",
+    "knowledge_index": "https://strategicflow.tech/llms.txt",
+    "glossary": "https://strategicflow.tech/glossary.html"
+  },
+  "metadata": {
+    "framework": "Decision Friction Model",
+    "public_teardowns": 54,
+    "average_score_before": 3.4,
+    "average_score_after": 9.0,
+    "languages": ["en", "es", "sv", "fr", "ro", "de"]
+  }
+}
