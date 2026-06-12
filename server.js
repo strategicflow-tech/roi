@@ -5826,14 +5826,21 @@ Return ONLY valid JSON:
       const rebuild = combined;
 
       try {
-        await notify(
-          'New demo — ' + emailLower,
-          `<p>Demo run by: <strong>${emailLower}</strong></p>
-           <p>Company: ${company || 'Unknown'}</p>
-           <p>Subject: "${subject}"</p>
-           <p>Score: ${diagnostic.score}/10 → ${rebuild.rebuiltScore}/10</p>
-           <p>Subscribers: ${subscribers || 'not provided'}</p>`
-        );
+        const companyName = company || 'Unknown';
+        const origScore   = diagnostic.score;
+        const rebScore    = rebuild.rebuiltScore || 9;
+        await resend.emails.send({
+          from: SENDER,
+          to: 'alex@strategicflow.tech',
+          subject: `Demo run: ${companyName} — score ${origScore}/10`,
+          html: `<p><strong>Work email:</strong> ${emailLower}</p>
+                 <p><strong>Company name:</strong> ${companyName}</p>
+                 <p><strong>Subscriber count:</strong> ${subscribers || 'not provided'}</p>
+                 <p><strong>Original score:</strong> ${origScore}/10</p>
+                 <p><strong>Rebuilt score:</strong> ${rebScore}/10</p>
+                 <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>`
+        });
+        console.log(`[api/demo] notification sent → alex@strategicflow.tech | ${companyName} | ${origScore}/10 → ${rebScore}/10`);
       } catch (e) {
         console.error('[api/demo] notify error:', e.message);
       }
