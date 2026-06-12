@@ -1,0 +1,30 @@
+Read demo.html first, locate the results area and the Plans section, then apply these changes. Do not modify the audit logic itself.
+
+STEP 1 — Fix the Growth card copy
+The Growth card currently says "Unlimited rebuild volume plus onboarding sequence audit. For teams sending weekly."
+Replace that text with exactly:
+"8 rebuilds per month plus onboarding sequence audit. For teams sending weekly."
+Also check the High-Impact card: if it references "Everything in Growth at full volume", leave it, that phrasing stays correct now.
+Check the /packages page of strategic-flow-pro if it is in this project. If Growth says unlimited there too, apply the same correction. If it is a different project, report that and stop, do not guess.
+
+STEP 2 — Add an Architecture output showcase under the demo result
+After the user receives their score and diagnosis, insert a new section. Purpose: show the full deliverable an Architecture client receives, so the gap between the free diagnosis and the paid output is visible on the page.
+
+Section label: // WHAT THE PAID OUTPUT LOOKS LIKE
+Intro line (use exactly): The free audit shows you where your email fails. This is what the rebuilt version looks like when the full system runs on it.
+
+Inside the section, render a sample deliverable with these blocks, clearly marked as SAMPLE OUTPUT on example data, not the user's email:
+
+1. A rendered Before and After of a full rebuilt email in HTML, side by side on desktop, stacked on mobile. Use clean placeholder brand styling, not a real client brand.
+2. A block titled "A/B subject variants" with 3 sample subject lines, each tagged with the structural pattern it tests.
+3. A block titled "Batch diagnostic" showing a sample ranked list of 5 emails with scores, sorted by revenue priority.
+4. A block titled "4 week content calendar" showing one sample week with 2 planned sends and their structural goal.
+
+Under the sample, one closing line (use exactly): Every block above ships for every email, every month, on Architecture. Run your numbers first: strategicflow-tech.github.io/roi
+
+Below that, one button "See plans" that scrolls to the Plans section on this page.
+
+STEP 3 — Style rules
+Match the existing dark theme and mono section labels. Never use em dashes or en dashes in any new copy. Use only the exact copy provided above for labels and fixed lines. Do not invent client names, real brands, or fake metrics beyond the sample blocks described.
+
+After deploying, verify: Growth shows 8 rebuilds per month, the showcase section renders after a demo run, all sample blocks display on mobile width, the ROI link works.

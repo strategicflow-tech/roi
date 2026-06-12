@@ -402,6 +402,8 @@
       border: 1px solid var(--border);
       grid-column: auto !important;
     }
+    .showcase-ba { grid-template-columns: 1fr !important; }
+    .showcase-batch { grid-template-columns: auto 1fr auto auto !important; font-size:10px !important; }
   }
 
   /* ── INCLUDED SECTION ── */
@@ -646,7 +648,132 @@
       </div>
     </div>
 
+    <!-- ARCHITECTURE SHOWCASE -->
     <div style="margin-top:48px;margin-bottom:48px;">
+      <div class="section-title">// WHAT THE PAID OUTPUT LOOKS LIKE</div>
+      <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:8px;max-width:620px;">The free audit shows you where your email fails. This is what the rebuilt version looks like when the full system runs on it.</p>
+      <div style="display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--noise);text-transform:uppercase;border:1px solid var(--noise);padding:3px 8px;margin-bottom:28px;">Sample output — example data, not your email</div>
+
+      <!-- Block 1: Before / After -->
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">01 — Full email rebuild</div>
+      <div class="showcase-ba" style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;">
+        <div style="background:#0a0a08;padding:20px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Before</div>
+          <div style="font-size:11px;color:var(--white);font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: Q2 Product Roundup — What We Shipped</div>
+          <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
+            <p style="margin:0 0 8px;">Hi team,</p>
+            <p style="margin:0 0 8px;">We are excited to share the latest updates from our product team. This quarter we shipped several improvements across the platform.</p>
+            <p style="margin:0 0 8px;">The new reporting module is now available. We also updated the export flow and improved load times across the dashboard.</p>
+            <p style="margin:0 0 8px;">We hope these updates improve your experience. Click below to learn more.</p>
+            <p style="margin:0;"><span style="background:rgba(255,255,255,0.08);padding:6px 12px;font-size:11px;">Learn more</span></p>
+          </div>
+        </div>
+        <div style="background:rgba(74,143,231,0.05);padding:20px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">After — rebuilt</div>
+          <div style="font-size:11px;color:#4ade80;font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: Your Q2 reports are loading 40% faster — here is what changed</div>
+          <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
+            <p style="margin:0 0 8px;">If you have ever waited on a dashboard to load before a meeting, this quarter was for you.</p>
+            <p style="margin:0 0 8px;">Three changes shipped in Q2. The one that matters most: reports now load in under 2 seconds on the standard plan. No configuration needed.</p>
+            <p style="margin:0 0 8px;">Export has also changed. You can now pull a full CSV in one click from any filtered view.</p>
+            <p style="margin:0;"><span style="background:var(--signal);color:#fff;padding:6px 12px;font-size:11px;font-weight:600;">See your faster dashboard</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Block 2: A/B Subject Variants -->
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">02 — A/B subject variants</div>
+      <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">A</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">Your Q2 reports load 40% faster. Here is why that matters before your next board call.</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: consequence-first + time anchor</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">B</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">We fixed the thing slowing down your Monday morning reporting.</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: named pain without feature language</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">C</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">3 users exported 6 months of data in under 30 seconds last week. Here is how.</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: social proof + specificity hook</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Block 3: Batch Diagnostic -->
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">03 — Batch diagnostic — 5 emails ranked by revenue priority</div>
+      <div style="background:#0a0a08;border:1px solid var(--border);margin-bottom:28px;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;font-family:'DM Mono',monospace;font-size:10px;color:var(--white);text-transform:uppercase;letter-spacing:0.1em;padding:10px 16px;border-bottom:1px solid var(--border);">
+          <span style="margin-right:16px;">#</span><span>Subject</span><span style="margin-left:16px;text-align:right;">Score</span><span style="margin-left:16px;">Bugs</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(255,77,46,0.06);">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--noise);margin-right:16px;font-weight:700;">1</span>
+          <div><div style="font-size:12px;color:var(--white);">Q1 Product Update — What We Shipped</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);margin-top:3px;">FIX FIRST — highest revenue impact</div></div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--noise);margin-left:16px;font-weight:700;">2/10</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">6</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">2</span>
+          <div style="font-size:12px;color:var(--white);">New feature available — try it now</div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--noise);margin-left:16px;">4/10</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">4</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">3</span>
+          <div style="font-size:12px;color:var(--white);">Your account is ready</div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#f59e0b;margin-left:16px;">6/10</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">3</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">4</span>
+          <div style="font-size:12px;color:var(--white);">We have been thinking about you</div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#f59e0b;margin-left:16px;">5/10</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">3</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">5</span>
+          <div style="font-size:12px;color:var(--white);">Introducing our referral program</div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#4ade80;margin-left:16px;">7/10</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">2</span>
+        </div>
+      </div>
+
+      <!-- Block 4: Content Calendar -->
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">04 — 4 week content calendar — week 1 sample</div>
+      <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">Week 1</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;min-width:72px;padding-top:2px;">Mon — Send 1</div>
+            <div style="flex:1;min-width:200px;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">Your onboarding is not broken. Your day-3 email is.</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Goal: reactivate users who stalled after signup</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;min-width:72px;padding-top:2px;">Thu — Send 2</div>
+            <div style="flex:1;min-width:200px;">
+              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">3 users hit their first export this week. Here is what they did differently.</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Goal: social proof at the activation milestone</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Closing line + CTA -->
+      <p style="font-size:13px;color:var(--white);line-height:1.7;margin-bottom:20px;max-width:620px;">Every block above ships for every email, every month, on Architecture. Run your numbers first: <a href="https://strategicflow-tech.github.io/roi" target="_blank" style="color:var(--signal);text-decoration:none;">strategicflow-tech.github.io/roi</a></p>
+      <button class="btn btn-primary" onclick="document.getElementById('plans-section').scrollIntoView({behavior:'smooth'})">See plans</button>
+    </div>
+
+    <div id="plans-section" style="margin-top:48px;margin-bottom:48px;">
       <div class="section-title">// PICK THE GAP YOU WANT CLOSED</div>
       <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:32px;max-width:600px;">The average email we audit scores 3.4 out of 10. The rebuilt version scores 9. Every plan below closes that gap at a different volume.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
@@ -668,7 +795,7 @@
         <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 20px 24px;">
           <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:8px;">Growth</div>
           <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--white);font-weight:700;margin-bottom:12px;">$499 <span style="font-size:11px;color:var(--white);font-weight:400;">/mo</span></div>
-          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">Unlimited rebuild volume plus onboarding sequence audit. For teams sending weekly.</p>
+          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">8 rebuilds per month plus onboarding sequence audit. For teams sending weekly.</p>
           <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="window.open('https://strategic-flow-pro.replit.app/packages','_blank')">See Growth</button>
         </div>
 
