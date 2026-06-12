@@ -5829,8 +5829,9 @@ Return ONLY valid JSON:
         const companyName = company || 'Unknown';
         const origScore   = diagnostic.score;
         const rebScore    = rebuild.rebuiltScore || 9;
-        await resend.emails.send({
-          from: SENDER,
+        console.log('[api/demo] calling Resend from=' + SENDER + ' to=consultantcalatorii@gmail.com');
+        const resendResult = await resend.emails.send({
+          from: 'Strategic Flow <onboarding@resend.dev>',
           to: 'consultantcalatorii@gmail.com',
           subject: `Demo run: ${companyName} — score ${origScore}/10`,
           html: `<p><strong>Work email:</strong> ${emailLower}</p>
@@ -5840,9 +5841,14 @@ Return ONLY valid JSON:
                  <p><strong>Rebuilt score:</strong> ${rebScore}/10</p>
                  <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>`
         });
-        console.log(`[api/demo] notification sent → alex@strategicflow.tech | ${companyName} | ${origScore}/10 → ${rebScore}/10`);
+        console.log('[api/demo] Resend response:', JSON.stringify(resendResult));
+        if (resendResult.error) {
+          console.error('[api/demo] Resend error detail:', JSON.stringify(resendResult.error));
+        } else {
+          console.log(`[api/demo] notification sent OK → consultantcalatorii@gmail.com | ${companyName} | ${origScore}/10 → ${rebScore}/10 | id=${resendResult.data && resendResult.data.id}`);
+        }
       } catch (e) {
-        console.error('[api/demo] notify error:', e.message);
+        console.error('[api/demo] notify exception:', e.message, JSON.stringify(e));
       }
 
       const result = {
