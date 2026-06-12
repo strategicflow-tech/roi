@@ -5831,7 +5831,7 @@ Return ONLY valid JSON:
         const rebScore    = rebuild.rebuiltScore || 9;
         await resend.emails.send({
           from: SENDER,
-          to: 'alex@strategicflow.tech',
+          to: 'consultantcalatorii@gmail.com',
           subject: `Demo run: ${companyName} — score ${origScore}/10`,
           html: `<p><strong>Work email:</strong> ${emailLower}</p>
                  <p><strong>Company name:</strong> ${companyName}</p>
