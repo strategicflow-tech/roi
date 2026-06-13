@@ -649,127 +649,56 @@
     </div>
 
     <!-- ARCHITECTURE SHOWCASE -->
-    <div style="margin-top:48px;margin-bottom:48px;">
+    <div style="margin-top:48px;margin-bottom:48px;" id="paidRebuildSection">
       <div class="section-title">// WHAT THE PAID OUTPUT LOOKS LIKE</div>
-      <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:8px;max-width:620px;">The free audit shows you where your email fails. This is what the rebuilt version looks like when the full system runs on it.</p>
-      <div style="display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--noise);text-transform:uppercase;border:1px solid var(--noise);padding:3px 8px;margin-bottom:28px;">Sample output — example data, not your email</div>
+      <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:24px;max-width:620px;">The free audit shows where your email fails. Run the paid rebuild to see the fixed version, three A/B subject variants, and a line-by-line change log on your actual email.</p>
 
-      <!-- Block 1: Before / After -->
-      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">01 — Full email rebuild</div>
-      <div class="showcase-ba" style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;">
-        <div style="background:#0a0a08;padding:20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Before</div>
-          <div style="font-size:11px;color:var(--white);font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: Q2 Product Roundup — What We Shipped</div>
-          <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
-            <p style="margin:0 0 8px;">Hi team,</p>
-            <p style="margin:0 0 8px;">We are excited to share the latest updates from our product team. This quarter we shipped several improvements across the platform.</p>
-            <p style="margin:0 0 8px;">The new reporting module is now available. We also updated the export flow and improved load times across the dashboard.</p>
-            <p style="margin:0 0 8px;">We hope these updates improve your experience. Click below to learn more.</p>
-            <p style="margin:0;"><span style="background:rgba(255,255,255,0.08);padding:6px 12px;font-size:11px;">Learn more</span></p>
-          </div>
+      <!-- Trigger button — shown after free audit completes -->
+      <div id="rebuildTrigger" style="display:none;margin-bottom:32px;">
+        <button class="btn btn-primary" id="rebuildBtn" onclick="runDemoRebuild()">Run the paid rebuild on this email</button>
+        <div id="rebuildErrMsg" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--noise);margin-top:10px;display:none;"></div>
+      </div>
+
+      <!-- Loading state -->
+      <div id="rebuildLoading" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--white);margin-bottom:24px;padding:16px;background:#0a0a08;border:1px solid var(--border);">Rebuilding your email...</div>
+
+      <!-- Rebuild results -->
+      <div id="rebuildResults" style="display:none;">
+
+        <!-- 01 YOUR EMAIL, REBUILT -->
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">01 — Your email, rebuilt</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;" id="rebuildBeforeAfter"></div>
+
+        <!-- 02 A/B SUBJECT VARIANTS -->
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">02 — A/B subject variants</div>
+        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;" id="rebuildVariants"></div>
+
+        <!-- 03 WHAT CHANGED AND WHY -->
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">03 — What changed and why</div>
+        <div style="background:#0a0a08;border:1px solid var(--border);margin-bottom:28px;" id="rebuildChanges"></div>
+
+        <!-- Architecture CTA block (inline on page) -->
+        <div style="border:1px solid var(--signal);padding:24px;margin-bottom:20px;background:rgba(74,143,231,0.04);">
+          <p style="font-size:14px;color:var(--white);line-height:1.7;margin:0 0 16px;">This rebuild ran once, on one email. Architecture runs the full system on every email your company sends, every month, automatically.</p>
+          <a href="https://strategicflow.tech/architecture.html" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-block;">See how Architecture works</a>
         </div>
-        <div style="background:rgba(74,143,231,0.05);padding:20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">After — rebuilt</div>
-          <div style="font-size:11px;color:#4ade80;font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: Your Q2 reports are loading 40% faster — here is what changed</div>
-          <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
-            <p style="margin:0 0 8px;">If you have ever waited on a dashboard to load before a meeting, this quarter was for you.</p>
-            <p style="margin:0 0 8px;">Three changes shipped in Q2. The one that matters most: reports now load in under 2 seconds on the standard plan. No configuration needed.</p>
-            <p style="margin:0 0 8px;">Export has also changed. You can now pull a full CSV in one click from any filtered view.</p>
-            <p style="margin:0;"><span style="background:var(--signal);color:#fff;padding:6px 12px;font-size:11px;font-weight:600;">See your faster dashboard</span></p>
-          </div>
+
+        <!-- Download button -->
+        <button class="btn" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--white);margin-bottom:20px;" onclick="downloadRebuild()">Download this rebuild (HTML)</button>
+
+        <!-- Rebuild count -->
+        <div id="rebuildCountDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-bottom:28px;display:none;"></div>
+      </div>
+
+      <!-- Limit reached state -->
+      <div id="rebuildLimitReached" style="display:none;margin-bottom:28px;">
+        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 24px;">
+          <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--white);line-height:1.7;margin:0 0 16px;">You have used all 3 rebuilds for this email. Architecture does this on every email, every month, without limits.</p>
+          <a href="https://strategicflow.tech/architecture.html" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-block;">See how Architecture works</a>
         </div>
       </div>
 
-      <!-- Block 2: A/B Subject Variants -->
-      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">02 — A/B subject variants</div>
-      <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;">
-        <div style="display:flex;flex-direction:column;gap:14px;">
-          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;">
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">A</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">Your Q2 reports load 40% faster. Here is why that matters before your next board call.</div>
-              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: consequence-first + time anchor</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid var(--border);">
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">B</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">We fixed the thing slowing down your Monday morning reporting.</div>
-              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: named pain without feature language</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding-top:14px;border-top:1px solid var(--border);">
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">C</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">3 users exported 6 months of data in under 30 seconds last week. Here is how.</div>
-              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: social proof + specificity hook</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Block 3: Batch Diagnostic -->
-      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">03 — Batch diagnostic — 5 emails ranked by revenue priority</div>
-      <div style="background:#0a0a08;border:1px solid var(--border);margin-bottom:28px;overflow:hidden;">
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;font-family:'DM Mono',monospace;font-size:10px;color:var(--white);text-transform:uppercase;letter-spacing:0.1em;padding:10px 16px;border-bottom:1px solid var(--border);">
-          <span style="margin-right:16px;">#</span><span>Subject</span><span style="margin-left:16px;text-align:right;">Score</span><span style="margin-left:16px;">Bugs</span>
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(255,77,46,0.06);">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--noise);margin-right:16px;font-weight:700;">1</span>
-          <div><div style="font-size:12px;color:var(--white);">Q1 Product Update — What We Shipped</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);margin-top:3px;">FIX FIRST — highest revenue impact</div></div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--noise);margin-left:16px;font-weight:700;">2/10</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">6</span>
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">2</span>
-          <div style="font-size:12px;color:var(--white);">New feature available — try it now</div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--noise);margin-left:16px;">4/10</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">4</span>
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">3</span>
-          <div style="font-size:12px;color:var(--white);">Your account is ready</div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#f59e0b;margin-left:16px;">6/10</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">3</span>
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">4</span>
-          <div style="font-size:12px;color:var(--white);">We have been thinking about you</div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#f59e0b;margin-left:16px;">5/10</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">3</span>
-        </div>
-        <div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;padding:12px 16px;">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-right:16px;">5</span>
-          <div style="font-size:12px;color:var(--white);">Introducing our referral program</div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;color:#4ade80;margin-left:16px;">7/10</span>
-          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-left:16px;">2</span>
-        </div>
-      </div>
-
-      <!-- Block 4: Content Calendar -->
-      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">04 — 4 week content calendar — week 1 sample</div>
-      <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;">
-        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">Week 1</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <div style="display:flex;flex-wrap:wrap;gap:12px;">
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;min-width:72px;padding-top:2px;">Mon — Send 1</div>
-            <div style="flex:1;min-width:200px;">
-              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">Your onboarding is not broken. Your day-3 email is.</div>
-              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Goal: reactivate users who stalled after signup</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border);">
-            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;min-width:72px;padding-top:2px;">Thu — Send 2</div>
-            <div style="flex:1;min-width:200px;">
-              <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">3 users hit their first export this week. Here is what they did differently.</div>
-              <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Goal: social proof at the activation milestone</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Closing line + CTA -->
-      <p style="font-size:13px;color:var(--white);line-height:1.7;margin-bottom:20px;max-width:620px;">Every block above ships for every email, every month, on Architecture. Run your numbers first: <a href="https://strategicflow-tech.github.io/roi" target="_blank" style="color:var(--signal);text-decoration:none;">strategicflow-tech.github.io/roi</a></p>
+      <p style="font-size:13px;color:var(--white);line-height:1.7;margin-bottom:20px;margin-top:16px;max-width:620px;">Run your numbers first: <a href="https://strategicflow-tech.github.io/roi" target="_blank" style="color:var(--signal);text-decoration:none;">strategicflow-tech.github.io/roi</a></p>
       <button class="btn btn-primary" onclick="document.getElementById('plans-section').scrollIntoView({behavior:'smooth'})">See plans</button>
     </div>
 
@@ -1195,6 +1124,9 @@
 </main>
 
 <script>
+let _rebuildEmailText = '';
+let _rebuildData = null;
+
 function setProgress(pct, label) {
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressPct').textContent = pct + '%';
@@ -1400,11 +1332,239 @@ function renderResults(result, subscribers) {
   document.getElementById('roiDelta').textContent = '+' + delta.toLocaleString();
   document.getElementById('roiDeltaNote').textContent = 'Additional readers/month (4 emails)';
 
+  // Capture email text for paid rebuild
+  const _subj = (document.getElementById('demoSubject').value || '').trim();
+  const _body = (document.getElementById('demoBody').value || '').trim();
+  _rebuildEmailText = (_subj + '\n\n' + _body).slice(0, 8000);
+  _rebuildData = null;
+  document.getElementById('rebuildTrigger').style.display = 'block';
+  document.getElementById('rebuildResults').style.display = 'none';
+  document.getElementById('rebuildLimitReached').style.display = 'none';
+  document.getElementById('rebuildLoading').style.display = 'none';
+  document.getElementById('rebuildCountDisplay').style.display = 'none';
+  document.getElementById('rebuildErrMsg').style.display = 'none';
+  const btn = document.getElementById('rebuildBtn');
+  btn.disabled = false;
+  btn.textContent = 'Run the paid rebuild on this email';
+
   showPanel(3);
 }
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── DEMO REBUILD ─────────────────────────────────
+async function runDemoRebuild() {
+  if (!_rebuildEmailText) return;
+  const btn = document.getElementById('rebuildBtn');
+  btn.disabled = true;
+  document.getElementById('rebuildLoading').style.display = 'block';
+  document.getElementById('rebuildResults').style.display = 'none';
+  document.getElementById('rebuildErrMsg').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/demo-rebuild', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email_text: _rebuildEmailText })
+    });
+    const data = await r.json();
+    document.getElementById('rebuildLoading').style.display = 'none';
+
+    if (r.status === 429) {
+      document.getElementById('rebuildTrigger').style.display = 'none';
+      document.getElementById('rebuildLimitReached').style.display = 'block';
+      document.getElementById('paidRebuildSection').scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (!r.ok || data.error) {
+      btn.disabled = false;
+      const e = document.getElementById('rebuildErrMsg');
+      e.textContent = 'Rebuild failed. Please try again.';
+      e.style.display = 'block';
+      return;
+    }
+    _rebuildData = data;
+    renderRebuildResults(data);
+  } catch (err) {
+    document.getElementById('rebuildLoading').style.display = 'none';
+    btn.disabled = false;
+    const e = document.getElementById('rebuildErrMsg');
+    e.textContent = 'Network error. Please try again.';
+    e.style.display = 'block';
+  }
+}
+
+function renderRebuildResults(d) {
+  // 01 — Before / After
+  const origPreview = _rebuildEmailText.slice(0, 400) + (_rebuildEmailText.length > 400 ? '...' : '');
+  document.getElementById('rebuildBeforeAfter').innerHTML = `
+    <div style="background:#0a0a08;padding:20px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Before</div>
+      <div style="font-size:11px;color:var(--white);font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: ${esc(d.original_subject)}</div>
+      <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;white-space:pre-line;">${esc(origPreview)}</div>
+    </div>
+    <div style="background:rgba(74,143,231,0.05);padding:20px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">After — rebuilt</div>
+      <div style="font-size:11px;color:#4ade80;font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: ${esc(d.rebuilt_subject)}</div>
+      <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
+        ${(d.rebuilt_body || []).map(p => `<p style="margin:0 0 8px;">${esc(p)}</p>`).join('')}
+        <p style="margin:8px 0 0;"><span style="background:var(--signal);color:#fff;padding:6px 12px;font-size:11px;font-weight:600;">${esc(d.rebuilt_cta || 'See the full rebuild')}</span></p>
+      </div>
+    </div>`;
+
+  // 02 — Variants
+  const variants = d.variants || [];
+  document.getElementById('rebuildVariants').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;">` +
+    variants.map((v, i) => `
+      <div style="${i > 0 ? 'padding-top:14px;border-top:1px solid var(--border);' : ''}display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">${esc(v.label || String.fromCharCode(65 + i))}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">${esc(v.subject)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: ${esc(v.pattern)}</div>
+        </div>
+      </div>`).join('') + `</div>`;
+
+  // 03 — Changes
+  const changes = d.changes || [];
+  document.getElementById('rebuildChanges').innerHTML = changes.map((c, i) => `
+    <div style="${i > 0 ? 'border-top:1px solid var(--border);' : ''}padding:16px 20px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${esc(c.element)}</div>
+      <div style="background:rgba(255,77,46,0.08);border-left:2px solid var(--noise);padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--white);line-height:1.6;">${esc(c.before)}</div>
+      <div style="background:rgba(74,188,120,0.08);border-left:2px solid #4ade80;padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--white);line-height:1.6;">${esc(c.after)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);line-height:1.6;">${esc(c.why)}</div>
+    </div>`).join('');
+
+  // Rebuild count + button state
+  const used = d.rebuild_count || 1;
+  const remaining = 3 - used;
+  const countEl = document.getElementById('rebuildCountDisplay');
+  countEl.textContent = 'Rebuild ' + used + ' of 3 for this email';
+  countEl.style.display = 'block';
+
+  document.getElementById('rebuildResults').style.display = 'block';
+  document.getElementById('paidRebuildSection').scrollIntoView({ behavior: 'smooth' });
+
+  const btn = document.getElementById('rebuildBtn');
+  if (remaining <= 0) {
+    document.getElementById('rebuildTrigger').style.display = 'none';
+    document.getElementById('rebuildLimitReached').style.display = 'block';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Run again (' + remaining + ' left)';
+  }
+}
+
+function downloadRebuild() {
+  if (!_rebuildData) return;
+  const d = _rebuildData;
+  const origPreview = _rebuildEmailText.slice(0, 600) + (_rebuildEmailText.length > 600 ? '...' : '');
+
+  const afterParas = (d.rebuilt_body || []).map(p => '<p>' + esc(p) + '</p>').join('');
+  const variantsHtml = (d.variants || []).map((v, i) => `
+    <div class="var-row">
+      <div class="var-lbl">${esc(v.label || String.fromCharCode(65 + i))}</div>
+      <div><div class="var-subj">${esc(v.subject)}</div><div class="var-pat">Pattern: ${esc(v.pattern)}</div></div>
+    </div>`).join('');
+  const changesHtml = (d.changes || []).map(c => `
+    <div class="chg-row">
+      <div class="chg-el">${esc(c.element)}</div>
+      <div class="chg-before">${esc(c.before)}</div>
+      <div class="chg-after">${esc(c.after)}</div>
+      <div class="chg-why">${esc(c.why)}</div>
+    </div>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategic Flow Rebuild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{font-family:'Inter',Arial,sans-serif;background:#0a0a08;color:#f4f2ed;margin:0;padding:16px;}
+.wrap{max-width:720px;margin:0 auto;padding:16px;}
+p{margin:0 0 8px;line-height:1.7;font-size:15px;}
+h2{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#4A8FE7;margin:0 0 12px;}
+.section{margin-bottom:32px;}
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);}
+@media(max-width:700px){.ba-grid{grid-template-columns:1fr;}}
+.ba-cell{padding:20px;}
+.ba-before{background:#0a0a08;}
+.ba-after{background:rgba(74,143,231,0.05);}
+.ba-lbl{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;}
+.ba-lbl.before{color:#ff4d2e;}.ba-lbl.after{color:#4A8FE7;}
+.ba-subj{font-size:13px;font-weight:600;margin-bottom:10px;line-height:1.5;}
+.ba-subj.after{color:#4ade80;}
+.ba-body{font-size:13px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;overflow-x:auto;white-space:pre-line;}
+.cta-btn{display:inline-block;background:#4A8FE7;color:#fff;padding:10px 24px;font-size:13px;font-weight:600;text-decoration:none;border-radius:2px;margin-top:8px;}
+@media(max-width:700px){.cta-btn{display:block;text-align:center;width:100%;}}
+.var-block{background:#111110;border:1px solid rgba(255,255,255,0.1);padding:20px;}
+.var-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);align-items:flex-start;}
+.var-row:last-child{border-bottom:none;}
+.var-lbl{font-family:'DM Mono',monospace;font-size:10px;color:#4A8FE7;min-width:24px;flex-shrink:0;padding-top:2px;}
+.var-subj{font-size:14px;color:#f4f2ed;line-height:1.5;margin-bottom:4px;}
+.var-pat{font-family:'DM Mono',monospace;font-size:10px;color:#a8a39b;}
+.chg-block{background:#111110;border:1px solid rgba(255,255,255,0.1);}
+.chg-row{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.chg-row:last-child{border-bottom:none;}
+.chg-el{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#4A8FE7;margin-bottom:8px;}
+.chg-before{background:rgba(255,77,46,0.08);border-left:2px solid #ff4d2e;padding:8px 12px;font-size:12px;color:#f4f2ed;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
+.chg-after{background:rgba(74,188,120,0.08);border-left:2px solid #4ade80;padding:8px 12px;font-size:12px;color:#f4f2ed;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
+.chg-why{font-family:'DM Mono',monospace;font-size:10px;color:#a8a39b;line-height:1.6;}
+.arch-cta{border:1px solid #4A8FE7;padding:24px;margin-top:32px;background:rgba(74,143,231,0.04);}
+.arch-cta p{font-size:14px;margin-bottom:16px;}
+.arch-btn{display:inline-block;background:#4A8FE7;color:#fff;padding:12px 28px;font-size:14px;font-weight:600;text-decoration:none;border-radius:2px;}
+@media(max-width:700px){.arch-btn{display:block;text-align:center;width:100%;}}
+footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);font-family:'DM Mono',monospace;font-size:11px;color:#a8a39b;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="section">
+    <h2>01 — Your email, rebuilt</h2>
+    <div class="ba-grid">
+      <div class="ba-cell ba-before">
+        <div class="ba-lbl before">Before</div>
+        <div class="ba-subj">Subject: ${esc(d.original_subject)}</div>
+        <div class="ba-body">${esc(origPreview)}</div>
+      </div>
+      <div class="ba-cell ba-after">
+        <div class="ba-lbl after">After — rebuilt</div>
+        <div class="ba-subj after">Subject: ${esc(d.rebuilt_subject)}</div>
+        <div class="ba-body">${afterParas}<a href="https://strategicflow.tech/architecture.html" class="cta-btn">${esc(d.rebuilt_cta || 'See the full rebuild')}</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>02 — A/B subject variants</h2>
+    <div class="var-block">${variantsHtml}</div>
+  </div>
+  <div class="section">
+    <h2>03 — What changed and why</h2>
+    <div class="chg-block">${changesHtml}</div>
+  </div>
+  <div class="arch-cta">
+    <p>This rebuild ran once, on one email. Architecture runs the full system on every email your company sends, every month, automatically.</p>
+    <a href="https://strategicflow.tech/architecture.html" class="arch-btn">See how Architecture works</a>
+  </div>
+  <footer>Rebuilt by Strategic Flow Architecture - strategicflow.tech</footer>
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'strategic-flow-rebuild.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── LOAD FROM URL ?job=jobId ──────────────────────

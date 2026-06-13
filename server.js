@@ -129,7 +129,7 @@ const PROTECTED_PATHS = [
 ];
 
 function requireAuth(req, res, next) {
-  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo'];
+  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo', '/api/demo-rebuild'];
   if (open.some(p => req.path.startsWith(p))) return next();
 
   // ?preview=free bypasses auth for HTML page viewing only (not API calls)
@@ -523,6 +523,13 @@ async function setupDB() {
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq4_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq5_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq6_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS demo_rebuilds (
+      hash TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] demo_rebuilds:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -5872,6 +5879,91 @@ Return ONLY valid JSON:
 });
 
 // ─── END DEMO ENDPOINT ────────────────────────────────────────────────────────
+
+// ── DEMO REBUILD ENDPOINT ─────────────────────────────────────────────────────
+app.post('/api/demo-rebuild', async (req, res) => {
+  const { email_text } = req.body;
+  if (!email_text || typeof email_text !== 'string' || email_text.trim().length < 10) {
+    return res.status(400).json({ error: 'email_text required' });
+  }
+
+  const normalized = email_text.trim().replace(/\s+/g, ' ').toLowerCase();
+  const hash = crypto.createHash('sha256').update(normalized).digest('hex');
+
+  try {
+    const r = await pool.query('SELECT count FROM demo_rebuilds WHERE hash = $1', [hash]);
+    if (r.rows.length > 0 && r.rows[0].count >= 3) {
+      return res.status(429).json({ error: 'limit_reached' });
+    }
+  } catch (e) {
+    console.error('[api/demo-rebuild] check limit error:', e.message);
+  }
+
+  const truncated = email_text.trim().slice(0, 8000);
+
+  const prompt = `You are the Strategic Flow rebuild engine. A user has pasted their SaaS email. Return ONLY valid JSON, no markdown fences, no extra text before or after.
+
+JSON shape (all keys required):
+{
+  "original_subject": "extracted or inferred subject line from the pasted email",
+  "rebuilt_subject": "consequence-first rewrite of the subject line",
+  "rebuilt_body": ["paragraph 1", "paragraph 2", "paragraph 3"],
+  "rebuilt_cta": "rewritten CTA text with ownership language (e.g. Fix my X, not Learn more)",
+  "variants": [
+    { "label": "A", "subject": "...", "pattern": "consequence-first + time anchor" },
+    { "label": "B", "subject": "...", "pattern": "named pain without feature language" },
+    { "label": "C", "subject": "...", "pattern": "social proof + specificity hook" }
+  ],
+  "changes": [
+    {
+      "element": "Hook",
+      "before": "exact line quoted verbatim from the pasted email",
+      "after": "exact rebuilt line",
+      "why": "one sentence structural reason tied to reader behavior"
+    }
+  ]
+}
+
+Rules you must follow:
+- changes array: 4 to 6 entries. Every "before" value MUST be a verbatim quote copied exactly from the pasted email below. Never invent a "before" line.
+- rebuilt_body: keep the user's real product name, real numbers, and real claims from their email. Never fabricate features or metrics not present in the email.
+- No em dashes (long dashes) or en dashes anywhere in any generated text. Use commas or periods instead.
+- All 3 variants must be present with exactly the pattern labels given above.
+- rebuilt_cta: use ownership language.
+- rebuilt_subject: must be consequence-first, specific, and tied to reader outcome.
+
+Pasted email to rebuild:
+${truncated}`;
+
+  let result = await claudeJSON(prompt, 3000);
+  if (!result) {
+    result = await claudeJSON(prompt, 3000);
+    if (!result) {
+      console.error('[api/demo-rebuild] both attempts returned null');
+      return res.status(422).json({ error: 'rebuild_failed' });
+    }
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO demo_rebuilds (hash, count, created_at)
+      VALUES ($1, 1, NOW())
+      ON CONFLICT (hash) DO UPDATE SET count = demo_rebuilds.count + 1
+    `, [hash]);
+  } catch (e) {
+    console.error('[api/demo-rebuild] increment error:', e.message);
+  }
+
+  let usedCount = 1;
+  try {
+    const r = await pool.query('SELECT count FROM demo_rebuilds WHERE hash = $1', [hash]);
+    if (r.rows.length > 0) usedCount = r.rows[0].count;
+  } catch (e) {}
+
+  console.log(`[api/demo-rebuild] ok hash=${hash.slice(0,8)} count=${usedCount}`);
+  return res.json({ ...result, rebuild_count: usedCount });
+});
+// ─── END DEMO REBUILD ENDPOINT ────────────────────────────────────────────────
 
 app.get('/checkout', async (req, res) => {
   try {
