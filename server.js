@@ -4449,6 +4449,23 @@ app.get('/stripe/success', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Payment Successful — Strategic Flow</title>
@@ -4479,6 +4496,16 @@ app.get('/stripe/success', (req, res) => {
   p strong { color: #f4f2ed; }
   .divider { height: 1px; background: rgba(244,242,237,0.12); margin: 28px 0; }
   .note { font-size: 12px; color: #6b6760; }
+  #cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#161614;border-top:1px solid rgba(255,255,255,0.1);padding:18px 48px;display:none;}
+  #cookie-banner.visible{display:flex;}
+  .cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+  .cookie-text{font-size:13px;color:#ddddd8;line-height:1.6;max-width:680px;}
+  .cookie-text a{color:#4A8FE7;text-decoration:underline;}
+  .cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+  .cookie-btn{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#ddddd8;transition:all .2s;}
+  .cookie-btn:hover{border-color:#4A8FE7;color:#4A8FE7;}
+  .cookie-btn.accept{background:#4A8FE7;color:#fff;border-color:#4A8FE7;}
+  .cookie-btn.accept:hover{background:#2D6BE4;}
 </style>
 </head>
 <body>
@@ -4490,6 +4517,47 @@ app.get('/stripe/success', (req, res) => {
   <div class="divider"></div>
   <p class="note">strategicflow@proton.me · strategic-flow-audit.replit.app</p>
 </div>
+<!-- COOKIE CONSENT BANNER -->
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">
+      This site uses cookies for analytics (Google Analytics). We don't sell or share your data. See our <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> for details.
+    </div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var STORAGE_KEY = 'sf_consent';
+  var stored = localStorage.getItem(STORAGE_KEY);
+  var banner = document.getElementById('cookie-banner');
+  function grant() {
+    gtag('consent', 'update', {
+      'ad_storage': 'granted',
+      'ad_user_data': 'granted',
+      'ad_personalization': 'granted',
+      'analytics_storage': 'granted'
+    });
+  }
+  if (stored === 'granted') {
+    grant();
+  } else if (stored !== 'denied') {
+    banner.classList.add('visible');
+  }
+  document.getElementById('cookie-accept').addEventListener('click', function() {
+    localStorage.setItem(STORAGE_KEY, 'granted');
+    grant();
+    banner.classList.remove('visible');
+  });
+  document.getElementById('cookie-decline').addEventListener('click', function() {
+    localStorage.setItem(STORAGE_KEY, 'denied');
+    banner.classList.remove('visible');
+  });
+})();
+</script>
 </body>
 </html>`);
 });
