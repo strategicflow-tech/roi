@@ -253,6 +253,21 @@ function generateShowcaseHtml({
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Strategic Flow &mdash; ${esc(companyName)} Audit</title>
@@ -362,6 +377,17 @@ a{color:${accent}}
   .email-frame .stat-row td{display:block !important;width:100% !important;border-left:none !important;text-align:center !important;}
   .email-card{padding:10px;}
 }
+#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#09111e;border-top:1px solid rgba(255,255,255,0.08);padding:18px 48px;display:none;}
+#cookie-banner.visible{display:flex;}
+.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+.cookie-text{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:680px;}
+.cookie-text a{color:#00e5a0;text-decoration:underline;}
+.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+.cookie-btn{font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);transition:all .2s;}
+.cookie-btn:hover{border-color:#00e5a0;color:#00e5a0;}
+.cookie-btn.accept{background:#00e5a0;color:#07090f;border-color:#00e5a0;}
+.cookie-btn.accept:hover{background:#00c88a;}
+@media(max-width:640px){#cookie-banner{padding:16px 18px;}.cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}.cookie-actions{justify-content:flex-end;}}
 </style>
 </head>
 <body>
@@ -402,6 +428,25 @@ function show(id, btn) {
   document.getElementById('tab-' + id).style.display = '';
   btn.classList.add('active');
 }
+</script>
+<!-- COOKIE CONSENT BANNER -->
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">This site uses cookies for analytics (Google Analytics). We don't sell or share your data. See our <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> for details.</div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY='sf_consent',stored=localStorage.getItem(KEY),banner=document.getElementById('cookie-banner');
+  function grant(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}
+  if(stored==='granted'){grant();}else if(stored!=='denied'){banner.classList.add('visible');}
+  document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(KEY,'granted');grant();banner.classList.remove('visible');});
+  document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(KEY,'denied');banner.classList.remove('visible');});
+})();
 </script>
 </body>
 </html>`;
@@ -511,6 +556,21 @@ function generateChangelogAuditHtml(result) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(result.company||'Strategic Flow')} — Changelog Audit</title>
@@ -527,6 +587,17 @@ h2{font-size:20px;font-weight:700;margin:40px 0 16px;}
 table{width:100%;border-collapse:collapse;background:${CARD_BG};border-radius:12px;overflow:hidden;}
 th{padding:12px 16px;text-align:left;font-size:12px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.08);}
 .footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:rgba(255,255,255,.3);text-align:center;}
+#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#09111e;border-top:1px solid rgba(255,255,255,0.08);padding:18px 48px;display:none;}
+#cookie-banner.visible{display:flex;}
+.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+.cookie-text{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:680px;}
+.cookie-text a{color:#00e5a0;text-decoration:underline;}
+.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+.cookie-btn{font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);transition:all .2s;}
+.cookie-btn:hover{border-color:#00e5a0;color:#00e5a0;}
+.cookie-btn.accept{background:#00e5a0;color:#07090f;border-color:#00e5a0;}
+.cookie-btn.accept:hover{background:#00c88a;}
+@media(max-width:640px){#cookie-banner{padding:16px 18px;}.cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}.cookie-actions{justify-content:flex-end;}}
 </style>
 </head>
 <body>
@@ -563,6 +634,25 @@ th{padding:12px 16px;text-align:left;font-size:12px;color:rgba(255,255,255,.4);b
 
   <div class="footer">Teardown by Strategic Flow · strategicflow.tech</div>
 </div>
+<!-- COOKIE CONSENT BANNER -->
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">This site uses cookies for analytics (Google Analytics). We don't sell or share your data. See our <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> for details.</div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY='sf_consent',stored=localStorage.getItem(KEY),banner=document.getElementById('cookie-banner');
+  function grant(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}
+  if(stored==='granted'){grant();}else if(stored!=='denied'){banner.classList.add('visible');}
+  document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(KEY,'granted');grant();banner.classList.remove('visible');});
+  document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(KEY,'denied');banner.classList.remove('visible');});
+})();
+</script>
 </body>
 </html>`;
 }
