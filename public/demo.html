@@ -565,8 +565,16 @@
       </div>
     </div>
 
+    <div style="margin-top:16px;margin-bottom:12px;">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:rgba(244,242,237,0.6);line-height:1.6;">
+        <input type="checkbox" id="terms-consent" style="margin-top:3px;flex-shrink:0;accent-color:var(--signal);" onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
+        <span>I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--signal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:#ff4d2e;font-weight:700;">*</span></span>
+      </label>
+    </div>
+    <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
+
     <div style="display:flex;align-items:center;gap:16px;margin-top:8px;">
-      <button class="btn btn-primary" id="runBtn" onclick="runDemo()">Run Free Assessment →</button>
+      <button class="btn btn-primary" id="runBtn" onclick="runDemo()" disabled style="opacity:0.5;cursor:not-allowed;">Run Free Assessment →</button>
       <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);">60 seconds · one-time only</span>
     </div>
 
@@ -1145,6 +1153,11 @@ function showError(msg) {
 }
 
 async function runDemo() {
+  const consentBox = document.getElementById('terms-consent');
+  if (consentBox && !consentBox.checked) {
+    document.getElementById('errConsent').style.display = 'block';
+    return;
+  }
   const email = document.getElementById('demoEmail').value.trim();
   const subject = document.getElementById('demoSubject').value.trim();
   const body = document.getElementById('demoBody').value.trim();
@@ -1596,7 +1609,7 @@ footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.
     <a href="https://strategicflow.tech/addons.html" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">Add-Ons</a>
     <a href="https://strategicflowtech.gumroad.com/l/koczgh" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">$47 Pack</a>
   </div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.4);">Strategic Flow © 2026 · Built by Alex Iliescu · <a href="https://strategicflow.tech" style="color:rgba(255,255,255,0.4);">strategicflow.tech</a></div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.4);">Strategic Flow © 2026 · Built by Alex Iliescu · <a href="https://strategicflow.tech" style="color:rgba(255,255,255,0.4);">strategicflow.tech</a> &nbsp;|&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:rgba(255,255,255,0.4);text-decoration:none;">Terms</a></div>
 </footer>
 </body>
 </html>
