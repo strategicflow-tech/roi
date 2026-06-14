@@ -226,7 +226,7 @@
     <div class="paywall-tag">LinkedIn Post Audit</div>
     <h2 class="paywall-title">You have used your free audit.</h2>
     <p class="paywall-sub">Get unlimited access to LinkedIn, Changelog, and Onboarding audits via Architecture.</p>
-    <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" class="paywall-cta">Get Architecture access</a>
+    <a href="https://strategicflow.tech/architecture.html" class="paywall-cta">Get Architecture access</a>
     <p class="paywall-back" id="paywallBack">View Architecture details below</p>
   </div>
 </div>
@@ -274,7 +274,7 @@
       <div id="showcaseStatus" style="font-size:12px;color:rgba(255,255,255,.4);margin-top:8px;min-height:16px;"></div>
     </div>
   </div>
-  <div id="usedBanner">You have used your free audit. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank">Get unlimited access via Architecture</a></div>
+  <div id="usedBanner">You have used your free audit. <a href="https://strategicflow.tech/architecture.html" target="_blank">Get unlimited access via Architecture</a></div>
 </div>
 
 <!-- COMPANY BAR -->
@@ -340,7 +340,7 @@
     </div>
 
     <div class="sf-footer">
-      <span>LinkedIn Post Audit by <strong>Strategic Flow</strong> · <a href="https://strategicflow-tech.github.io/showcase">See all audits</a></span>
+      <span>LinkedIn Post Audit by <strong>Strategic Flow</strong> · <a href="https://strategicflow.tech">See all audits</a></span>
       <a href="https://strategic-flow-audit.replit.app/linkedin-audit-page">Run your own audit</a>
     </div>
   </article>
@@ -443,7 +443,7 @@ if (tabA) tabA.onclick = function() { document.body.classList.add('after-view');
 var loginBtn = document.getElementById('loginBtn');
 var startBtn = document.getElementById('startBtn');
 if (loginBtn) loginBtn.onclick = function() { window.location.href = 'https://strategic-flow-audit.replit.app/login.html'; };
-if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; };
+if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow.tech/architecture.html'; };
 
 function el(id) { return document.getElementById(id); }
 function set(id, val) { var e = el(id); if (e && val !== undefined && val !== null) e.textContent = val; }
@@ -577,7 +577,7 @@ if (dlBtn) {
     .then(function(r){return r.json();})
     .then(function(d) {
       if (d.allowed) { dlStatus.textContent='Access confirmed. Downloading...'; dlStatus.style.color='var(--green)'; downloadPage(); }
-      else { dlStatus.innerHTML='Download included in Architecture. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:var(--blue);font-weight:700;">Book access</a>'; }
+      else { dlStatus.innerHTML='Download included in Architecture. <a href="https://strategicflow.tech/architecture.html" target="_blank" style="color:var(--blue);font-weight:700;">Book access</a>'; }
     })
     .catch(function() { dlStatus.textContent='Error. Try again.'; dlStatus.style.color='var(--red)'; });
   };
