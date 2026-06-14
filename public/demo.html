@@ -565,11 +565,9 @@
       </div>
     </div>
 
-    <div style="margin-top:16px;margin-bottom:12px;">
-      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:12px;color:rgba(244,242,237,0.6);line-height:1.6;">
-        <input type="checkbox" id="terms-consent" style="margin-top:3px;flex-shrink:0;accent-color:var(--signal);" onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
-        <span>I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--signal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:#ff4d2e;font-weight:700;">*</span></span>
-      </label>
+    <div style="margin-top:16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="terms-consent" style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--signal);" onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
+      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:rgba(244,242,237,0.7);line-height:1.6;cursor:pointer;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--signal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:#ff4d2e;font-weight:700;">*</span></label>
     </div>
     <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
 
