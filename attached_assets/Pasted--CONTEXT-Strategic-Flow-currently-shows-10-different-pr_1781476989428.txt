@@ -1,0 +1,67 @@
+=== CONTEXT ===
+Strategic Flow currently shows 10+ different prices across pages, with no 
+clear primary path. Goal: consolidate into ONE 3-step funnel that converts, 
+without changing any actual prices.
+
+PRIMARY FUNNEL:
+Step 1 — Free audit (no card) → strategic-flow-audit.replit.app/demo.html
+Step 2 — $49 Single rebuild (one-time) → buy.stripe.com/14A14n8A08Rr69fdNF7wA04
+Step 3 — $2,500/mo Architecture retainer (3-day free trial; founder rate 
+$1,250/mo for first month, limited to 5 clients total — NOT per plan)
+
+The $1,250 figure is a TEMPORARY discount on Step 3, never the headline 
+price. Activation Intelligence ($1,500/mo or $3,500 one-time) and Lite/
+Growth/High-Impact remain available but become secondary/contextual, not 
+parallel top-level products.
+
+=== STRUCTURAL CHANGES ===
+
+1. index.html (strategicflow.tech homepage)
+   - Hero CTA stays "Run free audit →" — unchanged
+   - In "Info" nav: replace "Pricing From $49 →" and "Add-Ons Pack $47 →" 
+     with single link "See pricing →" → architecture.html#pricing (verify 
+     anchor exists, else → architecture.html)
+   - Keep Glossary and Contact links
+
+2. architecture.html
+   - At TOP of page, ABOVE existing $2,500/mo section, add 3-step funnel 
+     visual:
+
+     "Step 1 — Free: Run the audit, see your score (no card required)
+      → demo.html
+
+      Step 2 — $49: One email, rebuilt, yours to keep
+      → buy.stripe.com/14A14n8A08Rr69fdNF7wA04
+
+      Step 3 — $2,500/mo: Every email, rebuilt automatically
+      Average result: +26,000 additional readers/month on a 50K list
+      3-day free trial · Founder rate $1,250/mo for first 5 clients
+      → #pricing"
+
+   - In #pricing section: founder rate appears as smaller secondary line 
+     under $2,500/mo, never as the primary number
+   - Before the Stripe "Start free trial" button in #pricing, add: 
+     "54 SaaS emails rebuilt. Average score: 3.4 → 9.0."
+   - Change "Start free trial" button text → "Start rebuilding my emails 
+     — free trial"
+
+3. addons.html
+   - Add intro sentence above cards: "Optional add-ons for teams who've 
+     run the free audit or a $49 rebuild and want a specific deliverable 
+     without the monthly retainer."
+   - No price/card changes
+
+4. subject-line-pack.html
+   - Add near top: "Part of the Strategic Flow Add-Ons. Start with the 
+     free audit first if you haven't: [link to demo.html]"
+
+5. packages-promo.html
+   - Move "Most Popular" emphasis from Growth to Architecture (largest, 
+     first card)
+   - Architecture price display: "$2,500/mo — Founder rate $1,250/mo for 
+     your first month (limited spots)" — never "$1,250 → $2,500"
+   - Add above Growth/High-Impact: "Lower commitment than Architecture — 
+     fewer rebuilds per month, same method."
+   - Add on Activation Intelligence card: "Separate from the email 
+     architecture retainer — for onboarding sequences specifically. 
+     $1,500/mo (3-day trial) or $3,500
