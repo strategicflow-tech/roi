@@ -2512,7 +2512,7 @@ function generateAuditReportHtml() {
 .cookie-btn.accept{background:var(--green, #4A8FE7);color:#fff;border-color:var(--green, #4A8FE7);}
 .cookie-btn.accept:hover{background:var(--green-mid, #2D6BE4);}
 @media(max-width:640px){
-  #cookie-banner{padding:16px 18px;}
+  #cookie-banner{padding:16px 18px;padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));}
   .cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}
   .cookie-actions{justify-content:flex-end;}
 }
@@ -2821,36 +2821,43 @@ function downloadRebuiltNewsletter() {
 <script>
 (function() {
   var STORAGE_KEY = 'sf_consent';
-  var stored = localStorage.getItem(STORAGE_KEY);
   var banner = document.getElementById('cookie-banner');
 
-  function grant() {
-    gtag('consent', 'update', {
-      'ad_storage': 'granted',
-      'ad_user_data': 'granted',
-      'ad_personalization': 'granted',
-      'analytics_storage': 'granted'
-    });
+  function hideBanner() {
+    banner.classList.remove('visible');
+    banner.style.display = 'none';
   }
 
+  function grant() {
+    try {
+      gtag('consent', 'update', {
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted',
+        'analytics_storage': 'granted'
+      });
+    } catch(e) {}
+  }
+
+  var stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'granted') {
     grant();
-  } else if (stored !== 'denied') {
+    hideBanner();
+  } else if (stored === 'denied') {
+    hideBanner();
+  } else {
     banner.classList.add('visible');
-    if (window.sfRepositionStickyBar) window.sfRepositionStickyBar();
   }
 
   document.getElementById('cookie-accept').addEventListener('click', function() {
     localStorage.setItem(STORAGE_KEY, 'granted');
+    hideBanner();
     grant();
-    banner.classList.remove('visible');
-    if (window.sfRepositionStickyBar) window.sfRepositionStickyBar();
   });
 
   document.getElementById('cookie-decline').addEventListener('click', function() {
     localStorage.setItem(STORAGE_KEY, 'denied');
-    banner.classList.remove('visible');
-    if (window.sfRepositionStickyBar) window.sfRepositionStickyBar();
+    hideBanner();
   });
 })();
 </script>
