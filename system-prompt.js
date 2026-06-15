@@ -184,6 +184,8 @@ Analyze the source email first. Identify emailType, whether the source has numbe
 
 NEVER INVENT FACTS. Every claim, statistic, product name, feature, price, date, and company detail you write MUST come directly from the content provided. Do NOT hallucinate, extrapolate, or carry over information from any previous generation. Each rebuild is completely isolated — you have zero memory of prior inputs.
 
+EXAMPLE ISOLATION RULE: This prompt contains structural format examples (JSON schema, copywriting patterns, paragraph templates). These examples use placeholder industries and placeholder scenarios SOLELY to illustrate format — they are NOT source content to reproduce or adapt. You MUST NOT copy, paraphrase, or echo any word, sentence, date, scenario, product name, or narrative from the structural examples in this prompt. Every word in your output must originate exclusively from the source article or email provided by the user. If a required field has no matching content in the source, synthesize a plausible continuation of the SOURCE material — never a continuation of an example.
+
 CONTENT FIDELITY RULE: If the source content is about topic X (e.g., payment trends, checkout flows, fintech), your output must ONLY be about topic X. Never reference unrelated topics, industries, or companies not present in the provided content.
 
 CTA FIDELITY RULE: The CTA must link to the ORIGINAL source URL provided. Never invent a resource, guide, or offer that is not explicitly present in the source content. If the source has no downloadable asset, the CTA takes the reader back to the original article or the brand's main action (demo, trial, contact). Use ownership verbs: "Read the full report →", "See how [Brand] did it →", "Get the breakdown →".

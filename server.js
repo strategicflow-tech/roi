@@ -2434,8 +2434,12 @@ async function fetchPageContent(rawUrl) {
       return null;
     })();
 
+    // Prefer <article> or <main> content to avoid sidebar/ticker contamination.
+    // Falls back to full-page extraction only when no semantic block is found.
+    const _articleBlock = html.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i)?.[1];
+    const _extractSrc = _articleBlock || html;
     const stripped = sanitizeForJSON(
-      html
+      _extractSrc
         .replace(/<script[\s\S]*?<\/script>/gi, ' ')
         .replace(/<style[\s\S]*?<\/style>/gi, ' ')
         .replace(/<(nav|header|footer|aside|form)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
@@ -3200,7 +3204,15 @@ async function handleGenerate(req, res) {
         logoUrl:        effectiveBrandDNA?.logoUrl || '',
         sourceUrl:      pageUrl || '',
         originalSubject: subject || '',
-        originalBody:   (() => { const _ob = _pastedBody || body || ''; return _ob.length > 600 ? _ob.slice(0, 600) + '...' : _ob; })(),
+        originalBody:   (() => {
+          const _ob = _pastedBody || body || '';
+          if (_ob.length >= 100) return _ob.length > 600 ? _ob.slice(0, 600) + '...' : _ob;
+          // When only a URL was submitted (no pasted body), fall back to the fetched article content
+          const _fb = typeof effectiveBody === 'string'
+            ? effectiveBody.replace(/^(?:Headline|Summary):[^\n]+\n*/gm, '').trim()
+            : '';
+          return _fb.length > 600 ? _fb.slice(0, 600) + '...' : _fb;
+        })(),
         rebuiltSubject: result.rebuilt_subject || '',
         previewText:    result.preheader || result._flatFields?.preheader || '',
         hookHeadline:   result.headline  || result._flatFields?.headline  || '',
