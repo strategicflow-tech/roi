@@ -129,7 +129,7 @@ const PROTECTED_PATHS = [
 ];
 
 function requireAuth(req, res, next) {
-  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo', '/api/demo-rebuild'];
+  const open = ['/login.html', '/magic.html', '/auth/magic', '/auth/verify', '/auth/logout', '/generate/status', '/api/demo', '/api/demo-rebuild', '/api/mcp/audit'];
   if (open.some(p => req.path.startsWith(p))) return next();
 
   // ?preview=free bypasses auth for HTML page viewing only (not API calls)
@@ -6044,6 +6044,107 @@ ${truncated}`;
   return res.json({ ...result, rebuild_count: usedCount });
 });
 // ─── END DEMO REBUILD ENDPOINT ────────────────────────────────────────────────
+
+// ── MCP AUDIT ENDPOINT (ChatGPT integration) ──────────────────────────────────
+app.post('/api/mcp/audit', async (req, res) => {
+  const { email_text, chatgpt_user_id } = req.body;
+
+  if (!email_text || typeof email_text !== 'string' || email_text.trim().length < 10) {
+    return res.status(400).json({ error: 'email_text required' });
+  }
+  if (!chatgpt_user_id || typeof chatgpt_user_id !== 'string') {
+    return res.status(400).json({ error: 'chatgpt_user_id required' });
+  }
+
+  const userId = chatgpt_user_id.trim().slice(0, 128);
+
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mcp_usage (
+        user_id TEXT PRIMARY KEY,
+        count INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    const r = await pool.query('SELECT count FROM mcp_usage WHERE user_id = $1', [userId]);
+    if (r.rows.length > 0 && r.rows[0].count >= 3) {
+      return res.status(429).json({
+        error: 'trial_limit_reached',
+        message: 'You have used all 3 free audits.',
+        upgrade_url: 'https://strategic-flow-pro.replit.app/packages'
+      });
+    }
+  } catch (e) {
+    console.error('[mcp/audit] limit check error:', e.message);
+  }
+
+  const truncated = email_text.trim().slice(0, 8000);
+  const prompt = `You are the Strategic Flow rebuild engine. A user has pasted their SaaS email. Return ONLY valid JSON, no markdown fences, no extra text before or after.
+JSON shape (all keys required):
+{
+  "original_subject": "extracted or inferred subject line from the pasted email",
+  "rebuilt_subject": "consequence-first rewrite of the subject line",
+  "rebuilt_body": ["paragraph 1", "paragraph 2", "paragraph 3"],
+  "rebuilt_cta": "rewritten CTA text with ownership language (e.g. Fix my X, not Learn more)",
+  "variants": [
+    { "label": "A", "subject": "...", "pattern": "consequence-first + time anchor" },
+    { "label": "B", "subject": "...", "pattern": "named pain without feature language" },
+    { "label": "C", "subject": "...", "pattern": "social proof + specificity hook" }
+  ],
+  "changes": [
+    {
+      "element": "Hook",
+      "before": "exact line quoted verbatim from the pasted email",
+      "after": "exact rebuilt line",
+      "why": "one sentence structural reason tied to reader behavior"
+    }
+  ]
+}
+Rules:
+- changes array: 4 to 6 entries. Every before value MUST be verbatim from the pasted email.
+- rebuilt_body: keep real product name, real numbers, real claims. Never fabricate.
+- No em dashes or en dashes anywhere.
+- All 3 variants must be present.
+- rebuilt_cta: ownership language.
+- rebuilt_subject: consequence-first, specific, tied to reader outcome.
+Pasted email:
+${truncated}`;
+
+  let result = await claudeJSON(prompt, 3000);
+  if (!result) {
+    result = await claudeJSON(prompt, 3000);
+    if (!result) {
+      return res.status(422).json({ error: 'rebuild_failed' });
+    }
+  }
+
+  try {
+    await pool.query(`
+      INSERT INTO mcp_usage (user_id, count, updated_at)
+      VALUES ($1, 1, NOW())
+      ON CONFLICT (user_id) DO UPDATE
+      SET count = mcp_usage.count + 1, updated_at = NOW()
+    `, [userId]);
+  } catch (e) {
+    console.error('[mcp/audit] increment error:', e.message);
+  }
+
+  let usedCount = 1;
+  try {
+    const r = await pool.query('SELECT count FROM mcp_usage WHERE user_id = $1', [userId]);
+    if (r.rows.length > 0) usedCount = r.rows[0].count;
+  } catch (e) {}
+
+  return res.json({
+    ...result,
+    audits_used: usedCount,
+    audits_remaining: Math.max(0, 3 - usedCount),
+    upgrade_url: usedCount >= 3 ? 'https://strategic-flow-pro.replit.app/packages' : null
+  });
+});
+// ── END MCP AUDIT ENDPOINT ────────────────────────────────────────────────────
 
 app.get('/checkout', async (req, res) => {
   try {
