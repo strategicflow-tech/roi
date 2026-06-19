@@ -591,7 +591,7 @@ function checkLimit(user) {
   const cfg = TIER_CONFIGS[tier];
   if (!cfg) return { allowed: false, reason: 'no_tier' };
   if (tier === 'free_trial' || tier === 'single') {
-    return newsletter_count < 1 ? { allowed: true } : { allowed: false, reason: tier === 'free_trial' ? 'trial_used' : 'single_used' };
+    return newsletter_count < 2 ? { allowed: true } : { allowed: false, reason: tier === 'free_trial' ? 'trial_used' : 'single_used' };
   }
   const mk = currentMonthKey();
   const used = newsletter_month_key === mk ? newsletter_count_month : 0;
@@ -2325,10 +2325,10 @@ app.post('/check-email', async (req, res) => {
 
     // Free trial: one rebuild allowed, then redirect to pricing.
     if (user.tier === 'free_trial') {
-      if (user.newsletter_count >= 1) {
+      if (user.newsletter_count >= 2) {
         return res.json({ status: 'trial_used' });
       }
-      return res.json({ status: 'free_trial', tier: 'free_trial', used: user.newsletter_count, limit: 1, tierName: 'Free Trial' });
+      return res.json({ status: 'free_trial', tier: 'free_trial', used: user.newsletter_count, limit: 2, tierName: 'Free Trial' });
     }
 
     const lim = checkLimit(user);
@@ -3303,7 +3303,8 @@ async function handleGenerate(req, res) {
     const _origBodyClient = _origBodyStripped.length > 500
       ? _origBodyStripped.substring(0, 500) + '...'
       : _origBodyStripped;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient });
+    const _newCount = adminAccess ? user.newsletter_count : user.newsletter_count + 1;
+    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient, newsletterCount: _newCount });
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──

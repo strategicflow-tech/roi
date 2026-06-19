@@ -416,8 +416,8 @@ textarea{resize:vertical;line-height:1.7;}
     <div id="trialUsedBanner" hidden style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:14px;">
       <span style="font-size:20px;flex-shrink:0;">✓</span>
       <div>
-        <div style="font-size:14px;font-weight:700;color:#4ade80;margin-bottom:4px;">Your free rebuild is done</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.6;">You have already used your one free rebuild. Pick a plan below to continue — your email is already linked, so activation takes seconds.</div>
+        <div style="font-size:14px;font-weight:700;color:#4ade80;margin-bottom:4px;">Your 2 free rebuilds are done</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6;">You have already used both free rebuilds. Pick a plan below to continue — your email is already linked, so activation takes seconds.</div>
       </div>
     </div>
     <div class="card">
@@ -1140,7 +1140,7 @@ textarea{resize:vertical;line-height:1.7;}
     <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
       <div style="flex:1;min-width:220px;">
         <div class="section-label" id="softUpgradeHeading" style="margin-bottom:10px;">Want More Rebuilds?</div>
-        <p id="softUpgradeCopy" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:18px;">This was your free rebuild. Pick a plan to continue rebuilding newsletters.</p>
+        <p id="softUpgradeCopy" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:18px;">These were your 2 free rebuilds. Pick a plan to continue rebuilding newsletters.</p>
         <button class="btn btn-ghost" style="width:100%;font-size:12px;" onclick="restart()">← Rebuild a different email</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;padding-top:6px;">
@@ -1511,7 +1511,10 @@ function setupForm(userData) {
     hide('adminPanelBtn');
     hide('adminTierSelector');
     if (currentTier === 'free_trial') {
-      document.getElementById('usageLabel').textContent = '1 free rebuild — no payment needed';
+      const _ftUsed = (userData && userData.used !== undefined) ? userData.used : 0;
+      document.getElementById('usageLabel').textContent = _ftUsed === 0
+        ? '2 free rebuilds — no payment needed'
+        : `${_ftUsed} of 2 free rebuilds used`;
     } else if (userData && userData.used !== undefined) {
       const lbl = userData.monthly
         ? `${userData.used} / ${userData.limit === Infinity ? '∞' : userData.limit} this month`
@@ -2055,6 +2058,18 @@ function showResults(gen) {
     const existing = document.getElementById('sfUpsellBlock');
     if (existing) existing.remove();
 
+    const _nc = gen.newsletterCount || 1;
+    const _isLast = _nc >= 2;
+    const _auditLabel = _isLast
+      ? 'These were your 2 free rebuilds'
+      : `${_nc} of 2 free rebuilds used — 1 remaining`;
+    const _headline = _isLast
+      ? 'Want this for every email you send?'
+      : 'You have 1 more free rebuild.';
+    const _subtext = _isLast
+      ? 'You just saw the full Strategic Flow output — rebuilt HTML, 3 A/B variants, audience segments, content calendar, cohesion score. Pick a plan to run it on your next email.'
+      : 'Use your second free rebuild now, or pick a plan to unlock unlimited rebuilds.';
+
     const upsellBlock = document.createElement('div');
     upsellBlock.id = 'sfUpsellBlock';
     upsellBlock.innerHTML = `
@@ -2072,7 +2087,7 @@ function showResults(gen) {
       display:flex;align-items:center;justify-content:center;gap:8px;
     ">
       <span style="display:inline-block;width:16px;height:1px;background:#00e5a0;"></span>
-      This was your free audit
+      ${_auditLabel}
       <span style="display:inline-block;width:16px;height:1px;background:#00e5a0;"></span>
     </div>
     <div style="
@@ -2080,15 +2095,13 @@ function showResults(gen) {
       line-height:1.2;margin-bottom:12px;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     ">
-      Want this for every email you send?
+      ${_headline}
     </div>
     <div style="
       font-size:13px;color:rgba(245,242,236,0.45);
       line-height:1.6;max-width:480px;margin:0 auto;
     ">
-      You just saw the full Strategic Flow output — rebuilt HTML,
-      3 A/B variants, audience segments, content calendar,
-      cohesion score. Pick a plan to run it on your next email.
+      ${_subtext}
     </div>
   </div>
 
@@ -2144,6 +2157,21 @@ function showResults(gen) {
         <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="display:inline-block;text-align:center;background:#4A8FE7;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:12px 24px;text-decoration:none;">Get Architecture →</a>
       </div>
     </div>
+  </div>
+
+  <div style="text-align:center;margin-top:28px;">
+    <a href="https://strategic-flow-pro.replit.app/packages/" target="_blank" style="
+      display:inline-block;
+      padding:14px 36px;
+      background:#00e5a0;
+      color:#080808;
+      font-size:15px;
+      font-weight:800;
+      letter-spacing:0.04em;
+      text-decoration:none;
+      border-radius:6px;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    ">See All Plans →</a>
   </div>
 
   <div style="text-align:center;font-size:11px;color:rgba(245,242,236,0.25);line-height:1.6;margin-top:20px;">
