@@ -1,0 +1,17 @@
+On strategic-flow-audit.replit.app/demo.html, update the "what's next" section that appears after the free assessment result is shown. Right now it shows one generic upgrade prompt. Replace it with two clearly labeled paths instead:
+
+"Need a deeper diagnosis on this exact email?
+→ Architecture Audit" (links to https://strategicflow.tech/architecture.html)
+
+"Need to check your full onboarding or lifecycle sequence instead of one email?
+→ Lifecycle Audit" (links to https://strategicflow.tech/teardown-vs-lifecycle-audit.html)
+
+This branching only appears AFTER the free result is shown — not before, and not as the entry point. The entry point (before the user runs the audit) stays exactly as it is now.
+
+WHAT NOT TO CHANGE
+
+- Do not change any pricing, plan names, or Stripe links on this app.
+- Do not add, reference, or mention founder pricing, launch pricing, discounts, or limited spots anywhere on this app.
+- Do not change the existing free audit flow itself — only the "what's next" section shown after results.
+
+After making this change, confirm the exact before/after text and links for the "what's next" section.

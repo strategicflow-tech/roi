@@ -1,0 +1,36 @@
+Unify the primary call-to-action across all strategicflow.tech pages. Right now different pages send first-time visitors to different destinations (the demo, the architecture page, the Pro app directly, the pricing page). This creates an unclear "what's the next step" experience for cold traffic.
+
+THE RULE
+
+Every page's PRIMARY, highest-visual-weight CTA — the one that's usually the first button above the fold and the final CTA at the bottom of the page — must say "Run Free Audit" and link to:
+
+https://strategic-flow-audit.replit.app/demo.html
+
+This applies to the top-of-page CTA and the bottom-of-page closing CTA on every page. Do not change secondary/inline CTAs that lead to specific paid plans (Architecture, Activation Intelligence, Pro plans) — those stay as-is, since they're for visitors who already know what they want. This change only standardizes the FIRST CTA a cold visitor sees.
+
+PAGES TO UPDATE (strategicflow.tech)
+
+- index.html — hero CTA and footer CTA
+- architecture.html — hero CTA (keep "See full scope" as secondary, but the primary one becomes "Run Free Audit")
+- activation-intelligence.html — hero CTA
+- glossary.html — closing CTA
+- how-to-fix-saas-email-ctr.html — opening and closing CTA
+- saas-email-architecture-study.html — closing CTA
+- saas-email-conversion-failure.html — opening and closing CTA
+- why-saas-emails-get-opened-but-not-clicked.html — opening and closing CTA
+- architecture-vs-deliverability.html — opening and closing CTA
+- teardown-vs-lifecycle-audit.html — opening and closing CTA
+- strategic-flow-vs-scalero.html — opening and closing CTA
+- scorecard.html — closing CTA (currently links to /demo.html already via "Run Free Assessment" — just standardize the label to "Run Free Audit")
+- subject-line-pack.html — secondary nav link "Free Audit" stays, no change needed here, this page's primary CTA is the purchase button and should stay as-is
+- addons.html — nav link "Free Audit" stays as-is
+- web.html — "Run free audit" CTAs already correct, just confirm label matches exactly "Run Free Audit" (capitalization)
+- notes.html — closing CTA
+
+WHAT NOT TO CHANGE
+
+- Do not change any pricing, plan names, or Stripe links.
+- Do not change the founder pricing page (packages-promo.html) — it is intentionally separate and not linked from the main CTA flow.
+- Do not remove or alter secondary navigation links to Architecture, Activation Intelligence, or Pro plans — only the primary hero/closing CTA button changes.
+
+After making these changes, list every file touched and the exact CTA text/link before and after for each one.
