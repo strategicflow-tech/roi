@@ -1,0 +1,21 @@
+IMPORTANT: A previous version of this request was sent and the agent reported success, but verification afterward showed almost nothing was actually changed (only the homepage H1 was touched; meta tags, stat blocks, glossary.html, architecture.html, and others were all left untouched, still showing old numbers). Do not repeat that. This time, make every edit and then prove it with an exact grep/search count at the end.
+
+THE CORRECT NUMBER: 59 (not 54, not 55, not 57). This was confirmed directly from the dynamic "All 59" category filter on teardowns.html, which reads from the live database — this is the authoritative source, more reliable than counting static HTML cards.
+
+TASK: Replace every instance of "54", "55", or "57" used as the teardown count, anywhere it appears on any page of strategicflow.tech, with "59". This includes:
+- Visible page text (headlines, paragraphs, stat blocks)
+- Meta tags: meta-description, meta-og:description, meta-twitter:description, meta-keywords
+- Navigation link text (e.g. "54 Teardowns Live →")
+- Any FAQ answer text
+- Any related-links or footer text
+
+SPECIFIC FILES THAT WERE NOT FIXED LAST TIME — start here and verify each one individually:
+- index.html: title tag, meta-description, meta-og:description, meta-twitter:description, the H1 ("I've torn down X SaaS emails"), the stat block right below the CTA buttons ("X / Teardowns"), and the nav link "X Teardowns Live →"
+- architecture.html: the stat block under the hero ("X / SaaS email rebuilds completed"), and the showcase section heading ("X rebuilds. Same result every time.") — also remove "5 spots open" from the Apply for Architecture section per the earlier instruction, replace with "Selected manually based on fit." with no number
+- glossary.html: the stat block ("X / Teardowns as evidence"), and the two "See all X teardowns" links near the bottom
+- teardowns.html: the hero paragraph ("Before/after analysis on X SaaS and B2B newsletters"), the stat block ("X / TEARDOWNS LIVE"), the title tag, and meta tags — confirm the "All X" category filter count matches 59 as well (if the filter is dynamically generated from the database, it should already say 59 and does not need manual editing, but double check it actually does)
+- notes.html, saas-email-architecture-study.html, saas-email-conversion-failure.html, why-saas-emails-get-opened-but-not-clicked.html, architecture-vs-deliverability.html, teardown-vs-lifecycle-audit.html, how-to-fix-saas-email-ctr.html, addons.html, web.html, scorecard.html, strategic-flow-vs-scalero.html, subject-line-pack.html, activation-intelligence.html — check every one of these individually, do not assume any of them are already correct.
+
+ALSO FIX (separate issue, lower priority, same files): the failure pattern percentages are inconsistent across pages. Replace with these unified numbers everywhere a different number currently appears for the same pattern: Guest Language CTA 96%, Feature-First Bias 83%, Filing Label Subject 83%, Consequence-After-Caveat 74%, Missing Visual Hierarchy 71%, Zero/Buried Social Proof 69%. Avg original score 3.4/10, avg rebuilt score 9.0/10.
+
+VERIFICATION STEP — REQUIRED: After making all edits, run a search across the entire repository for the strings "54" and "57" that are NOT part of a percentage, a price, a date, or an unrelated number, and list every remaining match with the filename and line number. If the search returns zero matches related to teardown count, state that explicitly. If it returns any matches, fix them before finishing and re-run the search until it's clean. Paste the final search output in your response — do not just say "done."
