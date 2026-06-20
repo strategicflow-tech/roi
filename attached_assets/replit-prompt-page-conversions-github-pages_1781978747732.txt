@@ -1,0 +1,59 @@
+Apply the following page-specific copy and CTA improvements across strategicflow.tech. These are in addition to the unified primary CTA change (already covered in a separate prompt) — this prompt adds CONTEXTUAL secondary CTAs and small copy additions mid-page, not the main hero/closing button.
+
+1) glossary.html
+Under each of the 6 failure pattern definitions (Feature-First Bias, Filing Label Subject, Consequence-After-Caveat, Missing Hierarchy, Zero Social Proof, Generic Urgency Theatre), directly below the existing "See it fixed" links, add a new short CTA line:
+"Is this happening in your last email? Check in 90 seconds →" linking to https://strategic-flow-audit.replit.app/demo.html
+
+2) how-to-fix-saas-email-ctr.html
+After Fix 03 (the CTA rewrite — "Rewrite the CTA: ownership language not guest language", the one with the 96% fail rate), insert a standalone CTA block right after that section, before Fix 04 begins:
+"This single fix alone moved CTR from 0.8% to 4.2% in our teardowns. See it on your email →" linking to https://strategic-flow-audit.replit.app/demo.html
+
+3) saas-email-architecture-study.html
+Directly below the "Score distribution" section (the bar chart showing 74% of emails scoring 3/10 or below), add:
+"Where does your last email fall in this distribution? Find out free →" linking to https://strategic-flow-audit.replit.app/demo.html
+
+4) saas-email-conversion-failure.html
+For each of the 7 failure points listed (Filing Label Subject, Feature-First Lead, Buried Proof, Missing Visual Hierarchy, Implied Transformation, Consequence-After-Caveat, Guest Language CTA), add a small CTA line directly under the fail-rate percentage shown for that point, using the pattern:
+"[X]% chance your last [subject line / lead / CTA / etc.] has this. Check yours →" — substitute the relevant element name and the exact percentage already shown for that specific pattern. Link all to https://strategic-flow-audit.replit.app/demo.html
+
+5) why-saas-emails-get-opened-but-not-clicked.html
+Change the top hero CTA copy (keep the link the same, https://strategic-flow-audit.replit.app/demo.html) to read:
+"28% open rate, 0.8% CTR? Find out which of these 6 patterns is yours →"
+This replaces whatever generic CTA text is currently on the top button only — do not change the closing CTA at the bottom of the page.
+
+6) architecture-vs-deliverability.html
+In the "Which One Do You Need?" section, under each of the 3 numbered scenarios, add a small inline CTA specific to that scenario:
+- Scenario 01 (low open rate, deliverability problem): no CTA needed, this scenario doesn't need the audit yet — leave as-is.
+- Scenario 02 (healthy open rate, low CTR — architecture problem): add "Run the free diagnostic →" linking to https://strategic-flow-audit.replit.app/demo.html directly under this scenario's paragraph (this is the highest-intent scenario, give it its own CTA instead of relying on the page-bottom CTA alone).
+- Scenario 03 (both low): no CTA needed, same reasoning as scenario 01 — leave as-is.
+
+Do not change any pricing, plan names, Stripe links, or the founder pricing page. Do not change the primary hero/closing CTA buttons already covered in the separate unified-CTA prompt — only add the new contextual/mid-page CTAs described above.
+
+7) activation-intelligence.html
+Directly below the two main pricing CTA buttons ("Get the Activation Audit — $3,500" and "Or start the retainer — $1,500/mo"), add one smaller secondary line:
+"Not sure if this fits? Run the free single-email audit first →" linking to https://strategic-flow-audit.replit.app/demo.html
+This should appear in both places these pricing buttons are repeated on the page (the pricing section and the closing "Ready" section).
+
+8) addons.html
+For each of the 3 individual add-ons (Brand Voice Document $149, Re-engagement Campaign $149, Cold Email Sequence $199), add a small line directly under each "Get started" button:
+"Getting this? The $199 bundle includes 2 more →" linking to the bundle purchase button already on the page (the "Get All 3 Add-Ons — $199" Stripe link). Use the same line for all three add-on cards.
+
+9) subject-line-pack.html
+Directly below the stat row showing "10 / Subject Line Variants · 24h / Delivery Time · +38% / Avg Open Rate Lift · $49 / One-Time", add one line of social proof:
+"Used in 12+ rebuilds inside the Architecture plan."
+(If the exact number of rebuilds using this pack is known and different from 12, use the real number instead — otherwise use 12 as a placeholder pending confirmation from Alex.)
+
+10) scorecard.html
+Modify the scorecard flow so that an email capture step appears before the final score summary is revealed. Currently the tool shows "// Score summary Avg: —" directly after the user checks boxes across their 5 emails. Add an email input gate at this point with the copy:
+"See your score + get the fix for your lowest scoring email →"
+Email submission unlocks the score summary display. This is a flow/logic change, not just copy — implement the gate so the summary section only renders after email submission.
+
+11) teardowns.html
+Insert a repeating CTA banner every 10-12 teardown cards in the showcase grid (the long list of company teardown cards). Banner copy:
+"Want yours torn down like this? →" linking to https://strategic-flow-audit.replit.app/demo.html
+Style the banner to match the existing card grid aesthetic (dark theme, same border-radius and spacing as the teardown cards) so it doesn't look like an ad — it should read as part of the showcase flow, appearing approximately every 10-12 cards as the visitor scrolls.
+
+12) web.html
+Simplify the above-the-fold CTA area. Currently there are competing buttons for "Get in touch", "Explore all tools", and individual service CTAs ("Request a page", "See plans") appearing near the top of the page. Keep only ONE primary CTA above the fold: "Run Free Audit" linking to https://strategic-flow-audit.replit.app/demo.html. Move "Request a page" and "See plans" down into their respective service description blocks further down the page (Web Design & Digital Presence section, Content Architecture & Strategy section) where they already appear as secondary links — just remove the duplicate versions of these buttons from the top hero area.
+
+After making these changes, list every file touched and the exact new CTA text and link added to each.
