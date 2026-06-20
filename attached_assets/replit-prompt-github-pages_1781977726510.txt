@@ -1,0 +1,40 @@
+Fix the following data inconsistencies across the strategicflow.tech GitHub Pages site. Do not change layout, design, copy structure, or pricing tiers — only replace the specific numbers and phrases listed below. These pages are static HTML files in the repo.
+
+1) TEARDOWN COUNT — replace every instance of "54", "55", "51", "51+", "53", "50", or phrases like "and 49 others" / "and 48 others" used as the teardown count with "57". This affects every page that references the count, including but not limited to:
+   - index.html (homepage hero stats, "54 Teardowns Live" nav link)
+   - architecture.html (hero stats, showcase section "54 rebuilds. Same result every time.")
+   - activation-intelligence.html ("49/54 Sequences", "54+ SaaS sequences audited" — recalculate the gap ratio proportionally, e.g. if X/54 had gaps, the new ratio should preserve the same percentage against 57)
+   - glossary.html ("54 Teardowns as evidence", footer link)
+   - notes.html ("54 Teardowns" header, "+43 more" in the Audited list — update to "+46 more")
+   - saas-email-architecture-study.html (title, meta tags, "54 Emails audited", "Companies in the dataset... 54 companies... + 15 others" — update to "+ 18 others")
+   - saas-email-conversion-failure.html (hero stats "54 SaaS teardowns", FAQ answers)
+   - scorecard.html (any teardown reference)
+   - strategic-flow-vs-scalero.html (any teardown reference)
+   - subject-line-pack.html (any teardown reference)
+   - web.html ("51+ Teardowns published", "51+ audits", "51 Live Teardowns" in the Portfolio tool card — all become 57)
+   - why-saas-emails-get-opened-but-not-clicked.html ("54 SaaS teardowns" stat box, "based on 54 structural teardowns... and 49 others" → "and 52 others", FAQ answers, related links text "50 others")
+   - architecture-vs-deliverability.html ("54 SaaS emails audited")
+   - teardown-vs-lifecycle-audit.html ("54 single-email teardowns" — appears 3 times)
+   - how-to-fix-saas-email-ctr.html ("54 teardowns analyzed", FAQ answers)
+   - addons.html (meta description "54 public teardowns")
+   - Page titles and meta descriptions/meta-keywords that mention the count (update SEO meta tags too, not just visible text)
+   - teardowns.html itself: title, meta tags, hero stat, table caption, FAQ answers, "Companies audited include... and 48 others" → "and 51 others"
+
+2) FAILURE PATTERN RATES — replace with these exact unified numbers everywhere they currently show a different number for the same pattern:
+   - Guest Language CTA: 96% (currently sometimes shown as 91%)
+   - Feature-First Bias: 83% (currently sometimes shown as 80%)
+   - Filing Label Subject: 83% (currently sometimes shown as 89%)
+   - Consequence-After-Caveat: 74% (currently sometimes shown as 65% or 68%)
+   - Missing Visual Hierarchy: 71% (currently sometimes shown as 61% or 70%)
+   - Zero/Buried Social Proof: 69% (currently sometimes shown as 60% or 70%)
+   - Avg original score: 3.4/10 (keep consistent everywhere, some pages just say "3")
+   - Avg rebuilt score: 9.0/10
+   This affects glossary.html, saas-email-architecture-study.html, saas-email-conversion-failure.html, why-saas-emails-get-opened-but-not-clicked.html, how-to-fix-saas-email-ctr.html, architecture.html, architecture-vs-deliverability.html.
+
+3) "5 SPOTS" LANGUAGE — architecture.html currently has an "Apply for Architecture" section saying "5 spots open. Selected manually based on fit." Remove the specific number entirely. Replace "5 spots open. Selected manually based on fit." with "Selected manually based on fit." (no spot count mentioned on this page — founder/spot pricing messaging lives only on the separate packages-promo page, not here).
+
+4) Do NOT change any pricing tiers, dollar amounts, or plan names on these pages (Single $49, Lite $299, Growth $499, High-Impact $899, Architecture $2,500/mo remain exactly as-is). Do NOT add founder pricing or discount language to any of these 16 pages.
+
+5) The "saas-email-architecture-study.html" vertical breakdown table currently sums to 54 emails (19+8+6+8+4+2+1+6=54). Since the new total is 57, add 3 emails proportionally to the largest category ("SaaS — General", making it 22 emails) and update the total to 57. Recalculate the percentage stats in that section if they are derived from this table.
+
+After making these changes, list every file touched and every instance replaced, including meta tags.

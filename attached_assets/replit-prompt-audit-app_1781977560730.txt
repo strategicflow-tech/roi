@@ -1,0 +1,27 @@
+Fix the following data inconsistencies across strategic-flow-audit.replit.app. Do not change layout, design, or copy structure — only replace the specific numbers and one placeholder text bug listed below.
+
+1) TEARDOWN COUNT — replace every instance of "54", "55", "51", "53", or "49 others" used as the teardown count with "57". This affects:
+   - Homepage hero stats
+   - demo.html ("The average email we audit scores 3.4 out of 10" section, ROI text, footer link "54 Teardowns")
+   - guide.html (any teardown count reference)
+   - Any "X teardowns" or "X+ teardowns" copy in FAQ answers
+   - The footer link text "54 Teardowns" → "57 Teardowns"
+
+2) FAILURE PATTERN RATES — replace with these exact unified numbers everywhere they appear (FAQ answers on the homepage, demo.html):
+   - Guest Language CTA: 96%
+   - Feature-First Bias: 83%
+   - Filing Label Subject: 83%
+   - Consequence-After-Caveat: 74%
+   - Missing Visual Hierarchy: 71%
+   - Zero/Buried Social Proof: 69%
+   - Avg original score: 3.4/10
+   - Avg rebuilt score: 9.0/10
+
+3) BUG FIX — onboarding-audit-page currently shows leftover placeholder annotations copied from changelog-audit-page, specifically:
+   - "Bug #1 — Filing label. Date as title. Zero curiosity gap." appears under the onboarding welcome title — this is wrong for onboarding context. Replace with an onboarding-specific bug label such as "Bug #1 — Welcome screen without consequence."
+   - "Fix #1 — Curiosity gap formula: [number] + [who benefits] + [what changed]" — replace with an onboarding-specific fix label such as "Fix #1 — Consequence-first welcome."
+   - Check the rest of the before/after card on this page for any other changelog-specific text (e.g. "Product Updates — April 2026", "background export", "worker thread architecture") that was copy-pasted from changelog-audit-page instead of being onboarding-specific. Replace with onboarding-appropriate placeholder content matching the Bugs Found / Fixes Applied lists already correctly defined further down the same page (Welcome Screen Without Consequence, Useless Progress Indicator, Generic CTA, etc.)
+
+4) Do NOT add, mention, or reference any founder pricing, discount, or "spots" language anywhere in this app. Pricing stays as-is (Single $49, Lite $299, Growth $499, High-Impact $899, Architecture $2,500).
+
+After making these changes, confirm by listing every file touched and every instance replaced.
