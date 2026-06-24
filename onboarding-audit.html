@@ -391,6 +391,11 @@
   }
 </style>
 <script src="/translations.js"></script>
+<meta name="description" content="Audit your SaaS onboarding email sequence for activation gaps. Decision Friction Model diagnosis for Day 1-3-7 emails. Score 1-10, rebuilt copy same day.">
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/onboarding-audit-page">
+<meta property="og:title" content="Onboarding Email Sequence Audit — Strategic Flow">
+<meta property="og:description" content="Diagnose structural failures in your SaaS onboarding sequence. Feature-First Bias, Guest Language CTA, Filing Label Subject — identified and rebuilt.">
+<meta property="og:url" content="https://strategic-flow-audit.replit.app/onboarding-audit-page">
 </head>
 <body id="body">
 
@@ -426,7 +431,7 @@
       var gateTitle = gateOverlay.querySelector('h2');
       if (gateTitle) gateTitle.textContent = 'You have used your free audit.';
       var gateSub = gateOverlay.querySelector('p');
-      if (gateSub) gateSub.innerHTML = 'Get unlimited access to Changelog, Onboarding, and Email audits via Architecture.<br><br><a href="https://strategicflow-tech.github.io/showcase/enterprise.html" style="display:inline-block;padding:14px 28px;background:#4A8FE7;color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:15px;">Get Architecture access \u2192</a>';
+      if (gateSub) gateSub.innerHTML = 'Get unlimited access to Changelog, Onboarding, and Email audits via Architecture.<br><br><a href="https://strategicflow.tech/enterprise.html" style="display:inline-block;padding:14px 28px;background:#4A8FE7;color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:15px;">Get Architecture access \u2192</a>';
     } else if (savedEmail) {
       if (gateOverlay) gateOverlay.style.display = 'none';
     } else {
@@ -777,7 +782,7 @@
 
       <!-- SF FOOTER -->
       <div class="sf-footer">
-        <span>Audit by <strong>Strategic Flow</strong> · <a href="https://strategicflow-tech.github.io/showcase" target="_blank">See all audits →</a></span>
+        <span>Audit by <strong>Strategic Flow</strong> · <a href="https://strategicflow.tech/showcase" target="_blank">See all audits →</a></span>
         <span><a href="https://strategic-flow-audit.replit.app" target="_blank">Run your own audit →</a></span>
       </div>
 
@@ -873,7 +878,7 @@ window.addEventListener('load', function() {
   var loginBtn = document.querySelector('.btn-ghost');
   var startBtn = document.querySelector('.btn-primary');
   if (loginBtn) loginBtn.onclick = function() { window.location.href = 'https://strategic-flow-audit.replit.app/login.html'; };
-  if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow-tech.github.io/showcase/enterprise.html'; };
+  if (startBtn) startBtn.onclick = function() { window.location.href = 'https://strategicflow.tech/enterprise.html'; };
 
   if (extractBtn) {
     extractBtn.onclick = async function() {
@@ -1136,7 +1141,7 @@ window.addEventListener('load', function() {
                 a.click();
                 URL.revokeObjectURL(url);
               } else {
-                dlStatus.innerHTML = 'Download included in Architecture. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:#4A8FE7;font-weight:700;">Book access →</a>';
+                dlStatus.innerHTML = 'Download included in Architecture. <a href="https://strategicflow.tech/enterprise.html" target="_blank" style="color:#4A8FE7;font-weight:700;">Book access →</a>';
               }
             })
             .catch(function() {
@@ -1150,7 +1155,7 @@ window.addEventListener('load', function() {
           localStorage.setItem('sf_used_audit', 'true');
           var usedBanner = document.createElement('div');
           usedBanner.style.cssText = 'background:rgba(255,92,53,.1);border:1px solid rgba(255,92,53,.3);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5;';
-          usedBanner.innerHTML = 'You have used your free audit. <a href="https://strategicflow-tech.github.io/showcase/enterprise.html" target="_blank" style="color:#4A8FE7;font-weight:700;">Get unlimited access via Architecture \u2192</a>';
+          usedBanner.innerHTML = 'You have used your free audit. <a href="https://strategicflow.tech/enterprise.html" target="_blank" style="color:#4A8FE7;font-weight:700;">Get unlimited access via Architecture \u2192</a>';
           var scraperBar = document.getElementById('scraperBar');
           if (scraperBar) scraperBar.appendChild(usedBanner);
         }
