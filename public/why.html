@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHY. — Find the friction in anything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface2: #1E1E1E;
+    --border: #2A2A2A;
+    --red: #FF4422;
+    --white: #FFFFFF;
+    --muted: #AAAAAA;
+    --dim: #666666;
+    --green: #22CC88;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ===== HERO ===== */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle grid background */
+  #hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,68,34,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,68,34,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  /* Glow behind WHY */
+  #hero::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,68,34,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-why {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(80px, 18vw, 180px);
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.04em;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+  }
+
+  .hero-why .dot {
+    color: var(--red);
+    display: inline-block;
+  }
+
+  .hero-why.animate {
+    animation: whyReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes whyReveal {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .hero-tagline {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 400;
+    color: var(--muted);
+    margin-top: 20px;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.6s ease 0.9s;
+  }
+
+  .hero-tagline.visible { opacity: 1; }
+
+  .hero-tagline span {
+    color: var(--white);
+    font-weight: 500;
+  }
+
+  .hero-scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.6s ease 1.6s;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .hero-scroll-hint.visible { opacity: 1; }
+
+  .hero-scroll-hint span {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .scroll-arrow {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--red), transparent);
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.4; transform: scaleY(1); }
+    50% { opacity: 1; transform: scaleY(1.1); }
+  }
+
+  /* ===== APP SECTION ===== */
+  #app {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 80px 24px 120px;
+  }
+
+  .app-header {
+    margin-bottom: 48px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .app-header.visible { opacity: 1; transform: translateY(0); }
+
+  .app-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .app-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .app-sub {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ===== INPUT AREA ===== */
+  .input-wrap {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease 0.15s, transform 0.6s ease 0.15s;
+  }
+
+  .input-wrap.visible { opacity: 1; transform: translateY(0); }
+
+  .input-type-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .type-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: #999999;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .type-btn:hover { border-color: var(--red); color: var(--white); }
+  .type-btn.active { background: var(--red); border-color: var(--red); color: var(--white); }
+
+  .textarea-wrap {
+    position: relative;
+  }
+
+  #content-input {
+    width: 100%;
+    min-height: 240px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 20px 24px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    caret-color: var(--red);
+  }
+
+  #content-input:focus { border-color: var(--red); }
+
+  #content-input::placeholder { color: var(--dim); }
+
+  .input-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .char-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  #analyze-btn {
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 32px;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #analyze-btn:hover { opacity: 0.9; }
+  #analyze-btn:active { transform: scale(0.98); }
+  #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-arrow {
+    display: inline-block;
+    transition: transform 0.2s;
+  }
+
+  #analyze-btn:hover .btn-arrow { transform: translateX(4px); }
+
+  /* ===== LOADING ===== */
+  #loading {
+    display: none;
+    padding: 60px 0;
+    text-align: center;
+  }
+
+  .loading-ring {
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--surface2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    align-items: center;
+  }
+
+  .loading-step {
+    font-size: 12px;
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    opacity: 0;
+    transition: opacity 0.4s, color 0.4s;
+  }
+
+  .loading-step.active { opacity: 1; color: var(--red); }
+  .loading-step.done { opacity: 0.5; color: var(--green); }
+
+  /* ===== OUTPUT ===== */
+  #output {
+    display: none;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  #output.visible { opacity: 1; transform: translateY(0); }
+
+  /* Score card */
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--red);
+    padding: 32px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .score-number-wrap {
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .score-number {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--red);
+    display: block;
+  }
+
+  .score-denom {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .score-info { flex: 1; min-width: 200px; }
+
+  .score-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 8px;
+  }
+
+  .score-verdict {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+
+  .score-summary {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Friction bar */
+  .friction-bar-wrap {
+    width: 100%;
+    margin-top: 16px;
+  }
+
+  .friction-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .friction-bar-track {
+    height: 6px;
+    background: var(--surface2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .friction-bar-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--green), var(--red));
+    width: 0;
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Sections */
+  .output-section {
+    margin-bottom: 24px;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .output-section.visible { opacity: 1; transform: translateY(0); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+  }
+
+  .section-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .section-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .section-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 8px 0;
+  }
+
+  /* Friction items */
+  .friction-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    align-items: stretch;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .friction-item:last-child { border-bottom: none; }
+  .friction-item.visible { opacity: 1; transform: translateX(0); }
+  .friction-item:hover { background: rgba(255,68,34,0.03); }
+
+  .friction-rank {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    border-right: 1px solid var(--border);
+  }
+
+  .friction-content {
+    padding: 16px 20px;
+  }
+
+  .friction-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .friction-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .friction-impact {
+    padding: 16px 16px 16px 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .impact-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+
+  .impact-high { background: rgba(255,68,34,0.15); color: var(--red); }
+  .impact-mid { background: rgba(255,180,0,0.12); color: #FFB400; }
+  .impact-low { background: rgba(100,100,100,0.15); color: var(--muted); }
+
+  /* Question items */
+  .question-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .question-item:last-child { border-bottom: none; }
+  .question-item.visible { opacity: 1; transform: translateX(0); }
+  .question-item:hover { background: rgba(255,255,255,0.02); }
+
+  .q-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    text-align: center;
+    padding: 14px 6px;
+    border-right: 1px solid var(--border);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .q-text {
+    font-size: 13px;
+    color: #DDDDDD;
+    padding: 14px 18px;
+    line-height: 1.55;
+  }
+
+  /* Reset / Try again */
+  .output-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+    opacity: 0;
+    transition: opacity 0.5s ease 0.8s;
+  }
+
+  .output-actions.visible { opacity: 1; }
+
+  .action-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 22px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .action-btn:hover { border-color: var(--white); color: var(--white); }
+
+  .action-btn.primary {
+    background: var(--surface);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .action-btn.primary:hover { background: var(--red); color: var(--white); }
+
+  /* Footer */
+  .page-footer {
+    text-align: center;
+    padding: 40px 24px;
+    border-top: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .page-footer a { color: var(--muted); text-decoration: none; }
+  .page-footer a:hover { color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 500px) {
+    .score-card { flex-direction: column; gap: 20px; }
+    .friction-item { grid-template-columns: 36px 1fr; }
+    .friction-impact { display: none; }
+    .input-footer { flex-direction: column; align-items: stretch; }
+    #analyze-btn { justify-content: center; }
+  }
+
+  /* Error */
+  .error-box {
+    background: rgba(255,68,34,0.08);
+    border: 1px solid rgba(255,68,34,0.3);
+    padding: 20px 24px;
+    font-size: 14px;
+    color: #FF8866;
+    line-height: 1.6;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-why" id="hero-why">WHY<span class="dot">.</span></div>
+  <p class="hero-tagline" id="hero-tagline">
+    Paste <span>anything</span>. Find out <span>why it didn't work</span>.
+  </p>
+  <div class="hero-scroll-hint" id="hero-scroll" onclick="scrollToApp()">
+    <span>Paste & analyze</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app">
+
+  <div class="app-header" id="app-header">
+    <div class="app-label">Friction Diagnostic</div>
+    <h2 class="app-title">What type of content are you analyzing?</h2>
+    <p class="app-sub">Paste your email, landing page, proposal, brief, or any document. WHY. finds the friction and predicts the questions your audience will ask.</p>
+  </div>
+
+  <div class="input-wrap" id="input-wrap">
+    <div class="input-type-row">
+      <button class="type-btn active" onclick="setType(this, 'Email')">Email</button>
+      <button class="type-btn" onclick="setType(this, 'Landing page')">Landing page</button>
+      <button class="type-btn" onclick="setType(this, 'Proposal')">Proposal</button>
+      <button class="type-btn" onclick="setType(this, 'Brief')">Brief</button>
+      <button class="type-btn" onclick="setType(this, 'LinkedIn post')">LinkedIn post</button>
+      <button class="type-btn" onclick="setType(this, 'Document')">Other</button>
+    </div>
+
+    <div class="textarea-wrap">
+      <textarea
+        id="content-input"
+        placeholder="Paste your content here — the full text, subject line, everything. The more context you give, the more precise the diagnosis."
+        oninput="updateCharCount()"
+      ></textarea>
+    </div>
+
+    <div class="input-footer">
+      <span class="char-count" id="char-count">0 characters</span>
+      <button id="analyze-btn" onclick="runAnalysis()">
+        Diagnose <span class="btn-arrow">→</span>
+      </button>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loading">
+    <div class="loading-ring"></div>
+    <div class="loading-text">Analyzing friction...</div>
+    <div class="loading-steps">
+      <div class="loading-step" id="step-1">↳ Reading structure</div>
+      <div class="loading-step" id="step-2">↳ Detecting friction points</div>
+      <div class="loading-step" id="step-3">↳ Predicting reader questions</div>
+      <div class="loading-step" id="step-4">↳ Scoring and ranking</div>
+    </div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div id="output">
+
+    <!-- Score card -->
+    <div class="score-card" id="score-card">
+      <div class="score-number-wrap">
+        <span class="score-number" id="score-num">—</span>
+        <div class="score-denom">Friction Score /10</div>
+        <div class="friction-bar-wrap">
+          <div class="friction-bar-label">
+            <span>Low friction</span>
+            <span>High friction</span>
+          </div>
+          <div class="friction-bar-track">
+            <div class="friction-bar-fill" id="friction-bar"></div>
+          </div>
+        </div>
+      </div>
+      <div class="score-info">
+        <div class="score-label">Diagnosis</div>
+        <div class="score-verdict" id="score-verdict">—</div>
+        <div class="score-summary" id="score-summary">—</div>
+      </div>
+    </div>
+
+    <!-- Friction reasons -->
+    <div class="output-section" id="section-why">
+      <div class="section-header">
+        <div class="section-icon">✕</div>
+        <div class="section-title">Why it didn't work</div>
+        <div class="section-count" id="why-count">5 friction points</div>
+      </div>
+      <div class="section-body" id="why-list"></div>
+    </div>
+
+    <!-- Questions -->
+    <div class="output-section" id="section-questions">
+      <div class="section-header">
+        <div class="section-icon">?</div>
+        <div class="section-title">Questions your reader will ask</div>
+        <div class="section-count" id="q-count">15 predicted questions</div>
+      </div>
+      <div class="section-body" id="q-list"></div>
+    </div>
+
+    <div class="output-actions" id="output-actions">
+      <button class="action-btn primary" onclick="resetApp()">← Analyze something else</button>
+      <button class="action-btn" onclick="copyResults()">Copy results</button>
+    </div>
+
+  </div>
+
+</section>
+
+<footer class="page-footer">
+  WHY. — Built on the Decision Friction Model &nbsp;·&nbsp;
+  <a href="https://strategicflow.tech/">Strategic Flow</a> &nbsp;·&nbsp;
+  <a href="https://strategic-flow-audit.replit.app/demo.html">Email Audit →</a>
+</footer>
+
+<script>
+// ===== STATE =====
+let contentType = 'Email';
+let outputData = null;
+
+// ===== HERO ANIMATION =====
+window.addEventListener('DOMContentLoaded', () => {
+  const why = document.getElementById('hero-why');
+  const tagline = document.getElementById('hero-tagline');
+  const scroll = document.getElementById('hero-scroll');
+
+  setTimeout(() => why.classList.add('animate'), 200);
+  setTimeout(() => tagline.classList.add('visible'), 900);
+  setTimeout(() => scroll.classList.add('visible'), 1600);
+
+  // App section animation on scroll
+  const appObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        document.getElementById('app-header').classList.add('visible');
+        setTimeout(() => document.getElementById('input-wrap').classList.add('visible'), 150);
+        appObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  appObs.observe(document.getElementById('app'));
+});
+
+function scrollToApp() {
+  document.getElementById('app').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== TYPE SELECTOR =====
+function setType(btn, type) {
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  contentType = type;
+}
+
+// ===== CHAR COUNT =====
+function updateCharCount() {
+  const len = document.getElementById('content-input').value.length;
+  document.getElementById('char-count').textContent = len.toLocaleString() + ' characters';
+}
+
+// ===== LOADING STEPS =====
+function animateLoadingSteps() {
+  const steps = ['step-1', 'step-2', 'step-3', 'step-4'];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i > 0) document.getElementById(steps[i - 1]).classList.remove('active');
+    if (i > 0) document.getElementById(steps[i - 1]).classList.add('done');
+    if (i < steps.length) {
+      document.getElementById(steps[i]).classList.add('active');
+      i++;
+    } else {
+      clearInterval(interval);
+    }
+  }, 800);
+  return interval;
+}
+
+function resetLoadingSteps() {
+  ['step-1','step-2','step-3','step-4'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active', 'done');
+  });
+}
+
+// ===== MAIN ANALYSIS =====
+async function runAnalysis() {
+  const input = document.getElementById('content-input').value.trim();
+  if (!input || input.length < 50) {
+    showError('Please paste at least 50 characters of content to analyze.');
+    return;
+  }
+
+  hideError();
+  showLoading();
+
+  const loadInterval = animateLoadingSteps();
+
+  const prompt = `You are WHY., a friction diagnostic tool. Analyze the following ${contentType} and return a JSON object with this exact structure:
+
+{
+  "friction_score": <number 1-10, where 1 = low friction, 10 = very high friction>,
+  "verdict": "<short punchy sentence about why it fails, max 10 words>",
+  "summary": "<2-sentence diagnosis of the core structural problem>",
+  "friction_points": [
+    {
+      "title": "<friction point name, 3-6 words>",
+      "description": "<specific explanation referencing the actual content, 1-2 sentences>",
+      "impact": "<HIGH|MID|LOW>"
+    }
+  ],
+  "questions": [
+    "<question the reader will inevitably ask>"
+  ]
+}
+
+Rules:
+- friction_points: exactly 5, ranked by impact (highest first)
+- questions: exactly 15, ordered by likelihood (most likely first)
+- Be brutally specific — reference actual phrases, structure, or decisions in the content
+- Never say "the document" — say what type it is
+- questions should sound like real humans asking them, not consultants
+- Return ONLY valid JSON, no markdown, no backticks, no explanation
+
+Content to analyze:
+${input}`;
+
+  try {
+    const response = await fetch('/api/why-analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    clearInterval(loadInterval);
+
+    if (!response.ok) throw new Error('API error ' + response.status);
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    const parsed = data.result;
+
+    outputData = parsed;
+    hideLoading();
+    renderOutput(parsed);
+
+  } catch (err) {
+    clearInterval(loadInterval);
+    hideLoading();
+    resetLoadingSteps();
+    showError('Something went wrong. Please try again. (' + err.message + ')');
+  }
+}
+
+// ===== RENDER =====
+function renderOutput(data) {
+  // Score
+  document.getElementById('score-num').textContent = data.friction_score;
+  document.getElementById('score-verdict').textContent = data.verdict;
+  document.getElementById('score-summary').textContent = data.summary;
+
+  // Friction bar (score/10 * 100%)
+  setTimeout(() => {
+    document.getElementById('friction-bar').style.width = (data.friction_score / 10 * 100) + '%';
+  }, 300);
+
+  // Friction points
+  const whyList = document.getElementById('why-list');
+  whyList.innerHTML = '';
+  data.friction_points.forEach((point, i) => {
+    const impactClass = point.impact === 'HIGH' ? 'impact-high' : point.impact === 'MID' ? 'impact-mid' : 'impact-low';
+    const el = document.createElement('div');
+    el.className = 'friction-item';
+    el.innerHTML = `
+      <div class="friction-rank">0${i + 1}</div>
+      <div class="friction-content">
+        <div class="friction-title">${point.title}</div>
+        <div class="friction-desc">${point.description}</div>
+      </div>
+      <div class="friction-impact">
+        <span class="impact-badge ${impactClass}">${point.impact}</span>
+      </div>
+    `;
+    whyList.appendChild(el);
+  });
+
+  // Questions
+  const qList = document.getElementById('q-list');
+  qList.innerHTML = '';
+  data.questions.forEach((q, i) => {
+    const el = document.createElement('div');
+    el.className = 'question-item';
+    el.innerHTML = `
+      <div class="q-num">${i + 1}</div>
+      <div class="q-text">${q}</div>
+    `;
+    qList.appendChild(el);
+  });
+
+  // Show output
+  const output = document.getElementById('output');
+  output.style.display = 'block';
+  requestAnimationFrame(() => {
+    setTimeout(() => output.classList.add('visible'), 50);
+  });
+
+  // Animate sections
+  setTimeout(() => document.getElementById('section-why').classList.add('visible'), 200);
+  setTimeout(() => document.getElementById('section-questions').classList.add('visible'), 400);
+  setTimeout(() => document.getElementById('output-actions').classList.add('visible'), 600);
+
+  // Animate friction items
+  document.querySelectorAll('.friction-item').forEach((el, i) => {
+    setTimeout(() => el.classList.add('visible'), 300 + i * 80);
+  });
+
+  document.querySelectorAll('.question-item').forEach((el, i) => {
+    setTimeout(() => el.classList.add('visible'), 500 + i * 50);
+  });
+
+  // Scroll to output
+  setTimeout(() => {
+    output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+// ===== UI HELPERS =====
+function showLoading() {
+  document.getElementById('input-wrap').style.display = 'none';
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('output').classList.remove('visible');
+  document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+  resetLoadingSteps();
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.style.display = 'block';
+  document.getElementById('input-wrap').style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('error-box').style.display = 'none';
+}
+
+function resetApp() {
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('output').classList.remove('visible');
+  document.getElementById('input-wrap').style.display = 'block';
+  document.getElementById('content-input').value = '';
+  document.getElementById('char-count').textContent = '0 characters';
+  outputData = null;
+
+  // Reset friction bar
+  document.getElementById('friction-bar').style.width = '0';
+
+  document.getElementById('input-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyResults() {
+  if (!outputData) return;
+  const text = `WHY. Friction Diagnostic\n\nFriction Score: ${outputData.friction_score}/10\n${outputData.verdict}\n\n${outputData.summary}\n\nFRICTION POINTS:\n${outputData.friction_points.map((p, i) => `${i+1}. [${p.impact}] ${p.title}\n   ${p.description}`).join('\n')}\n\nPREDICTED QUESTIONS:\n${outputData.questions.map((q, i) => `${i+1}. ${q}`).join('\n')}`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.action-btn:last-child');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+</script>
+</body>
+</html>
