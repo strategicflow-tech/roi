@@ -6986,9 +6986,12 @@ setupDB().then(async () => {
 
   app.post('/api/why-analyze', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const used = whyUsage[ip] || 0;
-    if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
-    whyUsage[ip] = used + 1;
+    const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!WHY_WHITELIST.includes(ip)) {
+      const used = whyUsage[ip] || 0;
+      if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
+      whyUsage[ip] = used + 1;
+    }
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
@@ -7014,9 +7017,12 @@ setupDB().then(async () => {
 
   app.post('/api/why-rebuild', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const used = whyUsage[ip] || 0;
-    if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
-    whyUsage[ip] = used + 1;
+    const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!WHY_WHITELIST.includes(ip)) {
+      const used = whyUsage[ip] || 0;
+      if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
+      whyUsage[ip] = used + 1;
+    }
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
