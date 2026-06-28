@@ -7120,7 +7120,8 @@ setupDB().then(async () => {
 
   app.get('/api/why-stats', (req, res) => {
     const adminKey = process.env.WHY_ADMIN_KEY;
-    if (!adminKey || req.headers['x-admin-key'] !== adminKey) {
+    const provided = req.headers['x-admin-key'] || req.query.key;
+    if (!adminKey || provided !== adminKey) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const log = readWhyLog();
