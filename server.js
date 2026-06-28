@@ -6986,7 +6986,6 @@ setupDB().then(async () => {
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
-
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -6994,20 +6993,32 @@ setupDB().then(async () => {
           'x-api-key': process.env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 2000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
       });
-
       const data = await response.json();
       const text = data.content?.[0]?.text || '';
       const clean = text.replace(/```json|```/g, '').trim();
       return res.json({ result: JSON.parse(clean) });
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/why-rebuild', async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      return res.json({ text });
+    } catch (err) { return res.status(500).json({ error: err.message }); }
   });
 
   app.use((req, res, next) => {
