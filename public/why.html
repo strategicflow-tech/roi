@@ -1234,9 +1234,14 @@ ${input}`;
 
     clearInterval(loadInterval);
 
-    if (!response.ok) throw new Error('API error ' + response.status);
-
     const data = await response.json();
+    if (response.status === 429 || data.error === 'limit_reached') {
+      hideLoading();
+      resetLoadingSteps();
+      showLimitBlock();
+      return;
+    }
+    if (!response.ok) throw new Error('API error ' + response.status);
     if (data.error) throw new Error(data.error);
     const parsed = data.result;
 
@@ -1447,6 +1452,10 @@ ${input}`;
     fixBtn.textContent = 'Fix this →';
     fixBtn.disabled = false;
 
+    if (response.status === 429 || data.error === 'limit_reached') {
+      showLimitBlock();
+      return;
+    }
     if (data.error) throw new Error(data.error);
     fixContent.textContent = data.text;
 
@@ -1455,6 +1464,18 @@ ${input}`;
     fixBtn.textContent = 'Fix this →';
     fixBtn.disabled = false;
     fixContent.textContent = 'Rebuild failed: ' + err.message;
+  }
+}
+
+function showLimitBlock() {
+  document.getElementById('input-wrap').style.display = 'none';
+  if (!document.getElementById('limit-block')) {
+    document.getElementById('app').insertAdjacentHTML('beforeend', `<div id="limit-block" style="border: 1px solid #2A2A2A; border-left: 4px solid #FF4422; background: #141414; padding: 32px; text-align: center;">
+  <div style="font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #FF4422; margin-bottom: 12px;">3 / 3 DIAGNOSES USED</div>
+  <div style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #FFFFFF; margin-bottom: 8px;">You've used your 3 free WHY. diagnoses.</div>
+  <div style="font-size: 14px; color: #AAAAAA; margin-bottom: 24px; line-height: 1.6;">To continue running diagnoses, upgrade to a Strategic Flow plan.</div>
+  <a href="https://strategic-flow-pro.replit.app/packages" style="display: inline-block; background: #FF4422; color: #FFFFFF; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; padding: 14px 32px; text-decoration: none; letter-spacing: 0.02em;">See Plans →</a>
+</div>`);
   }
 }
 
