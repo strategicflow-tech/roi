@@ -1334,7 +1334,7 @@ ${input}`;
     const response = await fetch('/api/why-analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, contentType })
     });
 
     clearInterval(loadInterval);
@@ -1618,7 +1618,7 @@ ${input}`;
     const response = await fetch('/api/why-rebuild', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fixPrompt })
+      body: JSON.stringify({ prompt: fixPrompt, contentType })
     });
 
     if (response.status === 429) {
