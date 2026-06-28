@@ -6999,12 +6999,16 @@ setupDB().then(async () => {
           'x-api-key': process.env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await response.json();
       const text = data.content?.[0]?.text || '';
       const clean = text.replace(/```json|```/g, '').trim();
-      return res.json({ result: JSON.parse(clean) });
+      try {
+        return res.json({ result: JSON.parse(clean) });
+      } catch (parseErr) {
+        return res.status(500).json({ error: 'parse_failed', raw: clean.slice(0, 200) });
+      }
     } catch (err) { return res.status(500).json({ error: err.message }); }
   });
 
@@ -7023,10 +7027,11 @@ setupDB().then(async () => {
           'x-api-key': process.env.ANTHROPIC_API_KEY,
           'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await response.json();
       const text = data.content?.[0]?.text || '';
+      if (!text) return res.status(500).json({ error: 'empty_response' });
       return res.json({ text });
     } catch (err) { return res.status(500).json({ error: err.message }); }
   });
