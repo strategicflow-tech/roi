@@ -7032,8 +7032,11 @@ setupDB().then(async () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   app.post('/api/why-analyze', async (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const anonIp = anonymizeIp(ip);
+    const rawIp = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+    const ipParts = rawIp.split('.');
+    if (ipParts.length === 4) ipParts[3] = '0';
+    const ip = ipParts.join('.');
+    const anonIp = ip;
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
@@ -7077,8 +7080,11 @@ setupDB().then(async () => {
   });
 
   app.post('/api/why-rebuild', async (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const anonIp = anonymizeIp(ip);
+    const rawIp = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+    const ipParts = rawIp.split('.');
+    if (ipParts.length === 4) ipParts[3] = '0';
+    const ip = ipParts.join('.');
+    const anonIp = ip;
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
