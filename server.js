@@ -5315,7 +5315,7 @@ button:disabled{opacity:0.4;cursor:not-allowed}
   <p class="ba-caption">Check #1 failed. Same feature. Different architecture.</p>
 
   <div class="proof-row">
-    <div class="proof-item"><strong>54</strong>SaaS emails rebuilt</div>
+    <div class="proof-item"><strong>59</strong>SaaS emails rebuilt</div>
     <div class="proof-item"><strong>3.4/7</strong>avg score before</div>
     <div class="proof-item"><strong>9/10</strong>avg score after</div>
   </div>
