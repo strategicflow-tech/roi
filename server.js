@@ -6984,16 +6984,68 @@ setupDB().then(async () => {
 
   const whyUsage = {};
 
+  // ── WHY. logging helpers ──────────────────────────────────────────────────
+  const WHY_LOG_FILE = path.join(__dirname, 'why-log.json');
+
+  function readWhyLog() {
+    try {
+      const raw = fs.readFileSync(WHY_LOG_FILE, 'utf8');
+      return JSON.parse(raw);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function appendWhyLog(entry) {
+    setImmediate(() => {
+      try {
+        const log = readWhyLog();
+        log.push(entry);
+        fs.writeFileSync(WHY_LOG_FILE, JSON.stringify(log, null, 2));
+      } catch (e) {
+        console.error('[why-log] write error:', e.message);
+      }
+    });
+  }
+
+  function anonymizeIp(ip) {
+    if (!ip || ip === 'unknown') return 'unknown';
+    // IPv4
+    const v4 = ip.match(/^(\d+\.\d+\.\d+\.)\d+$/);
+    if (v4) return v4[1] + '0';
+    // IPv4-mapped IPv6 (::ffff:1.2.3.4)
+    const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.)\d+$/i);
+    if (mapped) return '::ffff:' + mapped[1] + '0';
+    // IPv6 — zero last group
+    if (ip.includes(':')) {
+      const parts = ip.split(':');
+      parts[parts.length - 1] = '0';
+      return parts.join(':');
+    }
+    return ip;
+  }
+
+  // Initialise log file if missing
+  if (!fs.existsSync(WHY_LOG_FILE)) {
+    fs.writeFileSync(WHY_LOG_FILE, '[]');
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   app.post('/api/why-analyze', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const anonIp = anonymizeIp(ip);
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const { prompt, contentType } = req.body;
+    const charCount = typeof prompt === 'string' ? prompt.length : 0;
     if (!WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
-      if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
+      if (used >= 3) {
+        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
+        return res.status(429).json({ error: 'limit_reached' });
+      }
       whyUsage[ip] = used + 1;
     }
     try {
-      const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -7008,23 +7060,37 @@ setupDB().then(async () => {
       const text = data.content?.[0]?.text || '';
       const clean = text.replace(/```json|```/g, '').trim();
       try {
-        return res.json({ result: JSON.parse(clean) });
+        const result = JSON.parse(clean);
+        res.json({ result });
+        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
+        return;
       } catch (parseErr) {
-        return res.status(500).json({ error: 'parse_failed', raw: clean.slice(0, 200) });
+        res.status(500).json({ error: 'parse_failed', raw: clean.slice(0, 200) });
+        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
+        return;
       }
-    } catch (err) { return res.status(500).json({ error: err.message }); }
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
+      return;
+    }
   });
 
   app.post('/api/why-rebuild', async (req, res) => {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const anonIp = anonymizeIp(ip);
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const { prompt, contentType } = req.body;
+    const charCount = typeof prompt === 'string' ? prompt.length : 0;
     if (!WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
-      if (used >= 3) return res.status(429).json({ error: 'limit_reached' });
+      if (used >= 3) {
+        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
+        return res.status(429).json({ error: 'limit_reached' });
+      }
       whyUsage[ip] = used + 1;
     }
     try {
-      const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -7037,9 +7103,49 @@ setupDB().then(async () => {
       });
       const data = await response.json();
       const text = data.content?.[0]?.text || '';
-      if (!text) return res.status(500).json({ error: 'empty_response' });
-      return res.json({ text });
-    } catch (err) { return res.status(500).json({ error: err.message }); }
+      if (!text) {
+        res.status(500).json({ error: 'empty_response' });
+        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
+        return;
+      }
+      res.json({ text });
+      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
+      return;
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
+      return;
+    }
+  });
+
+  app.get('/api/why-stats', (req, res) => {
+    const adminKey = process.env.WHY_ADMIN_KEY;
+    if (!adminKey || req.headers['x-admin-key'] !== adminKey) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const log = readWhyLog();
+    const now = Date.now();
+    const cutoff = now - 24 * 60 * 60 * 1000;
+    let totalAnalyses = 0, totalRebuilds = 0, rateLimited = 0, last24h = 0;
+    const byContentType = {};
+    for (const e of log) {
+      if (e.route === '/api/why-analyze') totalAnalyses++;
+      if (e.route === '/api/why-rebuild') totalRebuilds++;
+      if (e.status === 'rate_limited') rateLimited++;
+      if (new Date(e.timestamp).getTime() >= cutoff) last24h++;
+      if (e.status === 'success') {
+        const ct = e.content_type || 'unknown';
+        byContentType[ct] = (byContentType[ct] || 0) + 1;
+      }
+    }
+    return res.json({
+      total_analyses: totalAnalyses,
+      total_rebuilds: totalRebuilds,
+      rate_limited: rateLimited,
+      by_content_type: byContentType,
+      last_24h: last24h,
+      log_entries: log.slice(-50)
+    });
   });
 
   app.use((req, res, next) => {
