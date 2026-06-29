@@ -220,23 +220,23 @@ app.post('/auth/magic', async (req, res) => {
   const magicLink = `${baseUrl}/auth/verify/${token}`;
 
   try {
-    await resend.emails.send({
-      from: SENDER,
+    const sendResult = await resend.emails.send({
+      from: 'Strategic Flow <noreply@strategicflow.tech>',
       to: email,
       subject: 'Your Strategic Flow sign-in link',
       html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a0a08;color:#f4f2ed;padding:40px 32px;border:1px solid rgba(255,255,255,0.1);">
-          <p style="font-size:11px;letter-spacing:0.1em;color:#a8a39b;text-transform:uppercase;margin:0 0 32px;">Strategic Flow Architecture</p>
-          <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your sign-in link</h2>
-          <p style="font-size:15px;color:#a8a39b;margin:0 0 32px;line-height:1.6;">Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#ffffff;color:#111111;padding:40px 32px;border:1px solid #e5e7eb;">
+          <p style="font-size:11px;letter-spacing:0.1em;color:#6b7280;text-transform:uppercase;margin:0 0 32px;">Strategic Flow</p>
+          <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;color:#111111;">Your sign-in link</h2>
+          <p style="font-size:15px;color:#6b7280;margin:0 0 32px;line-height:1.6;">Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
           <a href="${magicLink}" style="display:inline-block;background:#4A8FE7;color:#ffffff;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;">Sign in to Strategic Flow →</a>
-          <p style="font-size:12px;color:#6b6760;margin:0;line-height:1.6;">If you didn't request this, ignore this email. Your account is safe.<br>Link expires: ${new Date(expires).toUTCString()}</p>
+          <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.6;">If you didn't request this, ignore this email. Your account is safe.<br>Link expires: ${new Date(expires).toUTCString()}</p>
         </div>
       `
     });
-    console.log('[auth/magic] Magic link sent to:', email);
+    console.log('[auth/magic] Magic link sent to:', email, '| Resend ID:', sendResult?.data?.id || JSON.stringify(sendResult));
   } catch (e) {
-    console.error('[auth/magic] Resend error:', e.message);
+    console.error('[auth/magic] Resend error:', e.message, e);
     return res.status(500).json({ error: 'Failed to send email. Try again.' });
   }
 
