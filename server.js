@@ -80,8 +80,9 @@ setInterval(() => {
   for (const [id, job] of jobs) { if (job.created < cutoff) jobs.delete(id); }
 }, 10 * 60 * 1000);
 
-app.use('/stripe/webhook',  express.raw({ type: 'application/json' }));
-app.use('/webhook/stripe',  express.raw({ type: 'application/json' }));
+app.use('/stripe/webhook',          express.raw({ type: 'application/json' }));
+app.use('/webhook/stripe',          express.raw({ type: 'application/json' }));
+app.use('/api/why-stripe-webhook',  express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
 
 app.use((req, res, next) => {
@@ -530,6 +531,19 @@ async function setupDB() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] demo_rebuilds:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pro_users (
+      id                      SERIAL PRIMARY KEY,
+      email                   TEXT UNIQUE NOT NULL,
+      stripe_customer_id      TEXT,
+      stripe_subscription_id  TEXT,
+      status                  TEXT DEFAULT 'active',
+      magic_token             TEXT,
+      magic_token_expires_at  TIMESTAMPTZ,
+      created_at              TIMESTAMPTZ DEFAULT NOW(),
+      last_login_at           TIMESTAMPTZ
+    )
+  `).catch(e => console.error('[DB] pro_users:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -4575,6 +4589,231 @@ app.get('/stripe/success', (req, res) => {
 </html>`);
 });
 
+// ─── WHY PRO ──────────────────────────────────────────────────────────────────
+
+async function sendWhyProMagicLink(email, token) {
+  const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+  const link = `${baseUrl}/why/login?token=${token}`;
+  const sendResult = await resend.emails.send({
+    from: 'Strategic Flow <noreply@strategicflow.tech>',
+    to: email,
+    subject: 'Your WHY Pro sign-in link',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#ffffff;color:#111111;padding:40px 32px;border:1px solid #e5e7eb;">
+        <p style="font-size:11px;letter-spacing:0.1em;color:#6b7280;text-transform:uppercase;margin:0 0 24px;">WHY Pro — Strategic Flow</p>
+        <h2 style="font-size:22px;margin:0 0 14px;font-weight:700;color:#111111;">Your sign-in link</h2>
+        <p style="font-size:14px;color:#6b7280;margin:0 0 28px;line-height:1.6;">Click the button below to access WHY Pro. This link expires in 15 minutes and can only be used once.</p>
+        <a href="${link}" style="display:inline-block;background:#FF4422;color:#ffffff;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:700;margin-bottom:28px;letter-spacing:0.02em;">Access WHY Pro →</a>
+        <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.6;">If you didn't request this, you can safely ignore this email.<br>Link expires 15 minutes after it was sent.</p>
+      </div>
+    `
+  });
+  console.log('[why-pro] magic link sent to:', email, '| Resend ID:', sendResult?.data?.id || 'n/a');
+}
+
+function whyProExpiredPage() {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WHY Pro — Link Expired</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0A0A;color:#FFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.wrap{max-width:420px;}.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
+h1{font-size:24px;font-weight:700;margin-bottom:12px;}p{font-size:14px;color:#AAAAAA;line-height:1.6;margin-bottom:28px;}
+a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:700;padding:14px 28px;text-decoration:none;letter-spacing:0.02em;}</style>
+</head><body><div class="wrap"><div class="label">Link Expired</div>
+<h1>This link has expired.</h1>
+<p>Magic links expire after 15 minutes and can only be used once. Request a new one below.</p>
+<a href="/why/login">Request a new link →</a>
+</div></body></html>`;
+}
+
+// GET /why/login — login page (no token) or token verification (with ?token=XXX)
+app.get('/why/login', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHY Pro — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0A0A0A;color:#FFFFFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+.wrap{max-width:420px;width:100%;}
+.logo{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#666;margin-bottom:40px;}
+.logo span{color:#FF4422;}
+h1{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;}
+.sub{font-size:14px;color:#AAAAAA;margin-bottom:32px;line-height:1.6;}
+input[type="email"]{width:100%;background:#141414;border:1px solid #2A2A2A;color:#FFFFFF;font-family:'Space Grotesk',sans-serif;font-size:15px;padding:14px 18px;outline:none;margin-bottom:12px;transition:border-color 0.2s;}
+input[type="email"]:focus{border-color:#FF4422;}
+input[type="email"]::placeholder{color:#555;}
+button{width:100%;background:#FF4422;color:#FFF;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;padding:14px;border:none;cursor:pointer;letter-spacing:0.02em;transition:opacity 0.2s;}
+button:hover{opacity:0.9;}
+button:disabled{opacity:0.4;cursor:not-allowed;}
+.msg{font-family:'Space Mono',monospace;font-size:12px;color:#22CC88;margin-top:16px;display:none;line-height:1.8;padding:16px;background:#0D1F16;border:1px solid #22CC8830;}
+.err{font-family:'Space Mono',monospace;font-size:12px;color:#FF4422;margin-top:14px;display:none;}
+.back{display:block;margin-top:28px;font-family:'Space Mono',monospace;font-size:11px;color:#555;text-decoration:none;letter-spacing:0.1em;}
+.back:hover{color:#AAAAAA;}
+.cta-new{display:block;margin-top:24px;padding-top:24px;border-top:1px solid #1A1A1A;font-size:13px;color:#666;}
+.cta-new a{color:#FF4422;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">WHY<span>.</span>™ Pro</div>
+  <h1>Sign in to WHY Pro</h1>
+  <p class="sub">Enter your email and we'll send you a magic link — no password needed.</p>
+  <form id="form">
+    <input type="email" id="email" placeholder="your@email.com" required autocomplete="email">
+    <button type="submit" id="btn">Send me a login link</button>
+  </form>
+  <div class="msg" id="msg">If this email has an active WHY Pro subscription, a login link has been sent.<br><br>Check your inbox (and spam folder if needed).</div>
+  <div class="err" id="err"></div>
+  <p class="cta-new">Not a Pro subscriber yet? <a href="https://buy.stripe.com/9B67sL8A0d7HdBHdNF7wA0d">Get WHY Pro — $19/month →</a></p>
+  <a href="/why.html" class="back">← Back to WHY.</a>
+</div>
+<script>
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  document.getElementById('err').style.display = 'none';
+  try {
+    await fetch('/api/why-request-magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    document.getElementById('form').style.display = 'none';
+    document.getElementById('msg').style.display = 'block';
+  } catch(err) {
+    document.getElementById('err').textContent = 'Network error. Please try again.';
+    document.getElementById('err').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Send me a login link';
+  }
+});
+</script>
+</body>
+</html>`);
+  }
+
+  // ── Token verification ──
+  try {
+    const result = await pool.query('SELECT * FROM pro_users WHERE magic_token = $1', [token]);
+    if (!result.rows.length) return res.send(whyProExpiredPage());
+    const user = result.rows[0];
+    if (!user.magic_token_expires_at || new Date() > new Date(user.magic_token_expires_at)) {
+      return res.send(whyProExpiredPage());
+    }
+    if (user.status !== 'active') {
+      return res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WHY Pro — Subscription Inactive</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0A0A;color:#FFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
+.wrap{max-width:420px;}.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
+h1{font-size:24px;font-weight:700;margin-bottom:12px;}p{font-size:14px;color:#AAAAAA;line-height:1.6;margin-bottom:28px;}
+a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:700;padding:14px 28px;text-decoration:none;letter-spacing:0.02em;}</style>
+</head><body><div class="wrap"><div class="label">Subscription Inactive</div>
+<h1>Your WHY Pro subscription is no longer active.</h1>
+<p>Resubscribe to get unlimited diagnoses and the full rebuilt output.</p>
+<a href="https://buy.stripe.com/9B67sL8A0d7HdBHdNF7wA0d">Resubscribe to WHY Pro →</a>
+</div></body></html>`);
+    }
+    // Valid & active — create session and redirect
+    req.session.isWhyPro = true;
+    req.session.whyProEmail = user.email;
+    await pool.query(
+      'UPDATE pro_users SET magic_token = NULL, magic_token_expires_at = NULL, last_login_at = NOW() WHERE email = $1',
+      [user.email]
+    );
+    console.log('[why-pro] session created for:', user.email);
+    return res.redirect('/why.html');
+  } catch (e) {
+    console.error('[why-pro] token verify error:', e.message);
+    return res.send(whyProExpiredPage());
+  }
+});
+
+// POST /api/why-request-magic-link
+app.post('/api/why-request-magic-link', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  const generic = { ok: true, message: 'If this email has an active WHY Pro subscription, a login link has been sent.' };
+  if (!email || !email.includes('@')) return res.json(generic);
+  try {
+    const result = await pool.query('SELECT * FROM pro_users WHERE email = $1', [email]);
+    if (!result.rows.length || result.rows[0].status !== 'active') return res.json(generic);
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    await pool.query(
+      'UPDATE pro_users SET magic_token = $1, magic_token_expires_at = $2 WHERE email = $3',
+      [token, expires, email]
+    );
+    await sendWhyProMagicLink(email, token);
+  } catch (e) {
+    console.error('[why-pro] request magic link error:', e.message);
+  }
+  return res.json(generic);
+});
+
+// POST /api/why-stripe-webhook
+app.post('/api/why-stripe-webhook', async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error('[why-stripe-webhook] STRIPE_WEBHOOK_SECRET not set');
+    return res.status(400).send('Webhook secret not configured');
+  }
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('[why-stripe-webhook] signature error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const sess = event.data.object;
+      const email = (sess.customer_details?.email || '').toLowerCase().trim();
+      const customerId = sess.customer;
+      const subscriptionId = sess.subscription;
+      if (!email) {
+        console.error('[why-webhook] no email in checkout session');
+        return res.json({ received: true });
+      }
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 15 * 60 * 1000);
+      await pool.query(`
+        INSERT INTO pro_users (email, stripe_customer_id, stripe_subscription_id, status, magic_token, magic_token_expires_at)
+        VALUES ($1, $2, $3, 'active', $4, $5)
+        ON CONFLICT (email) DO UPDATE SET
+          stripe_customer_id      = EXCLUDED.stripe_customer_id,
+          stripe_subscription_id  = EXCLUDED.stripe_subscription_id,
+          status                  = 'active',
+          magic_token             = EXCLUDED.magic_token,
+          magic_token_expires_at  = EXCLUDED.magic_token_expires_at
+      `, [email, customerId, subscriptionId, token, expires]);
+      await sendWhyProMagicLink(email, token);
+      console.log('[why-webhook] checkout.session.completed — pro_user upserted for', email);
+    } else if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object;
+      await pool.query("UPDATE pro_users SET status = 'cancelled' WHERE stripe_subscription_id = $1", [sub.id]);
+      console.log('[why-webhook] subscription cancelled:', sub.id);
+    } else if (event.type === 'customer.subscription.updated') {
+      const sub = event.data.object;
+      const newStatus = sub.status === 'active' ? 'active' : 'expired';
+      await pool.query('UPDATE pro_users SET status = $1 WHERE stripe_subscription_id = $2', [newStatus, sub.id]);
+      console.log('[why-webhook] subscription updated:', sub.id, '->', newStatus);
+    }
+  } catch (e) {
+    console.error('[why-webhook] handler error:', e.message);
+  }
+  res.json({ received: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // POST /stripe/webhook — handle Stripe events
 app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -7040,7 +7279,8 @@ setupDB().then(async () => {
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
-    if (!WHY_WHITELIST.includes(ip)) {
+    const isProUser = req.session && req.session.isWhyPro === true;
+    if (!isProUser && !WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
       if (used >= 3) {
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
@@ -7088,7 +7328,8 @@ setupDB().then(async () => {
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
-    if (!WHY_WHITELIST.includes(ip)) {
+    const isProUser = req.session && req.session.isWhyPro === true;
+    if (!isProUser && !WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
       if (used >= 3) {
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
