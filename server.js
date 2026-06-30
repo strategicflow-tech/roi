@@ -4743,6 +4743,14 @@ app.post('/api/why-request-magic-link', async (req, res) => {
   const generic = { ok: true, message: 'If this email has an active WHY Pro subscription, a login link has been sent.' };
   if (!email || !email.includes('@')) return res.json(generic);
   try {
+    // Bypass emails always get access — upsert as active if not already present
+    if (BYPASS_EMAILS.has(email)) {
+      await pool.query(`
+        INSERT INTO pro_users (email, status)
+        VALUES ($1, 'active')
+        ON CONFLICT (email) DO UPDATE SET status = 'active'
+      `, [email]);
+    }
     const result = await pool.query('SELECT * FROM pro_users WHERE email = $1', [email]);
     if (!result.rows.length || result.rows[0].status !== 'active') return res.json(generic);
     const token = crypto.randomBytes(32).toString('hex');
@@ -7279,7 +7287,9 @@ setupDB().then(async () => {
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
-    const isProUser = req.session && req.session.isWhyPro === true;
+    const isProUser = (req.session && req.session.isWhyPro === true) ||
+      (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+      (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
     if (!isProUser && !WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
       if (used >= 3) {
@@ -7328,7 +7338,9 @@ setupDB().then(async () => {
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
     const { prompt, contentType } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
-    const isProUser = req.session && req.session.isWhyPro === true;
+    const isProUser = (req.session && req.session.isWhyPro === true) ||
+      (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+      (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
     if (!isProUser && !WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
       if (used >= 3) {
