@@ -4615,10 +4615,15 @@ function whyProExpiredPage() {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WHY Pro — Link Expired</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0A0A;color:#FFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
-.wrap{max-width:420px;}.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
+.wrap{max-width:420px;}
+.wm{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#FFFFFF;letter-spacing:-0.04em;line-height:1;margin-bottom:32px;}
+.wm-dot{color:#FF4422;display:inline-block;}.wm-tm{font-size:0.28em;vertical-align:super;color:#666;letter-spacing:0;font-weight:400;}
+.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
 h1{font-size:24px;font-weight:700;margin-bottom:12px;}p{font-size:14px;color:#AAAAAA;line-height:1.6;margin-bottom:28px;}
 a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:700;padding:14px 28px;text-decoration:none;letter-spacing:0.02em;}</style>
-</head><body><div class="wrap"><div class="label">Link Expired</div>
+</head><body><div class="wrap">
+<div class="wm">WHY<span class="wm-dot">.</span><sup class="wm-tm">™</sup></div>
+<div class="label">Link Expired</div>
 <h1>This link has expired.</h1>
 <p>Magic links expire after 15 minutes and can only be used once. Request a new one below.</p>
 <a href="/why/login">Request a new link →</a>
@@ -4641,8 +4646,9 @@ app.get('/why/login', async (req, res) => {
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#0A0A0A;color:#FFFFFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
 .wrap{max-width:420px;width:100%;}
-.logo{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#666;margin-bottom:40px;}
-.logo span{color:#FF4422;}
+.wm{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#FFFFFF;letter-spacing:-0.04em;line-height:1;margin-bottom:40px;}
+.wm-dot{color:#FF4422;display:inline-block;}
+.wm-tm{font-size:0.28em;vertical-align:super;color:#666;letter-spacing:0;font-weight:400;}
 h1{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;}
 .sub{font-size:14px;color:#AAAAAA;margin-bottom:32px;line-height:1.6;}
 input[type="email"]{width:100%;background:#141414;border:1px solid #2A2A2A;color:#FFFFFF;font-family:'Space Grotesk',sans-serif;font-size:15px;padding:14px 18px;outline:none;margin-bottom:12px;transition:border-color 0.2s;}
@@ -4661,7 +4667,7 @@ button:disabled{opacity:0.4;cursor:not-allowed;}
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">WHY<span>.</span>™ Pro</div>
+  <div class="wm">WHY<span class="wm-dot">.</span><sup class="wm-tm">™</sup></div>
   <h1>Sign in to WHY Pro</h1>
   <p class="sub">Enter your email and we'll send you a magic link — no password needed.</p>
   <form id="form">
@@ -4713,10 +4719,15 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       return res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>WHY Pro — Subscription Inactive</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0A0A;color:#FFF;font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;text-align:center;}
-.wrap{max-width:420px;}.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
+.wrap{max-width:420px;}
+.wm{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#FFFFFF;letter-spacing:-0.04em;line-height:1;margin-bottom:32px;}
+.wm-dot{color:#FF4422;display:inline-block;}.wm-tm{font-size:0.28em;vertical-align:super;color:#666;letter-spacing:0;font-weight:400;}
+.label{font-size:11px;color:#FF4422;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:16px;font-weight:600;}
 h1{font-size:24px;font-weight:700;margin-bottom:12px;}p{font-size:14px;color:#AAAAAA;line-height:1.6;margin-bottom:28px;}
 a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:700;padding:14px 28px;text-decoration:none;letter-spacing:0.02em;}</style>
-</head><body><div class="wrap"><div class="label">Subscription Inactive</div>
+</head><body><div class="wrap">
+<div class="wm">WHY<span class="wm-dot">.</span><sup class="wm-tm">™</sup></div>
+<div class="label">Subscription Inactive</div>
 <h1>Your WHY Pro subscription is no longer active.</h1>
 <p>Resubscribe to get unlimited diagnoses and the full rebuilt output.</p>
 <a href="https://buy.stripe.com/9B67sL8A0d7HdBHdNF7wA0d">Resubscribe to WHY Pro →</a>
