@@ -4761,13 +4761,13 @@ app.post('/api/why-request-magic-link', async (req, res) => {
 // POST /api/why-stripe-webhook
 app.post('/api/why-stripe-webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error('[why-stripe-webhook] STRIPE_WEBHOOK_SECRET not set');
+  if (!process.env.WHY_STRIPE_WEBHOOK_SECRET) {
+    console.error('[why-stripe-webhook] WHY_STRIPE_WEBHOOK_SECRET not set');
     return res.status(400).send('Webhook secret not configured');
   }
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.WHY_STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error('[why-stripe-webhook] signature error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
