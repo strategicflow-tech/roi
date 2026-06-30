@@ -33,21 +33,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:       #080f1e;
-  --bg2:      #0d1628;
-  --surface:  #111e34;
-  --surface2: #162440;
-  --border:   #1c2e4a;
+  --bg:       #0a1628;
+  --bg2:      #0f2035;
+  --surface:  #0f2035;
+  --surface2: #122440;
+  --border:   #1a3050;
   --teal:     #00d4c8;
-  --teal-dim: rgba(0,229,160,0.12);
-  --teal-glow:rgba(0,229,160,0.25);
+  --teal-dim: rgba(0,212,200,0.12);
+  --teal-glow:rgba(0,212,200,0.25);
   --gold:     #f59e0b;
   --gold-dim: rgba(245,158,11,0.12);
   --red:      #e8455a;
   --red-dim:  rgba(232,69,90,0.12);
-  --text:     #eef1f7;
-  --text2:    #c4cedf;
-  --muted:    #7a8ba8;
+  --text:     #ffffff;
+  --text2:    #ffffff;
+  --muted:    #7a9ab8;
   --font:     'Inter', sans-serif;
   --mono:     'DM Mono', monospace;
 }
@@ -1374,7 +1374,7 @@ function setAdminTier(tier) {
     const col = ADMIN_TIER_COLORS[t];
     if (t === tier) {
       btn.style.background = col;
-      btn.style.color = '#0a0a0a';
+      btn.style.color = '#0a1628';
     } else {
       btn.style.background = 'transparent';
       btn.style.color = col;
@@ -2122,7 +2122,7 @@ function showResults(gen) {
   </div>
 
   <div class="upsell-pricing-grid">
-    <div style="background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
+    <div style="background:#0f2035;border:1px solid #1a3050;padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#f5a623;">One-Time</div>
       <div style="font-size:18px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;">Single</div>
       <div style="font-size:13px;color:rgba(245,242,236,0.35);line-height:1.5;flex:1;">One more email rebuilt. Full output.</div>
@@ -2131,7 +2131,7 @@ function showResults(gen) {
       <a href="https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04" target="_blank" style="display:block;text-align:center;border:1px solid rgba(255,255,255,0.12);color:rgba(245,242,236,0.55);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px;text-decoration:none;">Get Single →</a>
     </div>
 
-    <div style="background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
+    <div style="background:#0f2035;border:1px solid #1a3050;padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#00e5a0;">Monthly</div>
       <div style="font-size:18px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;">Lite</div>
       <div style="font-size:13px;color:rgba(245,242,236,0.35);line-height:1.5;flex:1;">4 newsletters/month. Consistent output.</div>
@@ -2150,7 +2150,7 @@ function showResults(gen) {
       <a href="https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02" target="_blank" style="display:block;text-align:center;background:#00e5a0;color:#080808;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px;text-decoration:none;">Start Growth →</a>
     </div>
 
-    <div style="background:#0a0a0a;border:1px solid rgba(255,255,255,0.08);padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
+    <div style="background:#0f2035;border:1px solid #1a3050;padding:24px 20px;display:flex;flex-direction:column;gap:8px;">
       <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#00e5a0;">Monthly</div>
       <div style="font-size:18px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;">High-Impact</div>
       <div style="font-size:13px;color:rgba(245,242,236,0.35);line-height:1.5;flex:1;">Unlimited newsletters. Full-funnel. VIP Slack.</div>
@@ -2163,14 +2163,14 @@ function showResults(gen) {
   <div style="margin-top:16px;border:1px solid rgba(74,143,231,0.35);border-radius:0;padding:28px 24px;background:rgba(74,143,231,0.05);display:flex;flex-direction:column;gap:10px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#4A8FE7;margin-bottom:6px;">Enterprise</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#00d4c8;margin-bottom:6px;">Enterprise</div>
         <div style="font-size:20px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;">Architecture</div>
         <div style="font-size:13px;color:rgba(245,242,236,0.45);line-height:1.6;margin-top:6px;max-width:520px;">Full communication architecture — unlimited rebuilds, 90-day structural audit across all emails, batch assessment (up to 10 at once), competitor benchmark, A/B test tracker, onboarding sequence rebuild, and monthly performance report. Includes High-Impact ($899/mo value).</div>
       </div>
       <div style="text-align:right;flex-shrink:0;">
         <div style="font-size:36px;font-weight:800;color:#f5f2ec;font-family:-apple-system,sans-serif;line-height:1;">$2,500</div>
         <div style="font-size:10px;color:rgba(245,242,236,0.2);margin-bottom:12px;">/month · total value $3,399/mo</div>
-        <a href="https://strategicflow.tech/architecture.html" target="_blank" style="display:inline-block;text-align:center;background:#4A8FE7;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:12px 24px;text-decoration:none;">Get Architecture →</a>
+        <a href="https://strategicflow.tech/architecture.html" target="_blank" style="display:inline-block;text-align:center;background:#00d4c8;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:12px 24px;text-decoration:none;">Get Architecture →</a>
       </div>
     </div>
   </div>
@@ -2316,9 +2316,9 @@ function _renderOrpTable() {
         </tr>
         ${rows.map((row, i) => `
         <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-          <td style="padding:8px 10px;color:#4a8fe7;font-size:11px;">✅ Variant ${labels[i]}</td>
-          <td style="text-align:center;padding:8px 10px;color:#4a8fe7;">${row.score}/10</td>
-          <td style="text-align:center;padding:8px 10px;color:#4a8fe7;">${row.lo}–${row.hi}%</td>
+          <td style="padding:8px 10px;color:#00d4c8;font-size:11px;">✅ Variant ${labels[i]}</td>
+          <td style="text-align:center;padding:8px 10px;color:#00d4c8;">${row.score}/10</td>
+          <td style="text-align:center;padding:8px 10px;color:#00d4c8;">${row.lo}–${row.hi}%</td>
         </tr>`).join('')}
       </tbody>
     </table>`;

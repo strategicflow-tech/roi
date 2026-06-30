@@ -25,14 +25,14 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --black: #0a0a08;
-    --white: #f4f2ed;
-    --cream: #ede9e0;
-    --signal: #4A8FE7;
-    --signal-dim: #2D6BE4;
+    --black: #0a1628;
+    --white: #ffffff;
+    --cream: #ffffff;
+    --signal: #00d4c8;
+    --signal-dim: #00a89e;
     --noise: #ff4d2e;
-    --mid: #a8a39b;
-    --border: rgba(244,242,237,0.12);
+    --mid: #7a9ab8;
+    --border: #1a3050;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,8 +52,8 @@
     position: fixed;
     inset: 0;
     background-image:
-      linear-gradient(rgba(244,242,237,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(244,242,237,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(0,212,200,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,200,0.03) 1px, transparent 1px);
     background-size: 60px 60px;
     pointer-events: none;
     z-index: 0;
@@ -68,7 +68,7 @@
     justify-content: space-between;
     padding: 20px 48px;
     border-bottom: 1px solid var(--border);
-    background: rgba(10,10,8,0.85);
+    background: rgba(10,22,40,0.92);
     backdrop-filter: blur(12px);
   }
 
@@ -207,7 +207,7 @@
     text-transform: uppercase;
   }
 
-  .score-bar { width: 120px; height: 2px; background: rgba(244,242,237,0.1); position: relative; }
+  .score-bar { width: 120px; height: 2px; background: rgba(0,212,200,0.1); position: relative; }
 
   .score-fill {
     position: absolute;
@@ -317,7 +317,7 @@
   .cell-content .noise-text { color: var(--noise); }
 
   .engine-section {
-    background: rgba(244,242,237,0.02);
+    background: rgba(0,212,200,0.02);
     border-top: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
   }
@@ -551,7 +551,7 @@
   .compare-header {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
-    background: rgba(244,242,237,0.04);
+    background: rgba(0,212,200,0.04);
     border-bottom: 1px solid var(--border);
   }
 
@@ -681,7 +681,7 @@
     .compare-cell:last-child { border-bottom: none; }
 
     .compare-cell.feature {
-      background: rgba(244,242,237,0.04);
+      background: rgba(0,212,200,0.04);
       font-weight: 600;
       font-size: 14px;
     }
@@ -712,7 +712,7 @@
     justify-content: space-between;
     padding: 18px 48px;
     border-bottom: 1px solid var(--border);
-    background: rgba(10,10,8,0.92);
+    background: rgba(10,22,40,0.95);
     backdrop-filter: blur(12px);
   }
 
@@ -743,7 +743,7 @@
     cursor: pointer;
     transition: color 0.2s, border-color 0.2s;
   }
-  .dash-logout:hover { color: var(--white); border-color: rgba(244,242,237,0.4); }
+  .dash-logout:hover { color: var(--white); border-color: rgba(0,212,200,0.4); }
 
   .dash-body {
     padding: 120px 48px 64px;
@@ -789,7 +789,7 @@
     flex-direction: column;
     gap: 10px;
   }
-  .dash-card:hover { background: rgba(244,242,237,0.04); }
+  .dash-card:hover { background: rgba(0,212,200,0.04); }
 
   .dash-card-label {
     font-family: 'DM Mono', monospace;
@@ -859,12 +859,12 @@
 #cookie-banner.visible{display:flex;}
 .cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
 .cookie-text{font-size:13px;color:var(--text2, #ddddd8);line-height:1.6;max-width:680px;}
-.cookie-text a{color:var(--green, #4A8FE7);text-decoration:underline;}
+.cookie-text a{color:var(--signal);text-decoration:underline;}
 .cookie-actions{display:flex;gap:10px;flex-shrink:0;}
 .cookie-btn{font-family:var(--mono, 'DM Mono', monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--border, rgba(255,255,255,0.1));background:transparent;color:var(--text2, #ddddd8);transition:all .2s;}
-.cookie-btn:hover{border-color:var(--green, #4A8FE7);color:var(--green, #4A8FE7);}
-.cookie-btn.accept{background:var(--green, #4A8FE7);color:#fff;border-color:var(--green, #4A8FE7);}
-.cookie-btn.accept:hover{background:var(--green-mid, #2D6BE4);}
+.cookie-btn:hover{border-color:var(--signal);color:var(--signal);}
+.cookie-btn.accept{background:var(--signal);color:#fff;border-color:var(--signal);}
+.cookie-btn.accept:hover{background:var(--signal-dim);}
 @media(max-width:640px){
   #cookie-banner{padding:16px 18px;}
   .cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}

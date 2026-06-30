@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Activation Intelligence — Strategic Flow</title>
+  <meta name="description" content="Activation Intelligence — Before/after email teardown by Strategic Flow. Rebuilt subject line, hook, and CTA with conversion score.">
+<meta name="keywords" content="SaaS lifecycle email audit, onboarding email audit, activation email sequence, SaaS email onboarding diagnosis, Strategic Flow, behavioral email diagnostic, customer journey email audit">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#0a1628;--white:#ffffff;--cream:#ffffff;
+  --signal:#00d4c8;--signal-dim:#00a89e;--noise:#ff4d2e;
+  --mid:#7a9ab8;--border:#1a3050;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--black);color:var(--white);font-family:'Instrument Sans',sans-serif;font-size:16px;line-height:1.6;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,200,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,200,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:20px 48px;border-bottom:1px solid var(--border);background:rgba(10,22,40,0.92);backdrop-filter:blur(12px);}
+.nav-logo{font-family:'DM Mono',monospace;font-size:13px;letter-spacing:0.08em;color:var(--white);text-decoration:none;}
+.nav-logo span{color:var(--signal);}
+.nav-links{display:flex;align-items:center;gap:32px;}
+.nav-links a{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);text-decoration:none;transition:color .2s;}
+.nav-links a:hover{color:var(--white);}
+.nav-cta{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.08em;color:var(--white);background:var(--signal);padding:10px 20px;text-decoration:none;transition:background .2s;}
+.nav-cta:hover{background:var(--signal-dim);}
+
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:140px 48px 80px;z-index:1;overflow:hidden;}
+.hero-glow{position:absolute;right:-200px;top:-200px;width:700px;height:700px;background:radial-gradient(circle,rgba(74,143,231,0.08) 0%,transparent 60%);pointer-events:none;}
+.hero-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.16em;color:var(--signal);text-transform:uppercase;margin-bottom:32px;opacity:0;animation:fadeUp .6s ease forwards .2s;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(52px,7vw,96px);line-height:1.0;letter-spacing:-0.02em;max-width:900px;margin-bottom:40px;opacity:0;animation:fadeUp .7s ease forwards .4s;}
+.hero-title em{font-style:italic;color:var(--signal);}
+.hero-sub{font-size:18px;color:var(--mid);max-width:560px;line-height:1.7;margin-bottom:56px;opacity:0;animation:fadeUp .7s ease forwards .6s;}
+.hero-sub strong{color:var(--white);font-weight:500;}
+.hero-actions{display:flex;align-items:center;gap:24px;opacity:0;animation:fadeUp .7s ease forwards .8s;}
+.btn-primary{font-family:'DM Mono',monospace;font-size:13px;letter-spacing:0.08em;color:var(--white);background:var(--signal);padding:16px 32px;text-decoration:none;transition:all .2s;display:inline-block;}
+.btn-primary:hover{background:var(--signal-dim);transform:translateY(-1px);}
+.btn-ghost{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.08em;color:var(--mid);text-decoration:none;border-bottom:1px solid var(--border);padding-bottom:2px;transition:color .2s;}
+.btn-ghost:hover{color:var(--white);}
+
+.stat-bar{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border);border-top:1px solid var(--border);position:relative;z-index:1;margin-top:64px;}
+.stat-item{padding:32px 48px;border-right:1px solid var(--border);}
+.stat-item:last-child{border-right:none;}
+.stat-num{font-family:'DM Serif Display',serif;font-size:42px;color:var(--signal);line-height:1;margin-bottom:6px;}
+.stat-desc{font-size:13px;color:var(--mid);line-height:1.5;}
+
+section{position:relative;z-index:1;padding:100px 48px;}
+.section-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.16em;color:var(--signal);text-transform:uppercase;margin-bottom:24px;}
+.section-title{font-family:'DM Serif Display',serif;font-size:clamp(36px,4vw,56px);line-height:1.1;letter-spacing:-0.02em;max-width:700px;margin-bottom:24px;}
+.section-title em{font-style:italic;color:var(--signal);}
+.section-body{font-size:17px;color:#c8cdd8;max-width:560px;line-height:1.8;}
+.section-body strong{color:#fff;font-weight:600;}
+
+.problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:64px;}
+.problem-cell{background:var(--black);padding:48px;border:1px solid var(--border);}
+.cell-tag{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:20px;display:inline-flex;align-items:center;gap:8px;}
+.cell-tag.noise{color:var(--noise);}
+.cell-tag::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;}
+.cell-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--white);margin-bottom:12px;}
+.cell-body{font-size:15px;color:var(--mid);line-height:1.75;}
+.cell-body strong{color:var(--white);}
+
+/* DELIVERABLES */
+.engine-section{background:rgba(0,212,200,0.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.deliverables-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:64px;}
+.deliverable-card{padding:40px;border:1px solid var(--border);position:relative;transition:border-color .3s;}
+.deliverable-card:hover{border-color:rgba(74,143,231,0.4);}
+.deliverable-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--signal);}
+.d-num{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;}
+.d-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--white);margin-bottom:10px;line-height:1.2;}
+.d-body{font-size:14px;color:var(--mid);line-height:1.7;}
+
+/* TIMELINE */
+.timeline-section{border-top:1px solid var(--border);}
+.timeline{display:flex;flex-direction:column;max-width:720px;margin:64px 0 0;position:relative;}
+.timeline::before{content:'';position:absolute;left:24px;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,var(--signal),rgba(74,143,231,0.1));}
+.timeline-item{display:flex;gap:40px;align-items:flex-start;padding-bottom:56px;position:relative;}
+.timeline-dot{width:48px;height:48px;background:var(--black);border:1px solid var(--signal);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Mono',monospace;font-size:11px;color:var(--signal);position:relative;z-index:2;letter-spacing:0.05em;}
+.t-day{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:8px;}
+.t-title{font-family:'DM Serif Display',serif;font-size:24px;color:var(--white);margin-bottom:8px;}
+.t-body{font-size:14px;color:var(--mid);line-height:1.7;margin-bottom:10px;}
+.t-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--noise);border:1px solid rgba(255,77,46,0.3);padding:4px 10px;}
+.t-tag.ok{color:var(--signal);border-color:rgba(0,212,200,0.3);}
+
+/* PRICING */
+.pricing-section{background:rgba(0,212,200,0.02);border-top:1px solid var(--border);}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:64px;}
+.price-card{border:1px solid var(--border);padding:48px 40px;position:relative;transition:border-color .2s;}
+.price-card:hover{border-color:rgba(0,212,200,0.3);}
+.price-card.featured{border-color:var(--signal);background:rgba(74,143,231,0.03);}
+.price-card.featured::after{content:'RECOMMENDED';position:absolute;top:20px;right:20px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;background:var(--signal);color:var(--white);padding:4px 10px;}
+.price-type{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mid);margin-bottom:16px;}
+.price-name{font-family:'DM Serif Display',serif;font-size:28px;color:var(--white);margin-bottom:8px;}
+.price-amount{font-family:'DM Serif Display',serif;font-size:56px;color:var(--signal);line-height:1;margin-bottom:4px;}
+.price-period{font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);margin-bottom:32px;}
+.price-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:36px;}
+.price-features li{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--mid);line-height:1.5;}
+.price-features li::before{content:'→';color:var(--signal);flex-shrink:0;}
+.price-features li.highlight{color:var(--white);font-weight:500;}
+.price-features li.highlight::before{content:'★';color:var(--signal);}
+.price-divider{height:1px;background:var(--border);margin:16px 0;}
+.price-section-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mid);margin-bottom:10px;margin-top:4px;}
+.price-btn{display:block;text-align:center;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.08em;padding:14px;text-decoration:none;transition:all .2s;}
+.price-btn.filled{background:var(--signal);color:var(--white);}
+.price-btn.filled:hover{background:var(--signal-dim);}
+.price-btn.outline{border:1px solid var(--border);color:var(--mid);}
+.price-btn.outline:hover{border-color:var(--signal);color:var(--signal);}
+
+/* COMPARISON TABLE */
+.compare-section{border-top:1px solid var(--border);}
+.compare-table{width:100%;border-collapse:collapse;margin-top:64px;}
+.compare-table th{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);padding:16px 20px;border-bottom:1px solid var(--border);text-align:left;}
+.compare-table th.signal{color:var(--signal);}
+.compare-table td{padding:16px 20px;border-bottom:1px solid var(--border);font-size:14px;color:var(--mid);vertical-align:top;}
+.compare-table td:first-child{color:var(--white);font-weight:500;}
+.compare-table tr:last-child td{border-bottom:none;}
+.check{color:var(--signal);font-size:16px;}
+.cross{color:rgba(0,212,200,0.2);font-size:16px;}
+.compare-table tr:hover td{background:rgba(74,143,231,0.03);}
+
+/* ROI */
+.roi-box{max-width:760px;border:1px solid var(--border);padding:56px;margin-top:64px;position:relative;}
+.roi-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--signal);}
+.roi-scenario{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);margin-bottom:32px;}
+.roi-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.roi-row:last-of-type{border-bottom:none;}
+.roi-label{color:var(--mid);}
+.roi-value{font-family:'DM Mono',monospace;color:var(--white);}
+.roi-value.accent{color:var(--signal);font-size:18px;}
+.roi-conclusion{font-family:'DM Serif Display',serif;font-size:24px;color:var(--white);line-height:1.3;border-top:1px solid var(--border);padding-top:28px;margin-top:24px;}
+.roi-conclusion em{font-style:italic;color:var(--signal);}
+
+.cta-section{text-align:center;border-top:1px solid var(--border);background:rgba(0,212,200,0.02);}
+.cta-inner{max-width:600px;margin:0 auto;}
+.cta-title{font-family:'DM Serif Display',serif;font-size:clamp(36px,4vw,52px);line-height:1.1;margin-bottom:20px;}
+.cta-title em{font-style:italic;color:var(--signal);}
+.cta-body{font-size:16px;color:var(--mid);margin-bottom:40px;line-height:1.7;}
+
+.divider{height:1px;background:var(--border);position:relative;z-index:1;}
+footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;position:relative;z-index:1;}
+.footer-brand{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;color:var(--mid);}
+.footer-brand span{color:var(--signal);}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap;}
+.footer-links a{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--mid);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--white);}
+
+@media(max-width:768px){
+  nav{padding:14px 20px;}
+  .nav-links{display:none;}
+  .nav-logo{font-size:11px;}
+  .nav-cta{padding:8px 14px;font-size:11px;}
+
+  .hero{padding:100px 20px 56px;min-height:auto;}
+  .hero-title{font-size:clamp(34px,9vw,52px);}
+  .hero-sub{font-size:15px;margin-bottom:32px;}
+  .hero-actions{flex-direction:column;align-items:flex-start;gap:16px;}
+  .btn-primary{width:100%;text-align:center;padding:14px 20px;}
+
+  .stat-bar{grid-template-columns:1fr 1fr;}
+  .stat-item{padding:20px 16px;}
+  .stat-num{font-size:32px;}
+  .stat-desc{font-size:12px;}
+
+  section{padding:48px 20px;}
+  .breakdown-grid > div{padding:24px 20px !important;}
+  .roi-math-grid > div{padding:0 !important;}
+  .section-title{font-size:clamp(28px,7vw,40px);}
+  .section-body{font-size:15px;}
+
+  .problem-grid,.deliverables-grid,.pricing-grid{grid-template-columns:1fr;}
+  .problem-cell{padding:28px 20px;}
+  .deliverable-card{padding:24px 20px;}
+
+  .timeline::before{left:20px;}
+  .timeline-dot{width:40px;height:40px;}
+  .timeline-item{gap:20px;}
+
+  .roi-box{padding:28px 20px;}
+  .roi-conclusion{font-size:20px;}
+
+  .compare-table{font-size:12px;display:block;overflow-x:auto;}
+  .compare-table th,.compare-table td{padding:10px 12px;}
+
+  .price-card{padding:28px 20px;}
+  .price-amount{font-size:44px;}
+
+  footer{padding:20px;}
+  .footer-links{gap:16px;}
+  .steps-grid{grid-template-columns:1fr !important;}
+  .evidence-grid{grid-template-columns:1fr !important;}
+
+  /* Fix all inline side-by-side grids */
+  .breakdown-grid,
+  .bestfit-grid,
+  .roi-math-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+  .breakdown-arrow {
+    display: none !important;
+  }
+  .bestfit-grid > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+}
+</style>
+<link rel="canonical" href="https://strategicflow.tech/activation-intelligence.html">
+<meta property="og:title" content="Activation Intelligence — Strategic Flow">
+<meta property="og:description" content="Onboarding sequence diagnosis for SaaS activation. Day 1-3-7 email architecture audit. Identify the structural gap stopping users from activating.">
+<meta property="og:url" content="https://strategicflow.tech/activation-intelligence.html">
+</head>
+<body data-sf-bar="services">
+
+<nav>
+  <a href="#" class="nav-logo">Strategic<span>Flow</span> · Activation Intelligence <span style="font-size:9px;background:rgba(0,212,200,0.15);border:1px solid rgba(0,212,200,0.3);color:#00d4c8;padding:2px 7px;letter-spacing:0.08em;margin-left:6px;vertical-align:middle;">NEW</span></a>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#deliverables">Deliverables</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#roi">ROI</a>
+  </div>
+  <a href="https://buy.stripe.com/8x2dR917y4Bb55b6ld7wA0c" class="nav-cta">Request Audit →</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-label">Activation Intelligence · NEW · Strategic Flow</div>
+  <h1 class="hero-title">
+    Your activation funnel<br>has gaps.<br>
+    <em>We find them.</em>
+  </h1>
+  <p class="hero-sub">
+    Product teams understand the product.
+    <strong>We focus on activation behaviour.</strong>
+    We audit your first 7–14 days of communication as a system — and rebuild every message around the moment that changes what users do next.
+  </p>
+  <div style="margin-bottom:40px;padding:24px 0;border-top:1px solid rgba(0,212,200,0.08);border-bottom:1px solid rgba(0,212,200,0.08);opacity:0;animation:fadeUp .7s ease forwards .7s;">
+    <span style="font-family:'DM Serif Display',serif;font-size:20px;color:rgba(255,255,255,0.7);font-style:italic;">Product teams write about features.<br></span>
+    <span style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--white);font-style:italic;">Users activate because of consequences.</span>
+  </div>
+  <div class="hero-actions">
+    <a href="https://strategic-flow-audit.replit.app/demo.html" class="btn-primary" target="_blank">Run Free Audit →</a>
+    <a href="#problem" class="btn-ghost">See what's broken ↓</a>
+  </div>
+  <div class="stat-bar">
+    <div class="stat-item"><div class="stat-num">7–14</div><div class="stat-desc">Days that determine long-term retention</div></div>
+    <div class="stat-item"><div class="stat-num">52/57</div><div class="stat-desc">Sequences with at least one critical activation gap</div></div>
+    <div class="stat-item"><div class="stat-num">7</div><div class="stat-desc">Failure patterns detected per email on average</div></div>
+    <div class="stat-item"><div class="stat-num">57+</div><div class="stat-desc">SaaS sequences audited and rebuilt</div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+
+<!-- ACTIVATION BREAKDOWN -->
+<section style="border-top:1px solid var(--border);padding:80px 48px;">
+  <div class="section-label">// What we find</div>
+  <h2 class="section-title">A real activation gap.<br><em>Named and rebuilt.</em></h2>
+  <p class="section-body" style="margin-bottom:48px;">This is the kind of structural failure that appears in Day 1 onboarding emails. Same product. Same user. Different architecture.</p>
+
+  <div class="breakdown-grid" style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;border:1px solid var(--border);">
+    <div style="padding:36px;border-right:1px solid var(--border);">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--noise);opacity:0.8;margin-bottom:20px;">Day 1 Email — Original · Score: 2/7</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Subject:</div>
+      <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:20px;line-height:1.5;font-style:italic;">"Welcome to [Product] — let's get you started"</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Hook:</div>
+      <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-bottom:20px;line-height:1.6;font-style:italic;">"Thanks for signing up. Here's how to set up your account. Step 1: Connect your data. Step 2: Invite your team. Step 3: Explore the dashboard."</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Failure patterns:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);opacity:0.8;">→ Filing Label Subject</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);opacity:0.8;">→ Feature-First Bias</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);opacity:0.8;">→ No consequence named</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);opacity:0.8;">→ Guest Language CTA</div>
+      </div>
+    </div>
+    <div class="breakdown-arrow" style="display:flex;align-items:center;justify-content:center;padding:0 20px;flex-shrink:0;">
+      <div style="font-family:'DM Mono',monospace;font-size:20px;color:var(--signal);">→</div>
+    </div>
+    <div style="padding:36px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:20px;">Day 1 Email — Rebuilt · Score: 7/7</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Subject:</div>
+      <div style="font-size:15px;color:var(--white);margin-bottom:20px;line-height:1.5;font-weight:500;">"Your first report is 3 steps away"</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Hook:</div>
+      <div style="font-size:15px;color:var(--white);margin-bottom:20px;line-height:1.6;">"Most teams spend their first week in [Product] setting up the same three things. Here is exactly what they do — in order — and what changes when they finish."</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);margin-bottom:6px;">Architecture fixes:</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Consequence-first subject</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Social proof in line 1</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Outcome named before steps</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Ownership CTA</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:16px;text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);letter-spacing:0.06em;">This is one email. A full activation audit covers your entire sequence — Day 1 through Day 14.</div>
+
+<!-- EVIDENCE LAYER -->
+<div style="margin-top:32px;border:1px solid var(--border);padding:32px;background:rgba(0,212,200,0.01);">
+  <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mid);margin-bottom:20px;">From the teardown portfolio — 57 sequences audited</div>
+  <div class="evidence-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+    <a href="https://strategicflow.tech/teardowns.html" target="_blank" style="border:1px solid var(--border);padding:20px;text-decoration:none;transition:border-color .2s;display:block;" onmouseover="this.style.borderColor='rgba(74,143,231,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);opacity:0.8;margin-bottom:8px;">2/7 → 7/7</div>
+      <div style="font-size:14px;color:var(--white);margin-bottom:6px;font-weight:500;">SaaS Product Update</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.5;">Filing Label Subject + Feature-First Bias + Guest Language CTA</div>
+    </a>
+    <a href="https://strategicflow.tech/teardowns.html" target="_blank" style="border:1px solid var(--border);padding:20px;text-decoration:none;transition:border-color .2s;display:block;" onmouseover="this.style.borderColor='rgba(74,143,231,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);opacity:0.8;margin-bottom:8px;">3/7 → 6/7</div>
+      <div style="font-size:14px;color:var(--white);margin-bottom:6px;font-weight:500;">Onboarding Sequence Day 1–7</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.5;">Consequence-After-Caveat + Zero Social Proof + Missing Hierarchy</div>
+    </a>
+    <a href="https://strategicflow.tech/teardowns.html" target="_blank" style="border:1px solid var(--border);padding:20px;text-decoration:none;transition:border-color .2s;display:block;" onmouseover="this.style.borderColor='rgba(74,143,231,0.4)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);opacity:0.8;margin-bottom:8px;">3/7 → 7/7</div>
+      <div style="font-size:14px;color:var(--white);margin-bottom:6px;font-weight:500;">Trial Expiry Email</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.5;">Generic Urgency Theatre + Buried Proof + Feature-First Bias</div>
+    </a>
+  </div>
+  <div style="margin-top:16px;text-align:right;">
+    <a href="https://strategicflow.tech/teardowns.html" target="_blank" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);text-decoration:none;letter-spacing:0.06em;">View all 57 teardowns →</a>
+  </div>
+</div>
+
+</section>
+
+<section id="problem">
+  <div class="section-label">The Problem</div>
+  <h2 class="section-title">Your onboarding was written by the wrong people, for <em>the wrong goal.</em></h2>
+  <p class="section-body">Product teams write about features. <strong>Users activate because of consequences.</strong> The gap between those two things is where your trial-to-paid conversion lives — and dies.</p>
+  <div class="problem-grid">
+    <div class="problem-cell">
+      <div class="cell-tag noise">Failure Pattern 01</div>
+      <div class="cell-title">Feature-First Bias</div>
+      <div class="cell-body">Day 1 email explains what the product does. <strong>It never names what changes for the user after they complete setup.</strong> The reader finishes knowing more about your product and still having no reason to log back in.</div>
+    </div>
+    <div class="problem-cell">
+      <div class="cell-tag noise">Failure Pattern 02</div>
+      <div class="cell-title">The Activation Gap</div>
+      <div class="cell-body">There is always a moment between "user signed up" and "user got value." <strong>Most sequences skip the email that bridges that gap.</strong> Nobody wrote it. Nobody noticed it was missing. The user dropped off silently.</div>
+    </div>
+    <div class="problem-cell">
+      <div class="cell-tag noise">Failure Pattern 03</div>
+      <div class="cell-title">CTA Fatigue Across Channels</div>
+      <div class="cell-body">Email: "Start your setup." In-app: "Set up your account." Day 3: "Complete your onboarding." <strong>Three messages. Same verb. Zero progression.</strong> The reader learned to ignore all of them.</div>
+    </div>
+    <div class="problem-cell">
+      <div class="cell-tag noise">Failure Pattern 04</div>
+      <div class="cell-title">No Consequence Named</div>
+      <div class="cell-body">The entire sequence describes actions. <strong>None of them name what happens if the user doesn't act.</strong> No stakes. No urgency. No reason today is different from tomorrow.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="engine-section" id="deliverables">
+  <div class="section-label">What We Deliver</div>
+  <h2 class="section-title">One hero deliverable.<br><em>Seven supporting components.</em></h2>
+  <p class="section-body">Every deliverable is ready to implement. Subject lines, preview text, email body, in-app copy — rebuilt using the Strategic Flow Method and delivered as HTML ready to paste into any ESP.</p>
+
+  <div style="margin-top:48px;border:1px solid rgba(74,143,231,0.35);background:rgba(74,143,231,0.04);padding:40px;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--signal);"></div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--signal);margin-bottom:16px;">Hero Deliverable</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--white);margin-bottom:12px;line-height:1.1;">Activation Gap Report™</div>
+    <div style="font-size:16px;color:#c8cdd8;line-height:1.75;max-width:600px;margin-bottom:24px;">Full diagnostic of your first 7–14 days. Every gap named, every failure pattern flagged, severity rated <strong style="color:var(--white)">CRITICAL / MAJOR / MINOR</strong>. Includes a Failure Pattern Heatmap — one visual showing where problems concentrate, ready to present to leadership.</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Delivered Day 2</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Presented as interactive report</div>
+      <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);">✓ Ready to share with leadership</div>
+    </div>
+  </div>
+  <div style="margin-top:4px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);padding:16px 0;">Supporting deliverables included with every audit</div>
+
+  <!-- GROUP: DIAGNOSIS -->
+  <div style="margin-top:12px;margin-bottom:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);padding:12px 0;border-bottom:1px solid rgba(74,143,231,0.2);">Diagnosis</div>
+  <div class="deliverables-grid" style="margin-top:8px;">
+    <div class="deliverable-card">
+      <div class="d-num">D1</div>
+      <div class="d-title">Activation Benchmark Report</div>
+      <div class="d-body">Your sequence scored against 3 direct competitors from the same category. Named companies, real emails audited, score comparison per failure pattern. Shows exactly where you lead and where you are losing ground.</div>
+    </div>
+    <div class="deliverable-card">
+      <div class="d-num">D2</div>
+      <div class="d-title">User Psychology Map</div>
+      <div class="d-body">For every day in the sequence: what the user is thinking, what friction they are experiencing, what objection they are carrying. Not what your product does — what passes through their mind before they decide to act or abandon.</div>
+    </div>
+  </div>
+
+  <!-- GROUP: REBUILD -->
+  <div style="margin-top:24px;margin-bottom:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);padding:12px 0;border-bottom:1px solid rgba(74,143,231,0.2);">Rebuild</div>
+  <div class="deliverables-grid" style="margin-top:8px;">
+    <div class="deliverable-card">
+      <div class="d-num">R1</div>
+      <div class="d-title">Email Sequence Rebuild</div>
+      <div class="d-body">Every email in your onboarding flow rewritten consequence-first. Subject line, preview text, body, CTA — rebuilt HTML ready to paste. Includes 5 A/B subject line variants per email with benchmark-ranked performance estimate per variant.</div>
+    </div>
+    <div class="deliverable-card">
+      <div class="d-num">R2</div>
+      <div class="d-title">Day 1 / Day 3 / Day 7 Rebuild</div>
+      <div class="d-body">The three most critical activation moments rebuilt from scratch around what changes for the user at that specific day. The three emails most responsible for trial-to-paid.</div>
+    </div>
+    <div class="deliverable-card">
+      <div class="d-num">R3</div>
+      <div class="d-title">Subject Line Lab</div>
+      <div class="d-body">5 A/B variants for every email in the sequence. Each variant tagged by angle: curiosity gap, consequence-first, or social proof. Benchmark-ranked performance estimate per variant based on 59+ audited sequences.</div>
+    </div>
+    <div class="deliverable-card">
+      <div class="d-num">R4</div>
+      <div class="d-title">In-App Message Audit</div>
+      <div class="d-body">Tooltips, empty states, onboarding modals — audited against the same 7 failure criteria as your emails. Delivered as a structured document your product team can implement directly. No engineering briefing required.</div>
+    </div>
+  </div>
+
+  <!-- GROUP: STRATEGY -->
+  <div style="margin-top:24px;margin-bottom:4px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);padding:12px 0;border-bottom:1px solid rgba(74,143,231,0.2);">Strategy</div>
+  <div class="deliverables-grid" style="margin-top:8px;">
+    <div class="deliverable-card">
+      <div class="d-num">S1</div>
+      <div class="d-title">30-Day Activation Playbook</div>
+      <div class="d-body">Strategic document: which email sends when, in what order, with what goal per activation stage. Not copy — the architecture of the system. The document your team uses to onboard new lifecycle managers without losing institutional knowledge.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="timeline-section" id="how">
+  <div class="section-label">How It Works</div>
+  <h2 class="section-title">From broken sequence to <em>a rebuilt system.</em></h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot">D1</div>
+      <div>
+        <div class="t-day">Day 1 — Input</div>
+        <div class="t-title">You upload the sequence</div>
+        <div class="t-body">Upload your full onboarding sequence — emails, in-app messages, or both. Plain text, HTML, or CSV. We map the complete activation journey from signup to first value moment.</div>
+        <span class="t-tag">No integration required · Paste or upload</span>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot">D2</div>
+      <div>
+        <div class="t-day">Day 2 — Diagnosis</div>
+        <div class="t-title">Activation Gap Report + Psychology Map</div>
+        <div class="t-body">Every failure pattern identified. Every gap mapped. User Psychology Map delivered per email. Competitor benchmark completed. You see exactly what is broken, why it is broken, and how competitors compare.</div>
+        <span class="t-tag">Delivered as interactive report</span>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot">D5</div>
+      <div>
+        <div class="t-day">Day 5 — Full Delivery</div>
+        <div class="t-title">Rebuilt sequence + all deliverables</div>
+        <div class="t-body">All 8 deliverables complete. HTML ready to paste. Subject Line Lab variants ready to A/B test. 30-Day Playbook ready to hand to the team. One round of revisions included.</div>
+        <span class="t-tag ok">Ready to deploy · No engineering involvement</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- COMPARE TABLE -->
+<section class="compare-section">
+  <div class="section-label">What You Get</div>
+  <h2 class="section-title">Everything a senior lifecycle consultant delivers. <em>None of the overhead.</em></h2>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th style="width:40%;">Deliverable</th>
+        <th class="signal">One-Time $3,500</th>
+        <th class="signal">Retainer $1,500/mo · 3-day free trial</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Activation Gap Report</td><td><span class="check">✓</span></td><td><span class="check">✓ Monthly</span></td></tr>
+      <tr><td>Email sequence rebuild (up to 10 emails)</td><td><span class="check">✓</span></td><td><span class="check">✓ Ongoing</span></td></tr>
+      <tr><td>In-app message audit</td><td><span class="check">✓</span></td><td><span class="check">✓ Ongoing</span></td></tr>
+      <tr><td>Day 1 / Day 3 / Day 7 rebuild</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>User Psychology Map per email</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>Activation Benchmark (3 competitors)</td><td><span class="check">✓</span></td><td><span class="check">✓ Quarterly refresh</span></td></tr>
+      <tr><td>Subject Line Lab — 5 A/B variants per email</td><td><span class="check">✓</span></td><td><span class="check">✓ Every new email</span></td></tr>
+      <tr><td>30-Day Activation Playbook</td><td><span class="check">✓</span></td><td><span class="check">✓ Updated monthly</span></td></tr>
+      <tr><td>Failure Pattern Heatmap</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>One round of revisions</td><td><span class="check">✓</span></td><td><span class="check">✓ Unlimited</span></td></tr>
+      <tr><td>New email rebuilds within 48 hours</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>Weekly Activation Score</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>New user cohort drop-off alerts</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>Slack access — 4-hour response</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>Quarterly full re-audit</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+      <tr><td>Monthly Activation Score Report</td><td><span class="cross">—</span></td><td><span class="check">✓</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="divider"></div>
+
+<div class="divider"></div>
+
+<section id="try-it">
+  <div class="section-label">Try It Yourself</div>
+  <h2 class="section-title">See the diagnosis on your own sequence. <em>In 90 seconds.</em></h2>
+  <p class="section-body" style="margin-bottom:40px;">Paste any onboarding email sequence — minimum 3 emails — and get a full activation diagnostic instantly. No brief, no onboarding call, no wait.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:48px;" class="steps-grid">
+    <div style="border:1px solid var(--border);padding:28px;position:relative;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:12px;">Step 1</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--white);margin-bottom:8px;">Create your account</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.7;">Enter your email at the platform. We send a magic link. No password. No form. Click and you are in.</div>
+    </div>
+    <div style="border:1px solid var(--border);padding:28px;position:relative;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:12px;">Step 2</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--white);margin-bottom:8px;">Paste your sequence</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.7;">Paste your onboarding emails separated by --- (three dashes). Add subject line and body for each. Minimum 3 emails.</div>
+    </div>
+    <div style="border:1px solid var(--border);padding:28px;position:relative;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:12px;">Step 3</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--white);margin-bottom:8px;">Get the diagnosis</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.7;">Results in 30–60 seconds. Health score, gaps, failure patterns, rebuilt emails, psychology map, subject line variants, benchmark.</div>
+    </div>
+  </div>
+
+  <div style="border:1px solid rgba(74,143,231,0.35);background:rgba(74,143,231,0.04);padding:36px;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:var(--signal);"></div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:12px;">NEW · Free Trial</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--white);margin-bottom:12px;line-height:1.2;">Try the platform free for 3 days.<br>No charge until the trial ends.</div>
+    <div style="font-size:14px;color:var(--mid);line-height:1.7;margin-bottom:28px;max-width:520px;">Start the retainer and get full access to the Activation Intelligence platform — all analysis tools, downloads, share links, and rebuilt emails. Cancel anytime before day 3 and you pay nothing.</div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <a href="https://buy.stripe.com/8x2dR917y4Bb55b6ld7wA0c" class="btn-primary" style="font-size:13px;">Start 3-day free trial →</a>
+      <a href="https://strategic-flow-activation.replit.app/login.html" target="_blank" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);text-decoration:none;border-bottom:1px solid rgba(0,212,200,0.3);padding-bottom:2px;">Already have access? Log in →</a>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);margin-top:16px;letter-spacing:0.06em;">No charge for 3 days · Cancel anytime · alex@strategicflow.tech</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+
+<div class="divider"></div>
+
+<section>
+  <div class="section-label">Best Fit</div>
+  <h2 class="section-title">This is built for<br><em>a specific team.</em></h2>
+  <p class="section-body">Not every SaaS needs an activation audit. The ROI is clearest for teams that match this profile.</p>
+  <div class="bestfit-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:48px;">
+    <div style="background:rgba(74,143,231,0.04);border:1px solid rgba(74,143,231,0.25);padding:32px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--signal);margin-bottom:20px;">✓ Strong fit</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>SaaS with a free trial or freemium model
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>Active onboarding email sequence (3+ emails)
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>Sending 10,000+ emails per month
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>Lifecycle team of 1–5 people
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>Trial-to-paid conversion below 25%
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--white);">
+          <span style="color:var(--signal);flex-shrink:0;">✓</span>Buyer: VP Product, Head of Lifecycle, CMO
+        </div>
+      </div>
+    </div>
+    <div style="background:rgba(255,77,46,0.02);border:1px solid rgba(255,77,46,0.15);padding:32px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--noise);opacity:0.7;margin-bottom:20px;">— Not a strong fit</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--mid);">
+          <span style="color:var(--noise);opacity:0.6;flex-shrink:0;">—</span>No email sequence yet
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--mid);">
+          <span style="color:var(--noise);opacity:0.6;flex-shrink:0;">—</span>Ecommerce or DTC (different failure patterns)
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--mid);">
+          <span style="color:var(--noise);opacity:0.6;flex-shrink:0;">—</span>Sales-led only, no self-serve motion
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--mid);">
+          <span style="color:var(--noise);opacity:0.6;flex-shrink:0;">—</span>Looking for design or template work
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;font-size:15px;color:var(--mid);">
+          <span style="color:var(--noise);opacity:0.6;flex-shrink:0;">—</span>Pre-product / pre-launch stage
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing-section" id="pricing">
+  <div class="section-label">Pricing</div>
+  <h2 class="section-title">One diagnosis.<br><em>Two engagement models.</em></h2>
+  <p class="section-body">The <strong style="color:var(--white)">Activation Audit</strong> is a fixed-scope project: buy it once, own everything. The <strong style="color:var(--white)">Activation Intelligence</strong> retainer keeps the system running as your sequence evolves. Same diagnostic framework — different coverage horizon.</p>
+
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="price-type">One-Time</div>
+      <div class="price-name">Activation Audit</div>
+      <div class="price-amount">$3,500</div>
+      <div class="price-period">one-time · full delivery included</div>
+      <div class="price-section-label">Core Deliverables</div>
+      <ul class="price-features">
+        <li class="highlight">Activation Gap Report + Heatmap</li>
+        <li class="highlight">Full email sequence rebuild (up to 10)</li>
+        <li class="highlight">Day 1 / Day 3 / Day 7 rebuild</li>
+        <li class="highlight">User Psychology Map per email</li>
+        <li class="highlight">Activation Benchmark — 3 competitors</li>
+        <li class="highlight">Subject Line Lab — 5 A/B variants per email</li>
+        <li class="highlight">30-Day Activation Playbook</li>
+        <li class="highlight">In-app message audit</li>
+        <li>HTML ready to paste in any ESP</li>
+        <li>One round of revisions</li>
+      </ul>
+      <a href="https://buy.stripe.com/5kQ9AT6rS2t38hn4d57wA0b" class="price-btn outline">Start the audit →</a>
+    <p style="font-size:12px;color:rgba(255,255,255,0.35);font-family:'DM Mono',monospace;margin:14px 0 0;text-align:center;">Not sure if this fits? <a href="https://strategic-flow-audit.replit.app/demo.html" style="color:var(--teal);text-decoration:none;" target="_blank">Run the free single-email audit first →</a></p>
+    </div>
+
+    <div class="price-card featured">
+      <div class="price-type">Monthly Retainer</div>
+      <div class="price-name">Activation Intelligence</div>
+      <div class="price-amount">$1,500</div>
+      <div class="price-period">per month · cancel anytime</div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(29,158,117,0.12);border:1px solid rgba(29,158,117,0.3);color:#1D9E75;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;margin-bottom:16px;">✓ 3-day free trial included</div>
+      <div class="price-section-label">Everything in One-Time, plus</div>
+      <ul class="price-features">
+        <li class="highlight">New email rebuilds within 48 hours</li>
+        <li class="highlight">Weekly Activation Score</li>
+        <li class="highlight">New user cohort drop-off alerts</li>
+        <li class="highlight">Slack access — 4-hour response</li>
+        <li class="highlight">Quarterly full re-audit</li>
+        <li class="highlight">Monthly Activation Score Report</li>
+        <li class="highlight">30-Day Playbook updated monthly</li>
+        <li>Benchmark quarterly refresh</li>
+        <li>Unlimited revisions</li>
+        <li>Direct email access</li>
+      </ul>
+      <a href="https://buy.stripe.com/8x2dR917y4Bb55b6ld7wA0c" class="price-btn filled">Start free trial →</a>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="roi">
+  <div class="section-label">The Numbers</div>
+  <h2 class="section-title">What one activation gap fix is worth <em>at your scale.</em></h2>
+  <div class="roi-box">
+    <div class="roi-scenario">What we can say with confidence — based on 59+ audited sequences</div>
+    <div class="roi-row"><span class="roi-label">Critical activation gaps found</span><span class="roi-value accent">Every sequence audited contained at least one</span></div>
+    <div class="roi-row"><span class="roi-label">Most common failure</span><span class="roi-value">Feature-First Bias in Day 1 email — present in 83% of sequences</span></div>
+    <div class="roi-row"><span class="roi-label">Average score before rebuild</span><span class="roi-value">3.4 / 7 across all audited emails</span></div>
+    <div class="roi-row"><span class="roi-label">Average score after rebuild</span><span class="roi-value accent">6–7 / 7 — same product, different architecture</span></div>
+    <div class="roi-row"><span class="roi-label">Cost of the audit</span><span class="roi-value">$3,500 one-time</span></div>
+    <div class="roi-conclusion">Every sequence has gaps. The question is whether yours are named — or still costing you activations every day. <em>The audit answers that in 5 days.</em></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="cta-section">
+  <div class="cta-inner">
+    <div class="section-label" style="text-align:center;">Ready</div>
+    <h2 class="cta-title">Your users are deciding<br>in the first 7 days.<br><em>So are you.</em></h2>
+    <p class="cta-body">Get the full Activation Gap Report™ — every failure pattern named, every gap flagged, rebuilt HTML delivered in 5 days. Or start the retainer for ongoing coverage.</p>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
+      <a href="https://buy.stripe.com/5kQ9AT6rS2t38hn4d57wA0b" class="btn-primary">Get the Activation Audit — $3,500 →</a>
+      <a href="https://buy.stripe.com/8x2dR917y4Bb55b6ld7wA0c" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--mid);text-decoration:none;border-bottom:1px solid var(--border);padding-bottom:2px;">Or start the retainer — $1,500/mo →</a>
+    </div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.35);font-family:'DM Mono',monospace;margin:14px 0 0;text-align:center;">Not sure if this fits? <a href="https://strategic-flow-audit.replit.app/demo.html" style="color:var(--teal);text-decoration:none;" target="_blank">Run the free single-email audit first →</a></p>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);margin-top:16px;letter-spacing:0.04em;">No charge for 3 days · Cancel anytime · Full access from day one</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);margin-top:24px;letter-spacing:0.06em;">alex@strategicflow.tech · Strategic Flow · Tenerife, Spain</div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-brand">Strategic<span>Flow</span> · Activation Intelligence · NEW · © 2026</div>
+  <div class="footer-links">
+    <a href="https://strategicflow.tech/teardowns.html">Showcase</a>
+    <a href="https://strategicflow.tech">Hub</a>
+    <a href="https://strategicflow.tech/architecture.html">Architecture</a>
+    <a href="https://strategicflow.tech/glossary.html">Glossary</a>
+    <a href="https://strategic-flow-audit.replit.app/guide.html" target="_blank">Guide</a>
+    <a href="mailto:alex@strategicflow.tech">Contact</a>
+  </div>
+</footer>
+
+<style>
+#sf-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #0a1628 0%, #0f2035 50%, #0a1628 100%);
+  border-top: 1px solid rgba(29, 158, 117, 0.3);
+  box-shadow: 0 -4px 24px rgba(29, 158, 117, 0.12);
+  z-index: 9999;
+  display: none;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+#sf-sticky-bar.visible {
+  display: flex;
+  transform: translateY(0);
+}
+.sf-bar-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  gap: 16px;
+}
+.sf-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.sf-badge {
+  background: rgba(29, 158, 117, 0.15);
+  color: #1D9E75;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(29, 158, 117, 0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.sf-affiliate-tag {
+  background: rgba(74, 143, 231, 0.1);
+  color: #00d4c8;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(74, 143, 231, 0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.sf-text {
+  color: #e8e8e8;
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sf-text strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+.sf-cta {
+  background: #1D9E75;
+  color: #ffffff;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 16px rgba(29, 158, 117, 0.25);
+}
+.sf-cta:hover {
+  background: #178a63;
+  box-shadow: 0 0 24px rgba(29, 158, 117, 0.4);
+}
+.sf-cta-arrow {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+.sf-cta:hover .sf-cta-arrow {
+  transform: translateX(2px);
+}
+.sf-close {
+  color: #555;
+  font-size: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+.sf-close:hover { color: #999; }
+
+@media (max-width: 768px) {
+  .sf-bar-inner {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 8px;
+    align-items: center;
+  }
+  .sf-bar-left {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+  }
+  .sf-text { display: none; }
+  .sf-cta {
+    order: 10;
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+  }
+  .sf-close {
+    flex-shrink: 0;
+    padding: 4px 6px;
+  }
+}
+
+#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#09111e;border-top:1px solid rgba(255,255,255,0.08);padding:18px 48px;display:none;}
+#cookie-banner.visible{display:flex;}
+.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+.cookie-text{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:680px;}
+.cookie-text a{color:#00e5a0;text-decoration:underline;}
+.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+.cookie-btn{font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);transition:all .2s;}
+.cookie-btn:hover{border-color:#00e5a0;color:#00e5a0;}
+.cookie-btn.accept{background:#00e5a0;color:#07090f;border-color:#00e5a0;}
+.cookie-btn.accept:hover{background:#00c88a;}
+@media(max-width:640px){#cookie-banner{padding:16px 18px;}.cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}.cookie-actions{justify-content:flex-end;}}
+</style>
+
+<div id="sf-sticky-bar">
+  <div class="sf-bar-inner">
+    <div class="sf-bar-left">
+      <span class="sf-affiliate-tag">affiliate</span>
+      <span class="sf-badge" id="sf-badge-text"></span>
+      <span class="sf-text" id="sf-main-text"></span>
+    </div>
+    <a class="sf-cta" href="https://strategic-flow-pro.replit.app/affiliates/" id="sf-cta-btn" target="_blank">
+      <span id="sf-cta-text"></span>
+      <span class="sf-cta-arrow">→</span>
+    </a>
+    <button class="sf-close" id="sf-close-btn">✕</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  if (sessionStorage.getItem('sf-bar-closed')) return;
+
+  var bar = document.getElementById('sf-sticky-bar');
+  var badge = document.getElementById('sf-badge-text');
+  var text = document.getElementById('sf-main-text');
+  var ctaText = document.getElementById('sf-cta-text');
+  var type = document.body.getAttribute('data-sf-bar') || 'services';
+
+  if (type === 'content') {
+    badge.textContent = '10 spots · 40% locked';
+    text.innerHTML = 'Know a SaaS team with broken emails? <strong>Earn $199–$1,000/mo per referral.</strong>';
+    ctaText.textContent = 'Join Affiliate Program';
+  } else {
+    badge.textContent = 'First 10 spots · 40% forever';
+    text.innerHTML = 'Refer once. <strong>Get paid every month they stay subscribed.</strong>';
+    ctaText.textContent = 'See How It Works';
+  }
+
+  var shown = false;
+  function showBar() {
+    if (shown) return;
+    shown = true;
+    bar.style.display = 'flex';
+    setTimeout(function() { bar.classList.add('visible'); }, 50);
+  }
+
+  setTimeout(showBar, 15000);
+
+  window.addEventListener('scroll', function() {
+    var scrollPct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    if (scrollPct >= 0.4) showBar();
+  }, { passive: true });
+
+  document.getElementById('sf-close-btn').addEventListener('click', function() {
+    bar.classList.remove('visible');
+    setTimeout(function() { bar.style.display = 'none'; }, 350);
+    sessionStorage.setItem('sf-bar-closed', '1');
+  });
+})();
+</script>
+<!-- COOKIE CONSENT BANNER -->
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">This site uses cookies for analytics (Google Analytics). We don't sell or share your data. See our <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> for details.</div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY='sf_consent',stored=localStorage.getItem(KEY),banner=document.getElementById('cookie-banner');
+  function grant(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}
+  if(stored==='granted'){grant();}else if(stored!=='denied'){banner.classList.add('visible');}
+  document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(KEY,'granted');grant();banner.classList.remove('visible');});
+  document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(KEY,'denied');banner.classList.remove('visible');});
+})();
+</script>
+</body>
+</html>

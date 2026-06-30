@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The SaaS Email Architecture Study: 59 Emails Audited — Strategic Flow</title>
+<meta name="description" content="Original research: 59 SaaS emails audited across 8 verticals. 6 structural failure patterns identified. Average score lift 3→9. Filing Label Subject, Feature-First Bias, Guest Language CTA, and 3 more failure patterns that kill SaaS email conversion."/>
+<meta name="keywords" content="SaaS email audit research, email architecture study, SaaS email conversion research, email teardown data, Feature-First Bias, Filing Label Subject, Guest Language CTA, SaaS email failure patterns, email open rate research, email click rate research, B2B email conversion study, SaaS email benchmark, email architecture audit, email conversion optimization SaaS, onboarding email audit, product update email conversion, email subject line research, CTA language research, social proof email placement, email visual hierarchy, email conversion data, strategic flow research, SaaS email teardown study, behavioral email architecture"/>
+<meta name="author" content="Alex Iliescu — Strategic Flow"/>
+<link rel="canonical" href="https://strategicflow.tech/saas-email-architecture-study.html"/>
+<meta property="og:title" content="The SaaS Email Architecture Study: 59 Emails Audited — Strategic Flow"/>
+<meta property="og:description" content="59 SaaS emails. 6 failure patterns. Every email scored 1-10 across 7 diagnostic points. The structural failures that kill conversion — data from Notion, Figma, Revolut, Wiz, Ahrefs, and 49 others."/>
+<meta property="og:type" content="article"/>
+<meta property="og:url" content="https://strategicflow.tech/saas-email-architecture-study.html"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="The SaaS Email Architecture Study: 59 Emails Audited"/>
+<meta name="twitter:description" content="59 SaaS emails audited. 6 failure patterns. Average score lift 3→9. Original research from Strategic Flow."/>
+<meta name="robots" content="index, follow"/>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "headline": "The SaaS Email Architecture Study: 59 Emails Audited, 6 Failure Patterns Found",
+  "description": "Original research analyzing 59 SaaS emails across 8 verticals using the Strategic Flow 7-point behavioral diagnostic framework. Six structural failure patterns identified with frequency data. Average score lift from 3/10 to 9/10.",
+  "author": {
+    "@type": "Person",
+    "name": "Alex Iliescu",
+    "jobTitle": "Founder",
+    "worksFor": { "@type": "Organization", "name": "Strategic Flow" },
+    "sameAs": "https://www.linkedin.com/in/strategic-flow-tech"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Strategic Flow",
+    "url": "https://strategicflow.tech"
+  },
+  "datePublished": "2026-06-07",
+  "dateModified": "2026-06-07",
+  "url": "https://strategicflow.tech/saas-email-architecture-study.html",
+  "about": [
+    { "@type": "Thing", "name": "SaaS email marketing" },
+    { "@type": "Thing", "name": "Email architecture audit" },
+    { "@type": "Thing", "name": "Email conversion optimization" },
+    { "@type": "Thing", "name": "B2B email marketing" }
+  ],
+  "keywords": "SaaS email audit, email architecture, email conversion, Feature-First Bias, Filing Label Subject, Guest Language CTA, email teardown, email failure patterns",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://strategicflow.tech/saas-email-architecture-study.html"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "Strategic Flow SaaS Email Architecture Study — 59 Teardowns",
+  "description": "Dataset of 59 SaaS email audits scored across 7 diagnostic checkpoints. Includes failure pattern frequency, score distribution, vertical breakdown, and before/after conversion scores.",
+  "creator": {
+    "@type": "Person",
+    "name": "Alex Iliescu",
+    "sameAs": "https://www.linkedin.com/in/strategic-flow-tech"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Strategic Flow",
+    "url": "https://strategicflow.tech"
+  },
+  "datePublished": "2026-06-07",
+  "license": "https://strategicflow.tech",
+  "url": "https://strategicflow.tech/saas-email-architecture-study.html",
+  "variableMeasured": [
+    "Email conversion score (1-10)",
+    "Subject line failure rate",
+    "CTA language failure rate",
+    "Social proof placement failure rate",
+    "Visual hierarchy failure rate",
+    "Feature-First Bias frequency",
+    "Score lift after architectural rebuild"
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What failure patterns appear most often in SaaS emails?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on 59 SaaS email audits by Strategic Flow: (1) Filing Label Subject — 83% fail rate. Subject announces the topic instead of the reader consequence. (2) Guest Language CTA — 96% fail rate. CTA uses 'Learn more' or 'Explore' instead of ownership language like 'Fix my reporting'. (3) Feature-First Bias — 83% fail rate. Email leads with product capabilities instead of reader outcomes. (4) Zero/Buried Social Proof — 69% fail rate. No third-party voice, stat, or result above the fold. (5) Missing Visual Hierarchy — 71% fail rate. All claims presented at equal visual weight. (6) Consequence-After-Caveat — 74% fail rate. Outcome buried behind context in the lead paragraph."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the average open rate improvement after an email architecture audit?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Strategic Flow predicts a 30% open rate lift on rebuilt subject lines based on the shift from Filing Label Subject to consequence-first construction. The average conversion score lifts from 3/10 to 9/10 across 59 audited emails. The score reflects structural architecture — subject line, lead construction, feature-to-outcome translation, visual hierarchy, social proof placement, before/after contrast, and CTA language."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What types of SaaS emails fail most often?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on 59 teardowns across 8 verticals: Product update emails have the highest fail rate on Feature-First Bias — they lead with what shipped, not what changed for the reader. Onboarding sequences fail most often on Consequence-After-Caveat — each step explains the process without naming what it unlocks. Newsletter emails fail most on Missing Visual Hierarchy — every section receives equal weight with no primary signal. Trial expiry emails fail on Guest Language CTA — 'Upgrade now' instead of 'Keep my access'. All types share Filing Label Subject as the most common failure."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which SaaS companies were included in the email architecture study?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The 59-email study includes audits of Notion, Figma, Atlassian, Uber, Revolut, Zapier, Booking.com, ElevenLabs, Wiz, Perplexity, Ahrefs, Semrush, Zoho, Wrike, Medallia, Optimizely, HeyGen, dbt Labs, Userpilot, Neon, Cato Networks, Landbot, Lokalise, Gamma, Seamless.AI, Qonto, Spreedly, Tuum, ReversingLabs, SplitMetrics, Tresorit, SEOmonitor, EasyLlama, and 20 others. Company size ranges from seed-stage to $10B+ ARR. Architecture problems appear with consistent frequency regardless of company size."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Feature-First Bias and how common is it in SaaS emails?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Feature-First Bias is a structural failure pattern where a SaaS email leads with what the product does instead of what the reader gains. It appears in over 83% of SaaS emails in the Strategic Flow study. The fix: state the reader outcome first, then name the feature. 'Your reporting just got 3 hours faster' instead of 'New: Advanced Reporting Dashboard'. Same product. Different architecture. One converts."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is a Guest Language CTA and why does it reduce email click rates?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Guest Language CTA places the reader outside the action: 'Learn more', 'See features', 'Explore now', 'Discover how'. The reader is a spectator of the brand's offer. Ownership language places the reader inside the action: 'Fix my reporting', 'Get my audit', 'Start my trial'. Guest Language CTA has the highest fail rate of all 7 diagnostic checks — 96% of 59 SaaS emails audited by Strategic Flow use guest language as the primary CTA."
+      }
+    }
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a1628;
+  --card:#0f2035;
+  --card2:#122440;
+  --border:#1a3050;
+  --border2:#1a3050;
+  --white:#ffffff;
+  --mid:#7a9ab8;
+  --signal:#00d4c8;
+  --signal-dim:rgba(0,212,200,0.08);
+  --signal-border:rgba(0,212,200,0.25);
+  --green:#1D9E75;
+  --green-dim:rgba(29,158,117,0.1);
+  --green-border:rgba(29,158,117,0.3);
+  --red:#E0542A;
+  --red-dim:rgba(224,84,42,0.08);
+  --amber:#E8A020;
+  --amber-dim:rgba(232,160,32,0.08);
+}
+html,body{background:var(--bg);color:var(--white);font-family:'Figtree',sans-serif;line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased;}
+body{padding:0;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(10,22,40,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--signal);text-decoration:none;}
+.nav-links{display:flex;gap:20px;list-style:none;}
+.nav-links a{font-size:12px;color:var(--mid);text-decoration:none;font-family:'DM Mono',monospace;letter-spacing:0.06em;}
+.nav-links a:hover{color:var(--white);}
+
+/* HERO */
+.hero{max-width:720px;margin:0 auto;padding:64px 24px 48px;}
+.study-badge{display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--signal);border:1px solid var(--signal-border);padding:5px 14px;margin-bottom:28px;}
+.hero-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mid);margin-bottom:16px;}
+h1{font-family:'DM Serif Display',serif;font-size:clamp(32px,5vw,52px);line-height:1.1;color:var(--white);margin-bottom:24px;}
+h1 em{font-style:italic;color:var(--signal);}
+.hero-lead{font-size:18px;color:var(--mid);line-height:1.75;max-width:600px;margin-bottom:36px;}
+.hero-meta{display:flex;flex-wrap:wrap;gap:24px;padding-top:24px;border-top:1px solid var(--border);}
+.meta-item{font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);letter-spacing:0.06em;}
+.meta-item strong{color:var(--white);display:block;font-size:13px;margin-bottom:2px;}
+
+/* KEY STATS */
+.stats-section{max-width:720px;margin:0 auto;padding:0 24px 48px;}
+.stat-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:20px;}
+.stat-cell{background:var(--card);padding:20px 16px;text-align:center;}
+.stat-n{font-family:'DM Serif Display',serif;font-size:32px;color:var(--signal);line-height:1;margin-bottom:4px;}
+.stat-n.green{color:var(--green);}
+.stat-n.red{color:var(--red);}
+.stat-l{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);line-height:1.4;}
+
+/* SECTIONS */
+.section{max-width:720px;margin:0 auto;padding:0 24px 48px;}
+.section-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--signal);margin-bottom:12px;}
+h2{font-family:'DM Serif Display',serif;font-size:clamp(24px,3.5vw,36px);line-height:1.15;color:var(--white);margin-bottom:16px;}
+h2 em{font-style:italic;color:var(--green);}
+.section-lead{font-size:16px;color:var(--mid);line-height:1.75;margin-bottom:28px;}
+
+/* FAILURE PATTERNS */
+.pattern-list{display:flex;flex-direction:column;gap:2px;}
+.pattern-item{background:var(--card);border:1px solid var(--border);padding:22px 24px;}
+.pattern-item.tier1{border-left:3px solid var(--red);}
+.pattern-item.tier2{border-left:3px solid var(--amber);}
+.pattern-header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:8px;flex-wrap:wrap;}
+.pattern-name{font-size:16px;font-weight:600;color:var(--white);}
+.pattern-rate{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:var(--red);}
+.pattern-rate.amber{color:var(--amber);}
+.pattern-tier{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);margin-bottom:6px;}
+.pattern-desc{font-size:14px;color:var(--mid);line-height:1.7;margin-bottom:10px;}
+.pattern-fix{font-size:13px;color:var(--green);font-family:'DM Mono',monospace;line-height:1.6;}
+.pattern-fix::before{content:"FIX: ";opacity:0.6;}
+
+/* SCORE DISTRIBUTION */
+.score-bars{display:flex;flex-direction:column;gap:8px;margin-bottom:24px;}
+.score-bar-row{display:grid;grid-template-columns:60px 1fr 48px;gap:12px;align-items:center;}
+.score-bar-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);text-align:right;}
+.score-bar-track{background:rgba(255,255,255,0.05);height:8px;border-radius:0;}
+.score-bar-fill{height:100%;background:var(--signal);}
+.score-bar-fill.red{background:var(--red);}
+.score-bar-fill.amber{background:var(--amber);}
+.score-bar-fill.green{background:var(--green);}
+.score-bar-pct{font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);}
+
+/* VERTICAL BREAKDOWN */
+.vertical-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;}
+.vertical-card{background:var(--card);border:1px solid var(--border);padding:16px 18px;}
+.vertical-name{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.vertical-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--signal);margin-bottom:6px;}
+.vertical-finding{font-size:12px;color:var(--mid);line-height:1.6;}
+
+/* BEFORE AFTER */
+.ba-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+.ba-table th{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--mid);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);}
+.ba-table td{font-size:13px;padding:12px 16px;border-bottom:1px solid var(--border);color:var(--mid);vertical-align:top;}
+.ba-table tr:last-child td{border-bottom:none;}
+.ba-table td:first-child{font-weight:500;color:var(--white);width:28%;}
+.ba-table td.bad{color:var(--red);font-family:'DM Mono',monospace;font-size:12px;}
+.ba-table td.good{color:var(--green);font-family:'DM Mono',monospace;font-size:12px;}
+
+/* COMPANIES */
+.company-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+.company-tag{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.04em;padding:5px 12px;border:1px solid var(--border);color:var(--mid);}
+.company-tag.notable{border-color:var(--signal-border);color:var(--signal);}
+
+/* METHODOLOGY */
+.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;}
+.method-item{background:var(--card);border:1px solid var(--border);padding:16px;}
+.method-num{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--signal);margin-bottom:6px;}
+.method-name{font-size:13px;font-weight:600;color:var(--white);margin-bottom:4px;}
+.method-rate{font-family:'DM Mono',monospace;font-size:11px;color:var(--red);margin-bottom:4px;}
+.method-desc{font-size:12px;color:var(--mid);line-height:1.6;}
+
+/* FINDINGS TABLE */
+.findings-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
+.findings-table th{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--mid);padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--card);}
+.findings-table td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--mid);vertical-align:middle;}
+.findings-table tr:last-child td{border-bottom:none;}
+.findings-table td:first-child{color:var(--white);font-weight:500;}
+.findings-table .pct{font-family:'DM Mono',monospace;font-size:14px;color:var(--red);font-weight:500;}
+.findings-table .pts{font-family:'DM Mono',monospace;font-size:11px;color:var(--signal);}
+
+/* IMPLICATION */
+.implication-box{background:var(--card);border:1px solid var(--green-border);padding:24px;margin-bottom:12px;}
+.implication-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--green);margin-bottom:10px;}
+.implication-text{font-size:15px;color:var(--white);line-height:1.7;}
+
+/* CTA */
+.cta-section{background:var(--card);border-top:1px solid var(--border);padding:48px 24px;text-align:center;}
+.cta-inner{max-width:520px;margin:0 auto;}
+.cta-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--signal);margin-bottom:16px;}
+.cta-title{font-family:'DM Serif Display',serif;font-size:28px;color:var(--white);margin-bottom:12px;line-height:1.2;}
+.cta-sub{font-size:14px;color:var(--mid);margin-bottom:28px;line-height:1.7;}
+.cta-buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.cta-primary{background:var(--signal);color:#fff;padding:13px 28px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;font-weight:600;display:inline-block;}
+.cta-outline{border:1px solid var(--border2);color:var(--white);padding:13px 28px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;display:inline-block;}
+
+/* DIVIDER */
+.section-divider{max-width:720px;margin:0 auto 48px;padding:0 24px;}
+.section-divider hr{border:none;border-top:1px solid var(--border);}
+
+/* FOOTER */
+.page-footer{max-width:720px;margin:0 auto;padding:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--mid);border-top:1px solid var(--border);}
+.page-footer a{color:var(--signal);text-decoration:none;}
+
+@media(max-width:600px){
+  body{font-size:16px;}
+  .hero-lead{font-size:17px;}
+  .section-lead{font-size:15px;}
+  .pattern-desc{font-size:14px;}
+  .implication-text{font-size:15px;}
+  .vertical-finding{font-size:13px;}
+  .hero{padding:48px 16px 36px;}
+
+  .stat-grid-4{grid-template-columns:repeat(2,1fr);}
+  .vertical-grid{grid-template-columns:1fr;}
+  .method-grid{grid-template-columns:1fr;}
+  .cta-buttons{flex-direction:column;align-items:center;}
+  nav{padding:0 16px;}
+  .hero,.stats-section,.section,.section-divider{padding-left:16px;padding-right:16px;}
+}
+</style>
+</head>
+<body data-sf-bar="services">
+
+<nav>
+  <a href="https://strategicflow.tech" class="nav-logo">Strategic Flow</a>
+  <ul class="nav-links">
+    <li><a href="https://strategicflow.tech/teardowns.html">Teardowns</a></li>
+    <li><a href="https://strategicflow.tech/email-architecture-audit.html">Audit</a></li>
+    <li><a href="https://strategic-flow-audit.replit.app">Free Tool</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="study-badge">Original Research · 2026</div>
+  <div class="hero-label">SaaS Email Architecture Study</div>
+  <h1>59 SaaS emails audited.<br><em>6 failure patterns found.</em></h1>
+  <p class="hero-lead">We audited 59 SaaS emails from companies including Notion, Figma, Revolut, Wiz, Ahrefs, and 49 others. Every email scored 1-10 across 7 structural diagnostic points. Six failure patterns appear with consistent frequency — regardless of company size, vertical, or budget.</p>
+  <div class="hero-meta">
+    <div class="meta-item"><strong>59</strong>Emails audited</div>
+    <div class="meta-item"><strong>8</strong>Verticals covered</div>
+    <div class="meta-item"><strong>7</strong>Diagnostic checkpoints</div>
+    <div class="meta-item"><strong>3→9</strong>Avg score lift</div>
+    <div class="meta-item"><strong>Alex Iliescu</strong>Lead researcher</div>
+    <div class="meta-item"><strong>June 2026</strong>Published</div>
+  </div>
+</div>
+
+<!-- KEY NUMBERS -->
+<div class="stats-section">
+  <div class="stat-grid-4">
+    <div class="stat-cell">
+      <div class="stat-n red">96%</div>
+      <div class="stat-l">fail CTA language — highest fail rate of 7 checks</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n red">83%</div>
+      <div class="stat-l">fail subject line — Filing Label Subject most common pattern</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n red">83%</div>
+      <div class="stat-l">fail feature-to-outcome — Feature-First Bias across all verticals</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n green">3→9</div>
+      <div class="stat-l">average score lift after architectural rebuild</div>
+    </div>
+  </div>
+
+
+  <div style="text-align:center;margin:24px 0 8px;">
+    <a href="https://strategic-flow-audit.replit.app/demo.html" style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:#00d4c8;text-decoration:none;border-bottom:1px solid rgba(0,212,200,0.4);padding-bottom:2px;" target="_blank">Where does your last email fall in this distribution? Find out free →</a>
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- KEY FINDING -->
+<div class="section">
+  <div class="section-label">Primary finding</div>
+  <h2>The problem is never the copy.<br><em>It's always the architecture.</em></h2>
+  <p class="section-lead">Across 59 emails from seed-stage startups to $10B+ ARR companies, the same six structural failures appear with near-identical frequency. Company size does not predict email quality. Budget does not predict email quality. The architecture problems do not scale away.</p>
+
+  <div class="implication-box">
+    <div class="implication-label">Core finding</div>
+    <div class="implication-text">Most SaaS teams are solving a copy problem that doesn't exist. The email fails before the copy is read — at the subject line, the first sentence, and the CTA. Rewriting the body without fixing the architecture produces better-worded emails that still don't convert.</div>
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- FAILURE PATTERNS -->
+<div class="section">
+  <div class="section-label">The 6 failure patterns</div>
+  <h2>What kills SaaS email conversion.<br><em>Named. Measured. Fixable.</em></h2>
+  <p class="section-lead">Six patterns appear across the 59-email dataset. Four are Tier 1 — present in 83%+ of audited emails. Two are Tier 2 — present in 50-79%. Every pattern has a binary fix.</p>
+
+  <div class="pattern-list">
+
+    <div class="pattern-item tier1">
+      <div class="pattern-tier">Tier 1 — 96% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Guest Language CTA</div>
+        <div class="pattern-rate">96%</div>
+      </div>
+      <p class="pattern-desc">The CTA verb places the reader outside the action. "Learn more", "See features", "Explore now", "Discover how" — the reader observes the brand's offer instead of performing their own action. Highest fail rate of all 7 diagnostic checks. Appears in nearly every audited email regardless of vertical.</p>
+      <div class="pattern-fix">Replace the guest verb with an ownership verb. "Fix my reporting." "Get my audit." "Start my trial." The reader does the action — they don't consider the brand's invitation.</div>
+    </div>
+
+    <div class="pattern-item tier1">
+      <div class="pattern-tier">Tier 1 — 83% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Filing Label Subject</div>
+        <div class="pattern-rate">83%</div>
+      </div>
+      <p class="pattern-desc">The subject line announces the topic of the email like a folder tab. "New Feature: Reporting Dashboard." "Q1 Product Update." "April Newsletter." These labels answer "what is this email about" but never "what does opening this email do for me." No consequence. No curiosity gap. No reason to open.</p>
+      <div class="pattern-fix">Replace the category label with the reader's specific outcome or failure state. "Your reporting just got 3 hours faster." The topic is still reporting. The reason to open is now explicit.</div>
+    </div>
+
+    <div class="pattern-item tier1">
+      <div class="pattern-tier">Tier 1 — 83% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Feature-First Bias</div>
+        <div class="pattern-rate">83%</div>
+      </div>
+      <p class="pattern-desc">The email leads with what the product does instead of what the reader gains. "We've launched advanced reporting." The reader's question — what does this change for me? — is never answered above the fold. Feature-First Bias is the dominant structural failure in product update and onboarding emails.</p>
+      <div class="pattern-fix">Single inversion: state the reader's outcome first, then name the feature that produces it. "Your reporting just got 3 hours faster" leads with the gain. "New: Advanced Reporting Dashboard" leads with the feature. Same product. One converts.</div>
+    </div>
+
+    <div class="pattern-item tier1">
+      <div class="pattern-tier">Tier 1 — 74% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Consequence-After-Caveat</div>
+        <div class="pattern-rate">74%</div>
+      </div>
+      <p class="pattern-desc">The lead paragraph opens with context, background, or explanation before naming the reader's failure state or desired outcome. Every sentence of setup before the consequence is a reader lost. Found most often in onboarding sequences where each email explains the step without naming what it unlocks.</p>
+      <div class="pattern-fix">Lead with the consequence. The reader's problem or gain must appear within the first 10 words of the email body. Context comes second — if it comes at all.</div>
+    </div>
+
+    <div class="pattern-item tier2">
+      <div class="pattern-tier">Tier 2 — 70% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Zero Social Proof Above the Fold</div>
+        <div class="pattern-rate amber">70%</div>
+      </div>
+      <p class="pattern-desc">The strongest customer stat, quote, or named result appears in paragraph 3, bullet 4, or section 6 — after most readers have already made their decision. Social proof positioned below the fold is proof the reader never sees. All claims self-reported by the brand.</p>
+      <div class="pattern-fix">Move the best proof signal into the first scroll. If it would headline a landing page, it belongs in line 1 of the email. Named result or specific number, not adjective.</div>
+    </div>
+
+    <div class="pattern-item tier2">
+      <div class="pattern-tier">Tier 2 — 71% fail rate</div>
+      <div class="pattern-header">
+        <div class="pattern-name">Missing Visual Hierarchy</div>
+        <div class="pattern-rate amber">71%</div>
+      </div>
+      <p class="pattern-desc">All claims presented at equal visual weight. When 8 features are listed at the same font size with identical spacing, the reader treats all 8 as equally unimportant — and skips all 8. Missing hierarchy is most common in newsletter emails and product update roundups.</p>
+      <div class="pattern-fix">Assign MAJOR and MINOR weight to claims. The primary consequence gets the largest type, the most white space, and the earliest position. Everything else is subordinate.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- SCORE DISTRIBUTION -->
+<div class="section">
+  <div class="section-label">Score distribution</div>
+  <h2>Where 59 SaaS emails<br><em>actually score.</em></h2>
+  <p class="section-lead">Each email scored 1-10 across 7 binary checkpoints. Average original score: 3/10. Average rebuilt score: 9/10. The distribution is not normal — it clusters at the bottom.</p>
+
+  <div class="score-bars">
+    <div class="score-bar-row">
+      <div class="score-bar-label">1-2 / 10</div>
+      <div class="score-bar-track"><div class="score-bar-fill red" style="width:22%"></div></div>
+      <div class="score-bar-pct">22%</div>
+    </div>
+    <div class="score-bar-row">
+      <div class="score-bar-label">3 / 10</div>
+      <div class="score-bar-track"><div class="score-bar-fill red" style="width:52%"></div></div>
+      <div class="score-bar-pct">52%</div>
+    </div>
+    <div class="score-bar-row">
+      <div class="score-bar-label">4 / 10</div>
+      <div class="score-bar-track"><div class="score-bar-fill amber" style="width:18%"></div></div>
+      <div class="score-bar-pct">18%</div>
+    </div>
+    <div class="score-bar-row">
+      <div class="score-bar-label">5-6 / 10</div>
+      <div class="score-bar-track"><div class="score-bar-fill amber" style="width:6%"></div></div>
+      <div class="score-bar-pct">6%</div>
+    </div>
+    <div class="score-bar-row">
+      <div class="score-bar-label">7+ / 10</div>
+      <div class="score-bar-track"><div class="score-bar-fill green" style="width:2%"></div></div>
+      <div class="score-bar-pct">2%</div>
+    </div>
+  </div>
+
+  <div class="implication-box">
+    <div class="implication-label">What this means</div>
+    <div class="implication-text">74% of SaaS emails score 3/10 or below before architectural rebuild. 2% score above 7/10 without intervention. The gap between where emails are and where they need to be is not a copy problem — it's a structure problem that repeats across every vertical and every company size in the dataset.</div>
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- DIAGNOSTIC CHECKPOINTS -->
+<div class="section">
+  <div class="section-label">Diagnostic methodology</div>
+  <h2>7 checkpoints.<br><em>Every email. Binary pass or fail.</em></h2>
+  <p class="section-lead">The Strategic Flow audit applies 7 behavioral checkpoints to every email. Each is binary — pass or fail. No partial credit. The total determines the conversion score and the rebuild priority order.</p>
+
+  <table class="findings-table">
+    <thead>
+      <tr>
+        <th>Checkpoint</th>
+        <th>Pass condition</th>
+        <th>Fail rate</th>
+        <th>Weight</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>01 — Subject Line</td>
+        <td style="font-size:12px;">Reader consequence named — not topic label</td>
+        <td class="pct">83%</td>
+        <td class="pts">2 pts</td>
+      </tr>
+      <tr>
+        <td>02 — Lead Construction</td>
+        <td style="font-size:12px;">Failure state or outcome in first sentence</td>
+        <td class="pct">74%</td>
+        <td class="pts">2 pts</td>
+      </tr>
+      <tr>
+        <td>03 — Feature-to-Outcome</td>
+        <td style="font-size:12px;">Reader gain stated before product feature</td>
+        <td class="pct">83%</td>
+        <td class="pts">1 pt</td>
+      </tr>
+      <tr>
+        <td>04 — Visual Hierarchy</td>
+        <td style="font-size:12px;">MAJOR claim differentiated from MINOR</td>
+        <td class="pct">71%</td>
+        <td class="pts">1 pt</td>
+      </tr>
+      <tr>
+        <td>05 — Before/After Contrast</td>
+        <td style="font-size:12px;">Specific transformation named (time, %, $)</td>
+        <td class="pct">74%</td>
+        <td class="pts">1 pt</td>
+      </tr>
+      <tr>
+        <td>06 — Social Proof</td>
+        <td style="font-size:12px;">Customer result or stat above the fold</td>
+        <td class="pct">70%</td>
+        <td class="pts">1 pt</td>
+      </tr>
+      <tr>
+        <td>07 — CTA Language</td>
+        <td style="font-size:12px;">Ownership verb: reader does the action</td>
+        <td class="pct">96%</td>
+        <td class="pts">2 pts</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- VERTICALS -->
+<div class="section">
+  <div class="section-label">Vertical breakdown</div>
+  <h2>8 verticals.<br><em>Same failures everywhere.</em></h2>
+  <p class="section-lead">Architecture problems do not correlate with vertical. The same six patterns appear in cybersecurity, fintech, productivity, and AI tools — with near-identical frequency.</p>
+
+  <div class="vertical-grid">
+    <div class="vertical-card">
+      <div class="vertical-name">SaaS — General</div>
+      <div class="vertical-count">19 emails</div>
+      <div class="vertical-finding">Highest Feature-First Bias rate. Product update emails lead with features in 100% of cases.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">SaaS Enterprise</div>
+      <div class="vertical-count">8 emails</div>
+      <div class="vertical-finding">Missing Visual Hierarchy most common. Enterprise emails average 11 feature claims at equal weight.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">SaaS AI</div>
+      <div class="vertical-count">6 emails</div>
+      <div class="vertical-finding">Highest Filing Label Subject rate. "Introducing [Feature Name]" dominates AI product emails.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">Fintech / SaaS Fintech</div>
+      <div class="vertical-count">8 emails</div>
+      <div class="vertical-finding">Zero Social Proof above fold in every audited fintech email. Proof buried in legal disclaimers.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">Promotional</div>
+      <div class="vertical-count">4 emails</div>
+      <div class="vertical-finding">Guest Language CTA in all 4. "Shop now", "See offer", "Explore deals" — no ownership verb.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">Newsletter</div>
+      <div class="vertical-count">2 emails</div>
+      <div class="vertical-finding">Missing Visual Hierarchy dominant. Every section equal weight — no primary signal.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">Onboarding</div>
+      <div class="vertical-count">1 email</div>
+      <div class="vertical-finding">Consequence-After-Caveat in every touchpoint. Steps explained without naming what they unlock.</div>
+    </div>
+    <div class="vertical-card">
+      <div class="vertical-name">Other (Blog, Data SaaS)</div>
+      <div class="vertical-count">6 emails</div>
+      <div class="vertical-finding">Same pattern distribution as SaaS General. Architecture failures are category-agnostic.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- BEFORE/AFTER -->
+<div class="section">
+  <div class="section-label">Before / after examples</div>
+  <h2>The fix is always<br><em>an inversion, not a rewrite.</em></h2>
+  <p class="section-lead">Every architectural fix follows the same pattern: move what matters to where the reader still is. The content rarely changes. The sequence does.</p>
+
+  <table class="ba-table">
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Before (fails)</th>
+        <th>After (passes)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Subject Line</td>
+        <td class="bad">New Feature: Dashboard Update</td>
+        <td class="good">Your reports now load 4x faster</td>
+      </tr>
+      <tr>
+        <td>Lead</td>
+        <td class="bad">We're excited to announce our latest update to the reporting module...</td>
+        <td class="good">Your weekly reports used to take 4 hours. After today, 40 minutes.</td>
+      </tr>
+      <tr>
+        <td>Feature framing</td>
+        <td class="bad">Advanced Reporting Dashboard with real-time sync, custom filters, and export API</td>
+        <td class="good">Build the report your CEO asks for every Monday. In 8 minutes, not 4 hours.</td>
+      </tr>
+      <tr>
+        <td>CTA</td>
+        <td class="bad">Learn more →</td>
+        <td class="good">Fix my reporting →</td>
+      </tr>
+      <tr>
+        <td>Social proof</td>
+        <td class="bad">[Buried in paragraph 4: "Teams love the new dashboard"]</td>
+        <td class="good">Line 2: "47 teams cut reporting time by 80% in week one."</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- COMPANIES -->
+<div class="section">
+  <div class="section-label">Companies in the dataset</div>
+  <h2>59 companies.<br><em>Seed to $10B+ ARR.</em></h2>
+  <p class="section-lead">The dataset spans company size, funding stage, and vertical. Architecture problems do not correlate with resources. Every company in the dataset had at least one Tier 1 failure.</p>
+
+  <div class="company-grid">
+    <span class="company-tag notable">Notion</span>
+    <span class="company-tag notable">Figma</span>
+    <span class="company-tag notable">Atlassian</span>
+    <span class="company-tag notable">Uber</span>
+    <span class="company-tag notable">Revolut</span>
+    <span class="company-tag notable">Zapier</span>
+    <span class="company-tag notable">Booking.com</span>
+    <span class="company-tag notable">ElevenLabs</span>
+    <span class="company-tag notable">Wiz</span>
+    <span class="company-tag notable">Perplexity</span>
+    <span class="company-tag notable">Ahrefs</span>
+    <span class="company-tag notable">Semrush</span>
+    <span class="company-tag">Zoho</span>
+    <span class="company-tag">Wrike</span>
+    <span class="company-tag">Medallia</span>
+    <span class="company-tag">Optimizely</span>
+    <span class="company-tag">HeyGen</span>
+    <span class="company-tag">dbt Labs</span>
+    <span class="company-tag">Userpilot</span>
+    <span class="company-tag">Neon</span>
+    <span class="company-tag">Cato Networks</span>
+    <span class="company-tag">Landbot</span>
+    <span class="company-tag">Lokalise</span>
+    <span class="company-tag">Gamma</span>
+    <span class="company-tag">Seamless.AI</span>
+    <span class="company-tag">Qonto</span>
+    <span class="company-tag">Spreedly</span>
+    <span class="company-tag">Tuum</span>
+    <span class="company-tag">ReversingLabs</span>
+    <span class="company-tag">SplitMetrics</span>
+    <span class="company-tag">Tresorit</span>
+    <span class="company-tag">SEOmonitor</span>
+    <span class="company-tag">EasyLlama</span>
+    <span class="company-tag">Finite State</span>
+    <span class="company-tag">Lodgify</span>
+    <span class="company-tag">Tilled</span>
+    <span class="company-tag">Limelight</span>
+    <span class="company-tag">Memrise</span>
+    <span class="company-tag">Wizz Air</span>
+    <span class="company-tag">+ 18 others</span>
+  </div>
+</div>
+
+<div class="section-divider"><hr></div>
+
+<!-- IMPLICATIONS -->
+<div class="section">
+  <div class="section-label">Implications</div>
+  <h2>What this means for<br><em>SaaS email strategy.</em></h2>
+
+  <div class="implication-box" style="margin-bottom:8px;">
+    <div class="implication-label">Implication 1 — The copy is not the problem</div>
+    <div class="implication-text">96% of SaaS emails fail on CTA language alone. The copy inside the button is often well-written. The architecture that frames it is not. Hiring a copywriter without fixing the structure produces better-worded emails that still fail at the same checkpoints.</div>
+  </div>
+  <div class="implication-box" style="margin-bottom:8px;">
+    <div class="implication-label">Implication 2 — Scale does not fix architecture</div>
+    <div class="implication-text">The dataset includes emails from companies with $1M and $10B+ ARR. Failure rates are consistent across funding stages. More budget does not produce structurally better emails. The architecture problems appear to be a knowledge gap, not a resource gap.</div>
+  </div>
+  <div class="implication-box" style="margin-bottom:8px;">
+    <div class="implication-label">Implication 3 — The fix is a sequence change, not a content change</div>
+    <div class="implication-text">In most rebuilds, the underlying claim is correct. The product does what the email says it does. The transformation is real. The architecture fails because the claim is in the wrong position — behind context, below the fold, inside a guest-language CTA. The fix is positional, not creative.</div>
+  </div>
+  <div class="implication-box">
+    <div class="implication-label">Implication 4 — The subject line is the first conversion gate</div>
+    <div class="implication-text">83% of emails fail before the reader opens them. A filing label subject gives the reader no reason to open. A consequence subject gives them a reason specific to their situation. Open rate improvement is a subject line architecture problem before it is an audience problem.</div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="cta-inner">
+    <div class="cta-label">Audit your emails</div>
+    <div class="cta-title">Run the diagnostic on your last send.</div>
+    <div class="cta-sub">Paste your email. Get a score across all 7 checkpoints, every failure named, and rebuilt HTML in 90 seconds. Or see all 59 teardowns in the showcase.</div>
+    <div class="cta-buttons">
+      <a href="https://strategic-flow-audit.replit.app/demo.html" class="cta-primary">Run Free Audit →</a>
+      <a href="https://strategicflow.tech/teardowns.html" class="cta-outline">See 59 teardowns</a>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  <span>Strategic Flow © 2026</span>
+  <a href="https://strategicflow.tech">strategicflow.tech</a>
+</div>
+
+<style>
+#sf-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #0a1628 0%, #0f2035 50%, #0a1628 100%);
+  border-top: 1px solid rgba(29, 158, 117, 0.3);
+  box-shadow: 0 -4px 24px rgba(29, 158, 117, 0.12);
+  z-index: 9999;
+  display: none;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+#sf-sticky-bar.visible {
+  display: flex;
+  transform: translateY(0);
+}
+.sf-bar-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  gap: 16px;
+}
+.sf-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.sf-badge {
+  background: rgba(29, 158, 117, 0.15);
+  color: #1D9E75;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(29, 158, 117, 0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.sf-affiliate-tag {
+  background: rgba(74, 143, 231, 0.1);
+  color: #00d4c8;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(74, 143, 231, 0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.sf-text {
+  color: #e8e8e8;
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sf-text strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+.sf-cta {
+  background: #1D9E75;
+  color: #ffffff;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 16px rgba(29, 158, 117, 0.25);
+}
+.sf-cta:hover {
+  background: #178a63;
+  box-shadow: 0 0 24px rgba(29, 158, 117, 0.4);
+}
+.sf-cta-arrow {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+.sf-cta:hover .sf-cta-arrow {
+  transform: translateX(2px);
+}
+.sf-close {
+  color: #555;
+  font-size: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+.sf-close:hover { color: #999; }
+
+@media (max-width: 768px) {
+  .sf-bar-inner {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 8px;
+    align-items: center;
+  }
+  .sf-bar-left {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+  }
+  .sf-text { display: none; }
+  .sf-cta {
+    order: 10;
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+  }
+  .sf-close {
+    flex-shrink: 0;
+    padding: 4px 6px;
+  }
+}
+
+#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#09111e;border-top:1px solid rgba(255,255,255,0.08);padding:18px 48px;display:none;}
+#cookie-banner.visible{display:flex;}
+.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+.cookie-text{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:680px;}
+.cookie-text a{color:#00e5a0;text-decoration:underline;}
+.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+.cookie-btn{font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);transition:all .2s;}
+.cookie-btn:hover{border-color:#00e5a0;color:#00e5a0;}
+.cookie-btn.accept{background:#00e5a0;color:#07090f;border-color:#00e5a0;}
+.cookie-btn.accept:hover{background:#00c88a;}
+@media(max-width:640px){#cookie-banner{padding:16px 18px;}.cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}.cookie-actions{justify-content:flex-end;}}
+</style>
+
+<div id="sf-sticky-bar">
+  <div class="sf-bar-inner">
+    <div class="sf-bar-left">
+      <span class="sf-affiliate-tag">affiliate</span>
+      <span class="sf-badge" id="sf-badge-text"></span>
+      <span class="sf-text" id="sf-main-text"></span>
+    </div>
+    <a class="sf-cta" href="https://strategic-flow-pro.replit.app/affiliates/" id="sf-cta-btn" target="_blank">
+      <span id="sf-cta-text"></span>
+      <span class="sf-cta-arrow">→</span>
+    </a>
+    <button class="sf-close" id="sf-close-btn">✕</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  if (sessionStorage.getItem('sf-bar-closed')) return;
+
+  var bar = document.getElementById('sf-sticky-bar');
+  var badge = document.getElementById('sf-badge-text');
+  var text = document.getElementById('sf-main-text');
+  var ctaText = document.getElementById('sf-cta-text');
+  var type = document.body.getAttribute('data-sf-bar') || 'services';
+
+  if (type === 'content') {
+    badge.textContent = '10 spots · 40% locked';
+    text.innerHTML = 'Know a SaaS team with broken emails? <strong>Earn $199–$1,000/mo per referral.</strong>';
+    ctaText.textContent = 'Join Affiliate Program';
+  } else {
+    badge.textContent = 'First 10 spots · 40% forever';
+    text.innerHTML = 'Refer once. <strong>Get paid every month they stay subscribed.</strong>';
+    ctaText.textContent = 'See How It Works';
+  }
+
+  var shown = false;
+  function showBar() {
+    if (shown) return;
+    shown = true;
+    bar.style.display = 'flex';
+    setTimeout(function() { bar.classList.add('visible'); }, 50);
+  }
+
+  setTimeout(showBar, 15000);
+
+  window.addEventListener('scroll', function() {
+    var scrollPct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    if (scrollPct >= 0.4) showBar();
+  }, { passive: true });
+
+  document.getElementById('sf-close-btn').addEventListener('click', function() {
+    bar.classList.remove('visible');
+    setTimeout(function() { bar.style.display = 'none'; }, 350);
+    sessionStorage.setItem('sf-bar-closed', '1');
+  });
+})();
+</script>
+<!-- COOKIE CONSENT BANNER -->
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">This site uses cookies for analytics (Google Analytics). We don't sell or share your data. See our <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> for details.</div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY='sf_consent',stored=localStorage.getItem(KEY),banner=document.getElementById('cookie-banner');
+  function grant(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}
+  if(stored==='granted'){grant();}else if(stored!=='denied'){banner.classList.add('visible');}
+  document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(KEY,'granted');grant();banner.classList.remove('visible');});
+  document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(KEY,'denied');banner.classList.remove('visible');});
+})();
+</script>
+</body>
+</html>
