@@ -4748,6 +4748,14 @@ a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:
   }
 });
 
+// GET /api/why-status — returns Pro session state for frontend
+app.get('/api/why-status', (req, res) => {
+  const isPro = (req.session && req.session.isWhyPro === true) ||
+    (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+    (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+  res.json({ isPro: !!isPro });
+});
+
 // POST /api/why-request-magic-link
 app.post('/api/why-request-magic-link', async (req, res) => {
   const email = (req.body.email || '').toLowerCase().trim();
