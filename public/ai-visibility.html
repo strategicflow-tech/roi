@@ -1018,13 +1018,17 @@ function renderResult(data) {
   setBD('mention', data.brandMentioned,
     data.brandMentioned
       ? `${data.brand} appeared in ${mc}/2 AI responses — model has knowledge of this brand`
-      : `${data.brand} not found in either AI response — model has no knowledge of this brand`);
+      : data.brandDenied
+        ? `${data.brand} named in AI response but model denied knowing it — no recognition credit`
+        : `${data.brand} not found in either AI response — model has no knowledge of this brand`);
   setBD('cited', data.citedCorrectly,
     data.citedCorrectly
       ? 'AI described product/offer with accurate context'
       : data.brandMentioned
         ? 'Mentioned but product/offer context incomplete or inaccurate'
-        : 'No product description — brand not mentioned in either response');
+        : data.brandDenied
+          ? 'Model mentioned brand only to deny familiarity — not counted as recognition'
+          : 'No product description — brand not mentioned in either response');
   const techParts = [];
   if (data.schemaPresent) techParts.push('schema.org markup present');
   else techParts.push('0 schema.org types on homepage');
@@ -1051,10 +1055,10 @@ function renderResult(data) {
   // AI model responses — populate and open by default
   document.getElementById('q1-q').textContent = '"' + (data.q1 || '') + '"';
   document.getElementById('q1-answer').textContent = data.q1Answer || 'Response unavailable.';
-  document.getElementById('q1-badge').innerHTML = `<span class="mention-badge ${data.q1Mentioned ? 'yes' : 'no'}">${data.q1Mentioned ? '✓ ' + data.brand + ' mentioned' : '✕ ' + data.brand + ' not mentioned'}</span>`;
+  document.getElementById('q1-badge').innerHTML = `<span class="mention-badge ${data.q1Mentioned ? 'yes' : 'no'}">${data.q1Mentioned ? '✓ ' + data.brand + ' recognised' : '✕ ' + data.brand + ' not recognised'}</span>`;
   document.getElementById('q2-q').textContent = '"' + (data.q2 || '') + '"';
   document.getElementById('q2-answer').textContent = data.q2Answer || 'Response unavailable.';
-  document.getElementById('q2-badge').innerHTML = `<span class="mention-badge ${data.q2Mentioned ? 'yes' : 'no'}">${data.q2Mentioned ? '✓ ' + data.brand + ' mentioned' : '✕ ' + data.brand + ' not mentioned'}</span>`;
+  document.getElementById('q2-badge').innerHTML = `<span class="mention-badge ${data.q2Mentioned ? 'yes' : 'no'}">${data.q2Mentioned ? '✓ ' + data.brand + ' recognised' : '✕ ' + data.brand + ' not recognised'}</span>`;
   detailOpen = true;
   document.getElementById('detail-body').style.display = 'block';
   document.getElementById('toggle-arrow').textContent = '↑';
@@ -1063,7 +1067,9 @@ function renderResult(data) {
   const fixEl = document.getElementById('fix-recs');
   if (fixEl) {
     const fixes = [];
-    if (!data.brandMentioned) {
+    if (!data.brandMentioned && data.brandDenied) {
+      fixes.push('Model named your brand only to deny knowing it. Publish structured content with FAQs, case studies, and schema.org markup so AI training crawlers can index an accurate description. Recognition typically follows indexable content by weeks to months.');
+    } else if (!data.brandMentioned) {
       fixes.push('Brand not found in either AI query. Publish structured content that names your product and its specific use case in the same sentence.');
     }
     if (data.brandMentioned && !data.citedCorrectly) {

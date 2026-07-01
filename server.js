@@ -240,8 +240,9 @@ Answer naturally and helpfully in 4-6 sentences. Recommend specific tools or pro
 Return ONLY this JSON, no other text:
 {
   "answer": "<your 4-6 sentence natural answer>",
-  "mentions_brand": <true or false — does your answer mention "${brand}" or "${domain}"?>,
-  "mentions_correctly": <true or false — if you mentioned it, is your description of what they do accurate based on what you know? false if not mentioned>
+  "mentions_brand": <true or false — does your answer mention "${brand}" or "${domain}" anywhere?>,
+  "mentions_affirmatively": <true or false — ONLY true if your answer demonstrates genuine knowledge of ${brand} as a real product/tool (e.g. you describe what it does, recommend it, or reference it as a known entity). Set false if you say you are unfamiliar with it, cannot find it, don't recognise the name, or if it is not mentioned at all.>,
+  "mentions_correctly": <true or false — if you mentioned it affirmatively, is your description of what they do accurate based on what you know? false if not mentioned or if you denied knowing it>
 }`;
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -345,13 +346,17 @@ app.post('/api/ai-visibility', async (req, res) => {
       callPerplexityVisibility(brand, domain, pxQuery).catch(() => ({ found: false, context: null, error: 'catch' }))
     ]);
 
-    const r1 = r1raw || { mentions_brand: false, mentions_correctly: false, answer: 'Response unavailable.' };
-    const r2 = r2raw || { mentions_brand: false, mentions_correctly: false, answer: 'Response unavailable.' };
+    const r1 = r1raw || { mentions_brand: false, mentions_affirmatively: false, mentions_correctly: false, answer: 'Response unavailable.' };
+    const r2 = r2raw || { mentions_brand: false, mentions_affirmatively: false, mentions_correctly: false, answer: 'Response unavailable.' };
 
-    const brandMentioned = !!(r1.mentions_brand || r2.mentions_brand);
-    const citedCorrectly = !!((r1.mentions_brand && r1.mentions_correctly) || (r2.mentions_brand && r2.mentions_correctly));
+    // mentions_affirmatively guards against false positives where the model names the brand
+    // only to deny knowing it (e.g. "I'm not familiar with a tool called [Brand]").
+    const brandMentioned = !!(r1.mentions_affirmatively || r2.mentions_affirmatively);
+    const citedCorrectly = !!((r1.mentions_affirmatively && r1.mentions_correctly) || (r2.mentions_affirmatively && r2.mentions_correctly));
     const crawlable = tech.schemaPresent && !tech.robotsBlocked;
-    const mentionCount = (r1.mentions_brand ? 1 : 0) + (r2.mentions_brand ? 1 : 0);
+    const mentionCount = (r1.mentions_affirmatively ? 1 : 0) + (r2.mentions_affirmatively ? 1 : 0);
+    // Track denial separately for diagnostic messaging
+    const brandDenied = !brandMentioned && !!(r1.mentions_brand || r2.mentions_brand);
 
     let score = 0;
     if (brandMentioned) score += 4;
@@ -397,12 +402,16 @@ app.post('/api/ai-visibility', async (req, res) => {
     const reasons = [
       brandMentioned
         ? `${brand} appeared in ${mentionCount}/2 AI responses for "${cat || 'brand'}" queries`
-        : `${brand} not found in either AI response for "${(cat ? `best ${cat} tool` : `what does ${brand} do`).slice(0, 50)}"`,
+        : brandDenied
+          ? `${brand} named in AI response but model explicitly denied knowing it — no recognition credit awarded`
+          : `${brand} not found in either AI response for "${(cat ? `best ${cat} tool` : `what does ${brand} do`).slice(0, 50)}"`,
       citedCorrectly
         ? 'Described with accurate product context in AI response'
         : brandMentioned
           ? 'Mentioned but product/offer context incomplete or inaccurate'
-          : 'No product description — brand unknown to model',
+          : brandDenied
+            ? 'Model mentioned brand only to deny familiarity — not counted as recognition'
+            : 'No product description — brand unknown to model',
       tech.schemaPresent
         ? 'schema.org markup detected on homepage — machine-readable'
         : tech.jsOnly
@@ -416,12 +425,12 @@ app.post('/api/ai-visibility', async (req, res) => {
     ];
 
     res.json({
-      score, brandMentioned, citedCorrectly, crawlable,
+      score, brandMentioned, citedCorrectly, crawlable, brandDenied,
       schemaPresent: tech.schemaPresent, robotsBlocked: tech.robotsBlocked,
       blockedAgents: tech.blockedAgents, robotsFetched: tech.robotsFetched, jsOnly: tech.jsOnly,
       q1, q2, brand, domain, reasons,
       q1Answer: r1.answer, q2Answer: r2.answer,
-      q1Mentioned: !!r1.mentions_brand, q2Mentioned: !!r2.mentions_brand,
+      q1Mentioned: !!r1.mentions_affirmatively, q2Mentioned: !!r2.mentions_affirmatively,
       benchmarkAvg, benchmarkCategory,
       pxFound: px.found, pxContext: px.context || null, pxError: px.error || null
     });
