@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WHY. — Analyses Log</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0D0D0D;
+      color: #E0E0E0;
+      font-family: 'Space Mono', 'Courier New', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #666;
+      letter-spacing: 0.08em;
+      margin-bottom: 28px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    select {
+      background: #1A1A1A;
+      border: 1px solid #333;
+      color: #E0E0E0;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      outline: none;
+      letter-spacing: 0.06em;
+    }
+    select:focus { border-color: #FF4422; }
+    .count-label {
+      font-size: 11px;
+      color: #666;
+      margin-left: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead th {
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #888;
+      border-bottom: 1px solid #2A2A2A;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid #1A1A1A;
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: #141414; }
+    td {
+      padding: 9px 10px;
+      vertical-align: top;
+      max-width: 0;
+    }
+    td.id-col {
+      font-size: 10px;
+      color: #555;
+      white-space: nowrap;
+      max-width: none;
+    }
+    td.excerpt-col {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+      color: #aaa;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .badge-analyze  { color: #5B9CF6; background: #0A1929; border: 1px solid #1A3A5C; }
+    .badge-rebuild  { color: #F6A85B; background: #1F120A; border: 1px solid #5C3A1A; }
+    .badge-complete { color: #4ADE80; background: #091A0F; border: 1px solid #1A4A2A; }
+    .badge-pending  { color: #FACC15; background: #1A1600; border: 1px solid #4A3F00; }
+    .badge-error    { color: #F87171; background: #1A0909; border: 1px solid #4A1A1A; }
+    .ts { color: #666; white-space: nowrap; }
+    .error-msg { color: #F87171; font-size: 11px; }
+    .pagination {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 20px;
+      justify-content: center;
+    }
+    .page-btn {
+      background: #1A1A1A;
+      border: 1px solid #333;
+      color: #E0E0E0;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 5px 14px;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+    }
+    .page-btn:hover { border-color: #FF4422; }
+    .page-btn:disabled { opacity: 0.3; cursor: default; border-color: #333; }
+    .page-info { font-size: 11px; color: #666; }
+    #error-banner {
+      background: #1A0909;
+      border: 1px solid #4A1A1A;
+      color: #F87171;
+      padding: 12px 16px;
+      font-size: 12px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    #loading { color: #666; font-size: 12px; margin: 40px 0; text-align: center; }
+    .no-key {
+      text-align: center;
+      color: #666;
+      margin-top: 80px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .no-key code {
+      background: #1A1A1A;
+      padding: 2px 6px;
+      color: #FF4422;
+    }
+  </style>
+</head>
+<body>
+  <h1>WHY.<span style="color:#FF4422">.</span> Analyses Log</h1>
+  <div class="subtitle">Source: why_jobs — all requests, free and Pro</div>
+
+  <div id="no-key" class="no-key" style="display:none">
+    Add <code>?key=YOUR_WHY_ADMIN_KEY</code> to the URL to access this page.
+  </div>
+
+  <div id="main" style="display:none">
+    <div id="error-banner"></div>
+
+    <div class="controls">
+      <select id="filter-status" onchange="goPage(1)">
+        <option value="">All statuses</option>
+        <option value="complete">complete</option>
+        <option value="pending">pending</option>
+        <option value="error">error</option>
+      </select>
+      <select id="filter-type" onchange="goPage(1)">
+        <option value="">All types</option>
+        <option value="analyze">analyze</option>
+        <option value="rebuild">rebuild</option>
+      </select>
+      <span class="count-label" id="count-label"></span>
+    </div>
+
+    <div id="loading">Loading...</div>
+
+    <table id="log-table" style="display:none">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Content type</th>
+          <th>Excerpt</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Completed</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody id="log-body"></tbody>
+    </table>
+
+    <div class="pagination" id="pagination" style="display:none">
+      <button class="page-btn" id="btn-prev" onclick="goPage(currentPage - 1)">← Prev</button>
+      <span class="page-info" id="page-info"></span>
+      <button class="page-btn" id="btn-next" onclick="goPage(currentPage + 1)">Next →</button>
+    </div>
+  </div>
+
+  <script>
+    const params  = new URLSearchParams(location.search);
+    const KEY     = params.get('key') || '';
+    let currentPage = 1;
+    let totalPages  = 1;
+
+    if (!KEY) {
+      document.getElementById('no-key').style.display = 'block';
+    } else {
+      document.getElementById('main').style.display = 'block';
+      goPage(1);
+    }
+
+    function goPage(n) {
+      currentPage = n;
+      load();
+    }
+
+    async function load() {
+      const status    = document.getElementById('filter-status').value;
+      const jobType   = document.getElementById('filter-type').value;
+      const loading   = document.getElementById('loading');
+      const table     = document.getElementById('log-table');
+      const pager     = document.getElementById('pagination');
+      const errBanner = document.getElementById('error-banner');
+
+      loading.style.display   = 'block';
+      table.style.display     = 'none';
+      pager.style.display     = 'none';
+      errBanner.style.display = 'none';
+
+      const qs = new URLSearchParams({ key: KEY, page: currentPage });
+      if (status)  qs.set('status', status);
+      if (jobType) qs.set('job_type', jobType);
+
+      try {
+        const r = await fetch('/api/why-log?' + qs.toString());
+        if (r.status === 401) {
+          errBanner.textContent   = 'Unauthorized — check your ?key= value.';
+          errBanner.style.display = 'block';
+          loading.style.display   = 'none';
+          return;
+        }
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+
+        totalPages = data.pages;
+        document.getElementById('count-label').textContent =
+          `${data.total.toLocaleString()} total — page ${data.page} of ${data.pages}`;
+
+        const tbody = document.getElementById('log-body');
+        tbody.innerHTML = '';
+        if (!data.rows.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#555;padding:24px">No results</td></tr>';
+        } else {
+          for (const row of data.rows) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="id-col">${esc(row.id.split('-')[0])}&hellip;</td>
+              <td><span class="badge badge-${esc(row.job_type)}">${esc(row.job_type)}</span></td>
+              <td>${esc(row.content_type || '—')}</td>
+              <td class="excerpt-col" title="${esc(row.input_excerpt || '')}">${esc(row.input_excerpt || '—')}</td>
+              <td><span class="badge badge-${esc(row.status)}">${esc(row.status)}</span></td>
+              <td class="ts">${fmtTs(row.created_at)}</td>
+              <td class="ts">${row.completed_at ? fmtTs(row.completed_at) : '—'}</td>
+              <td class="error-msg">${esc(row.error_message || '')}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+        }
+
+        loading.style.display = 'none';
+        table.style.display   = '';
+        pager.style.display   = 'flex';
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        document.getElementById('page-info').textContent =
+          `Page ${currentPage} / ${totalPages}`;
+      } catch (err) {
+        errBanner.textContent   = 'Error: ' + err.message;
+        errBanner.style.display = 'block';
+        loading.style.display   = 'none';
+      }
+    }
+
+    function fmtTs(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      return d.toISOString().replace('T', ' ').slice(0, 19);
+    }
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

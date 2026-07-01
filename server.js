@@ -7606,6 +7606,49 @@ setupDB().then(async () => {
     });
   });
 
+  app.get('/api/why-log', async (req, res) => {
+    const adminKey = process.env.WHY_ADMIN_KEY;
+    const provided = req.headers['x-admin-key'] || req.query.key;
+    if (!adminKey || provided !== adminKey) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const page    = Math.max(1, parseInt(req.query.page) || 1);
+      const limit   = 50;
+      const offset  = (page - 1) * limit;
+      const status  = req.query.status   || null;
+      const jobType = req.query.job_type || null;
+
+      const conditions = [];
+      const params     = [];
+      if (status)  { params.push(status);  conditions.push(`status = $${params.length}`); }
+      if (jobType) { params.push(jobType); conditions.push(`job_type = $${params.length}`); }
+      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const countResult = await pool.query(`SELECT COUNT(*) FROM why_jobs ${where}`, params);
+      const total = parseInt(countResult.rows[0].count);
+
+      const dataParams = [...params, limit, offset];
+      const dataResult = await pool.query(
+        `SELECT id, job_type, content_type, input_excerpt, status,
+                created_at, completed_at, error_message
+         FROM why_jobs ${where}
+         ORDER BY created_at DESC
+         LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+        dataParams
+      );
+
+      res.json({
+        total,
+        page,
+        pages: Math.ceil(total / limit) || 1,
+        rows: dataResult.rows
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use((req, res, next) => {
     res.setTimeout(180000);
     next();
