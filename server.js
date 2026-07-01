@@ -3792,7 +3792,7 @@ app.post('/api/score-subject', async (req, res) => {
 
   try {
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL,
       max_tokens: 100,
       messages: [{
         role: 'user',
@@ -6979,7 +6979,7 @@ app.post('/changelog-audit', async (req, res) => {
   }
   try {
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL,
       max_tokens: 4096,
       system: getLangInstruction(lang) + '\n\n' + CHANGELOG_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `${companyHint}Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
@@ -7077,7 +7077,7 @@ app.post('/onboarding-audit', async (req, res) => {
 
   try {
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL,
       max_tokens: 4096,
       system: getLangInstruction(lang) + '\n\n' + ONBOARDING_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this SaaS onboarding copy:\n\n${content.slice(0, 8000)}` }],
@@ -7180,7 +7180,7 @@ app.post('/linkedin-audit', async (req, res) => {
 
   try {
     const response = await claude.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODEL,
       max_tokens: 4096,
       system: getLangInstruction(lang) + '\n\n' + LINKEDIN_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this LinkedIn post:\n\n${content.slice(0, 8000)}` }],

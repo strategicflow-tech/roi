@@ -21,7 +21,7 @@ const stripe  = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 
 const SENDER      = 'noreply@strategicflow.cc';
 const BASE_URL    = process.env.APP_URL || 'https://strategic-flow-activation.replit.app';
-const MODEL       = 'claude-sonnet-4-5-20250929';
+const MODEL       = 'claude-sonnet-5';
 
 // In-memory magic link token store
 const magicTokens = new Map();
