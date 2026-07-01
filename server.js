@@ -740,7 +740,25 @@ function safeParseJSON(raw) {
     const s = decoded.indexOf('{'), e = decoded.lastIndexOf('}');
     if (s !== -1 && e > s) return JSON.parse(decoded.slice(s, e + 1));
   } catch (_) {}
-  // Layer 5: all attempts failed — return null so callers can show a clean error
+  // Layer 5: depth-tracking brace extractor — catches trailing prose after a valid JSON object.
+  // Returns null for genuinely truncated JSON (depth never returns to 0).
+  try {
+    const start = raw.indexOf('{');
+    if (start !== -1) {
+      let depth = 0, inStr = false, esc = false, end = -1;
+      for (let i = start; i < raw.length; i++) {
+        const c = raw[i];
+        if (esc) { esc = false; continue; }
+        if (c === '\\' && inStr) { esc = true; continue; }
+        if (c === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (c === '{') depth++;
+        else if (c === '}') { depth--; if (depth === 0) { end = i; break; } }
+      }
+      if (end !== -1) return JSON.parse(raw.slice(start, end + 1));
+    }
+  } catch (_) {}
+  // Layer 6: all attempts failed — return null so callers can show a clean error
   const _r = raw || '';
   console.warn('[safeParseJSON] all layers failed. Length:', _r.length,
     '\n  FIRST 400:', _r.slice(0, 400),
@@ -7382,14 +7400,14 @@ setupDB().then(async () => {
         const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+          body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
         });
         const data = await apiResp.json();
         const textBlock = data.content?.find(b => b.type === 'text');
         const text = textBlock?.text || '';
         const clean = text.replace(/```json|```/g, '').trim();
-        let result;
-        try { result = JSON.parse(clean); } catch (_) {
+        let result = safeParseJSON(clean);
+        if (!result) {
           const rawSnippet = ('RAW: ' + clean).slice(0, 3000);
           await pool.query(
             `UPDATE why_jobs SET status='error', error_message='parse_failed', raw_response_snippet=$2, completed_at=NOW() WHERE id=$1`,
