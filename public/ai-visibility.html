@@ -821,6 +821,9 @@
       <div class="cta-label">Next step</div>
       <div class="cta-title" id="cta-title">Your recurring emails shape how AI describes your brand.</div>
       <div class="cta-sub" id="cta-sub">Start with a Single Audit and see the fix.</div>
+      <div class="cta-competitors" id="cta-competitors"></div>
+      <div class="cta-cost" id="cta-cost"></div>
+      <div class="cta-proof" id="cta-proof">We've done this 59 times. Average score before: 3.4/10. After: 9/10.</div>
       <a href="https://strategic-flow-pro.replit.app/packages#single" class="cta-btn" id="cta-btn">See Strategic Flow Plans →</a>
       <div class="cta-secondary">
         <button onclick="resetCheck()">← Check another domain</button>
@@ -1150,6 +1153,47 @@ function renderResult(data) {
   document.getElementById('cta-sub').textContent = ctaCopy.sub;
   document.getElementById('cta-btn').href = 'https://strategic-flow-pro.replit.app/packages#single';
 
+  // Cost of staying invisible — first failed criterion wins
+  const costEl = document.getElementById('cta-cost');
+  if (!data.brandMentioned) {
+    costEl.textContent = 'Every AI-assisted buyer search in your category right now recommends someone else instead of you.';
+    costEl.style.display = 'block';
+  } else if (!data.citedCorrectly) {
+    costEl.textContent = 'Buyers who do hear about you get an inaccurate picture of what you actually do.';
+    costEl.style.display = 'block';
+  } else if (!data.crawlable) {
+    costEl.textContent = "AI systems can't read your site well enough to cite you accurately, even when they try.";
+    costEl.style.display = 'block';
+  } else {
+    costEl.style.display = 'none';
+  }
+
+  // Competitor tools named in AI responses
+  const compEl = document.getElementById('cta-competitors');
+  const competitors = extractCompetitors([data.q1Answer, data.q2Answer], data.brand);
+  if (competitors.length > 0 && !data.brandMentioned) {
+    compEl.innerHTML = 'Right now, AI recommends <strong>' + competitors.join(', ') + '</strong> instead of you.';
+    compEl.style.display = 'block';
+  } else {
+    compEl.style.display = 'none';
+  }
+
+  // Proof line — always visible when score < 10
+  const proofEl = document.getElementById('cta-proof');
+  proofEl.style.display = score < 10 ? 'block' : 'none';
+
+  // Fix-specific CTA button copy
+  const btnEl = document.getElementById('cta-btn');
+  if (!data.brandMentioned) {
+    btnEl.textContent = 'Fix Your AI Visibility — Single Audit ($49) \u2192';
+  } else if (!data.citedCorrectly) {
+    btnEl.textContent = 'Fix Your AI Description — Single Audit ($49) \u2192';
+  } else if (!data.crawlable) {
+    btnEl.textContent = 'Fix Your Technical Crawlability — Single Audit ($49) \u2192';
+  } else {
+    btnEl.textContent = 'See Strategic Flow Plans \u2192';
+  }
+
   document.getElementById('output').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1247,6 +1291,27 @@ function generateShareCard() {
   a.download = (d.domain || 'ai-visibility') + '-score.png';
   a.href = cv.toDataURL('image/png');
   a.click();
+}
+
+function extractCompetitors(answers, brand) {
+  const STOP = new Set(['The','A','An','And','Or','But','In','On','At','To','For','Of','With','By','From','Is','Are','Was','Were','Be','Been','Being','Have','Has','Had','Do','Does','Did','Will','Would','Could','Should','May','Might','Can','I','You','We','They','He','She','It','This','That','These','Those','My','Your','Our','Their','Some','Any','All','Both','Each','Few','More','Most','Other','Another','Such','What','Which','Who','Whom','How','When','Where','Why','Not','Also','As','If','So','Than','Then','Too','Very','Just','About','Before','After','Between','Through','During','Under','Over','Above','Below','Up','Down','Out','Off','Here','There','Now','First','Second','Third','Last','New','Old','Next','Additionally','However','Furthermore','Moreover','Finally','Overall','Generally','Typically','Often','Usually','Always','Sometimes','Perhaps','Indeed','Certainly','Especially','Including','Many','Several','Various','Different','Popular','Available','Best','Better','Top','Well','Known','Used','Based','Designed','Response','Unavailable','Here','Some','Recommend','Recommended']);
+  const brandLower = (brand || '').toLowerCase();
+  const combined = answers.filter(Boolean).join(' ');
+  const raw = combined.match(/\b[A-Z][a-zA-Z]{1,24}(?:\.[a-z]{2,4})?(?:\s+[A-Z][a-zA-Z]{1,24}){0,2}\b/g) || [];
+  const seen = new Set();
+  const results = [];
+  for (const m of raw) {
+    const words = m.split(' ');
+    if (words.some(w => STOP.has(w))) continue;
+    if (m.toLowerCase().includes(brandLower)) continue;
+    if (m.length < 3) continue;
+    const key = m.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(m);
+    if (results.length >= 4) break;
+  }
+  return results;
 }
 
 function getIndustryCTA(cat) {
