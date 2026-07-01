@@ -7352,7 +7352,8 @@ setupDB().then(async () => {
         body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await response.json();
-      const text = data.content?.[0]?.text || '';
+      const textBlock = data.content?.find(block => block.type === 'text');
+      const text = textBlock?.text || '';
       const clean = text.replace(/```json|```/g, '').trim();
       try {
         const result = JSON.parse(clean);
@@ -7420,7 +7421,8 @@ setupDB().then(async () => {
         body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await response.json();
-      const text = data.content?.[0]?.text || '';
+      const textBlock = data.content?.find(block => block.type === 'text');
+      const text = textBlock?.text || '';
       if (!text) {
         res.status(500).json({ error: 'empty_response' });
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });

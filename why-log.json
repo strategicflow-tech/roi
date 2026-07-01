@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "timestamp": "2026-07-01T12:26:54.374Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-analyze",
+    "content_type": "Cold Email",
+    "char_count": 613,
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T12:26:59.568Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-rebuild",
+    "content_type": "Cold Email",
+    "char_count": 638,
+    "status": "success"
+  }
+]
