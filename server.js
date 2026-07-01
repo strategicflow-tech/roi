@@ -178,6 +178,20 @@ app.get('/ai-visibility', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/ai-visibility.html'));
 });
 
+app.get('/blog', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/blog.html'));
+});
+
+app.get('/blog/:slug', (req, res) => {
+  const slug = req.params.slug.replace(/[^a-z0-9\-_.]/gi, '');
+  const file = path.join(__dirname, 'public/blog', slug + (slug.endsWith('.html') ? '' : '.html'));
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(file, err => {
+    if (err) res.status(404).send('Article not found.');
+  });
+});
+
 async function callPerplexityVisibility(brand, domain, query) {
   const key = process.env.PERPLEXITY_API_KEY;
   if (!key) return { found: false, context: null, error: 'no_key' };
