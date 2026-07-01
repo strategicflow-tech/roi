@@ -35,6 +35,88 @@
   }
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is AI visibility?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "AI visibility means whether your brand appears when AI tools like ChatGPT, Claude, or Perplexity answer queries in your product category. If someone asks 'best CRM for SaaS teams' and your brand never comes up, you have zero AI visibility — even if your SEO rankings are strong."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is the AI Visibility Score calculated?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The score is 0–10 across three criteria: +4 if your brand appears in at least one of two AI model responses to category queries, +3 if the AI describes your product accurately (not just mentions the name), and +3 if your site is technically crawlable by AI bots (schema.org markup present, no AI crawlers blocked in robots.txt)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is GEO (Generative Engine Optimization)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "GEO is the practice of optimizing your brand's content so AI-powered search engines and LLMs mention you in relevant responses. It differs from traditional SEO in that rankings are replaced by mentions — and the signals that drive mentions are schema.org markup, llms.txt files, structured content, and citation-worthy claims."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why is my brand not appearing in AI responses?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Common reasons: your homepage is JavaScript-rendered with no crawlable text, AI crawlers are blocked in robots.txt, you have no schema.org structured data, or your brand simply lacks enough web presence for the AI model's training data to include it. The AI Visibility Check surfaces which of these applies to your domain."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I improve my AI visibility score?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Four steps: (1) Allow AI crawlers in robots.txt — GPTBot, ClaudeBot, PerplexityBot. (2) Add schema.org JSON-LD markup to your homepage. (3) Add an llms.txt file describing your product clearly. (4) Publish structured, citation-worthy content so AI training datasets and live web search include your brand in relevant category responses."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to check your brand's AI visibility",
+  "description": "Check whether AI tools mention your brand when answering queries in your product category.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Enter your domain",
+      "text": "Type your company domain (e.g. example.com) and optionally your industry or product category."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "We run two AI queries",
+      "text": "Two differently-phrased queries are sent to an AI model. We check whether your brand appears in either response and whether it is described accurately."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "We check technical crawlability",
+      "text": "Your robots.txt is fetched to check if AI crawlers are blocked. Your homepage is scanned for schema.org structured data."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Read your AI Visibility Score",
+      "text": "You receive a score from 0 to 10 with a breakdown: +4 for AI recognition, +3 for accurate citation, +3 for technical crawlability."
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -485,6 +567,100 @@
   }
   .footer-links a:hover { color: var(--white); }
 
+  .about-section {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 64px 24px 80px;
+    border-top: 1px solid var(--border);
+  }
+  .about-section h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 14px;
+    margin-top: 40px;
+    letter-spacing: -0.01em;
+  }
+  .about-section h2:first-child { margin-top: 0; }
+  .about-section p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.75;
+    margin-bottom: 12px;
+  }
+  .about-criteria {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .about-criterion {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .about-criterion:last-child { border-bottom: none; }
+  .ac-score {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dim);
+    flex-shrink: 0;
+    width: 36px;
+    padding-top: 2px;
+  }
+  .about-criterion strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .about-criterion p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 0;
+  }
+  .about-list {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    counter-reset: step;
+  }
+  .about-list li {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    padding-left: 28px;
+    position: relative;
+    counter-increment: step;
+  }
+  .about-list li::before {
+    content: counter(step) ".";
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    position: absolute;
+    left: 0;
+    top: 2px;
+  }
+  .about-list li strong { color: var(--white); }
+  .about-list li code {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    background: var(--surface2);
+    padding: 1px 6px;
+    color: var(--muted);
+  }
+
   @media (max-width: 520px) {
     .score-card { flex-direction: column; gap: 20px; }
     .score-number { font-size: 56px; }
@@ -615,6 +791,45 @@
   </div>
 
 </main>
+
+<section class="about-section" aria-label="About AI Visibility">
+  <h2>What is AI visibility — and why does it matter?</h2>
+  <p>AI visibility means whether your brand appears when tools like ChatGPT, Claude, or Perplexity answer questions in your product category. Traditional SEO gets you ranked in Google. <strong>GEO (Generative Engine Optimization)</strong> gets you mentioned in AI responses — and the signals are different.</p>
+  <p>When a SaaS buyer asks an AI assistant "what's the best email marketing tool for B2B teams", the model pulls from its training data and live web index. If your brand has no schema.org markup, blocks AI crawlers in robots.txt, or simply lacks enough structured online presence, you don't appear — even with strong SEO rankings.</p>
+
+  <h2>How the AI Visibility Score works</h2>
+  <div class="about-criteria">
+    <div class="about-criterion">
+      <div class="ac-score">+4</div>
+      <div>
+        <strong>AI Model Recognition</strong>
+        <p>Two differently-phrased queries are sent to an AI model in your category. If your brand appears in either response, you earn 4 points. This tests whether the model has encountered your brand in training data or live web search.</p>
+      </div>
+    </div>
+    <div class="about-criterion">
+      <div class="ac-score">+3</div>
+      <div>
+        <strong>Cited Correctly</strong>
+        <p>Appearing is not enough. The model must also describe your product accurately — right category, right offer, right context. A wrong description can mislead buyers. 3 points for accurate citation.</p>
+      </div>
+    </div>
+    <div class="about-criterion">
+      <div class="ac-score">+3</div>
+      <div>
+        <strong>Technical Crawlability</strong>
+        <p>Your robots.txt is checked for AI crawler blocks (GPTBot, ClaudeBot, PerplexityBot, CCBot, and others). Your homepage is scanned for schema.org structured data. Both must pass for 3 points.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>How to improve your AI visibility</h2>
+  <ol class="about-list">
+    <li><strong>Allow AI crawlers in robots.txt.</strong> Explicitly permit GPTBot, ClaudeBot, PerplexityBot, and CCBot. Blocking them cuts your brand from live-web AI responses entirely.</li>
+    <li><strong>Add schema.org JSON-LD to your homepage.</strong> Use <code>WebSite</code>, <code>Organization</code>, and <code>SoftwareApplication</code> types. Schema markup is one of the strongest GEO signals for AI models.</li>
+    <li><strong>Publish an llms.txt file.</strong> A plain-text file at <code>/llms.txt</code> tells AI tools what your product does, who it serves, and what makes it different — in a format optimized for model ingestion.</li>
+    <li><strong>Create citation-worthy content.</strong> Case studies, benchmarks, and specific claims (e.g. "average score lift from 3 to 9") are the kind of data AI models surface in recommendations.</li>
+  </ol>
+</section>
 
 <footer>
   <span class="footer-copy">Strategic Flow © 2026</span>

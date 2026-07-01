@@ -20,6 +20,11 @@ SaaS founders with 500–5K users, marketing managers at B2B SaaS companies (50�
 ## Audit modules
 Changelog Audit, Onboarding Audit, LinkedIn Audit. Available in English, Spanish, Swedish, French, Romanian, and German.
 
+## Free tools
+- AI Visibility Check (https://strategic-flow-audit.replit.app/ai-visibility): Free tool that checks whether a brand appears in AI model responses for category queries, checks robots.txt for AI crawler permissions, and detects schema.org markup. Returns a score 0–10 with breakdown. No login required.
+- WHY.™ Decision Friction Analyzer (https://strategic-flow-audit.replit.app/why): Free diagnostic that scores any email, landing page, or sales deck 1–10 for decision friction, identifies 5 friction points, and predicts 15 reader questions. No login required.
+- Newsletter Rebuild (https://strategic-flow-audit.replit.app/): Free single newsletter rebuild using the Strategic Flow Method. One email, rebuilt once.
+
 ## Showcase
 41 SaaS email and content teardowns live at:
 https://strategicflow-tech.github.io/showcase/index.html
@@ -29,5 +34,7 @@ Average score lift: 3 to 9. Companies audited include Ahrefs, HeyGen, Optimizely
 - Website: https://strategicflow.carrd.co
 - App: https://strategic-flow-pro.replit.app
 - Audit app: https://strategic-flow-audit.replit.app
+- AI Visibility Check: https://strategic-flow-audit.replit.app/ai-visibility
+- WHY. Friction Analyzer: https://strategic-flow-audit.replit.app/why
 - Showcase: https://strategicflow-tech.github.io/showcase/index.html
 - Substack: Strategic Flow — SaaS Email Teardowns

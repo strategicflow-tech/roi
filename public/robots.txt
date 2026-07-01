@@ -10,4 +10,13 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-Sitemap: https://strategic-flow-pro.replit.app/llms.txt
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://strategic-flow-audit.replit.app/sitemap.xml
