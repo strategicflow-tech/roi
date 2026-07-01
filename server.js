@@ -319,7 +319,7 @@ app.post('/api/ai-visibility', async (req, res) => {
           [cat]
         );
         const row = catR.rows[0];
-        if (row && parseInt(row.cnt) >= 5) {
+        if (row && parseInt(row.cnt) >= 10) {
           benchmarkAvg = parseFloat(row.avg);
           benchmarkCategory = cat;
         }
@@ -329,7 +329,7 @@ app.post('/api/ai-visibility', async (req, res) => {
           `SELECT ROUND(AVG(score)::numeric,1) AS avg, COUNT(*) AS cnt FROM visibility_checks`
         );
         const row = allR.rows[0];
-        if (row && parseInt(row.cnt) >= 3) {
+        if (row && parseInt(row.cnt) >= 2) {
           benchmarkAvg = parseFloat(row.avg);
         }
       }
