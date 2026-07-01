@@ -570,6 +570,10 @@ async function setupDB() {
       completed_at  TIMESTAMPTZ
     )
   `).catch(e => console.error('[DB] why_jobs:', e.message));
+
+  await pool.query(`ALTER TABLE why_jobs ADD COLUMN IF NOT EXISTS raw_response_snippet TEXT`)
+    .catch(e => console.error('[DB] why_jobs raw_response_snippet col:', e.message));
+
   console.log('[DB] All tables ready');
 }
 
@@ -7386,7 +7390,11 @@ setupDB().then(async () => {
         const clean = text.replace(/```json|```/g, '').trim();
         let result;
         try { result = JSON.parse(clean); } catch (_) {
-          await pool.query(`UPDATE why_jobs SET status='error', error_message='parse_failed', completed_at=NOW() WHERE id=$1`, [jobId]).catch(() => {});
+          const rawSnippet = ('RAW: ' + clean).slice(0, 3000);
+          await pool.query(
+            `UPDATE why_jobs SET status='error', error_message='parse_failed', raw_response_snippet=$2, completed_at=NOW() WHERE id=$1`,
+            [jobId, rawSnippet]
+          ).catch(() => {});
           try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' }); } catch (_) {}
           return;
         }

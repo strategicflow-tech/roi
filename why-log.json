@@ -134,5 +134,21 @@
     "content_type": "email",
     "char_count": 669,
     "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T14:28:52.015Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-analyze",
+    "content_type": "Investor update",
+    "char_count": 9379,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T14:29:36.894Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-analyze",
+    "content_type": "Investor update",
+    "char_count": 9379,
+    "status": "error"
   }
 ]
