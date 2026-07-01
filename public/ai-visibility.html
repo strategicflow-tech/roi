@@ -755,6 +755,15 @@
         </div>
         <div class="b-check" id="bc-tech">—</div>
       </div>
+      <div class="breakdown-item px-row" id="px-row" style="display:none;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;padding-top:4px;">
+        <div class="b-score" id="bs-px" style="font-size:9px;letter-spacing:0.04em;color:#888;font-weight:600;">LIVE</div>
+        <div>
+          <div class="b-label">Live Web Presence <span style="font-size:9px;color:#888;font-weight:400;font-family:'Space Mono',monospace;">(Perplexity)</span></div>
+          <div class="b-text" id="bt-px">—</div>
+          <div id="px-context" style="display:none;margin-top:6px;padding:8px 10px;background:rgba(255,255,255,0.03);border-left:2px solid #1D9E75;font-family:'Space Mono',monospace;font-size:10px;color:#aaa;line-height:1.6;"></div>
+        </div>
+        <div class="b-check" id="bc-px">—</div>
+      </div>
     </div>
 
     <div id="impact-line" style="display:none;padding:12px 20px;background:rgba(255,68,34,0.06);border:1px solid rgba(255,68,34,0.18);font-family:'Space Mono',monospace;font-size:11px;color:#FF6644;line-height:1.6;margin-bottom:20px;"></div>
@@ -1071,6 +1080,33 @@ function renderResult(data) {
       fixEl.innerHTML = fixes.map((f, i) =>
         `<li style="padding-left:0;list-style:none;margin-bottom:14px;"><strong style="font-family:'Space Mono',monospace;font-size:11px;color:#FF4422;">${i + 1}.</strong> ${f}</li>`
       ).join('');
+    }
+  }
+
+  // Perplexity Live Web Presence row
+  const pxRow = document.getElementById('px-row');
+  const pxCheck = document.getElementById('bc-px');
+  const pxText = document.getElementById('bt-px');
+  const pxCtx = document.getElementById('px-context');
+  if (data.pxError === 'no_key') {
+    pxRow.style.display = 'none';
+  } else {
+    pxRow.style.display = '';
+    if (data.pxFound) {
+      pxCheck.textContent = '✓';
+      pxCheck.className = 'b-check yes';
+      pxText.textContent = 'Found in Perplexity live-web results';
+      if (data.pxContext) {
+        pxCtx.textContent = '"' + data.pxContext + '"';
+        pxCtx.style.display = 'block';
+      } else {
+        pxCtx.style.display = 'none';
+      }
+    } else {
+      pxCheck.textContent = '✕';
+      pxCheck.className = 'b-check no';
+      pxText.textContent = 'Not found in Perplexity live-web results';
+      pxCtx.style.display = 'none';
     }
   }
 

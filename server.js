@@ -178,6 +178,46 @@ app.get('/ai-visibility', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/ai-visibility.html'));
 });
 
+async function callPerplexityVisibility(brand, domain, query) {
+  const key = process.env.PERPLEXITY_API_KEY;
+  if (!key) return { found: false, context: null, error: 'no_key' };
+  try {
+    const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [{ role: 'user', content: query }],
+        max_tokens: 400,
+        search_recency_filter: 'month'
+      }),
+      signal: AbortSignal.timeout(20000)
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error('[perplexity]', resp.status, err.slice(0, 200));
+      return { found: false, context: null, error: `http_${resp.status}` };
+    }
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const brandLower = brand.toLowerCase();
+    const domainLower = domain.toLowerCase();
+    const found = text.toLowerCase().includes(brandLower) || text.toLowerCase().includes(domainLower);
+    let context = null;
+    if (found) {
+      const sentences = text.match(/[^.!?]*[.!?]/g) || [text];
+      const hit = sentences.find(s =>
+        s.toLowerCase().includes(brandLower) || s.toLowerCase().includes(domainLower)
+      );
+      context = hit ? hit.trim() : text.slice(0, 200).trim();
+    }
+    return { found, context, rawLength: text.length };
+  } catch (e) {
+    console.error('[perplexity]', e.message);
+    return { found: false, context: null, error: e.message };
+  }
+}
+
 async function callAIVisibility(domain, brand, query) {
   const prompt = `A professional asks you: "${query}"
 
@@ -278,12 +318,17 @@ app.post('/api/ai-visibility', async (req, res) => {
     : `${brand} — worth using for a growing SaaS company`;
 
   try {
-    const [r1raw, r2raw, tech] = await Promise.all([
+    const pxQuery = cat
+      ? `best ${cat} tools for B2B SaaS teams in 2026`
+      : `what does ${brand} (${domain}) do and who is it for`;
+
+    const [r1raw, r2raw, tech, px] = await Promise.all([
       callAIVisibility(domain, brand, q1).catch(() => null),
       callAIVisibility(domain, brand, q2).catch(() => null),
       fetchVisibilityTech(domain).catch(() => ({
         robotsBlocked: false, robotsFetched: false, schemaPresent: false, blockedAgents: [], jsOnly: false
-      }))
+      })),
+      callPerplexityVisibility(brand, domain, pxQuery).catch(() => ({ found: false, context: null, error: 'catch' }))
     ]);
 
     const r1 = r1raw || { mentions_brand: false, mentions_correctly: false, answer: 'Response unavailable.' };
@@ -363,7 +408,8 @@ app.post('/api/ai-visibility', async (req, res) => {
       q1, q2, brand, domain, reasons,
       q1Answer: r1.answer, q2Answer: r2.answer,
       q1Mentioned: !!r1.mentions_brand, q2Mentioned: !!r2.mentions_brand,
-      benchmarkAvg, benchmarkCategory
+      benchmarkAvg, benchmarkCategory,
+      pxFound: px.found, pxContext: px.context || null, pxError: px.error || null
     });
   } catch (err) {
     console.error('[ai-visibility]', err.message);
