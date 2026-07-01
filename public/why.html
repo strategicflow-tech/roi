@@ -1829,7 +1829,7 @@ ${input}`;
     const response = await fetch('/api/why-rebuild', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fixPrompt, contentType, rawContent: input })
+      body: JSON.stringify({ prompt: fixPrompt, contentType, rawContent: input, frictionScore: outputData.friction_score ?? null })
     });
 
     if (response.status === 429) {

@@ -7395,7 +7395,7 @@ setupDB().then(async () => {
     const ip = ipParts.join('.');
     const anonIp = ip;
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
-    const { prompt, contentType, rawContent } = req.body;
+    const { prompt, contentType, rawContent, frictionScore } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
     const isProUser = (req.session && req.session.isWhyPro === true) ||
       (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
@@ -7438,8 +7438,8 @@ setupDB().then(async () => {
           pool.query(
             `INSERT INTO why_analyses
                (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
-             VALUES ($1, 'rebuild', $2, $3, NULL, NULL, $4)`,
-            [userEmail, contentType || null, excerpt, JSON.stringify({ type: 'rebuild', text })]
+             VALUES ($1, 'rebuild', $2, $3, NULL, $5, $4)`,
+            [userEmail, contentType || null, excerpt, JSON.stringify({ type: 'rebuild', text }), (typeof frictionScore === 'number' ? frictionScore : null)]
           ).catch(e => console.error('[why_analyses] insert error:', e.message));
         }
       }
