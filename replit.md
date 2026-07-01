@@ -68,7 +68,7 @@ Claude classifies every submission into one of 8 types: `product_update`, `reten
 - Applied in all three featureCards build paths: `downloadHtml`, showcase, and the thought_leadership/product_update fallback path.
 
 ## Model
-`claude-sonnet-4-5-20250929` — do not change without testing all tier prompts.
+`claude-sonnet-5` (alias) — do not change without testing all tier prompts.
 
 ## Production URL
 `https://strategic-flow-audit.replit.app`

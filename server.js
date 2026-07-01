@@ -27,7 +27,7 @@ const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const MODEL          = 'claude-sonnet-4-5-20250929';
+const MODEL          = 'claude-sonnet-5';
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com']);
