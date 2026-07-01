@@ -1,0 +1,1 @@
+- [claude-sonnet-5 adaptive thinking](claude-sonnet-5-adaptive-thinking.md) — always use max_tokens:16000 + content.find(b=>b.type==='text') to extract response; content[0] is a thinking block.

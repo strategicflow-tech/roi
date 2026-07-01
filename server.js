@@ -6980,12 +6980,12 @@ app.post('/changelog-audit', async (req, res) => {
   try {
     const response = await claude.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       system: getLangInstruction(lang) + '\n\n' + CHANGELOG_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `${companyHint}Analyze this SaaS changelog page:\n\n${content.slice(0, 8000)}` }],
     });
 
-    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const raw = ((response.content.find(b => b.type === 'text')?.text) || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
     const result = safeParseJSON(raw);
     if (!result) {
       console.error('[changelog-audit] JSON parse failed. Raw:', raw.slice(0, 300));
@@ -7078,12 +7078,12 @@ app.post('/onboarding-audit', async (req, res) => {
   try {
     const response = await claude.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       system: getLangInstruction(lang) + '\n\n' + ONBOARDING_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this SaaS onboarding copy:\n\n${content.slice(0, 8000)}` }],
     });
 
-    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const raw = ((response.content.find(b => b.type === 'text')?.text) || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
     const result = safeParseJSON(raw);
     if (!result) {
       console.error('[onboarding-audit] JSON parse failed. Raw:', raw.slice(0, 300));
@@ -7181,12 +7181,12 @@ app.post('/linkedin-audit', async (req, res) => {
   try {
     const response = await claude.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       system: getLangInstruction(lang) + '\n\n' + LINKEDIN_AUDIT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `Analyze this LinkedIn post:\n\n${content.slice(0, 8000)}` }],
     });
 
-    const raw = (response.content[0].text || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
+    const raw = ((response.content.find(b => b.type === 'text')?.text) || '').trim().replace(/^```json\s*|^```\s*|```$/g, '').trim();
     const result = safeParseJSON(raw);
     if (!result) {
       console.error('[linkedin-audit] JSON parse failed. Raw:', raw.slice(0, 300));
