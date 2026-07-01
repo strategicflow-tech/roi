@@ -1025,6 +1025,11 @@
       <button class="type-btn" onclick="setType(this, 'Case study')">Case study</button>
       <button class="type-btn" onclick="setType(this, 'LinkedIn post')">LinkedIn post</button>
       <button class="type-btn" onclick="setType(this, 'Brief')">Brief</button>
+      <button class="type-btn" onclick="setType(this, 'Onboarding email')">Onboarding email</button>
+      <button class="type-btn" onclick="setType(this, 'Blog post')">Blog post</button>
+      <button class="type-btn" onclick="setType(this, 'Job posting')">Job posting</button>
+      <button class="type-btn" onclick="setType(this, 'Investor update')">Investor update</button>
+      <button class="type-btn" onclick="setType(this, 'Ad copy')">Ad copy</button>
       <button class="type-btn" onclick="setType(this, 'Document')">Other</button>
     </div>
 
@@ -1213,7 +1218,16 @@
 <script>
 // ===== STATE =====
 let contentType = 'Email';
+let contentTypeContext = '';
 let outputData = null;
+
+const CONTENT_TYPE_CONTEXTS = {
+  'Onboarding email': 'Focus on activation friction and sequence gaps: Does the email define a concrete "first win" the reader can achieve? Is the next step specific and low-effort, or does it demand too much too soon? Are there missing moments of reassurance that reduce new-user anxiety? Does the email assume too much prior knowledge?',
+  'Blog post': 'Focus on why readers leave before the payoff: Is the hook strong enough to justify reading past the first paragraph? Is the thesis buried or unclear? Does the argument build logically or does it meander? Is there a clear takeaway or does it end without resolution? Does it make a specific claim or hedge everything?',
+  'Job posting': 'Focus on why qualified candidates don\'t apply: Are requirements vague or inflated beyond what the role actually needs? Is compensation missing or hidden? Does the culture language have any concrete evidence or is it all generic claims? Is the actual day-to-day work described, or just abstract responsibilities? Would a strong candidate feel this role is worth their time?',
+  'Investor update': 'Focus on why investors don\'t re-engage or respond: Is there a clear momentum signal (growth, retention, partnerships)? Are key metrics buried or presented without context? Is there a specific ask with a deadline, or is the update passive? Does the narrative explain WHY things happened, or just WHAT happened? Would an investor feel urgency to reply?',
+  'Ad copy': 'Focus on hook-offer mismatch and claim credibility: Does the hook match what the ad is actually selling? Are claims specific and provable, or vague and generic? Is there a reason to act now, or does the CTA feel optional? Is the audience specific enough to feel personally addressed? Does the copy describe a transformation or just a product feature?'
+};
 
 // ===== HERO ANIMATION =====
 window.isWhyPro = false;
@@ -1286,6 +1300,7 @@ function setType(btn, type) {
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   contentType = type;
+  contentTypeContext = CONTENT_TYPE_CONTEXTS[type] || '';
 }
 
 // ===== CHAR COUNT =====
@@ -1361,7 +1376,7 @@ Rules:
 - answers should be blunt - if the content does not answer the question, say so directly and state what is missing
 - friction_points titles must be unique - no two points can have the same title
 - Return ONLY valid JSON, no markdown, no backticks, no explanation
-
+${contentTypeContext ? `\nSpecific failure patterns to prioritize for this content type:\n${contentTypeContext}\n` : ''}
 Content to analyze:
 ${input}`;
 
