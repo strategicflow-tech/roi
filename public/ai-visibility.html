@@ -779,9 +779,9 @@
 
     <div class="cta-block">
       <div class="cta-label">Next step</div>
-      <div class="cta-title">Fix what's holding your brand back from AI visibility.</div>
-      <div class="cta-sub">Strategic Flow rebuilds your content architecture — subject lines, hooks, CTAs — so your brand shows up in the right conversations. Includes Brand DNA extraction and audience segmentation.</div>
-      <a href="https://strategic-flow-pro.replit.app/packages" class="cta-btn">See Strategic Flow Plans →</a>
+      <div class="cta-title" id="cta-title">Your recurring emails shape how AI describes your brand.</div>
+      <div class="cta-sub" id="cta-sub">Start with a Single Audit and see the fix.</div>
+      <a href="https://strategic-flow-pro.replit.app/packages#single" class="cta-btn" id="cta-btn">See Strategic Flow Plans →</a>
       <div class="cta-secondary">
         <button onclick="resetCheck()">← Check another domain</button>
         <button onclick="copyScore()">Copy score →</button>
@@ -1015,11 +1015,27 @@ function renderResult(data) {
   document.getElementById('q2-answer').textContent = data.q2Answer || 'Response unavailable.';
   document.getElementById('q2-badge').innerHTML = `<span class="mention-badge ${data.q2Mentioned ? 'yes' : 'no'}">${data.q2Mentioned ? '✓ ' + data.brand + ' mentioned' : '✕ ' + data.brand + ' not mentioned'}</span>`;
 
+  const ctaCopy = getIndustryCTA(document.getElementById('category-input').value.trim());
+  document.getElementById('cta-title').textContent = ctaCopy.framing;
+  document.getElementById('cta-sub').textContent = ctaCopy.sub;
+  document.getElementById('cta-btn').href = 'https://strategic-flow-pro.replit.app/packages#single';
+
   detailOpen = false;
   document.getElementById('detail-body').style.display = 'none';
   document.getElementById('toggle-arrow').textContent = '↓';
   document.getElementById('output').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function getIndustryCTA(cat) {
+  const c = (cat || '').toLowerCase();
+  const isSaaS   = /saas|software|crm|erp|analytics|email.?market|marketing.?auto|productivity|devtool|api|platform|b2b/.test(c);
+  const isEcom   = /ecomm|e.?comm|shopify|woo|retail|store|shop|dtc|d2c|product/.test(c);
+  const isMedia  = /media|publish|newsletter|content|blog|journal|magazine|editorial/.test(c);
+  if (isSaaS)  return { framing: 'Your onboarding emails decide if AI tools describe you correctly.',   sub: 'Start with a Single Audit and see the fix.' };
+  if (isEcom)  return { framing: 'Your product emails are what AI sees first.',                         sub: 'Start with a Single Audit and see the fix.' };
+  if (isMedia) return { framing: 'Your newsletter structure feeds what AI quotes about you.',            sub: 'Start with a Single Audit and see the fix.' };
+  return         { framing: 'Your recurring emails shape how AI describes your brand.',                  sub: 'Start with a Single Audit and see the fix.' };
 }
 
 function resetCheck() {
