@@ -1302,6 +1302,16 @@ function extractCompetitors(answers, brand) {
     'Email','Marketing','Analytics','Automation','Management','Intelligence','Data','Growth','Revenue','Conversion','Engagement','Retention','Acquisition','Optimization',
     'Team','Teams','User','Users','Customer','Customers','Client','Clients','Buyer','Buyers','Vendor','Vendors',
     'Yes','No','True','False','None','Null','Key','Value','Note','Example','See','Use','Get','Set','Run','Go','Help','Support','Learn','Read','Try','Start','Stop','Send','Build','Make','Find','Show','Give','Take','Keep','Turn','Come','Look','Work','Need','Want','Know','Think','Feel','Seem','Become','Include','Provide','Offer','Allow','Enable','Require','Ensure','Consider','Understand','Identify','Create','Improve','Increase','Decrease','Reduce','Generate','Develop','Implement','Apply','Follow','Check','Test','Review','Update','Change','Add','Remove','Move','Place','Put','Write','Call','Ask','Tell','Say','Mean']);
+  // Returns true for acronym-pattern words that are never product names:
+  // SERP, SERPs, API, APIs — all-caps with optional plural s
+  // B2B, B2C, G2 — letter-digit combos
+  // SaaS, SaAS — mixed-case where the word ends in uppercase (acronym convention)
+  function isGenericAcronym(w) {
+    if (/^[A-Z]{2,}s?$/.test(w)) return true;       // SERP SERPs API CRM SEO
+    if (/^[A-Z][0-9][A-Za-z0-9]*$/.test(w)) return true; // B2B B2C G2
+    if (/^[A-Z][a-z]+[A-Z]$/.test(w)) return true;  // SaaS SheEO
+    return false;
+  }
   const brandLower = (brand || '').toLowerCase();
   const combined = answers.filter(Boolean).join(' ');
   const raw = combined.match(/\b[A-Z][a-zA-Z]{1,24}(?:\.[a-z]{2,4})?(?:\s+[A-Z][a-zA-Z]{1,24}){0,2}\b/g) || [];
@@ -1309,7 +1319,7 @@ function extractCompetitors(answers, brand) {
   const results = [];
   for (const m of raw) {
     const words = m.split(' ');
-    if (words.some(w => STOP.has(w))) continue;
+    if (words.some(w => STOP.has(w) || isGenericAcronym(w))) continue;
     if (m.toLowerCase().includes(brandLower)) continue;
     if (m.length < 3) continue;
     const key = m.toLowerCase();
