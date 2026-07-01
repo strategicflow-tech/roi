@@ -1426,6 +1426,59 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }, { threshold: 0.15 });
   appObs.observe(document.getElementById('app'));
+
+  // Resume pending job after tab kill / OS discard
+  try {
+    const raw = localStorage.getItem(WHY_JOB_KEY);
+    if (raw) {
+      const job = JSON.parse(raw);
+      const age = Date.now() - (job.startedAt || 0);
+      if (job.id && age < 120000) {
+        if (job.type === 'analyze') {
+          showLoading();
+          const loadTitle = document.querySelector('.loading-title');
+          if (loadTitle) loadTitle.textContent = 'Analyzing... this can take up to 40 seconds';
+          pollWhyJob(
+            job.id,
+            (result) => { outputData = result; hideLoading(); renderOutput(result); },
+            (errMsg) => { hideLoading(); resetLoadingSteps(); showError('Analysis failed: ' + errMsg); }
+          );
+        } else if (job.type === 'rebuild') {
+          const fixSection = document.getElementById('fix-section');
+          const fixLoading = document.getElementById('fix-loading');
+          const fixContent = document.getElementById('fix-content');
+          const fixBtn    = document.getElementById('fix-btn');
+          if (fixSection && fixLoading && fixContent && fixBtn) {
+            fixSection.style.display   = 'block';
+            fixSection.style.opacity   = '1';
+            fixSection.style.transform = 'translateY(0)';
+            fixLoading.style.display   = 'block';
+            fixContent.textContent     = '';
+            fixBtn.disabled            = true;
+            fixBtn.textContent         = 'Resuming rebuild...';
+            pollWhyJob(
+              job.id,
+              (result) => {
+                fixLoading.style.display = 'none';
+                fixBtn.textContent       = 'Rebuild with WHY.';
+                fixBtn.disabled          = false;
+                fixContent.textContent   = result.text || '';
+                fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              },
+              (errMsg) => {
+                fixLoading.style.display = 'none';
+                fixBtn.textContent       = 'Rebuild with WHY.';
+                fixBtn.disabled          = false;
+                fixContent.textContent   = 'Rebuild failed: ' + errMsg;
+              }
+            );
+          }
+        }
+      } else {
+        clearPendingJob();
+      }
+    }
+  } catch (_) {}
 });
 
 function toggleHow() {
@@ -1488,6 +1541,37 @@ function resetLoadingSteps() {
   });
 }
 
+// ===== ASYNC JOB POLLING =====
+const WHY_JOB_KEY = 'why_pending_job';
+
+function savePendingJob(id, type) {
+  try { localStorage.setItem(WHY_JOB_KEY, JSON.stringify({ id, type, startedAt: Date.now() })); } catch (_) {}
+}
+function clearPendingJob() {
+  try { localStorage.removeItem(WHY_JOB_KEY); } catch (_) {}
+}
+
+function pollWhyJob(jobId, onComplete, onError) {
+  const started = Date.now();
+  const MAX_WAIT = 120000;
+  function check() {
+    if (Date.now() - started > MAX_WAIT) {
+      clearPendingJob();
+      onError('Timeout — please try again.');
+      return;
+    }
+    fetch('/api/why-job/' + jobId)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'complete') { clearPendingJob(); onComplete(data.result, data.jobType); return; }
+        if (data.status === 'error')    { clearPendingJob(); onError(data.error || 'Unknown error'); return; }
+        setTimeout(check, 2500);
+      })
+      .catch(() => setTimeout(check, 2500));
+  }
+  setTimeout(check, 2000);
+}
+
 // ===== MAIN ANALYSIS =====
 async function runAnalysis() {
   const input = document.getElementById('content-input').value.trim();
@@ -1542,10 +1626,8 @@ ${input}`;
       body: JSON.stringify({ prompt, contentType, rawContent: input })
     });
 
-    clearInterval(loadInterval);
-
-    // 429 - rate limit reached: show upgrade block, not generic error
     if (response.status === 429) {
+      clearInterval(loadInterval);
       hideLoading();
       resetLoadingSteps();
       showLimitBlock();
@@ -1556,17 +1638,32 @@ ${input}`;
 
     const data = await response.json();
     if (data.error === 'limit_reached') {
+      clearInterval(loadInterval);
       hideLoading();
       resetLoadingSteps();
       showLimitBlock();
       return;
     }
     if (data.error) throw new Error(data.error);
-    const parsed = data.result;
 
-    outputData = parsed;
-    hideLoading();
-    renderOutput(parsed);
+    savePendingJob(data.id, 'analyze');
+    const loadTitle = document.querySelector('.loading-title');
+    if (loadTitle) loadTitle.textContent = 'Analyzing... this can take up to 40 seconds';
+    pollWhyJob(
+      data.id,
+      (result) => {
+        clearInterval(loadInterval);
+        outputData = result;
+        hideLoading();
+        renderOutput(result);
+      },
+      (errMsg) => {
+        clearInterval(loadInterval);
+        hideLoading();
+        resetLoadingSteps();
+        showError('Something went wrong. Please try again. (' + errMsg + ')');
+      }
+    );
 
   } catch (err) {
     clearInterval(loadInterval);
@@ -1842,14 +1939,33 @@ ${input}`;
 
     const data = await response.json();
 
-    fixLoading.style.display = 'none';
-    fixBtn.textContent = 'Rebuild with WHY.';
-    fixBtn.disabled = false;
-
-    if (data.error === 'limit_reached') { showLimitBlock(); return; }
+    if (data.error === 'limit_reached') {
+      fixLoading.style.display = 'none';
+      fixBtn.textContent = 'Rebuild with WHY.';
+      fixBtn.disabled = false;
+      showLimitBlock();
+      return;
+    }
     if (data.error) throw new Error(data.error);
-    fixContent.textContent = data.text;
-    fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    savePendingJob(data.id, 'rebuild');
+    fixBtn.textContent = 'Rebuilding... (up to 40s)';
+    pollWhyJob(
+      data.id,
+      (result) => {
+        fixLoading.style.display = 'none';
+        fixBtn.textContent = 'Rebuild with WHY.';
+        fixBtn.disabled = false;
+        fixContent.textContent = result.text || '';
+        fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      },
+      (errMsg) => {
+        fixLoading.style.display = 'none';
+        fixBtn.textContent = 'Rebuild with WHY.';
+        fixBtn.disabled = false;
+        fixContent.textContent = 'Rebuild failed: ' + errMsg;
+      }
+    );
 
   } catch (err) {
     fixLoading.style.display = 'none';

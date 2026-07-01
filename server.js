@@ -557,6 +557,19 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] why_analyses:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS why_jobs (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      status        TEXT NOT NULL DEFAULT 'pending',
+      job_type      TEXT NOT NULL,
+      content_type  TEXT,
+      input_excerpt TEXT,
+      result_json   TEXT,
+      error_message TEXT,
+      created_at    TIMESTAMPTZ DEFAULT NOW(),
+      completed_at  TIMESTAMPTZ
+    )
+  `).catch(e => console.error('[DB] why_jobs:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -7340,53 +7353,68 @@ setupDB().then(async () => {
       }
       whyUsage[ip] = used + 1;
     }
+    if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+
+    // Phase 1: create job row, return id immediately
+    let jobId;
     try {
-      if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
-      });
-      const data = await response.json();
-      const textBlock = data.content?.find(block => block.type === 'text');
-      const text = textBlock?.text || '';
-      const clean = text.replace(/```json|```/g, '').trim();
+      const jr = await pool.query(
+        `INSERT INTO why_jobs (status, job_type, content_type, input_excerpt)
+         VALUES ('pending', 'analyze', $1, $2) RETURNING id`,
+        [contentType || null, (rawContent || '').slice(0, 200)]
+      );
+      jobId = jr.rows[0].id;
+    } catch (dbErr) {
+      return res.status(500).json({ error: 'job_create_failed' });
+    }
+    res.json({ id: jobId });
+
+    // Phase 2: fire-and-forget — completely separate from res lifecycle
+    try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'queued' }); } catch (_) {}
+
+    const capturedSession = req.session;
+    ;(async () => {
       try {
-        const result = JSON.parse(clean);
-        res.json({ result });
-        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
-        const isSessionPro = (req.session && req.session.isWhyPro === true) ||
-          (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
-          (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+        const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await apiResp.json();
+        const textBlock = data.content?.find(b => b.type === 'text');
+        const text = textBlock?.text || '';
+        const clean = text.replace(/```json|```/g, '').trim();
+        let result;
+        try { result = JSON.parse(clean); } catch (_) {
+          await pool.query(`UPDATE why_jobs SET status='error', error_message='parse_failed', completed_at=NOW() WHERE id=$1`, [jobId]).catch(() => {});
+          try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' }); } catch (_) {}
+          return;
+        }
+        await pool.query(`UPDATE why_jobs SET status='complete', result_json=$1, completed_at=NOW() WHERE id=$2`,
+          [JSON.stringify(result), jobId]).catch(() => {});
+        try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'success' }); } catch (_) {}
+        const isSessionPro = (capturedSession && capturedSession.isWhyPro === true) ||
+          (capturedSession && BYPASS_EMAILS.has(capturedSession.userEmail)) ||
+          (capturedSession && BYPASS_EMAILS.has(capturedSession.whyProEmail));
         if (isSessionPro) {
-          const userEmail = req.session.whyProEmail || req.session.userEmail;
+          const userEmail = capturedSession.whyProEmail || capturedSession.userEmail;
           if (userEmail) {
             const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
             const diagSummary = result.summary || result.verdict || null;
             const score = typeof result.friction_score === 'number' ? result.friction_score : null;
             pool.query(
-              `INSERT INTO why_analyses
-                 (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
+              `INSERT INTO why_analyses (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
                VALUES ($1, 'analyze', $2, $3, $4, $5, $6)`,
               [userEmail, contentType || null, excerpt, diagSummary, score, JSON.stringify(result)]
             ).catch(e => console.error('[why_analyses] insert error:', e.message));
           }
         }
-        return;
-      } catch (parseErr) {
-        res.status(500).json({ error: 'parse_failed', raw: clean.slice(0, 200) });
-        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
-        return;
+      } catch (err) {
+        await pool.query(`UPDATE why_jobs SET status='error', error_message=$1, completed_at=NOW() WHERE id=$2`,
+          [err.message.slice(0, 500), jobId]).catch(() => {});
+        try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' }); } catch (_) {}
       }
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
-      return;
-    }
+    })();
   });
 
   app.post('/api/why-rebuild', async (req, res) => {
@@ -7409,47 +7437,86 @@ setupDB().then(async () => {
       }
       whyUsage[ip] = used + 1;
     }
+    if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+
+    // Phase 1: create job row, return id immediately
+    let jobId;
     try {
-      if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
-      });
-      const data = await response.json();
-      const textBlock = data.content?.find(block => block.type === 'text');
-      const text = textBlock?.text || '';
-      if (!text) {
-        res.status(500).json({ error: 'empty_response' });
-        appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
-        return;
-      }
-      res.json({ text });
-      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
-      const isSessionPro = (req.session && req.session.isWhyPro === true) ||
-        (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
-        (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
-      if (isSessionPro) {
-        const userEmail = req.session.whyProEmail || req.session.userEmail;
-        if (userEmail) {
-          const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
-          pool.query(
-            `INSERT INTO why_analyses
-               (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
-             VALUES ($1, 'rebuild', $2, $3, NULL, $5, $4)`,
-            [userEmail, contentType || null, excerpt, JSON.stringify({ type: 'rebuild', text }), (typeof frictionScore === 'number' ? frictionScore : null)]
-          ).catch(e => console.error('[why_analyses] insert error:', e.message));
+      const jr = await pool.query(
+        `INSERT INTO why_jobs (status, job_type, content_type, input_excerpt)
+         VALUES ('pending', 'rebuild', $1, $2) RETURNING id`,
+        [contentType || null, (rawContent || '').slice(0, 200)]
+      );
+      jobId = jr.rows[0].id;
+    } catch (dbErr) {
+      return res.status(500).json({ error: 'job_create_failed' });
+    }
+    res.json({ id: jobId });
+
+    // Phase 2: fire-and-forget — completely separate from res lifecycle
+    try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'queued' }); } catch (_) {}
+
+    const capturedSession = req.session;
+    ;(async () => {
+      try {
+        const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await apiResp.json();
+        const textBlock = data.content?.find(b => b.type === 'text');
+        const text = textBlock?.text || '';
+        if (!text) {
+          await pool.query(`UPDATE why_jobs SET status='error', error_message='empty_response', completed_at=NOW() WHERE id=$1`, [jobId]).catch(() => {});
+          try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' }); } catch (_) {}
+          return;
         }
+        await pool.query(`UPDATE why_jobs SET status='complete', result_json=$1, completed_at=NOW() WHERE id=$2`,
+          [JSON.stringify({ text }), jobId]).catch(() => {});
+        try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'success' }); } catch (_) {}
+        const isSessionPro = (capturedSession && capturedSession.isWhyPro === true) ||
+          (capturedSession && BYPASS_EMAILS.has(capturedSession.userEmail)) ||
+          (capturedSession && BYPASS_EMAILS.has(capturedSession.whyProEmail));
+        if (isSessionPro) {
+          const userEmail = capturedSession.whyProEmail || capturedSession.userEmail;
+          if (userEmail) {
+            const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
+            pool.query(
+              `INSERT INTO why_analyses
+                 (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
+               VALUES ($1, 'rebuild', $2, $3, NULL, $5, $4)`,
+              [userEmail, contentType || null, excerpt, JSON.stringify({ type: 'rebuild', text }), (typeof frictionScore === 'number' ? frictionScore : null)]
+            ).catch(e => console.error('[why_analyses] insert error:', e.message));
+          }
+        }
+      } catch (err) {
+        await pool.query(`UPDATE why_jobs SET status='error', error_message=$1, completed_at=NOW() WHERE id=$2`,
+          [err.message.slice(0, 500), jobId]).catch(() => {});
+        try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' }); } catch (_) {}
       }
-      return;
+    })();
+  });
+
+  app.get('/api/why-job/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const r = await pool.query(
+        `SELECT status, job_type, result_json, error_message FROM why_jobs
+         WHERE id = $1 AND created_at > NOW() - INTERVAL '2 hours'`,
+        [id]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: 'not_found' });
+      const job = r.rows[0];
+      if (job.status === 'complete') {
+        return res.json({ status: 'complete', jobType: job.job_type, result: JSON.parse(job.result_json) });
+      }
+      if (job.status === 'error') {
+        return res.json({ status: 'error', error: job.error_message });
+      }
+      return res.json({ status: 'pending' });
     } catch (err) {
       res.status(500).json({ error: err.message });
-      appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
-      return;
     }
   });
 

@@ -14,5 +14,125 @@
     "content_type": "Cold Email",
     "char_count": 638,
     "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:12.254Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-analyze",
+    "content_type": "email newsletter",
+    "char_count": 1549,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:15.268Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:15.342Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:15.358Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:15.387Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "rate_limited"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:17.466Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "error"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:17.616Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "error"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:17.797Z",
+    "ip": "10.99.88.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 4,
+    "status": "error"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:22.675Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-analyze",
+    "content_type": "email newsletter",
+    "char_count": 1549,
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:35.181Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-rebuild",
+    "content_type": "email newsletter",
+    "char_count": 214,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:46:37.651Z",
+    "ip": "127.0.0.0",
+    "route": "/api/why-rebuild",
+    "content_type": "email newsletter",
+    "char_count": 214,
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T12:47:49.923Z",
+    "ip": "10.1.2.0",
+    "route": "/api/why-analyze",
+    "content_type": "email newsletter",
+    "char_count": 873,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:47:53.511Z",
+    "ip": "10.1.2.0",
+    "route": "/api/why-analyze",
+    "content_type": "email newsletter",
+    "char_count": 873,
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-07-01T12:48:10.571Z",
+    "ip": "10.5.6.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 669,
+    "status": "queued"
+  },
+  {
+    "timestamp": "2026-07-01T12:48:15.877Z",
+    "ip": "10.5.6.0",
+    "route": "/api/why-analyze",
+    "content_type": "email",
+    "char_count": 669,
+    "status": "success"
   }
 ]
