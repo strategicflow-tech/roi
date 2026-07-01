@@ -1168,9 +1168,10 @@ function renderResult(data) {
     costEl.style.display = 'none';
   }
 
-  // Competitor tools named in AI responses
+  // Competitor tools named in AI responses — extracted server-side by Claude,
+  // not by client-side regex (which produced false positives like "Common", "Book", "Acid").
   const compEl = document.getElementById('cta-competitors');
-  const competitors = extractCompetitors([data.q1Answer, data.q2Answer], data.brand);
+  const competitors = Array.isArray(data.competitors) ? data.competitors : [];
   if (competitors.length > 0 && !data.brandMentioned) {
     compEl.innerHTML = 'Right now, AI recommends <strong>' + competitors.join(', ') + '</strong> instead of you.';
     compEl.style.display = 'block';
@@ -1343,6 +1344,9 @@ function getIndustryCTA(cat) {
 }
 
 function resetCheck() {
+  document.getElementById('domain-input').value = '';
+  document.getElementById('category-input').value = '';
+  document.getElementById('query-preview').classList.remove('active');
   document.getElementById('output').style.display = 'none';
   document.getElementById('form-wrap').style.display = 'block';
   document.getElementById('domain-input').focus();

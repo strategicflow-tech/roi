@@ -336,6 +336,31 @@ app.post('/api/ai-visibility', async (req, res) => {
     const r1 = r1raw || { mentions_brand: false, mentions_affirmatively: false, mentions_correctly: false, answer: 'Response unavailable.' };
     const r2 = r2raw || { mentions_brand: false, mentions_affirmatively: false, mentions_correctly: false, answer: 'Response unavailable.' };
 
+    // Extract competitor product names via a dedicated AI call — structured output,
+    // not regex parsing of capitalized words (which produces false positives like "Common", "Book", "Acid").
+    let competitors = [];
+    const combinedAnswers = [r1.answer, r2.answer].filter(a => a && a !== 'Response unavailable.').join('\n\n');
+    if (combinedAnswers) {
+      try {
+        const extractPrompt = `From the text below, list only the specific software product or brand names that are mentioned as tools, platforms, or services. One name per line. Use the exact name as written in the text (e.g. "Email on Acid" not just "Acid"). No explanations, no bullets, no numbering. If no product names are mentioned, output NONE.\n\nText:\n${combinedAnswers}`;
+        const extractResp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: MODEL, max_tokens: 300, messages: [{ role: 'user', content: extractPrompt }] }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const extractData = await extractResp.json();
+        const extractText = (extractData.content?.find(b => b.type === 'text')?.text || '').trim();
+        if (extractText && extractText.toUpperCase() !== 'NONE') {
+          competitors = extractText
+            .split('\n')
+            .map(l => l.trim().replace(/^[-*•]\s*/, ''))
+            .filter(l => l.length > 1 && l.toLowerCase() !== brand.toLowerCase() && l.toLowerCase() !== domain.toLowerCase())
+            .slice(0, 5);
+        }
+      } catch (e) { /* competitor extraction is non-critical, skip silently */ }
+    }
+
     // mentions_affirmatively guards against false positives where the model names the brand
     // only to deny knowing it (e.g. "I'm not familiar with a tool called [Brand]").
     const brandMentioned = !!(r1.mentions_affirmatively || r2.mentions_affirmatively);
@@ -419,7 +444,8 @@ app.post('/api/ai-visibility', async (req, res) => {
       q1Answer: r1.answer, q2Answer: r2.answer,
       q1Mentioned: !!r1.mentions_affirmatively, q2Mentioned: !!r2.mentions_affirmatively,
       benchmarkAvg, benchmarkCategory,
-      pxFound: px.found, pxContext: px.context || null, pxError: px.error || null
+      pxFound: px.found, pxContext: px.context || null, pxError: px.error || null,
+      competitors
     });
   } catch (err) {
     console.error('[ai-visibility]', err.message);
