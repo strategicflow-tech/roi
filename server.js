@@ -299,6 +299,42 @@ app.post('/api/ai-visibility', async (req, res) => {
     if (citedCorrectly) score += 3;
     if (crawlable) score += 3;
 
+    let benchmarkAvg = null, benchmarkCategory = null;
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS visibility_checks (
+          id SERIAL PRIMARY KEY,
+          domain TEXT, category TEXT, score INTEGER,
+          checked_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await pool.query(
+        `INSERT INTO visibility_checks (domain, category, score) VALUES ($1, $2, $3)`,
+        [domain, (cat || 'general').toLowerCase(), score]
+      );
+      if (cat) {
+        const catR = await pool.query(
+          `SELECT ROUND(AVG(score)::numeric,1) AS avg, COUNT(*) AS cnt
+           FROM visibility_checks WHERE LOWER(category) = LOWER($1)`,
+          [cat]
+        );
+        const row = catR.rows[0];
+        if (row && parseInt(row.cnt) >= 5) {
+          benchmarkAvg = parseFloat(row.avg);
+          benchmarkCategory = cat;
+        }
+      }
+      if (benchmarkAvg === null) {
+        const allR = await pool.query(
+          `SELECT ROUND(AVG(score)::numeric,1) AS avg, COUNT(*) AS cnt FROM visibility_checks`
+        );
+        const row = allR.rows[0];
+        if (row && parseInt(row.cnt) >= 3) {
+          benchmarkAvg = parseFloat(row.avg);
+        }
+      }
+    } catch (e) { console.error('[vis-benchmark]', e.message); }
+
     const reasons = [
       brandMentioned
         ? `${brand} appeared in ${mentionCount}/2 AI responses for "${cat || 'brand'}" queries`
@@ -326,7 +362,8 @@ app.post('/api/ai-visibility', async (req, res) => {
       blockedAgents: tech.blockedAgents, robotsFetched: tech.robotsFetched, jsOnly: tech.jsOnly,
       q1, q2, brand, domain, reasons,
       q1Answer: r1.answer, q2Answer: r2.answer,
-      q1Mentioned: !!r1.mentions_brand, q2Mentioned: !!r2.mentions_brand
+      q1Mentioned: !!r1.mentions_brand, q2Mentioned: !!r2.mentions_brand,
+      benchmarkAvg, benchmarkCategory
     });
   } catch (err) {
     console.error('[ai-visibility]', err.message);
