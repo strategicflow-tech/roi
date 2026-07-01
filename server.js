@@ -173,6 +173,167 @@ app.get('/pattern-intelligence', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/pattern-intelligence.html'));
 });
 
+app.get('/ai-visibility', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public/ai-visibility.html'));
+});
+
+async function callAIVisibility(domain, brand, query) {
+  const prompt = `A professional asks you: "${query}"
+
+Answer naturally and helpfully in 4-6 sentences. Recommend specific tools or products you actually know about.
+
+Return ONLY this JSON, no other text:
+{
+  "answer": "<your 4-6 sentence natural answer>",
+  "mentions_brand": <true or false — does your answer mention "${brand}" or "${domain}"?>,
+  "mentions_correctly": <true or false — if you mentioned it, is your description of what they do accurate based on what you know? false if not mentioned>
+}`;
+  const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
+    signal: AbortSignal.timeout(30000)
+  });
+  const data = await apiResp.json();
+  const textBlock = data.content?.find(b => b.type === 'text');
+  const raw = (textBlock?.text || '').replace(/```json|```/g, '').trim();
+  return safeParseJSON(raw);
+}
+
+async function fetchVisibilityTech(domain) {
+  const AI_BOTS = ['gptbot', 'claudebot', 'ccbot', 'anthropic-ai', 'google-extended', 'cohere-ai', 'ai2bot', 'perplexitybot'];
+  let robotsBlocked = false, robotsFetched = false, schemaPresent = false, blockedAgents = [], jsOnly = false;
+
+  try {
+    const r = await fetch(`https://${domain}/robots.txt`, {
+      signal: AbortSignal.timeout(6000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
+    });
+    if (r.ok) {
+      robotsFetched = true;
+      const lines = (await r.text()).toLowerCase().split(/\r?\n/);
+      let agents = [];
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (line === '' || line.startsWith('#')) { agents = []; continue; }
+        if (line.startsWith('user-agent:')) {
+          agents.push(line.replace('user-agent:', '').trim());
+        } else if (line.startsWith('disallow:') && line.replace('disallow:', '').trim() === '/') {
+          for (const agent of agents) {
+            if (agent === '*') {
+              AI_BOTS.forEach(b => { if (!blockedAgents.includes(b)) blockedAgents.push(b); });
+              robotsBlocked = true;
+            } else if (AI_BOTS.includes(agent)) {
+              if (!blockedAgents.includes(agent)) blockedAgents.push(agent);
+              robotsBlocked = true;
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const r = await fetch(`https://${domain}/`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
+    });
+    if (r.ok) {
+      const html = await r.text();
+      schemaPresent = html.includes('application/ld+json') || html.includes('"@context"') || html.includes('itemtype=');
+      const stripped = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+      jsOnly = stripped.length < 400;
+    }
+  } catch {}
+
+  return { robotsBlocked, robotsFetched, schemaPresent, blockedAgents, jsOnly };
+}
+
+app.post('/api/ai-visibility', async (req, res) => {
+  const { domain: rawDomain, category } = req.body;
+  if (!rawDomain) return res.status(400).json({ error: 'Domain required' });
+
+  const domain = rawDomain.trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./i, '')
+    .toLowerCase();
+  if (!domain || !domain.includes('.'))
+    return res.status(400).json({ error: 'Enter a valid domain — e.g. example.com' });
+
+  const brandRaw = domain.split('.')[0].replace(/-/g, ' ');
+  const brand = brandRaw.replace(/\b\w/g, c => c.toUpperCase());
+  const cat = (category || '').trim();
+
+  const q1 = cat
+    ? `best ${cat} tool for B2B SaaS teams in 2026`
+    : `what does ${brand} do and who is it for`;
+  const q2 = cat
+    ? `${cat} software experts recommend for growth teams`
+    : `${brand} — worth using for a growing SaaS company`;
+
+  try {
+    const [r1raw, r2raw, tech] = await Promise.all([
+      callAIVisibility(domain, brand, q1).catch(() => null),
+      callAIVisibility(domain, brand, q2).catch(() => null),
+      fetchVisibilityTech(domain).catch(() => ({
+        robotsBlocked: false, robotsFetched: false, schemaPresent: false, blockedAgents: [], jsOnly: false
+      }))
+    ]);
+
+    const r1 = r1raw || { mentions_brand: false, mentions_correctly: false, answer: 'Response unavailable.' };
+    const r2 = r2raw || { mentions_brand: false, mentions_correctly: false, answer: 'Response unavailable.' };
+
+    const brandMentioned = !!(r1.mentions_brand || r2.mentions_brand);
+    const citedCorrectly = !!((r1.mentions_brand && r1.mentions_correctly) || (r2.mentions_brand && r2.mentions_correctly));
+    const crawlable = tech.schemaPresent && !tech.robotsBlocked;
+    const mentionCount = (r1.mentions_brand ? 1 : 0) + (r2.mentions_brand ? 1 : 0);
+
+    let score = 0;
+    if (brandMentioned) score += 4;
+    if (citedCorrectly) score += 3;
+    if (crawlable) score += 3;
+
+    const reasons = [
+      brandMentioned
+        ? `${brand} appeared in ${mentionCount}/2 AI responses for "${cat || 'brand'}" queries`
+        : `${brand} not found in either AI response for "${(cat ? `best ${cat} tool` : `what does ${brand} do`).slice(0, 50)}"`,
+      citedCorrectly
+        ? 'Described with accurate product context in AI response'
+        : brandMentioned
+          ? 'Mentioned but product/offer context incomplete or inaccurate'
+          : 'No product description — brand unknown to model',
+      tech.schemaPresent
+        ? 'schema.org markup detected on homepage — machine-readable'
+        : tech.jsOnly
+          ? 'Homepage appears JS-rendered — limited crawlable text content'
+          : '0 schema.org types on homepage — no structured data for AI crawlers',
+      ...(tech.robotsBlocked && tech.blockedAgents.length
+        ? [`${tech.blockedAgents.length} AI crawler(s) blocked in robots.txt: ${tech.blockedAgents.slice(0, 3).join(', ')}`]
+        : !tech.robotsFetched
+          ? ['robots.txt not accessible — crawler permissions unknown']
+          : [])
+    ];
+
+    res.json({
+      score, brandMentioned, citedCorrectly, crawlable,
+      schemaPresent: tech.schemaPresent, robotsBlocked: tech.robotsBlocked,
+      blockedAgents: tech.blockedAgents, robotsFetched: tech.robotsFetched, jsOnly: tech.jsOnly,
+      q1, q2, brand, domain, reasons,
+      q1Answer: r1.answer, q2Answer: r2.answer,
+      q1Mentioned: !!r1.mentions_brand, q2Mentioned: !!r2.mentions_brand
+    });
+  } catch (err) {
+    console.error('[ai-visibility]', err.message);
+    res.status(500).json({ error: 'Check failed. Please try again.' });
+  }
+});
+
 app.get('/api/teardown-count', async (req, res) => {
   const MAIN_PAGES = new Set([
     'index.html','teardowns.html','glossary.html','scorecard.html','architecture.html',

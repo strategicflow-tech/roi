@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Visibility Check — Strategic Flow</title>
+<meta name="description" content="Check whether AI tools know your brand. Enter a domain, get an AI Visibility Score 0–10 in under 30 seconds.">
+<meta property="og:title" content="AI Visibility Check — Strategic Flow">
+<meta property="og:description" content="Enter a domain. We run 2 AI queries in your category and check your technical crawlability. Score: 0–10.">
+<meta property="og:url" content="https://strategic-flow-audit.replit.app/ai-visibility">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface2: #1E1E1E;
+    --border: #2A2A2A;
+    --red: #FF4422;
+    --green: #22CC88;
+    --amber: #F59E0B;
+    --white: #FFFFFF;
+    --muted: #AAAAAA;
+    --dim: #666666;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  nav {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-logo:hover { color: var(--white); }
+  .nav-links { display: flex; align-items: center; gap: 20px; }
+  .nav-link {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.cta { color: var(--red); }
+
+  main { max-width: 680px; margin: 0 auto; padding: 64px 24px 100px; }
+
+  .page-header { margin-bottom: 52px; }
+  .page-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 18px;
+  }
+  .page-title {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    color: var(--white);
+  }
+  .page-sub {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 480px;
+  }
+
+  .form-wrap { margin-bottom: 0; }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field label .opt {
+    color: var(--dim);
+    font-size: 9px;
+    margin-left: 10px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    padding: 14px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    caret-color: var(--red);
+  }
+  .field input:focus { border-color: var(--red); }
+  .field input::placeholder { color: var(--dim); }
+
+  .query-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--dim);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    transition: border-left-color 0.3s;
+  }
+  .query-preview.active { border-left-color: var(--red); }
+  .qp-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .qp-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  #check-btn {
+    width: 100%;
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 16px 32px;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  #check-btn:hover { opacity: 0.9; }
+  #check-btn:active { transform: scale(0.99); }
+  #check-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .error-box {
+    margin-top: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--red);
+    display: none;
+  }
+
+  #loading { display: none; padding: 64px 0; text-align: center; }
+  .loading-ring {
+    width: 40px; height: 40px;
+    border: 2px solid var(--surface2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 20px;
+  }
+  .loading-steps { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .loading-step {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--dim);
+    opacity: 0;
+    transition: opacity 0.4s, color 0.4s;
+  }
+  .loading-step.active { opacity: 1; color: var(--red); }
+  .loading-step.done { opacity: 0.5; color: var(--green); }
+
+  #output { display: none; }
+
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--red);
+    padding: 32px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .score-number-wrap { text-align: center; flex-shrink: 0; }
+  .score-number {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--red);
+    display: block;
+  }
+  .score-denom {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+  .score-info { flex: 1; min-width: 200px; }
+  .score-card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 8px;
+  }
+  .score-brand {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--white);
+    word-break: break-all;
+  }
+  .score-reasons { display: flex; flex-direction: column; gap: 8px; }
+  .score-reason {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    padding-left: 14px;
+    position: relative;
+  }
+  .score-reason::before {
+    content: '—';
+    color: var(--dim);
+    position: absolute;
+    left: 0;
+  }
+
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .breakdown-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .breakdown-item {
+    display: grid;
+    grid-template-columns: 40px 1fr 28px;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .breakdown-item:last-child { border-bottom: none; }
+  .b-score {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dim);
+    text-align: center;
+  }
+  .b-score.earned { color: var(--green); }
+  .b-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .b-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .b-check {
+    font-size: 15px;
+    text-align: center;
+    color: var(--dim);
+  }
+  .b-check.yes { color: var(--green); }
+  .b-check.no { color: var(--red); }
+
+  .detail-section { border: 1px solid var(--border); margin-bottom: 20px; }
+  .detail-toggle {
+    width: 100%;
+    background: var(--surface);
+    border: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 16px 20px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: color 0.2s, background 0.2s;
+  }
+  .detail-toggle:hover { color: var(--white); background: var(--surface2); }
+  .detail-body { border-top: 1px solid var(--border); }
+  .query-block { padding: 20px; border-bottom: 1px solid var(--border); }
+  .query-block:last-child { border-bottom: none; }
+  .query-lbl {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+  .query-q {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .query-answer {
+    font-size: 14px;
+    color: var(--white);
+    line-height: 1.75;
+  }
+  .mention-badge {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    margin-top: 12px;
+  }
+  .mention-badge.yes { background: rgba(34,204,136,0.10); color: var(--green); border: 1px solid rgba(34,204,136,0.25); }
+  .mention-badge.no { background: rgba(255,68,34,0.07); color: #FF6644; border: 1px solid rgba(255,68,34,0.2); }
+
+  .cta-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--red);
+    padding: 32px;
+  }
+  .cta-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 14px;
+  }
+  .cta-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.3;
+    color: var(--white);
+  }
+  .cta-sub {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 24px;
+    max-width: 500px;
+  }
+  .cta-btn {
+    display: inline-block;
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 28px;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+    margin-bottom: 24px;
+  }
+  .cta-btn:hover { opacity: 0.9; }
+  .cta-secondary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .cta-secondary button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .cta-secondary button:hover { border-color: var(--white); color: var(--white); }
+
+  footer {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 28px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-copy {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+  }
+  .footer-links { display: flex; gap: 20px; }
+  .footer-links a {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--white); }
+
+  @media (max-width: 520px) {
+    .score-card { flex-direction: column; gap: 20px; }
+    .score-number { font-size: 56px; }
+    .breakdown-item { grid-template-columns: 36px 1fr 24px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">Strategic Flow</a>
+  <div class="nav-links">
+    <a href="/why" class="nav-link">WHY.™</a>
+    <a href="https://strategic-flow-pro.replit.app/packages" class="nav-link cta">Pro Plans →</a>
+  </div>
+</nav>
+
+<main>
+
+  <div class="page-header">
+    <div class="page-label">AI Visibility Check</div>
+    <h1 class="page-title">Is your brand visible<br>to AI tools?</h1>
+    <p class="page-sub">Enter your domain. We run 2 AI queries in your category and check your technical crawlability. Score: 0–10.</p>
+  </div>
+
+  <div class="form-wrap" id="form-wrap">
+    <div class="field">
+      <label>Company domain</label>
+      <input type="text" id="domain-input" placeholder="example.com" autocomplete="off" autocorrect="off" spellcheck="false" oninput="updateSuggestion()" onkeydown="if(event.key==='Enter')runCheck()">
+    </div>
+    <div class="field">
+      <label>Industry / category<span class="opt">optional</span></label>
+      <input type="text" id="category-input" placeholder="e.g. email marketing, CRM, analytics" oninput="updateSuggestion()" onkeydown="if(event.key==='Enter')runCheck()">
+    </div>
+    <div class="query-preview" id="query-preview">
+      <div class="qp-label">Query that will be used</div>
+      <div class="qp-text" id="qp-text">Enter a domain above to see the query</div>
+    </div>
+    <button id="check-btn" onclick="runCheck()">Check AI Visibility <span>→</span></button>
+    <div class="error-box" id="error-box"></div>
+  </div>
+
+  <div id="loading">
+    <div class="loading-ring"></div>
+    <div class="loading-text">Checking AI visibility...</div>
+    <div class="loading-steps">
+      <div class="loading-step" id="step-1">↳ Querying AI model — query 1</div>
+      <div class="loading-step" id="step-2">↳ Querying AI model — query 2</div>
+      <div class="loading-step" id="step-3">↳ Checking robots.txt and homepage schema</div>
+      <div class="loading-step" id="step-4">↳ Computing visibility score</div>
+    </div>
+  </div>
+
+  <div id="output">
+
+    <div class="score-card" id="score-card">
+      <div class="score-number-wrap">
+        <span class="score-number" id="score-num">—</span>
+        <div class="score-denom">AI Visibility Score /10</div>
+      </div>
+      <div class="score-info">
+        <div class="score-card-label">AI Visibility Check</div>
+        <div class="score-brand" id="score-brand">—</div>
+        <div class="score-reasons" id="score-reasons"></div>
+      </div>
+    </div>
+
+    <div class="breakdown-card">
+      <div class="breakdown-title">Score breakdown</div>
+      <div class="breakdown-item">
+        <div class="b-score" id="bs-mention">+4</div>
+        <div>
+          <div class="b-label">AI Model Recognition</div>
+          <div class="b-text" id="bt-mention">—</div>
+        </div>
+        <div class="b-check" id="bc-mention">—</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-score" id="bs-cited">+3</div>
+        <div>
+          <div class="b-label">Cited Correctly</div>
+          <div class="b-text" id="bt-cited">—</div>
+        </div>
+        <div class="b-check" id="bc-cited">—</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-score" id="bs-tech">+3</div>
+        <div>
+          <div class="b-label">Technical Crawlability</div>
+          <div class="b-text" id="bt-tech">—</div>
+        </div>
+        <div class="b-check" id="bc-tech">—</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <button class="detail-toggle" onclick="toggleDetail()">
+        What the AI model actually said
+        <span id="toggle-arrow">↓</span>
+      </button>
+      <div class="detail-body" id="detail-body" style="display:none;">
+        <div class="query-block">
+          <div class="query-lbl">Query 1</div>
+          <div class="query-q" id="q1-q">—</div>
+          <div class="query-answer" id="q1-answer">—</div>
+          <div id="q1-badge"></div>
+        </div>
+        <div class="query-block">
+          <div class="query-lbl">Query 2</div>
+          <div class="query-q" id="q2-q">—</div>
+          <div class="query-answer" id="q2-answer">—</div>
+          <div id="q2-badge"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-block">
+      <div class="cta-label">Next step</div>
+      <div class="cta-title">Fix what's holding your brand back from AI visibility.</div>
+      <div class="cta-sub">Strategic Flow rebuilds your content architecture — subject lines, hooks, CTAs — so your brand shows up in the right conversations. Includes Brand DNA extraction and audience segmentation.</div>
+      <a href="https://strategic-flow-pro.replit.app/packages" class="cta-btn">See Strategic Flow Plans →</a>
+      <div class="cta-secondary">
+        <button onclick="resetCheck()">← Check another domain</button>
+        <button onclick="copyScore()">Copy score →</button>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  <span class="footer-copy">Strategic Flow © 2026</span>
+  <div class="footer-links">
+    <a href="/">Email Rebuild</a>
+    <a href="/why">WHY.™</a>
+    <a href="https://strategic-flow-pro.replit.app/packages">Pro Plans →</a>
+  </div>
+</footer>
+
+<script>
+function getDomainBrand(raw) {
+  const d = raw.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase().split('.')[0];
+  return d.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function updateSuggestion() {
+  const domain = document.getElementById('domain-input').value.trim();
+  const cat = document.getElementById('category-input').value.trim();
+  const preview = document.getElementById('query-preview');
+  const text = document.getElementById('qp-text');
+  if (!domain) {
+    text.textContent = 'Enter a domain above to see the query';
+    preview.classList.remove('active');
+    return;
+  }
+  const brand = getDomainBrand(domain);
+  const q = cat
+    ? `"best ${cat} tool for B2B SaaS teams in 2026"`
+    : `"what does ${brand} do and who is it for"`;
+  text.textContent = q;
+  preview.classList.add('active');
+}
+
+let detailOpen = false;
+function toggleDetail() {
+  detailOpen = !detailOpen;
+  document.getElementById('detail-body').style.display = detailOpen ? 'block' : 'none';
+  document.getElementById('toggle-arrow').textContent = detailOpen ? '↑' : '↓';
+}
+
+let loadInterval;
+function startLoadingAnimation() {
+  const steps = ['step-1','step-2','step-3','step-4'];
+  steps.forEach(id => { document.getElementById(id).className = 'loading-step'; });
+  let i = 0;
+  loadInterval = setInterval(() => {
+    if (i > 0) document.getElementById(steps[i-1]).className = 'loading-step done';
+    if (i < steps.length) { document.getElementById(steps[i]).className = 'loading-step active'; i++; }
+  }, 7000);
+}
+
+function stopLoadingAnimation() {
+  clearInterval(loadInterval);
+  ['step-1','step-2','step-3','step-4'].forEach(id => {
+    document.getElementById(id).className = 'loading-step done';
+  });
+}
+
+function showError(msg) {
+  const b = document.getElementById('error-box');
+  b.textContent = msg;
+  b.style.display = 'block';
+}
+function hideError() { document.getElementById('error-box').style.display = 'none'; }
+
+async function runCheck() {
+  const domain = document.getElementById('domain-input').value.trim();
+  const category = document.getElementById('category-input').value.trim();
+  if (!domain) { showError('Enter a domain to check — e.g. example.com'); return; }
+  hideError();
+  document.getElementById('check-btn').disabled = true;
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  startLoadingAnimation();
+  try {
+    const resp = await fetch('/api/ai-visibility', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain, category })
+    });
+    const data = await resp.json();
+    stopLoadingAnimation();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('check-btn').disabled = false;
+    if (data.error) {
+      document.getElementById('form-wrap').style.display = 'block';
+      showError(data.error);
+      return;
+    }
+    renderResult(data);
+  } catch {
+    stopLoadingAnimation();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('check-btn').disabled = false;
+    document.getElementById('form-wrap').style.display = 'block';
+    showError('Something went wrong. Please try again.');
+  }
+}
+
+function renderResult(data) {
+  const score = data.score || 0;
+  const color = score >= 7 ? '#22CC88' : score >= 4 ? '#F59E0B' : '#FF4422';
+
+  const numEl = document.getElementById('score-num');
+  numEl.textContent = score;
+  numEl.style.color = color;
+  document.getElementById('score-card').style.borderLeftColor = color;
+  document.getElementById('score-brand').textContent = data.brand + ' · ' + data.domain;
+
+  const reasonsEl = document.getElementById('score-reasons');
+  reasonsEl.innerHTML = '';
+  (data.reasons || []).slice(0, 4).forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'score-reason';
+    d.textContent = r;
+    reasonsEl.appendChild(d);
+  });
+
+  function setBD(prefix, earned, text) {
+    document.getElementById('bs-' + prefix).className = 'b-score' + (earned ? ' earned' : '');
+    const check = document.getElementById('bc-' + prefix);
+    check.textContent = earned ? '✓' : '✕';
+    check.className = 'b-check ' + (earned ? 'yes' : 'no');
+    document.getElementById('bt-' + prefix).textContent = text;
+  }
+
+  const mc = (data.q1Mentioned ? 1 : 0) + (data.q2Mentioned ? 1 : 0);
+  setBD('mention', data.brandMentioned,
+    data.brandMentioned
+      ? `${data.brand} appeared in ${mc}/2 AI responses — model has knowledge of this brand`
+      : `${data.brand} not found in either AI response — model has no knowledge of this brand`);
+
+  setBD('cited', data.citedCorrectly,
+    data.citedCorrectly
+      ? 'AI described product/offer with accurate context'
+      : data.brandMentioned
+        ? 'Mentioned but product/offer context incomplete or inaccurate'
+        : 'No product description — brand not mentioned in either response');
+
+  const techParts = [];
+  if (data.schemaPresent) techParts.push('schema.org markup present');
+  else techParts.push('0 schema.org types on homepage');
+  if (data.robotsBlocked && (data.blockedAgents||[]).length)
+    techParts.push(`${data.blockedAgents.length} AI crawler(s) blocked in robots.txt`);
+  else if (data.robotsFetched) techParts.push('no AI bots blocked in robots.txt');
+  else techParts.push('robots.txt not accessible');
+  setBD('tech', data.crawlable, techParts.join(' · '));
+
+  document.getElementById('q1-q').textContent = '"' + (data.q1 || '') + '"';
+  document.getElementById('q1-answer').textContent = data.q1Answer || 'Response unavailable.';
+  document.getElementById('q1-badge').innerHTML = `<span class="mention-badge ${data.q1Mentioned ? 'yes' : 'no'}">${data.q1Mentioned ? '✓ ' + data.brand + ' mentioned' : '✕ ' + data.brand + ' not mentioned'}</span>`;
+
+  document.getElementById('q2-q').textContent = '"' + (data.q2 || '') + '"';
+  document.getElementById('q2-answer').textContent = data.q2Answer || 'Response unavailable.';
+  document.getElementById('q2-badge').innerHTML = `<span class="mention-badge ${data.q2Mentioned ? 'yes' : 'no'}">${data.q2Mentioned ? '✓ ' + data.brand + ' mentioned' : '✕ ' + data.brand + ' not mentioned'}</span>`;
+
+  detailOpen = false;
+  document.getElementById('detail-body').style.display = 'none';
+  document.getElementById('toggle-arrow').textContent = '↓';
+  document.getElementById('output').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetCheck() {
+  document.getElementById('output').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+  document.getElementById('domain-input').focus();
+}
+
+function copyScore() {
+  const score = document.getElementById('score-num').textContent;
+  const brand = document.getElementById('score-brand').textContent;
+  const reasons = Array.from(document.querySelectorAll('.score-reason'))
+    .map(r => '— ' + r.textContent.replace(/^—\s*/, '').trim()).join('\n');
+  const txt = `AI Visibility Score: ${score}/10\n${brand}\n\n${reasons}\n\nCheck yours: https://strategic-flow-audit.replit.app/ai-visibility`;
+  navigator.clipboard.writeText(txt).catch(() => {});
+}
+
+document.getElementById('domain-input').focus();
+</script>
+
+</body>
+</html>
