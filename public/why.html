@@ -1695,7 +1695,7 @@ function renderOutput(data) {
 
   // Auto-rebuild for Pro users
   if (window.isWhyPro) {
-    setTimeout(() => runFix(), 1400);
+    setTimeout(() => runFix(), 3500);
   }
 }
 
@@ -1796,8 +1796,6 @@ async function runFix() {
   fixLoading.style.display = 'block';
   fixContent.textContent = '';
 
-  fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
   const frictionSummary = outputData.friction_points.map((p, i) =>
     `${i+1}. [${p.impact}] ${p.title}: ${p.description}`
   ).join('\n');
@@ -1851,6 +1849,7 @@ ${input}`;
     if (data.error === 'limit_reached') { showLimitBlock(); return; }
     if (data.error) throw new Error(data.error);
     fixContent.textContent = data.text;
+    fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   } catch (err) {
     fixLoading.style.display = 'none';
