@@ -923,6 +923,75 @@
     #analyze-btn { justify-content: center; }
   }
 
+  /* ===== FAQ ===== */
+  .faq-section {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 24px 60px;
+    border-top: 1px solid var(--border);
+  }
+  .faq-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 12px;
+  }
+  .faq-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--white);
+    margin-bottom: 40px;
+    line-height: 1.2;
+  }
+  .faq-item {
+    border-top: 1px solid var(--border);
+  }
+  .faq-item:last-child { border-bottom: 1px solid var(--border); }
+  .faq-q {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    padding: 20px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--white);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+  .faq-q:hover { color: var(--red); }
+  .faq-icon {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--red);
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: transform 0.2s;
+  }
+  .faq-item.open .faq-icon { transform: rotate(45deg); }
+  .faq-a {
+    display: none;
+    padding: 0 0 24px;
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.8;
+    font-family: 'Inter', sans-serif;
+  }
+  .faq-a strong { color: var(--white); font-weight: 600; }
+  .faq-a a { color: var(--red); text-decoration: none; }
+  .faq-a a:hover { text-decoration: underline; }
+  .faq-item.open .faq-a { display: block; }
+
   /* Error */
   .error-box {
     background: rgba(255,68,34,0.08);
@@ -1195,6 +1264,83 @@
 
 </section>
 
+<section class="faq-section" itemscope itemtype="https://schema.org/FAQPage">
+  <div class="faq-label">FAQ</div>
+  <h2 class="faq-heading">Why does content fail — and how does WHY.™ find it?</h2>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      What is content friction and why does it kill conversions?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        <strong>Content friction</strong> is any point in your email, landing page, or document where the reader's brain pauses, doubts, or disengages — before taking the action you want. It includes unanswered questions, vague CTAs, missing social proof, and structural logic gaps. Research on decision-making shows that unresolved friction is the primary reason high-quality offers get ignored. WHY.™ surfaces every friction point before you rewrite, so you fix the right things instead of guessing.
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      Why do my emails have low open rates and even lower click-through rates?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        Low open rates are usually a <strong>subject line friction</strong> problem: the subject doesn't create enough consequence or curiosity to justify opening. Low click-through rates are a <strong>body friction</strong> problem: the email doesn't answer "what do I get?" clearly enough before the CTA. WHY.™ diagnoses both layers separately — it scores your friction, identifies which specific phrases cause hesitation, and generates a rebuilt version that leads with outcome rather than feature.
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      Can an AI tool accurately diagnose why a landing page isn't converting?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        Yes — when the AI is trained on the right diagnostic framework, not just general writing quality. WHY.™ applies the <strong>Decision Friction Model</strong>, which maps the 15 questions a reader will ask before converting and checks whether your content answers them. Unlike general-purpose AI writing tools, WHY.™ is not trying to make your content "sound better" — it's finding the structural gaps that prevent a decision. The output is a friction score (1–10), five ranked friction points, and 15 predicted reader questions with blunt assessments of whether your content answers them.
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      How is WHY.™ different from a standard content audit or AI writing assistant?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        A standard <strong>content audit</strong> checks for SEO coverage, word count, and readability scores. An AI writing assistant rewrites for tone or grammar. WHY.™ does neither. It works backwards from the reader's decision process: what questions would a real person ask before clicking, buying, or replying — and does your content answer them? This friction-first diagnostic approach surfaces problems that readability scores and keyword audits completely miss, particularly in B2B emails, SaaS onboarding sequences, and high-stakes proposals where one unanswered question loses the deal.
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      Who is WHY.™ built for?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        WHY.™ is built for <strong>SaaS founders, B2B marketers, consultants, and growth teams</strong> who write content that needs to produce a specific action — a trial signup, a reply, a purchase, a meeting booked. It works on emails, cold outreach, landing pages, pricing pages, proposals, investor updates, job postings, onboarding sequences, and ad copy. If the content has a reader who needs to make a decision, WHY.™ can diagnose why they're not making it. For teams running the full Strategic Flow Method, see the <a href="https://strategic-flow-pro.replit.app/packages">Strategic Flow Audit →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+    <button class="faq-q" onclick="toggleFaq(this)" itemprop="name">
+      How do I get a human expert to review my rebuilt email?
+      <span class="faq-icon">+</span>
+    </button>
+    <div class="faq-a" itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+      <div itemprop="text">
+        <strong>WHY.™ Pro</strong> subscribers get a human review option after every rebuild — the rebuilt version is sent directly to a Strategic Flow strategist who flags any remaining blind spots. For deeper work — full email architecture audits, multi-email sequence design, or brand voice calibration — email <a href="mailto:alex@strategicflow.tech">alex@strategicflow.tech</a> or explore the <a href="https://strategic-flow-pro.replit.app/packages">full Strategic Flow packages →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <footer class="page-footer">
   <div style="max-width:640px;margin:0 auto 32px;display:flex;flex-direction:column;gap:10px;">
     <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#FF4422;margin-bottom:4px;">Take this further</div>
@@ -1211,7 +1357,8 @@
       <span style="font-family:'Space Mono',monospace;font-size:10px;color:#AAAAAA;">→</span>
     </a>
   </div>
-  WHY.<span class="footer-tm">™</span> &nbsp;·&nbsp; A Strategic Flow product.<br>
+  WHY.<span class="footer-tm">™</span> &nbsp;·&nbsp; A Strategic Flow product. &nbsp;·&nbsp;
+  <a href="mailto:alex@strategicflow.tech" style="color:#FF4422;font-family:'Space Mono',monospace;font-size:12px;text-decoration:none;">alex@strategicflow.tech</a><br>
   <span style="color:#FFFFFF;">Built to explain why content fails — before you rewrite it.</span>
 </footer>
 
@@ -1293,6 +1440,14 @@ function toggleHow() {
 
 function scrollToApp() {
   document.getElementById('app').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== FAQ ACCORDION =====
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
 }
 
 // ===== TYPE SELECTOR =====
