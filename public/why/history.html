@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis History — WHY.™ Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0A0A0A;
+  --surface: #111111;
+  --card: #161616;
+  --border: #222222;
+  --red: #FF4422;
+  --red-dim: rgba(255,68,34,0.12);
+  --white: #FFFFFF;
+  --muted: #888888;
+  --green: #22C55E;
+}
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,10,10,0.96);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.nav-brand {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--red);
+  letter-spacing: 0.05em;
+  text-decoration: none;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+.nav-link:hover { color: var(--white); }
+.nav-link.active { color: var(--red); }
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+}
+
+.page-header {
+  margin-bottom: 40px;
+}
+
+.page-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 12px;
+}
+
+.page-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+
+.page-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.stat-cell {
+  background: var(--surface);
+  padding: 20px 28px;
+  flex: 1;
+}
+
+.stat-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1;
+}
+
+.stat-value.trend-improving {
+  color: var(--green);
+  font-size: 20px;
+}
+
+.stat-value.trend-neutral {
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.trend-note {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── TABLE ── */
+.history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.history-table thead {
+  background: var(--surface);
+}
+
+.history-table th {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 400;
+}
+
+.history-table tbody tr {
+  background: var(--card);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.history-table tbody tr:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table tbody tr:hover {
+  background: #1C1C1C;
+}
+
+.history-table tbody tr.expanded {
+  background: #181818;
+}
+
+.history-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.td-type {
+  white-space: nowrap;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.type-badge.analyze {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(255,68,34,0.25);
+}
+
+.type-badge.rebuild {
+  background: rgba(255,255,255,0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.type-content {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.td-date {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.td-score {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.score-null {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: center;
+}
+
+.td-summary {
+  color: #CCCCCC;
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.td-summary.no-summary {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.td-chevron {
+  text-align: right;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  padding-right: 16px;
+}
+
+/* expand row */
+.expand-row {
+  display: none;
+  background: #0F0F0F;
+}
+
+.expand-row.open {
+  display: table-row;
+}
+
+.expand-row td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.expand-inner {
+  padding: 24px;
+  border-top: 1px solid rgba(255,68,34,0.2);
+}
+
+.expand-section {
+  margin-bottom: 24px;
+}
+
+.expand-section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 12px;
+}
+
+.expand-verdict {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+
+.expand-summary {
+  font-size: 14px;
+  color: #BBBBBB;
+  line-height: 1.7;
+}
+
+.friction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.friction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.friction-rank {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  min-width: 22px;
+  padding-top: 1px;
+}
+
+.friction-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 3px;
+}
+
+.friction-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.friction-impact {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.impact-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.impact-high { background: rgba(255,68,34,0.15); color: #FF6644; border: 1px solid rgba(255,68,34,0.3); }
+.impact-mid  { background: rgba(255,165,0,0.12); color: #FFA040; border: 1px solid rgba(255,165,0,0.25); }
+.impact-low  { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+.rebuild-text {
+  font-size: 13px;
+  color: #CCCCCC;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  font-family: 'Inter', sans-serif;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.excerpt-block {
+  background: var(--surface);
+  border-left: 2px solid var(--border);
+  padding: 10px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  border-radius: 0 4px 4px 0;
+}
+
+/* empty state */
+.empty-state {
+  text-align: center;
+  padding: 72px 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.empty-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+
+.empty-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.empty-cta {
+  display: inline-block;
+  margin-top: 24px;
+  background: var(--red);
+  color: var(--white);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 11px 24px;
+  text-decoration: none;
+  border-radius: 3px;
+}
+
+/* loading */
+.loading-state {
+  text-align: center;
+  padding: 64px 32px;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.loading-ring {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .page { padding: 32px 16px 60px; }
+  nav { padding: 16px 20px; }
+  .stats-bar { flex-direction: column; gap: 0; }
+  .stat-cell { padding: 16px 20px; }
+  .history-table th:nth-child(4),
+  .history-table td:nth-child(4) { display: none; }
+  .td-summary { max-width: 200px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/why" class="nav-brand">WHY.<span style="color:var(--red);">™</span></a>
+  <div class="nav-right">
+    <a href="/why" class="nav-link">← Back to tool</a>
+    <a href="/why/history" class="nav-link active">History</a>
+    <a href="/why/login" class="nav-link" id="signout-link">Sign out</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-label">WHY.™ Pro</div>
+    <div class="page-title">Analysis history</div>
+    <div class="page-sub" id="page-sub">Your last 50 analyses, most recent first.</div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar" id="stats-bar" style="display:none;">
+    <div class="stat-cell">
+      <div class="stat-label">Total analyses</div>
+      <div class="stat-value" id="stat-total">—</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Avg friction score</div>
+      <div class="stat-value" id="stat-avg">—</div>
+      <div class="trend-note" id="stat-avg-note"></div>
+    </div>
+    <div class="stat-cell" id="trend-cell">
+      <div class="stat-label">Trend</div>
+      <div class="stat-value" id="stat-trend">—</div>
+      <div class="trend-note" id="stat-trend-note"></div>
+    </div>
+  </div>
+
+  <!-- Content area -->
+  <div id="content-area">
+    <div class="loading-state">
+      <div class="loading-ring"></div>
+      Loading your history...
+    </div>
+  </div>
+</div>
+
+<script>
+function formatDate(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffH = Math.floor(diffMs / 3600000);
+  const diffD = Math.floor(diffMs / 86400000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return diffMin + 'm ago';
+  if (diffH < 24) return diffH + 'h ago';
+  if (diffD < 7) return diffD + 'd ago';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function scoreColor(score) {
+  if (score === null) return '#666';
+  if (score <= 3) return '#22C55E';
+  if (score <= 5) return '#A8A830';
+  if (score <= 7) return '#F59E0B';
+  return '#FF4422';
+}
+
+function renderFrictionPoints(points) {
+  if (!points || !points.length) return '<div style="color:#666;font-size:12px;">No friction points recorded.</div>';
+  return '<div class="friction-list">' + points.map((p, i) => {
+    const impactClass = p.impact === 'HIGH' ? 'impact-high' : p.impact === 'MID' ? 'impact-mid' : 'impact-low';
+    return `<div class="friction-item">
+      <div class="friction-rank">0${i+1}</div>
+      <div style="flex:1;">
+        <div class="friction-title">${p.title || ''}</div>
+        <div class="friction-desc">${p.description || ''}</div>
+      </div>
+      <div class="friction-impact"><span class="impact-badge ${impactClass}">${p.impact || ''}</span></div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function renderExpandContent(row) {
+  let parsed = null;
+  try { parsed = JSON.parse(row.full_result_json); } catch(e) {}
+
+  if (!parsed) {
+    return '<div style="color:#666;font-size:13px;font-family:\'Space Mono\',monospace;">Result data unavailable.</div>';
+  }
+
+  if (row.action_type === 'rebuild') {
+    const text = parsed.text || '';
+    return `
+      <div class="expand-section">
+        <div class="expand-section-label">Rebuilt version</div>
+        <div class="rebuild-text">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>`;
+  }
+
+  let html = '';
+
+  if (row.input_excerpt) {
+    html += `<div class="excerpt-block">${row.input_excerpt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}${row.input_excerpt.length >= 200 ? '…' : ''}</div>`;
+  }
+
+  if (parsed.verdict) {
+    html += `<div class="expand-section">
+      <div class="expand-section-label">Verdict</div>
+      <div class="expand-verdict">${parsed.verdict}</div>
+      ${parsed.summary ? `<div class="expand-summary">${parsed.summary}</div>` : ''}
+    </div>`;
+  }
+
+  if (parsed.friction_points && parsed.friction_points.length) {
+    html += `<div class="expand-section">
+      <div class="expand-section-label">Friction points</div>
+      ${renderFrictionPoints(parsed.friction_points)}
+    </div>`;
+  }
+
+  if (parsed.questions && parsed.questions.length) {
+    html += `<div class="expand-section">
+      <div class="expand-section-label">Reader questions (${parsed.questions.length})</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${parsed.questions.map((q, i) => {
+          const question = typeof q === 'string' ? q : q.q;
+          const answer = typeof q === 'object' ? q.a : null;
+          return `<div style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:4px;">
+            <div style="font-size:12px;font-weight:600;color:var(--white);margin-bottom:${answer ? '6px' : '0'};">${i+1}. ${question}</div>
+            ${answer ? `<div style="font-size:12px;color:#999;line-height:1.5;">${answer}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  return html || '<div style="color:#666;font-size:13px;">No detail available.</div>';
+}
+
+function renderTable(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">
+      <div class="empty-icon">◎</div>
+      <div class="empty-title">No analyses yet.</div>
+      <div class="empty-sub">Run your first diagnostic to start building your history.</div>
+      <a href="/why" class="empty-cta">Run a diagnostic →</a>
+    </div>`;
+  }
+
+  const thead = `<thead><tr>
+    <th>Type</th>
+    <th>When</th>
+    <th style="text-align:center;">Score</th>
+    <th>Diagnosis</th>
+    <th></th>
+  </tr></thead>`;
+
+  const tbodyRows = rows.map((row, idx) => {
+    const expandId = `expand-${idx}`;
+    const scoreVal = row.score !== null
+      ? `<span style="color:${scoreColor(row.score)};">${row.score}</span><span style="font-size:12px;color:#444;">/10</span>`
+      : `<span class="score-null">—</span>`;
+
+    const summary = row.diagnosis_summary
+      ? row.diagnosis_summary.slice(0, 90) + (row.diagnosis_summary.length > 90 ? '…' : '')
+      : null;
+
+    const actionBadge = `<span class="type-badge ${row.action_type}">${row.action_type === 'analyze' ? '⊙ Analyze' : '↺ Rebuild'}</span>`;
+    const ctLabel = row.content_type ? `<div class="type-content">${row.content_type}</div>` : '';
+
+    return `<tr onclick="toggleExpand(${idx})" data-idx="${idx}">
+      <td class="td-type">${actionBadge}${ctLabel}</td>
+      <td class="td-date">${formatDate(row.created_at)}</td>
+      <td class="td-score">${scoreVal}</td>
+      <td class="td-summary${summary ? '' : ' no-summary'}">${summary || (row.action_type === 'rebuild' ? 'Rebuilt version' : 'No summary')}</td>
+      <td class="td-chevron" id="chevron-${idx}">›</td>
+    </tr>
+    <tr class="expand-row" id="${expandId}">
+      <td colspan="5">
+        <div class="expand-inner" id="expand-inner-${idx}"></div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `<table class="history-table">${thead}<tbody>${tbodyRows}</tbody></table>`;
+}
+
+let openIdx = null;
+let allRows = [];
+
+function toggleExpand(idx) {
+  const expandRow = document.getElementById(`expand-${idx}`);
+  const chevron = document.getElementById(`chevron-${idx}`);
+  const inner = document.getElementById(`expand-inner-${idx}`);
+
+  if (openIdx !== null && openIdx !== idx) {
+    const prev = document.getElementById(`expand-${openIdx}`);
+    const prevChev = document.getElementById(`chevron-${openIdx}`);
+    if (prev) prev.classList.remove('open');
+    if (prevChev) prevChev.textContent = '›';
+  }
+
+  const isOpen = expandRow.classList.contains('open');
+  if (!isOpen && !inner.dataset.rendered) {
+    inner.innerHTML = renderExpandContent(allRows[idx]);
+    inner.dataset.rendered = '1';
+  }
+
+  expandRow.classList.toggle('open');
+  chevron.textContent = expandRow.classList.contains('open') ? '∨' : '›';
+  openIdx = expandRow.classList.contains('open') ? idx : null;
+}
+
+function renderStats(stats) {
+  const bar = document.getElementById('stats-bar');
+  bar.style.display = 'flex';
+
+  document.getElementById('stat-total').textContent = stats.total_count;
+
+  if (stats.avg_score !== null) {
+    document.getElementById('stat-avg').textContent = stats.avg_score;
+    document.getElementById('stat-avg-note').textContent = 'lower is better · scored analyses only';
+  } else {
+    document.getElementById('stat-avg').textContent = '—';
+    document.getElementById('stat-avg-note').textContent = 'no scored analyses yet';
+  }
+
+  const trendCell = document.getElementById('trend-cell');
+  const trendEl = document.getElementById('stat-trend');
+  const trendNote = document.getElementById('stat-trend-note');
+
+  if (stats.trend === null) {
+    trendCell.style.display = 'none';
+  } else {
+    trendCell.style.display = '';
+    const t = stats.trend;
+    if (t < 0) {
+      trendEl.className = 'stat-value trend-improving';
+      trendEl.textContent = t + ' pts';
+      trendNote.textContent = 'friction down since your first 3';
+    } else if (t === 0) {
+      trendEl.className = 'stat-value trend-neutral';
+      trendEl.textContent = 'Flat';
+      trendNote.textContent = 'no change vs your first 3';
+    } else {
+      trendEl.className = 'stat-value trend-neutral';
+      trendEl.textContent = '+' + t + ' pts';
+      trendNote.textContent = 'vs your first 3 analyses';
+    }
+  }
+}
+
+async function load() {
+  const res = await fetch('/api/why-history');
+  if (res.status === 401) {
+    window.location.href = '/why/login';
+    return;
+  }
+  if (!res.ok) {
+    document.getElementById('content-area').innerHTML =
+      `<div class="empty-state"><div class="empty-title">Something went wrong.</div><div class="empty-sub">Could not load history. Try refreshing.</div></div>`;
+    return;
+  }
+  const data = await res.json();
+  allRows = data.rows || [];
+  renderStats(data.stats || {});
+  document.getElementById('content-area').innerHTML = renderTable(allRows);
+  if (allRows.length) {
+    document.getElementById('page-sub').textContent =
+      `${allRows.length} entr${allRows.length === 1 ? 'y' : 'ies'} · most recent first`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

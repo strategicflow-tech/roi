@@ -1140,6 +1140,15 @@
       <div style="padding:24px; border-top:1px solid var(--border); background:rgba(255,68,34,0.03);">
         <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:#FF4422;margin-bottom:16px;">Take this further</div>
         <div style="display:flex;flex-direction:column;gap:12px;">
+          <div id="history-link-wrap" style="display:none;">
+            <a href="/why/history" style="display:flex;align-items:flex-start;gap:14px;text-decoration:none;padding:14px 16px;border:1px solid #FF4422;background:#1A0A08;">
+              <div style="flex-shrink:0;width:32px;height:32px;background:#FF4422;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:14px;color:#fff;font-weight:700;">↑</div>
+              <div>
+                <div style="font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:#FFFFFF;margin-bottom:3px;">View my history →</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:#888888;line-height:1.5;">All your past analyses — scores, friction points, rebuilt versions.</div>
+              </div>
+            </a>
+          </div>
           <a href="https://strategic-flow-pro.replit.app/packages" style="display:flex;align-items:flex-start;gap:14px;text-decoration:none;padding:14px 16px;border:1px solid #2A2A2A;background:#141414;">
             <div style="flex-shrink:0;width:32px;height:32px;background:#FF4422;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;color:#fff;font-weight:700;">01</div>
             <div>
@@ -1213,6 +1222,8 @@ window.isWhyPro = false;
 fetch('/api/why-status').then(r => r.json()).then(d => {
   if (!d.isPro) return;
   window.isWhyPro = true;
+  const hl = document.getElementById('history-link-wrap');
+  if (hl) hl.style.display = 'block';
   // Inject Pro badge into app-header
   const appHeader = document.getElementById('app-header');
   if (appHeader && !document.getElementById('pro-badge')) {
@@ -1357,7 +1368,7 @@ ${input}`;
     const response = await fetch('/api/why-analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, contentType })
+      body: JSON.stringify({ prompt, contentType, rawContent: input })
     });
 
     clearInterval(loadInterval);
@@ -1649,7 +1660,7 @@ ${input}`;
     const response = await fetch('/api/why-rebuild', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fixPrompt, contentType })
+      body: JSON.stringify({ prompt: fixPrompt, contentType, rawContent: input })
     });
 
     if (response.status === 429) {

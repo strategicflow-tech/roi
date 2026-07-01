@@ -544,6 +544,19 @@ async function setupDB() {
       last_login_at           TIMESTAMPTZ
     )
   `).catch(e => console.error('[DB] pro_users:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS why_analyses (
+      id                SERIAL PRIMARY KEY,
+      user_email        TEXT NOT NULL REFERENCES pro_users(email) ON DELETE CASCADE,
+      action_type       TEXT NOT NULL DEFAULT 'analyze',
+      content_type      TEXT,
+      input_excerpt     TEXT,
+      diagnosis_summary TEXT,
+      score             INTEGER,
+      full_result_json  TEXT,
+      created_at        TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] why_analyses:', e.message));
   console.log('[DB] All tables ready');
 }
 
@@ -4748,6 +4761,16 @@ a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:
   }
 });
 
+// GET /why/history — Pro history page
+app.get('/why/history', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'why', 'history.html'));
+});
+
+// GET /why — alias for why.html
+app.get('/why', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'why.html'));
+});
+
 // GET /api/why-status — returns Pro session state for frontend
 app.get('/api/why-status', (req, res) => {
   const isPro = (req.session && req.session.isWhyPro === true) ||
@@ -7304,7 +7327,7 @@ setupDB().then(async () => {
     const ip = ipParts.join('.');
     const anonIp = ip;
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
-    const { prompt, contentType } = req.body;
+    const { prompt, contentType, rawContent } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
     const isProUser = (req.session && req.session.isWhyPro === true) ||
       (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
@@ -7335,6 +7358,20 @@ setupDB().then(async () => {
         const result = JSON.parse(clean);
         res.json({ result });
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
+        if (req.session && req.session.isWhyPro === true) {
+          const userEmail = req.session.whyProEmail || req.session.userEmail;
+          if (userEmail) {
+            const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
+            const diagSummary = result.summary || result.verdict || null;
+            const score = typeof result.friction_score === 'number' ? result.friction_score : null;
+            pool.query(
+              `INSERT INTO why_analyses
+                 (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
+               VALUES ($1, 'analyze', $2, $3, $4, $5, $6)`,
+              [userEmail, contentType || null, excerpt, diagSummary, score, JSON.stringify(result)]
+            ).catch(e => console.error('[why_analyses] insert error:', e.message));
+          }
+        }
         return;
       } catch (parseErr) {
         res.status(500).json({ error: 'parse_failed', raw: clean.slice(0, 200) });
@@ -7355,7 +7392,7 @@ setupDB().then(async () => {
     const ip = ipParts.join('.');
     const anonIp = ip;
     const WHY_WHITELIST = (process.env.WHY_ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
-    const { prompt, contentType } = req.body;
+    const { prompt, contentType, rawContent } = req.body;
     const charCount = typeof prompt === 'string' ? prompt.length : 0;
     const isProUser = (req.session && req.session.isWhyPro === true) ||
       (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
@@ -7388,11 +7425,75 @@ setupDB().then(async () => {
       }
       res.json({ text });
       appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
+      if (req.session && req.session.isWhyPro === true) {
+        const userEmail = req.session.whyProEmail || req.session.userEmail;
+        if (userEmail) {
+          const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
+          pool.query(
+            `INSERT INTO why_analyses
+               (user_email, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json)
+             VALUES ($1, 'rebuild', $2, $3, NULL, NULL, $4)`,
+            [userEmail, contentType || null, excerpt, JSON.stringify({ type: 'rebuild', text })]
+          ).catch(e => console.error('[why_analyses] insert error:', e.message));
+        }
+      }
       return;
     } catch (err) {
       res.status(500).json({ error: err.message });
       appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'error' });
       return;
+    }
+  });
+
+  app.get('/api/why-history', async (req, res) => {
+    if (!req.session || req.session.isWhyPro !== true) {
+      return res.status(401).json({ error: 'Pro session required' });
+    }
+    const userEmail = req.session.whyProEmail || req.session.userEmail;
+    if (!userEmail) return res.status(401).json({ error: 'No email in session' });
+    try {
+      const rowsRes = await pool.query(
+        `SELECT id, action_type, content_type, input_excerpt, diagnosis_summary, score, full_result_json, created_at
+         FROM why_analyses
+         WHERE user_email = $1
+         ORDER BY created_at DESC
+         LIMIT 50`,
+        [userEmail]
+      );
+      const statsRes = await pool.query(
+        `SELECT
+           COUNT(*) AS total_count,
+           ROUND(AVG(score)::numeric, 1) AS avg_score,
+           (SELECT ROUND(AVG(score)::numeric, 1)
+            FROM (SELECT score FROM why_analyses
+                  WHERE user_email = $1 AND score IS NOT NULL
+                  ORDER BY created_at ASC LIMIT 3) first3
+           ) AS avg_first3,
+           (SELECT ROUND(AVG(score)::numeric, 1)
+            FROM (SELECT score FROM why_analyses
+                  WHERE user_email = $1 AND score IS NOT NULL
+                  ORDER BY created_at DESC LIMIT 3) last3
+           ) AS avg_last3,
+           COUNT(CASE WHEN score IS NOT NULL THEN 1 END) AS scored_count
+         FROM why_analyses
+         WHERE user_email = $1`,
+        [userEmail]
+      );
+      const s = statsRes.rows[0];
+      const totalCount = parseInt(s.total_count, 10);
+      const scoredCount = parseInt(s.scored_count, 10);
+      const avgScore = s.avg_score !== null ? parseFloat(s.avg_score) : null;
+      const avgFirst3 = s.avg_first3 !== null ? parseFloat(s.avg_first3) : null;
+      const avgLast3 = s.avg_last3 !== null ? parseFloat(s.avg_last3) : null;
+      const trend = (scoredCount >= 3 && avgFirst3 !== null && avgLast3 !== null)
+        ? parseFloat((avgLast3 - avgFirst3).toFixed(1))
+        : null;
+      res.json({
+        rows: rowsRes.rows,
+        stats: { total_count: totalCount, scored_count: scoredCount, avg_score: avgScore, avg_first3: avgFirst3, avg_last3: avgLast3, trend }
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
