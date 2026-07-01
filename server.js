@@ -7358,7 +7358,10 @@ setupDB().then(async () => {
         const result = JSON.parse(clean);
         res.json({ result });
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
-        if (req.session && req.session.isWhyPro === true) {
+        const isSessionPro = (req.session && req.session.isWhyPro === true) ||
+          (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+          (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+        if (isSessionPro) {
           const userEmail = req.session.whyProEmail || req.session.userEmail;
           if (userEmail) {
             const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
@@ -7425,7 +7428,10 @@ setupDB().then(async () => {
       }
       res.json({ text });
       appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'success' });
-      if (req.session && req.session.isWhyPro === true) {
+      const isSessionPro = (req.session && req.session.isWhyPro === true) ||
+        (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+        (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+      if (isSessionPro) {
         const userEmail = req.session.whyProEmail || req.session.userEmail;
         if (userEmail) {
           const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
@@ -7446,7 +7452,10 @@ setupDB().then(async () => {
   });
 
   app.get('/api/why-history', async (req, res) => {
-    if (!req.session || req.session.isWhyPro !== true) {
+    const isProUser = (req.session && req.session.isWhyPro === true) ||
+      (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+      (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+    if (!isProUser) {
       return res.status(401).json({ error: 'Pro session required' });
     }
     const userEmail = req.session.whyProEmail || req.session.userEmail;
