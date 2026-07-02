@@ -8164,7 +8164,12 @@ ${content}
   }
 
   app.post('/distribb-publish', express.json({ limit: '2mb' }), async (req, res) => {
-    const secret = req.headers['x-distribb-secret'] || req.body.secret;
+    const bearerToken = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+    const secret = bearerToken
+      || req.headers['x-api-key']
+      || req.headers['x-make-apikey']
+      || req.headers['x-distribb-secret']
+      || req.body.secret;
     if (secret !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
 
     const { title, content, slug: rawSlug, meta_description, keyword, date, read_time, excerpt } = req.body;
