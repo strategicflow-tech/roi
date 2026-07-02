@@ -7955,6 +7955,266 @@ setupDB().then(async () => {
     }
   });
 
+  // ── DISTRIBB PUBLISH WEBHOOK ──────────────────────────────────────────────
+  // Receives articles from Distribb and publishes to GitHub Pages.
+  // Webhook URL: https://strategic-flow-audit.replit.app/distribb-publish
+  // Auth header: X-Distribb-Secret: <ADMIN_PASSWORD>
+  // Required body fields: title, content (HTML body)
+  // Optional: slug, meta_description, keyword, date (YYYY-MM-DD), read_time, excerpt
+
+  const GITHUB_REPO_API = 'https://api.github.com/repos/strategicflow-tech/showcase/contents/';
+
+  async function ghGet(path) {
+    const r = await fetch(GITHUB_REPO_API + path, {
+      headers: { Authorization: 'token ' + process.env.GITHUB_TOKEN, 'User-Agent': 'sf-server' }
+    });
+    if (!r.ok) throw new Error('GitHub GET ' + path + ' → ' + r.status);
+    return r.json();
+  }
+
+  async function ghPut(path, content, sha, message) {
+    const body = { message, content: Buffer.from(content).toString('base64') };
+    if (sha) body.sha = sha;
+    const r = await fetch(GITHUB_REPO_API + path, {
+      method: 'PUT',
+      headers: { Authorization: 'token ' + process.env.GITHUB_TOKEN, 'Content-Type': 'application/json', 'User-Agent': 'sf-server' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { const t = await r.text(); throw new Error('GitHub PUT ' + path + ' → ' + r.status + ' ' + t.slice(0,200)); }
+    return r.json();
+  }
+
+  function toSlug(str) {
+    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  function buildBlogPage({ title, content, slug, meta_description, keyword, date, read_time }) {
+    const today = date || new Date().toISOString().split('T')[0];
+    const dateDisplay = new Date(today).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const mins = read_time || Math.max(3, Math.round(content.replace(/<[^>]+>/g, '').split(/\s+/).length / 200));
+    const canonical = `https://strategicflow.tech/blog/${slug}.html`;
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{'ad_storage':'denied','ad_user_data':'denied','ad_personalization':'denied','analytics_storage':'denied','wait_for_update':500});gtag('js',new Date());gtag('config','G-7TV731EJTB');</script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} — Strategic Flow</title>
+<meta name="description" content="${meta_description}">
+<meta name="keywords" content="${keyword}, SaaS email architecture, Strategic Flow">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Alex Iliescu — Strategic Flow">
+<link rel="canonical" href="${canonical}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="${title} — Strategic Flow">
+<meta property="og:description" content="${meta_description}">
+<meta property="og:url" content="${canonical}">
+<meta property="og:site_name" content="Strategic Flow">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${title} — Strategic Flow">
+<meta name="twitter:description" content="${meta_description}">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"${title}","description":"${meta_description}","datePublished":"${today}","dateModified":"${today}","author":{"@type":"Person","name":"Alex Iliescu","url":"https://strategicflow.tech"},"publisher":{"@type":"Organization","name":"Strategic Flow","url":"https://strategicflow.tech"},"mainEntityOfPage":"${canonical}","inLanguage":"en"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Strategic Flow","item":"https://strategicflow.tech"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://strategicflow.tech/blog.html"},{"@type":"ListItem","position":3,"name":"${title}","item":"${canonical}"}]}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0a1628;--green:#00d4c8;--border2:rgba(0,212,200,0.28);--text:#fff;--text2:rgba(255,255,255,0.85);--text3:#7a9ab8;--border:#1a3050;--sans:'Figtree',sans-serif;--serif:'DM Serif Display',serif;--mono:'DM Mono',monospace;}
+html,body{width:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 48px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,0.96);backdrop-filter:blur(14px);z-index:100;}
+.nav-logo{font-family:var(--serif);font-size:19px;color:#fff;letter-spacing:-.01em;text-decoration:none;}
+.nav-logo em{color:var(--green);font-style:italic;}
+.nav-links{display:flex;gap:24px;align-items:center;}
+.nav-link{font-size:12px;color:var(--text2);text-decoration:none;font-family:var(--mono);letter-spacing:.04em;transition:color .2s;}
+.nav-link:hover,.nav-link.active{color:var(--green);}
+.nav-cta{background:var(--green);color:#07090f;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;}
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text2);transition:.3s;}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+.mobile-menu{display:none;position:fixed;top:58px;left:0;right:0;bottom:0;background:rgba(10,22,40,0.98);z-index:99;overflow-y:auto;padding:24px 20px;}
+.mobile-menu.open{display:block;}
+.mm-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);color:var(--text2);text-decoration:none;font-size:14px;}
+.mm-item:hover{color:var(--green);}
+.mm-cta{display:block;background:var(--green);color:#07090f;text-align:center;padding:13px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-top:20px;}
+@media(max-width:768px){.nav-links{display:none;}.hamburger{display:flex;}}
+.article-header{max-width:720px;margin:0 auto;padding:72px 48px 48px;}
+.breadcrumb{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.06em;margin-bottom:28px;flex-wrap:wrap;}
+.breadcrumb a{color:var(--text3);text-decoration:none;}
+.breadcrumb a:hover{color:var(--green);}
+.breadcrumb-sep{color:var(--border);}
+.article-tag{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--green);border:1px solid var(--border2);padding:4px 12px;border-radius:20px;margin-bottom:20px;}
+.article-h1{font-family:var(--serif);font-size:clamp(32px,4.5vw,52px);line-height:1.1;letter-spacing:-.02em;margin-bottom:16px;}
+.article-meta-row{display:flex;gap:20px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:32px;}
+.article-lede{font-size:19px;color:var(--text2);line-height:1.65;border-left:2px solid var(--green);padding-left:20px;}
+.article-body{max-width:720px;margin:0 auto;padding:0 48px 80px;}
+.article-body p{font-size:16px;color:var(--text2);line-height:1.75;margin-bottom:22px;}
+.article-body ul,.article-body ol{padding-left:24px;margin-bottom:22px;}
+.article-body li{font-size:16px;color:var(--text2);line-height:1.75;margin-bottom:10px;}
+.article-body h2{font-family:var(--serif);font-size:26px;line-height:1.2;margin:48px 0 16px;color:#fff;}
+.article-body h3{font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin:32px 0 12px;}
+.article-body strong{color:#fff;font-weight:600;}
+.article-body a{color:var(--green);text-decoration:underline;}
+.article-body .btn-p{color:#07090f;text-decoration:none;}
+.before-after{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);margin:28px 0;border-radius:8px;overflow:hidden;}
+.ba-box{padding:18px 20px;}
+.ba-before{background:rgba(248,113,113,0.06);}
+.ba-after{background:rgba(0,212,200,0.04);}
+.ba-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;}
+.ba-before .ba-label{color:#f87171;}
+.ba-after .ba-label{color:var(--green);}
+.ba-text{font-size:14px;color:var(--text2);line-height:1.6;}
+@media(max-width:560px){.before-after{grid-template-columns:1fr;}}
+.data-callout{background:rgba(0,212,200,0.04);border:1px solid var(--border2);border-radius:10px;padding:24px 28px;margin:32px 0;}
+.data-callout-label{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px;}
+.data-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.data-row:last-child{border-bottom:none;}
+.data-pattern{font-size:14px;color:var(--text2);}
+.data-pct{font-family:var(--mono);font-size:16px;color:var(--green);}
+.article-cta{background:rgba(0,212,200,0.04);border:1px solid var(--border2);border-radius:10px;padding:32px;margin:48px 0 0;display:flex;flex-direction:column;gap:12px;}
+.article-cta-label{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:.14em;text-transform:uppercase;}
+.article-cta-title{font-family:var(--serif);font-size:24px;line-height:1.2;}
+.article-cta-sub{font-size:14px;color:var(--text2);line-height:1.65;}
+.btn-p{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#07090f;padding:11px 22px;border-radius:7px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .2s;margin-top:4px;}
+.btn-p:hover{opacity:.85;}
+footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
+.footer-links{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+.footer-links a{font-size:12px;color:#1D9E75;text-decoration:none;font-family:var(--mono);}
+.footer-links a:hover{color:#fff;}
+.footer-copy{font-family:var(--mono);font-size:11px;color:#1D9E75;}
+#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#09111e;border-top:1px solid rgba(255,255,255,0.08);padding:18px 48px;display:none;}
+#cookie-banner.visible{display:flex;}
+.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+.cookie-text{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:680px;}
+.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+.cookie-btn{font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.7);transition:all .2s;}
+.cookie-btn.accept{background:#00e5a0;color:#07090f;border-color:#00e5a0;}
+@media(max-width:600px){.article-header,.article-body{padding-left:20px;padding-right:20px;}footer{padding:28px 20px;}}
+</style>
+</head>
+<body>
+<nav aria-label="Main navigation">
+  <a href="https://strategicflow.tech/" class="nav-logo">Strategic<em>Flow</em></a>
+  <div class="nav-links">
+    <a href="https://strategicflow.tech/teardowns.html" class="nav-link">Teardowns</a>
+    <a href="https://strategicflow.tech/glossary.html" class="nav-link">Glossary</a>
+    <a href="https://strategicflow.tech/blog.html" class="nav-link active">Blog</a>
+    <a href="https://strategic-flow-audit.replit.app" class="nav-link" target="_blank" rel="noopener">Free Audit</a>
+    <a href="https://strategic-flow-pro.replit.app" class="nav-cta" target="_blank" rel="noopener">Rebuild Yours &rarr;</a>
+  </div>
+  <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
+</nav>
+<div class="mobile-menu" id="mobile-menu">
+  <a href="https://strategicflow.tech/teardowns.html" class="mm-item">Teardowns</a>
+  <a href="https://strategicflow.tech/glossary.html" class="mm-item">Glossary</a>
+  <a href="https://strategicflow.tech/blog.html" class="mm-item" style="color:var(--green);">Blog</a>
+  <a href="https://strategic-flow-audit.replit.app" class="mm-item" target="_blank" rel="noopener">Free Audit</a>
+  <a href="https://strategic-flow-pro.replit.app" class="mm-cta" target="_blank" rel="noopener">Rebuild Yours &rarr;</a>
+</div>
+<script>(function(){var h=document.getElementById('hamburger'),m=document.getElementById('mobile-menu');if(!h||!m)return;function cl(){h.classList.remove('open');m.classList.remove('open');h.setAttribute('aria-expanded','false');}h.addEventListener('click',function(e){e.stopPropagation();m.classList.contains('open')?cl():(h.classList.add('open'),m.classList.add('open'),h.setAttribute('aria-expanded','true'));});m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',cl);});document.addEventListener('click',function(e){if(!m.contains(e.target)&&!h.contains(e.target))cl();});})();</script>
+<header class="article-header">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="https://strategicflow.tech/">Strategic Flow</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="https://strategicflow.tech/blog.html">Blog</a>
+    <span class="breadcrumb-sep">/</span>
+    <span>${title}</span>
+  </nav>
+  <div class="article-tag">Email Architecture</div>
+  <h1 class="article-h1">${title}</h1>
+  <div class="article-meta-row">
+    <span>Alex Iliescu</span><span>&middot;</span>
+    <span>${dateDisplay}</span><span>&middot;</span>
+    <span>${mins} min read</span>
+  </div>
+</header>
+<article class="article-body">
+${content}
+  <div class="article-cta">
+    <div class="article-cta-label">Free tool</div>
+    <p class="article-cta-title">Score your last email.</p>
+    <p class="article-cta-sub">Paste any SaaS email. Get a structural score from 1 to 10, a named failure pattern, and a rebuilt version. Runs in 90 seconds.</p>
+    <a href="https://strategic-flow-audit.replit.app" class="btn-p" target="_blank" rel="noopener">Run the free audit &rarr;</a>
+  </div>
+</article>
+<footer>
+  <div class="footer-links">
+    <a href="https://strategicflow.tech/">Strategic Flow</a>
+    <a href="https://strategicflow.tech/teardowns.html">Teardowns</a>
+    <a href="https://strategicflow.tech/glossary.html">Glossary</a>
+    <a href="https://strategicflow.tech/blog.html">Blog</a>
+    <a href="https://strategic-flow-audit.replit.app" target="_blank" rel="noopener">Free Audit</a>
+    <a href="https://strategic-flow-pro.replit.app" target="_blank" rel="noopener">Pro Plans</a>
+  </div>
+  <div class="footer-copy">Strategic Flow &copy; ${new Date().getFullYear()} &middot; <a href="https://strategicflow.tech" style="color:#1D9E75;text-decoration:none;">strategicflow.tech</a></div>
+</footer>
+<div id="cookie-banner">
+  <div class="cookie-inner">
+    <div class="cookie-text">This site uses cookies for analytics (Google Analytics). We do not sell or share your data.</div>
+    <div class="cookie-actions">
+      <button class="cookie-btn" id="cookie-decline">Decline</button>
+      <button class="cookie-btn accept" id="cookie-accept">Accept</button>
+    </div>
+  </div>
+</div>
+<script>(function(){var K='sf_consent',s=localStorage.getItem(K),b=document.getElementById('cookie-banner');function g(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}if(s==='granted'){g();}else if(s!=='denied'){b.classList.add('visible');}document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(K,'granted');g();b.classList.remove('visible');});document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(K,'denied');b.classList.remove('visible');});})();</script>
+</body>
+</html>`;
+  }
+
+  app.post('/distribb-publish', express.json({ limit: '2mb' }), async (req, res) => {
+    const secret = req.headers['x-distribb-secret'] || req.body.secret;
+    if (secret !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { title, content, slug: rawSlug, meta_description, keyword, date, read_time, excerpt } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+
+    const slug = rawSlug || toSlug(title);
+    const filePath = `blog/${slug}.html`;
+    const pageHtml = buildBlogPage({ title, content, slug, meta_description: meta_description || '', keyword: keyword || '', date, read_time });
+
+    try {
+      let existingSha = null;
+      try { const ex = await ghGet(filePath); existingSha = ex.sha; } catch(e) {}
+
+      await ghPut(filePath, pageHtml, existingSha, `Publish blog article via Distribb: ${title}`);
+
+      const blogIndex = await ghGet('blog.html');
+      const blogContent = Buffer.from(blogIndex.content, 'base64').toString();
+      const today = date || new Date().toISOString().split('T')[0];
+      const dateDisplay = new Date(today).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const mins = read_time || Math.max(3, Math.round(content.replace(/<[^>]+>/g, '').split(/\s+/).length / 200));
+      const desc = excerpt || (meta_description || '').slice(0, 160);
+
+      const newCard = `    <a href="/blog/${slug}.html" class="article-card">
+      <div class="article-meta">
+        <span class="article-date">${dateDisplay}</span>
+        <span class="article-read">${mins} min read</span>
+        <span class="article-tag">Architecture</span>
+      </div>
+      <h2 class="article-title">${title}</h2>
+      <p class="article-excerpt">${desc}</p>
+      <span class="article-cta">Read article &rarr;</span>
+    </a>\n\n    `;
+
+      let updatedBlog = blogContent;
+      if (blogContent.includes('<div class="article-card-placeholder">')) {
+        updatedBlog = blogContent.replace('<div class="article-card-placeholder">', newCard + '<div class="article-card-placeholder">');
+      }
+
+      if (updatedBlog !== blogContent) {
+        await ghPut('blog.html', updatedBlog, blogIndex.sha, `blog.html: add card for "${title}" (Distribb)`);
+      }
+
+      console.log(`[distribb-publish] OK: ${filePath}`);
+      res.json({ ok: true, url: `https://strategicflow.tech/${filePath}`, slug, file: filePath });
+    } catch (err) {
+      console.error('[distribb-publish]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use((req, res, next) => {
     res.setTimeout(180000);
     next();
