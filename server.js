@@ -8172,8 +8172,23 @@ ${content}
       || req.body.secret;
     if (secret !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { title, content, slug: rawSlug, meta_description, keyword, date, read_time, excerpt } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+    console.log('[distribb-publish] body keys:', Object.keys(req.body));
+    console.log('[distribb-publish] body:', JSON.stringify(req.body).slice(0, 500));
+
+    const b = req.body;
+    const title   = b.title || b.article_title || b.post_title || b.name || '';
+    const content = b.content || b.html || b.html_content || b.article_body || b.body || b.article_html || '';
+    const rawSlug = b.slug || b.post_slug || b.url_slug || '';
+    const meta_description = b.meta_description || b.description || b.excerpt || b.seo_description || '';
+    const keyword  = b.keyword || b.focus_keyword || b.primary_keyword || b.tag || '';
+    const date     = b.date || b.scheduled_date || b.publish_date || '';
+    const read_time = b.read_time || b.reading_time || null;
+    const excerpt  = b.excerpt || b.summary || meta_description || '';
+
+    if (!title && !content) {
+      console.log('[distribb-publish] test payload — returning 200');
+      return res.json({ ok: true, message: 'Test payload received. Keys: ' + Object.keys(b).join(', ') });
+    }
 
     const slug = rawSlug || toSlug(title);
     const filePath = `blog/${slug}.html`;
