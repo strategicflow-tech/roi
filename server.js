@@ -6662,15 +6662,37 @@ app.post('/api/distribb-publish', async (req, res) => {
   }
 
   const body = req.body || {};
-  const title           = body.title || body.Title || body.headline;
-  const contentHtml     = body.content || body.html || body.body || body.Content;
-  const metaDescription = body.meta_description || body.metaDescription || body.MetaDescription;
-  const keyword         = body.keyword || body.main_keyword || body.MainKeyword;
-  const tag              = body.category || body.tag || keyword;
-  let   slug             = body.slug || body.Slug;
+  console.log('[distribb-publish] incoming payload:', JSON.stringify(body).slice(0, 2000));
+
+  const deepGet = (obj, keys) => {
+    for (const k of keys) {
+      if (obj && obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k];
+    }
+    return undefined;
+  };
+  const nested = body.article || body.data || body.payload || {};
+
+  const title = deepGet(body, ['title', 'Title', 'headline', 'post_title', 'article_title', 'name'])
+    || deepGet(nested, ['title', 'Title', 'headline', 'post_title', 'article_title', 'name']);
+  const contentHtml = deepGet(body, ['content', 'html', 'body', 'Content', 'html_content', 'body_html', 'post_content', 'article_content', 'article_body'])
+    || deepGet(nested, ['content', 'html', 'body', 'Content', 'html_content', 'body_html', 'post_content', 'article_content', 'article_body']);
+  const metaDescription = deepGet(body, ['meta_description', 'metaDescription', 'MetaDescription', 'excerpt', 'description'])
+    || deepGet(nested, ['meta_description', 'metaDescription', 'MetaDescription', 'excerpt', 'description']);
+  const keyword = deepGet(body, ['keyword', 'main_keyword', 'MainKeyword'])
+    || deepGet(nested, ['keyword', 'main_keyword', 'MainKeyword']);
+  const tag  = deepGet(body, ['category', 'tag']) || deepGet(nested, ['category', 'tag']) || keyword;
+  let   slug = deepGet(body, ['slug', 'Slug']) || deepGet(nested, ['slug', 'Slug']);
 
   if (!title || !contentHtml) {
-    return res.status(400).json({ success: false, error: 'title and content are required' });
+    // No recognizable article fields — treat this as a connectivity/test ping
+    // (e.g. Distribb's "Send Test Payload" button) rather than a hard error,
+    // so the integration can be saved. Real publish calls always include title+content.
+    console.log('[distribb-publish] no title/content detected — responding as connectivity test');
+    return res.status(200).json({
+      success: true,
+      test: true,
+      message: 'Webhook reachable. No title/content fields detected in this payload, so nothing was published.'
+    });
   }
 
   slug = slug ? slugify(slug) : slugify(title);
