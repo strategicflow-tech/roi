@@ -6428,6 +6428,327 @@ app.post('/publish-teardown', async (req, res) => {
 
 // ─── END PUBLISH TEARDOWN ─────────────────────────────────────────────────────
 
+// ─── DISTRIBB CMS WEBHOOK ───────────────────────────────────────────────────
+// Generic "API webhook" CMS target for Distribb (distribb.io). Distribb calls
+// this endpoint via POST /articles/:id/publish once this URL is registered as
+// a webhook integration at https://distribb.io/integrations. Publishes a new
+// article HTML page to the strategicflow-tech/showcase GitHub Pages repo and
+// links it into blog.html (newest article first).
+
+function slugify(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80) || `article-${Date.now()}`;
+}
+
+function stripHtmlTags(html) {
+  return String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function estimateReadMinutes(html) {
+  const words = stripHtmlTags(html).split(' ').filter(Boolean).length;
+  return Math.max(1, Math.round(words / 220));
+}
+
+function buildDistribbArticleHtml({ title, contentHtml, metaDescription, slug, tag, dateStr, dateDisplay, readMinutes }) {
+  const safeTitle = title || 'Untitled Article';
+  const safeDesc  = metaDescription || stripHtmlTags(contentHtml).slice(0, 155);
+  const safeTag   = tag || 'Email Architecture';
+  const pageUrl   = `https://strategicflow.tech/blog/${slug}.html`;
+  const dateDisplayForHeader = dateDisplay || dateStr;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7TV731EJTB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
+  gtag('js', new Date());
+  gtag('config', 'G-7TV731EJTB');
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeTitle} — Strategic Flow</title>
+<meta name="description" content="${safeDesc.replace(/"/g, '&quot;')}">
+<meta name="robots" content="index, follow">
+<meta name="author" content="Alex Iliescu — Strategic Flow">
+<link rel="canonical" href="${pageUrl}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="${safeTitle} — Strategic Flow">
+<meta property="og:description" content="${safeDesc.replace(/"/g, '&quot;')}">
+<meta property="og:url" content="${pageUrl}">
+<meta property="og:site_name" content="Strategic Flow">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${safeTitle}">
+<meta name="twitter:description" content="${safeDesc.replace(/"/g, '&quot;')}">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": ${JSON.stringify(safeTitle)},
+  "description": ${JSON.stringify(safeDesc)},
+  "datePublished": "${dateStr}",
+  "dateModified": "${dateStr}",
+  "author": {
+    "@type": "Person",
+    "name": "Alex Iliescu",
+    "url": "https://strategicflow.tech",
+    "jobTitle": "Email Architecture Diagnostician"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Strategic Flow",
+    "url": "https://strategicflow.tech"
+  },
+  "mainEntityOfPage": ${JSON.stringify(pageUrl)},
+  "articleSection": ${JSON.stringify(safeTag)},
+  "inLanguage": "en"
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a1628;--bg2:#0f2035;
+  --green:#00d4c8;
+  --border2:rgba(0,212,200,0.28);
+  --text:#ffffff;--text2:rgba(255,255,255,0.85);--text3:#7a9ab8;
+  --red:#f87171;--border:#1a3050;
+  --sans:'Figtree',sans-serif;--serif:'DM Serif Display',serif;--mono:'DM Mono',monospace;
+}
+html,body{width:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 48px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,0.96);backdrop-filter:blur(14px);z-index:100;}
+.nav-logo{font-family:var(--serif);font-size:19px;color:#fff;letter-spacing:-.01em;text-decoration:none;}
+.nav-logo em{color:var(--green);font-style:italic;}
+.nav-links{display:flex;gap:24px;align-items:center;}
+.nav-link{font-size:12px;color:var(--text2);text-decoration:none;font-family:var(--mono);letter-spacing:.04em;transition:color .2s;}
+.nav-link:hover,.nav-link.active{color:var(--green);}
+.nav-cta{background:var(--green);color:#07090f;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;transition:opacity .2s;}
+.nav-cta:hover{opacity:.85;}
+.hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--text2);transition:.3s;}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.hamburger.open span:nth-child(2){opacity:0;}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+.mobile-menu{display:none;position:fixed;top:58px;left:0;right:0;bottom:0;background:rgba(10,22,40,0.98);z-index:99;overflow-y:auto;padding:24px 20px;}
+.mobile-menu.open{display:block;}
+.mm-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);color:var(--text2);text-decoration:none;font-size:14px;}
+.mm-item:hover{color:var(--green);}
+.mm-cta{display:block;background:var(--green);color:#07090f;text-align:center;padding:13px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;margin-top:20px;}
+@media(max-width:768px){.nav-links{display:none;}.hamburger{display:flex;}}
+.article-header{max-width:720px;margin:0 auto;padding:72px 48px 48px;}
+.breadcrumb{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.06em;margin-bottom:28px;flex-wrap:wrap;}
+.breadcrumb a{color:var(--text3);text-decoration:none;}
+.breadcrumb a:hover{color:var(--green);}
+.breadcrumb-sep{color:var(--border);}
+.article-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--green);border:1px solid var(--border2);padding:4px 12px;border-radius:20px;margin-bottom:20px;}
+.article-h1{font-family:var(--serif);font-size:clamp(32px,4.5vw,52px);line-height:1.1;letter-spacing:-.02em;margin-bottom:16px;}
+.article-h1 em{font-style:italic;color:var(--green);}
+.article-meta-row{display:flex;gap:20px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:32px;}
+.article-lede{font-size:19px;color:var(--text2);line-height:1.65;border-left:2px solid var(--green);padding-left:20px;}
+.article-body{max-width:720px;margin:0 auto;padding:0 48px 80px;}
+.article-body p{font-size:16px;color:var(--text2);line-height:1.75;margin-bottom:22px;}
+.article-body ul,.article-body ol{padding-left:24px;margin-bottom:22px;}
+.article-body li{font-size:16px;color:var(--text2);line-height:1.75;margin-bottom:10px;}
+.article-body h2{font-family:var(--serif);font-size:26px;line-height:1.2;margin:48px 0 16px;color:#fff;}
+.article-body h3{font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin:32px 0 12px;}
+.article-body strong{color:#fff;font-weight:600;}
+.article-body a{color:var(--green);text-decoration:underline;}
+footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
+.footer-links{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+.footer-links a{font-size:12px;color:#1D9E75;text-decoration:none;font-family:var(--mono);}
+.footer-links a:hover{color:#fff;}
+.footer-copy{font-family:var(--mono);font-size:11px;color:#1D9E75;}
+@media(max-width:600px){.article-header,.article-body{padding-left:20px;padding-right:20px;}footer{padding:28px 20px;}}
+</style>
+</head>
+<body>
+
+<nav aria-label="Main navigation">
+  <a href="https://strategicflow.tech/" class="nav-logo">Strategic<em>Flow</em></a>
+  <div class="nav-links">
+    <a href="https://strategicflow.tech/teardowns.html" class="nav-link">Teardowns</a>
+    <a href="https://strategicflow.tech/glossary.html" class="nav-link">Glossary</a>
+    <a href="/blog.html" class="nav-link active">Blog</a>
+    <a href="https://strategic-flow-audit.replit.app" class="nav-link" target="_blank" rel="noopener">Free Audit</a>
+    <a href="https://strategic-flow-pro.replit.app" class="nav-cta" target="_blank" rel="noopener">Rebuild Yours →</a>
+  </div>
+  <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-menu" id="mobile-menu">
+  <a href="https://strategicflow.tech/teardowns.html" class="mm-item">Teardowns</a>
+  <a href="https://strategicflow.tech/glossary.html" class="mm-item">Glossary</a>
+  <a href="/blog.html" class="mm-item" style="color:var(--green);">Blog</a>
+  <a href="https://strategic-flow-audit.replit.app" class="mm-item" target="_blank" rel="noopener">Free Audit</a>
+  <a href="https://strategic-flow-pro.replit.app" class="mm-cta" target="_blank" rel="noopener">Rebuild Yours →</a>
+</div>
+<script>
+(function(){
+  var h=document.getElementById('hamburger'),m=document.getElementById('mobile-menu');
+  if(!h||!m)return;
+  function close(){h.classList.remove('open');m.classList.remove('open');h.setAttribute('aria-expanded','false');}
+  h.addEventListener('click',function(e){e.stopPropagation();m.classList.contains('open')?close():(h.classList.add('open'),m.classList.add('open'),h.setAttribute('aria-expanded','true'));});
+  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',close);});
+  document.addEventListener('click',function(e){if(!m.contains(e.target)&&!h.contains(e.target))close();});
+})();
+</script>
+
+<header class="article-header">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="https://strategicflow.tech/">Strategic Flow</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="/blog.html">Blog</a>
+    <span class="breadcrumb-sep">/</span>
+    <span>${safeTitle}</span>
+  </nav>
+  <div class="article-tag">${safeTag}</div>
+  <h1 class="article-h1">${safeTitle}</h1>
+  <div class="article-meta-row">
+    <span>Alex Iliescu</span>
+    <span>·</span>
+    <span>${dateDisplayForHeader}</span>
+    <span>·</span>
+    <span>${readMinutes} min read</span>
+  </div>
+</header>
+
+<article class="article-body">
+${contentHtml}
+</article>
+
+<footer>
+  <div class="footer-links">
+    <a href="https://strategicflow.tech/">Strategic Flow</a>
+    <a href="https://strategicflow.tech/teardowns.html">Teardowns</a>
+    <a href="https://strategicflow.tech/glossary.html">Glossary</a>
+    <a href="/blog.html">Blog</a>
+    <a href="https://strategic-flow-audit.replit.app" target="_blank" rel="noopener">Free Audit</a>
+    <a href="https://strategic-flow-pro.replit.app" target="_blank" rel="noopener">Pro Plans</a>
+  </div>
+  <div class="footer-copy">Strategic Flow &copy; 2026 &middot; <a href="https://strategicflow.tech" style="color:#1D9E75;text-decoration:none;">strategicflow.tech</a></div>
+</footer>
+
+</body>
+</html>`;
+}
+
+app.post('/api/distribb-publish', async (req, res) => {
+  const providedSecret =
+    req.headers['x-webhook-secret'] ||
+    req.headers['x-distribb-secret'] ||
+    (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
+    req.query.secret ||
+    req.body?.secret;
+
+  if (!process.env.DISTRIBB_WEBHOOK_SECRET || providedSecret !== process.env.DISTRIBB_WEBHOOK_SECRET) {
+    return res.status(401).json({ success: false, error: 'Invalid or missing webhook secret' });
+  }
+
+  const body = req.body || {};
+  const title           = body.title || body.Title || body.headline;
+  const contentHtml     = body.content || body.html || body.body || body.Content;
+  const metaDescription = body.meta_description || body.metaDescription || body.MetaDescription;
+  const keyword         = body.keyword || body.main_keyword || body.MainKeyword;
+  const tag              = body.category || body.tag || keyword;
+  let   slug             = body.slug || body.Slug;
+
+  if (!title || !contentHtml) {
+    return res.status(400).json({ success: false, error: 'title and content are required' });
+  }
+
+  slug = slug ? slugify(slug) : slugify(title);
+  const dateStr      = new Date().toISOString().slice(0, 10);
+  const dateDisplay  = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const readMinutes  = estimateReadMinutes(contentHtml);
+  const repoPath     = `/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents`;
+  const pageUrl      = `https://strategicflow.tech/blog/${slug}.html`;
+
+  try {
+    const articleHtml = buildDistribbArticleHtml({
+      title, contentHtml, metaDescription, slug, tag, dateStr, dateDisplay, readMinutes
+    });
+
+    // STEP 1: commit the article page (create or update if slug already exists)
+    let articleSha;
+    try {
+      const existing = await ghRequest('GET', `${repoPath}/blog/${slug}.html`);
+      articleSha = existing.sha;
+    } catch (e) {
+      if (!e.message.includes('404')) throw e;
+    }
+    await ghRequest('PUT', `${repoPath}/blog/${slug}.html`, {
+      message: `Distribb: publish article "${title}"`,
+      content: Buffer.from(articleHtml).toString('base64'),
+      ...(articleSha ? { sha: articleSha } : {})
+    });
+    console.log(`[distribb-publish] committed blog/${slug}.html`);
+
+    // STEP 2: prepend a card to blog.html (newest first)
+    const blogData = await ghRequest('GET', `${repoPath}/blog.html`);
+    const blogSha  = blogData.sha;
+    let   blogHtml = Buffer.from(blogData.content, 'base64').toString('utf8');
+
+    const excerpt = (metaDescription || stripHtmlTags(contentHtml)).slice(0, 200);
+    const newCard = `
+    <a href="/blog/${slug}.html" class="article-card">
+      <div class="article-meta">
+        <span class="article-date">${dateDisplay}</span>
+        <span class="article-read">${readMinutes} min read</span>
+        <span class="article-tag">${tag || 'Email Architecture'}</span>
+      </div>
+      <h2 class="article-title">${title}</h2>
+      <p class="article-excerpt">${excerpt}</p>
+      <span class="article-cta">Read article →</span>
+    </a>
+`;
+
+    if (blogHtml.includes('<div class="articles-grid">')) {
+      blogHtml = blogHtml.replace('<div class="articles-grid">', `<div class="articles-grid">\n${newCard}`);
+    } else {
+      throw new Error('articles-grid container not found in blog.html');
+    }
+
+    await ghRequest('PUT', `${repoPath}/blog.html`, {
+      message: `Distribb: add article card for "${title}"`,
+      content: Buffer.from(blogHtml).toString('base64'),
+      sha: blogSha
+    });
+    console.log(`[distribb-publish] blog.html updated with new card`);
+
+    res.json({
+      success: true,
+      status: 'published',
+      url: pageUrl,
+      article_url: pageUrl,
+      published_url: pageUrl,
+      slug
+    });
+
+  } catch (err) {
+    console.error('[distribb-publish] error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── END DISTRIBB CMS WEBHOOK ───────────────────────────────────────────────
+
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
 app.post('/api/demo', async (req, res) => {
