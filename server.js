@@ -6505,7 +6505,7 @@ function buildDistribbArticleHtml({ title, contentHtml, metaDescription, slug, t
     "@type": "Person",
     "name": "Alex Iliescu",
     "url": "https://strategicflow.tech",
-    "jobTitle": "Email Architecture Diagnostician"
+    "jobTitle": "Founder, Strategic Flow Tech"
   },
   "publisher": {
     "@type": "Organization",
@@ -6621,7 +6621,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
   <div class="article-tag">${safeTag}</div>
   <h1 class="article-h1">${safeTitle}</h1>
   <div class="article-meta-row">
-    <span>Alex Iliescu</span>
+    <span>By Alex Iliescu, founder of Strategic Flow Tech</span>
     <span>·</span>
     <span>${dateDisplayForHeader}</span>
     <span>·</span>
@@ -8467,7 +8467,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
   <div class="article-tag">Email Architecture</div>
   <h1 class="article-h1">${title}</h1>
   <div class="article-meta-row">
-    <span>Alex Iliescu</span><span>&middot;</span>
+    <span>By Alex Iliescu, founder of Strategic Flow Tech</span><span>&middot;</span>
     <span>${dateDisplay}</span><span>&middot;</span>
     <span>${mins} min read</span>
   </div>
