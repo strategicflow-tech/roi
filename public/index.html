@@ -395,6 +395,53 @@ textarea{resize:vertical;line-height:1.7;}
     </div>
   </div>
 
+  <!-- LIVE AUDIT DEMO -->
+  <div class="card" id="liveDemoTerminal" style="background:#0a0f1e;border-radius:8px;padding:20px;margin-bottom:24px;font-family:'SF Mono',Consolas,monospace;font-size:13px;line-height:1.9;overflow-x:auto;">
+    <div style="color:#666;margin-bottom:14px;">Live scan · real published teardown, not a mockup</div>
+    <div id="terminalLines"></div>
+  </div>
+
+  <style>
+  .term-line { opacity:0; margin-bottom:2px; white-space:pre-wrap; }
+  .term-line.show { opacity:1; transition:opacity 0.15s; }
+  .term-ok { color:#4ade80; }
+  .term-warn { color:#facc15; }
+  .term-fail { color:#f87171; }
+  .term-neutral { color:#94a3b8; }
+  .term-score { color:#fff; font-weight:600; }
+  </style>
+
+  <script>
+  const terminalScript = [
+    { type: 'neutral', text: '[SCAN] Reading "Introducing Procedures in ElevenAgents"...' },
+    { type: 'neutral', text: '[SCAN] ✓ 847 words extracted · 6 paragraphs · 1 CTA' },
+    { type: 'warn', text: '[SUBJECT] ⚠ Filing Label Subject detected — names the feature, not the outcome' },
+    { type: 'fail', text: '[PROOF] ✗ CRITICAL — strongest claim buried in paragraph 3, no bold' },
+    { type: 'fail', text: '[PROOF] ✗ Business outcome unbolded, zero numbers attached' },
+    { type: 'warn', text: '[CTA] ⚠ Guest Language CTA — "Learn more" asks nothing, promises nothing' },
+    { type: 'ok', text: '[STRUCTURE] ✓ Opens with reader\'s world, not the product' },
+    { type: 'score', text: '[SCORE] Decision Friction Model: 4/10' },
+    { type: 'neutral', text: '↓ Score your own newsletter below' },
+  ];
+
+  function playTerminal() {
+    const container = document.getElementById('terminalLines');
+    if (!container) return;
+    container.innerHTML = '';
+    let delay = 0;
+    terminalScript.forEach((line) => {
+      const div = document.createElement('div');
+      div.className = 'term-line term-' + line.type;
+      div.textContent = line.text;
+      container.appendChild(div);
+      setTimeout(() => div.classList.add('show'), delay);
+      delay += 550;
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', playTerminal);
+  </script>
+
   <!-- EMAIL CHECK STATE -->
   <div id="stateEmail" class="card" hidden>
     <div class="section-label">Get Started</div>
