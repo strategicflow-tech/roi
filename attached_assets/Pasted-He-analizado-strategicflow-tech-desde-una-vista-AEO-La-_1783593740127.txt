@@ -1,0 +1,165 @@
+He analizado **strategicflow.tech desde una vista AEO**. La lectura rápida: **el contenido está muy bien orientado a respuestas de IA, pero la capa técnica para crawlers de IA está incompleta**.
+
+En Searchable todavía no hay una auditoría AEO formal de la homepage, así que el **AEO Score no está disponible aún**. Aun así, he revisado la home, el sitemap, robots.txt y llms.txt para ver cómo lo entenderían ChatGPT, Claude, Perplexity y otros motores.
+
+## Lo más importante
+
+**Strategic Flow ya tiene una base AEO fuerte** porque explica claramente:
+
+- Qué hace: diagnostica por qué emails SaaS se abren pero no convierten
+- Para quién es: founders, CMOs y marketing managers B2B SaaS
+- Qué framework usa: **Decision Friction Model**
+- Qué prueba tiene: **59 teardowns**, subida media de **3/10 a 9/10**, **7 checks diagnósticos**
+- Qué problemas resuelve: Feature-First Bias, Guest Language CTA, Filing Label Subject, Buried Proof, etc.
+
+Eso es exactamente el tipo de estructura que los motores de IA pueden convertir en respuestas.
+
+---
+
+## Vista AEO técnica
+
+| Elemento | Estado |
+|---|---|
+| AEO Score en Searchable | No disponible |
+| Homepage auditada | No |
+| Issues detectados en páginas monitorizadas | 0 |
+| llms.txt | Existe, vacío |
+| robots.txt | Existe, vacío |
+| sitemap.xml | Existe |
+| Homepage accesible | 200 |
+| Sitemap con páginas estratégicas | Sí |
+
+El punto más débil es claro: **llms.txt y robots.txt existen, pero están vacíos**. Eso es una oportunidad rápida, porque ahora mismo los crawlers de IA no reciben una guía explícita sobre qué páginas son más importantes, qué hace Strategic Flow, qué claims son verificables y qué URLs deberían priorizar.
+
+---
+
+## Lo que ya está funcionando muy bien
+
+**1. La home responde preguntas, no solo vende**
+
+La sección FAQ es fuerte para AEO. Incluye respuestas directas a preguntas como:
+
+- Qué diagnostica Strategic Flow
+- Qué es behavioral email architecture
+- Qué es el Decision Friction Model
+- Diferencia entre deliverability y email architecture
+- Quién hace teardowns para SaaS companies
+- Para quién es Strategic Flow
+
+Esto ayuda mucho a aparecer en respuestas tipo “What is…”, “Who does…”, “How is X different from Y”.
+
+**2. Tienes entidades muy claras**
+
+Strategic Flow, Alex Iliescu, Decision Friction Model, behavioral email architecture y email architecture audit aparecen como entidades consistentes.
+
+Eso es bueno porque los modelos de IA necesitan identificar “qué es la marca”, “quién está detrás” y “qué concepto propio debe asociarse a ella”.
+
+**3. Hay prueba cuantificada**
+
+Los datos de **59 teardowns**, **7 diagnostic checks**, **3/10 a 9/10**, **96% Guest Language CTA**, **83% Feature-First Bias** son muy citables.
+
+Esto es una ventaja competitiva. Los motores de IA tienden a preferir contenido con números, marcos propios, definiciones y ejemplos concretos.
+
+**4. El sitemap está bien orientado a autoridad temática**
+
+Veo páginas de comparación, metodología, glosario, field notes, research/report, teardowns y guías específicas. Esa arquitectura es buena para construir autoridad sobre “SaaS email conversion failure” y “email architecture audit”.
+
+---
+
+## Lo que está frenando el AEO
+
+**1. llms.txt está vacío**
+
+Esto debería ser la prioridad número 1. Ahora mismo existe, pero no ayuda.
+
+Un buen llms.txt debería incluir:
+
+- Resumen de Strategic Flow
+- Categoría principal
+- Público objetivo
+- Framework propietario
+- Claims verificables
+- Páginas prioritarias
+- URLs que no son tan importantes
+- Contacto
+- Qué no hace Strategic Flow, por ejemplo deliverability
+
+Esto facilitaría que los motores de IA entiendan y citen la marca correctamente.
+
+**2. robots.txt está vacío**
+
+No es necesariamente un error, pero estás perdiendo una señal fácil.
+
+Debería incluir al menos:
+
+- Sitemap
+- Permisos claros para crawlers relevantes
+- Directivas limpias para bots de IA si quieres maximizar descubrimiento
+- Bloqueos solo si hay rutas que no deberían rastrearse
+
+**3. Las imágenes aparecen embebidas como base64**
+
+En la extracción de la home, la imagen de Alex aparece como una cadena base64 enorme. Eso ensucia mucho el HTML y puede dificultar la lectura limpia de la página por crawlers.
+
+Mejor sería usar archivos de imagen reales con:
+
+- URL de imagen normal
+- Alt descriptivo
+- Tamaño definido
+- Carga optimizada
+
+Esto mejora rastreo, rendimiento y comprensión semántica.
+
+**4. Falta una capa fuerte de schema visible**
+
+Por el contenido, Strategic Flow debería tener schema para:
+
+- **Organization**
+- **Person**
+- **Service**
+- **FAQPage**
+- **Article** en guías y field notes
+- **BreadcrumbList**
+- Posiblemente **Dataset** o **CreativeWork** para el informe de 59 teardowns
+
+El contenido ya merece ser citado. El schema ayudaría a que las máquinas lo interpreten con menos fricción.
+
+---
+
+## Prioridades para subir el AEO
+
+**1. Crear un llms.txt completo**
+
+Este es el quick win más claro. Tienes muchísimo contenido útil, pero no está resumido para crawlers de IA.
+
+**2. Actualizar robots.txt con sitemap y política de crawlers**
+
+Esto ayuda a discovery y a que la arquitectura técnica sea más explícita.
+
+**3. Añadir schema a la home**
+
+La home debería declarar quién es Strategic Flow, quién es Alex, qué servicio ofrece, qué framework usa y qué preguntas responde.
+
+**4. Limpiar imágenes base64**
+
+Esto es menos “AEO puro”, pero afecta a rastreo, HTML limpio y rendimiento.
+
+**5. Convertir las FAQs y definiciones en bloques aún más citables**
+
+Las respuestas ya son buenas. Yo las haría más “answer engine friendly” con frases iniciales aún más directas:
+
+“Strategic Flow is a behavioral email architecture diagnostic service for B2B SaaS teams whose emails get opened but do not get clicked.”
+
+Ese tipo de frase es oro para ChatGPT, Claude y Perplexity.
+
+---
+
+## Mi lectura final
+
+**Strategic Flow está fuerte en contenido AEO, pero débil en señales técnicas AEO.**
+
+La parte difícil ya está bastante avanzada: posicionamiento, pruebas, categorías, comparaciones, definiciones y FAQs. Lo que falta es empaquetarlo para máquinas con **llms.txt, robots.txt, schema y HTML más limpio**.
+
+La primera victoria debería ser **rellenar llms.txt**, porque ahora mismo es un archivo vacío que podría estar actuando como una guía directa para motores de IA.
+
+¿Quieres que te genere ahora un **llms.txt completo para strategicflow.tech** listo para copiar y subir?
