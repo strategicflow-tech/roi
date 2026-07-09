@@ -6670,12 +6670,15 @@ app.post('/api/distribb-publish', async (req, res) => {
     }
     return undefined;
   };
-  const nested = body.article || body.data || body.payload || {};
+  const firstArticle = (body.data && Array.isArray(body.data.articles) && body.data.articles[0])
+    || (Array.isArray(body.articles) && body.articles[0])
+    || null;
+  const nested = body.article || firstArticle || body.data || body.payload || {};
 
   const title = deepGet(body, ['title', 'Title', 'headline', 'post_title', 'article_title', 'name'])
     || deepGet(nested, ['title', 'Title', 'headline', 'post_title', 'article_title', 'name']);
   const contentHtml = deepGet(body, ['content', 'html', 'body', 'Content', 'html_content', 'body_html', 'post_content', 'article_content', 'article_body'])
-    || deepGet(nested, ['content', 'html', 'body', 'Content', 'html_content', 'body_html', 'post_content', 'article_content', 'article_body']);
+    || deepGet(nested, ['content', 'html', 'body', 'Content', 'html_content', 'body_html', 'post_content', 'article_content', 'article_body', 'content_html']);
   const metaDescription = deepGet(body, ['meta_description', 'metaDescription', 'MetaDescription', 'excerpt', 'description'])
     || deepGet(nested, ['meta_description', 'metaDescription', 'MetaDescription', 'excerpt', 'description']);
   const keyword = deepGet(body, ['keyword', 'main_keyword', 'MainKeyword'])
