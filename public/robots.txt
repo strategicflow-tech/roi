@@ -20,3 +20,4 @@ User-agent: Google-Extended
 Allow: /
 
 Sitemap: https://strategic-flow-audit.replit.app/sitemap.xml
+Sitemap: https://strategic-flow-audit.replit.app/sitemap-index.xml

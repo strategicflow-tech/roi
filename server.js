@@ -33,6 +33,50 @@ const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com']);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 
+// ── DECISION FRICTION INDEX ──────────────────────────────────────────────────
+const INDEX_ADMIN_KEY = process.env.INDEX_ADMIN_KEY || '';
+const INDEX_CANONICAL_PATTERNS = [
+  'Filing Label Subject',
+  'Feature-First Bias',
+  'Guest Language CTA',
+  'Consequence-After-Caveat',
+  'Missing Visual Hierarchy',
+  'Zero/Buried Social Proof'
+];
+
+function buildIndexScoringPrompt(contentType, content) {
+  return `You are WHY., a friction diagnostic tool, scoring content for the public Decision Friction Index. Analyze the following ${contentType} and return a JSON object with this exact structure:
+
+{
+  "score": <number 1-10, one decimal allowed, where 10 = excellent structural quality (low decision friction) and 1 = severe structural failure (high decision friction)>,
+  "patterns": [<array of 1-4 labels, ONLY from this exact canonical list, no others: ${INDEX_CANONICAL_PATTERNS.map(p => `"${p}"`).join(', ')}>],
+  "diagnosis_summary": "<2-3 sentences, clinical tone, referencing the actual content>"
+}
+
+Rules:
+- patterns must contain ONLY labels from the canonical list above, spelled exactly as given. Do not invent new labels. Pick the ones that genuinely apply, ranked by severity (most severe first).
+- Be brutally specific in diagnosis_summary — reference actual phrases or structural decisions in the content.
+- Return ONLY valid JSON, no markdown, no backticks, no explanation.
+
+Content to analyze:
+${content}`;
+}
+
+async function scoreContentWithClaude(prompt) {
+  const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await apiResp.json();
+  const textBlock = data.content?.find(b => b.type === 'text');
+  const text = textBlock?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  const result = safeParseJSON(clean);
+  if (!result) throw new Error('parse_failed');
+  return result;
+}
+
 // ── IN-MEMORY JOB STORE (for polling-based generation) ──────────────────────
 // Each job: { status:'pending'|'complete'|'failed', result, error, created }
 const jobs = new Map();
@@ -837,6 +881,20 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] why_analyses:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS index_companies (
+      id                SERIAL PRIMARY KEY,
+      slug              TEXT UNIQUE NOT NULL,
+      name              TEXT NOT NULL,
+      domain            TEXT NOT NULL,
+      content_type      TEXT NOT NULL,
+      score             NUMERIC(3,1) NOT NULL,
+      patterns          JSONB NOT NULL,
+      diagnosis_summary TEXT NOT NULL,
+      input_excerpt     TEXT,
+      scored_at         TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] index_companies:', e.message));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS why_jobs (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6443,6 +6501,229 @@ function slugify(str) {
     .slice(0, 80) || `article-${Date.now()}`;
 }
 
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderFrictionIndexHtml(companies) {
+  const count = companies.length;
+  const patternFreq = {};
+  companies.forEach(c => (c.patterns || []).forEach(p => { patternFreq[p] = (patternFreq[p] || 0) + 1; }));
+  const topPattern = Object.entries(patternFreq).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+  const CONTENT_TYPE_LABELS = {
+    email: 'Email',
+    product_update_blog: 'Product Update',
+    changelog: 'Changelog',
+    landing_page: 'Landing Page',
+    onboarding_sequence: 'Onboarding',
+    newsletter: 'Newsletter'
+  };
+
+  const rows = companies.map((c, i) => {
+    const topPatternForRow = escapeHtml((c.patterns || [])[0] || '—');
+    const typeLabel = escapeHtml(CONTENT_TYPE_LABELS[c.content_type] || c.content_type);
+    const safeDomain = escapeHtml(c.domain);
+    const safeName = escapeHtml(c.name);
+    const safeSlug = escapeHtml(c.slug);
+    const safeContentType = escapeHtml(c.content_type);
+    return `
+      <tr data-content-type="${safeContentType}">
+        <td class="rank">${i + 1}</td>
+        <td class="logo-cell"><img src="https://logo.clearbit.com/${safeDomain}" alt="${safeName} logo" loading="lazy" onerror="this.style.display='none'"></td>
+        <td class="name-cell"><a href="/friction-index/${safeSlug}">${safeName}</a></td>
+        <td class="score-cell">${Number(c.score).toFixed(1)}</td>
+        <td class="pattern-cell">${topPatternForRow}</td>
+        <td class="type-cell">${typeLabel}</td>
+      </tr>`;
+  }).join('\n');
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    name: 'The Decision Friction Index',
+    description: `${count} SaaS companies scored on structural conversion quality using the Strategic Flow 7-point diagnostic framework.`,
+    creator: { '@type': 'Organization', name: 'Strategic Flow' },
+    hasPart: {
+      '@type': 'ItemList',
+      itemListElement: companies.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: c.name,
+        url: `https://strategic-flow-audit.replit.app/friction-index/${c.slug}`
+      }))
+    }
+  };
+
+  const subtitleText = `${count} SaaS companies scored on structural conversion quality. Emails, product updates, changelogs, landing pages.${topPattern ? ` Most common failure: ${topPattern}.` : ''}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Decision Friction Index — ${count} SaaS Companies Scored | Strategic Flow</title>
+<meta name="description" content="${escapeHtml(subtitleText)}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:1000px;margin:0 auto;padding:60px 24px;}
+  h1{font-size:36px;margin-bottom:8px;}
+  .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+  select{background:var(--card);color:#fff;border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;margin-bottom:24px;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
+  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
+  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
+  td.score-cell{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;}
+  td.name-cell a{color:#fff;text-decoration:none;font-weight:600;}
+  td.name-cell a:hover{color:var(--teal);}
+  td.logo-cell img{width:24px;height:24px;border-radius:4px;object-fit:contain;background:#fff;}
+  .rank{color:var(--muted);font-family:'DM Mono',monospace;}
+  .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
+  .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
+  .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Decision Friction Index</h1>
+  <p class="subtitle">${escapeHtml(subtitleText)}</p>
+  ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
+  <select id="filter" onchange="filterTable()">
+    <option value="all">All content types</option>
+    <option value="email">Email</option>
+    <option value="product_update_blog">Product Update</option>
+    <option value="changelog">Changelog</option>
+    <option value="landing_page">Landing Page</option>
+    <option value="onboarding_sequence">Onboarding</option>
+    <option value="newsletter">Newsletter</option>
+  </select>
+  <table>
+    <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Top Pattern</th><th>Type</th></tr></thead>
+    <tbody id="rows">
+      ${rows}
+    </tbody>
+  </table>`}
+  <div class="cta-banner">
+    <div>Want to know your own score?</div>
+    <a href="/why">Score your own content free</a>
+  </div>
+</div>
+<script>
+function filterTable(){
+  const val = document.getElementById('filter').value;
+  document.querySelectorAll('#rows tr').forEach(tr => {
+    tr.style.display = (val === 'all' || tr.dataset.contentType === val) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>`;
+}
+
+function renderCompanyPageHtml(company) {
+  const name = escapeHtml(company.name);
+  const domain = escapeHtml(company.domain);
+  const score = Number(company.score).toFixed(1);
+  const patterns = Array.isArray(company.patterns) ? company.patterns : [];
+  const summary = escapeHtml(company.diagnosis_summary || '');
+  const excerpt = escapeHtml(company.input_excerpt || '');
+  const metaDescription = escapeHtml((company.diagnosis_summary || '').slice(0, 160));
+
+  const CONTENT_TYPE_LABELS = {
+    email: 'Email',
+    product_update_blog: 'Product Update',
+    changelog: 'Changelog',
+    landing_page: 'Landing Page',
+    onboarding_sequence: 'Onboarding',
+    newsletter: 'Newsletter'
+  };
+  const typeLabel = escapeHtml(CONTENT_TYPE_LABELS[company.content_type] || company.content_type);
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: company.name,
+    url: `https://${company.domain}`,
+    logo: `https://logo.clearbit.com/${company.domain}`,
+    review: {
+      '@type': 'Review',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: company.score,
+        bestRating: '10',
+        worstRating: '1'
+      },
+      author: { '@type': 'Organization', name: 'Strategic Flow' },
+      reviewBody: company.diagnosis_summary
+    }
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${name} Decision Friction Score: ${score}/10 | The Decision Friction Index</title>
+<meta name="description" content="${metaDescription}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:60px 24px;}
+  .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+  .header img{width:48px;height:48px;border-radius:8px;background:#fff;object-fit:contain;}
+  h1{font-size:28px;margin:0;}
+  .badge{display:inline-block;background:var(--card2);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:6px;margin-top:8px;}
+  .score-display{font-family:'DM Mono',monospace;font-size:64px;color:var(--teal);font-weight:600;margin:24px 0;}
+  .patterns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+  .pattern-tag{background:var(--card);border:1px solid var(--hairline);color:#fff;font-size:13px;padding:6px 12px;border-radius:20px;}
+  .summary{font-size:16px;line-height:1.6;color:#dce8f5;margin-bottom:24px;}
+  blockquote{background:var(--card);border-left:3px solid var(--teal);padding:16px 20px;margin:0 0 32px;font-style:italic;color:var(--muted);}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .cta-primary,.cta-secondary{display:inline-block;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;}
+  .cta-primary{background:var(--teal);color:var(--bg);}
+  .cta-secondary{background:var(--card2);color:#fff;border:1px solid var(--hairline);}
+  .back-link{color:var(--muted);text-decoration:none;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <img src="https://logo.clearbit.com/${domain}" alt="${name} logo" onerror="this.style.display='none'">
+    <div>
+      <h1>${name}</h1>
+      <span class="badge">${typeLabel}</span>
+    </div>
+  </div>
+  <div class="score-display">${score}/10</div>
+  <div class="patterns">
+    ${patterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n    ')}
+  </div>
+  <p class="summary">${summary}</p>
+  ${excerpt ? `<blockquote>${excerpt}</blockquote>` : ''}
+  <div class="cta-row">
+    <a class="cta-primary" href="/why">Score your own content free</a>
+    <a class="cta-secondary" href="https://strategic-flow-pro.replit.app">Get the full rebuild</a>
+  </div>
+  <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
+</div>
+</body>
+</html>`;
+}
+
 function stripHtmlTags(html) {
   return String(html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -8298,6 +8579,108 @@ setupDB().then(async () => {
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── DECISION FRICTION INDEX ───────────────────────────────────────────────
+  app.post('/api/index/score', async (req, res) => {
+    const providedKey = req.headers['x-admin-key'];
+    if (!INDEX_ADMIN_KEY || providedKey !== INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const { name, domain, content_type, content } = req.body || {};
+    if (!name || !domain || !content_type || !content) {
+      return res.status(400).json({ error: 'name, domain, content_type, and content are required' });
+    }
+    const slug = slugify(name);
+
+    try {
+      const existing = await pool.query('SELECT * FROM index_companies WHERE slug = $1', [slug]);
+      if (existing.rows.length) {
+        return res.status(409).json({ error: 'already_scored', company: existing.rows[0] });
+      }
+
+      const prompt = buildIndexScoringPrompt(content_type, content);
+      const result = await scoreContentWithClaude(prompt);
+
+      const score = typeof result.score === 'number' ? result.score : parseFloat(result.score);
+      const patterns = Array.isArray(result.patterns)
+        ? result.patterns.filter(p => INDEX_CANONICAL_PATTERNS.includes(p))
+        : [];
+      const diagnosisSummary = result.diagnosis_summary || '';
+      const inputExcerpt = String(content).slice(0, 300);
+
+      const insert = await pool.query(
+        `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [slug, name, domain, content_type, score, JSON.stringify(patterns), diagnosisSummary, inputExcerpt]
+      );
+      const row = insert.rows[0];
+      res.json({ slug: row.slug, score: row.score, patterns: row.patterns, url: `/friction-index/${row.slug}` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/index/companies', async (req, res) => {
+    const { content_type } = req.query;
+    try {
+      const params = [];
+      let where = '';
+      if (content_type) {
+        params.push(content_type);
+        where = 'WHERE content_type = $1';
+      }
+      const r = await pool.query(
+        `SELECT slug, name, domain, score, patterns, content_type, scored_at
+         FROM index_companies ${where}
+         ORDER BY score DESC`,
+        params
+      );
+      const companies = r.rows;
+      const count = companies.length;
+      const average_score = count ? +(companies.reduce((s, c) => s + Number(c.score), 0) / count).toFixed(1) : 0;
+      const patternFreq = {};
+      companies.forEach(c => (c.patterns || []).forEach(p => { patternFreq[p] = (patternFreq[p] || 0) + 1; }));
+      const top_pattern = Object.entries(patternFreq).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      res.json({ companies, stats: { count, average_score, top_pattern } });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/friction-index', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT slug, name, domain, score, patterns, content_type FROM index_companies ORDER BY score DESC');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.send(renderFrictionIndexHtml(r.rows));
+    } catch (err) {
+      res.status(500).send('Error loading Decision Friction Index');
+    }
+  });
+
+  app.get('/friction-index/:slug', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT * FROM index_companies WHERE slug = $1', [req.params.slug]);
+      if (!r.rows.length) return res.status(404).send('Company not found');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.send(renderCompanyPageHtml(r.rows[0]));
+    } catch (err) {
+      res.status(500).send('Error loading company page');
+    }
+  });
+
+  app.get('/sitemap-index.xml', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT slug, scored_at FROM index_companies ORDER BY scored_at DESC');
+      const urls = [
+        `<url><loc>https://strategic-flow-audit.replit.app/friction-index</loc><changefreq>daily</changefreq><priority>0.9</priority></url>`,
+        ...r.rows.map(c => `<url><loc>https://strategic-flow-audit.replit.app/friction-index/${c.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`)
+      ].join('\n  ');
+      res.setHeader('Content-Type', 'application/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls}\n</urlset>`);
+    } catch (err) {
+      res.status(500).send('Error generating sitemap');
     }
   });
 
