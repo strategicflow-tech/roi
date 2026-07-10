@@ -6549,6 +6549,7 @@ function renderFrictionIndexHtml(companies) {
     name: 'The Decision Friction Index',
     description: `${count} SaaS companies scored on structural conversion quality using the Strategic Flow 7-point diagnostic framework.`,
     creator: { '@type': 'Organization', name: 'Strategic Flow' },
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
     hasPart: {
       '@type': 'ItemList',
       itemListElement: companies.map((c, i) => ({
@@ -6591,9 +6592,28 @@ function renderFrictionIndexHtml(companies) {
   .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
   .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
   .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .site-footer{max-width:1000px;margin:60px auto 0;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
 </style>
 </head>
 <body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index" class="current">The Index</a>
+    <a href="https://strategic-flow-pro.replit.app">Pricing</a>
+  </nav>
+</div>
 <div class="wrap">
   <h1>The Decision Friction Index</h1>
   <p class="subtitle">${escapeHtml(subtitleText)}</p>
@@ -6618,6 +6638,17 @@ function renderFrictionIndexHtml(companies) {
     <a href="/why">Score your own content free</a>
   </div>
 </div>
+<footer class="site-footer">
+  <div>The Decision Friction Index is published by Strategic Flow — behavioral email architecture diagnostics for B2B SaaS.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
+    <a href="https://strategic-flow-pro.replit.app">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
 <script>
 function filterTable(){
   const val = document.getElementById('filter').value;
@@ -6655,6 +6686,7 @@ function renderCompanyPageHtml(company) {
     name: company.name,
     url: `https://${company.domain}`,
     logo: `https://logo.clearbit.com/${company.domain}`,
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
     review: {
       '@type': 'Review',
       reviewRating: {
@@ -6697,9 +6729,31 @@ function renderCompanyPageHtml(company) {
   .cta-primary{background:var(--teal);color:var(--bg);}
   .cta-secondary{background:var(--card2);color:#fff;border:1px solid var(--hairline);}
   .back-link{color:var(--muted);text-decoration:none;font-size:14px;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:720px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .framework-note{font-size:13px;color:var(--muted);margin:-16px 0 24px;}
+  .framework-note a{color:var(--muted);text-decoration:underline;}
+  .framework-note a:hover{color:var(--teal);}
+  .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
 </style>
 </head>
 <body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index" class="current">The Index</a>
+    <a href="https://strategic-flow-pro.replit.app">Pricing</a>
+  </nav>
+</div>
 <div class="wrap">
   <div class="header">
     <img src="https://logo.clearbit.com/${domain}" alt="${name} logo" onerror="this.style.display='none'">
@@ -6709,6 +6763,7 @@ function renderCompanyPageHtml(company) {
     </div>
   </div>
   <div class="score-display">${score}/10</div>
+  <div class="framework-note">Scored with the Strategic Flow <a href="/why">7-point diagnostic framework</a></div>
   <div class="patterns">
     ${patterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n    ')}
   </div>
@@ -6720,6 +6775,17 @@ function renderCompanyPageHtml(company) {
   </div>
   <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
 </div>
+<footer class="site-footer">
+  <div>The Decision Friction Index is published by Strategic Flow — behavioral email architecture diagnostics for B2B SaaS.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
+    <a href="https://strategic-flow-pro.replit.app">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
 </body>
 </html>`;
 }
