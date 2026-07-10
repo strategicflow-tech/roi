@@ -7590,6 +7590,7 @@ function renderAiVisIndexMethodologyHtml() {
 
   <h2>How the company's overall visibility_score is computed</h2>
   <p>The company's visibility_score is the average of the model_score values across all models with a successful (status = "ok") query, rounded to one decimal place. This is a plain average computed in code — not a separate AI judgment.</p>
+  <p>Scores can shift slightly on re-scoring, since AI model answers are not perfectly deterministic — the same question asked twice may return slightly different phrasing or ordering. The scoring methodology (best position across 5 questions) is designed to smooth over this variance, but exact re-runs are not guaranteed to produce identical scores.</p>
 
   <h2>The honesty rule: we never fabricate failed calls</h2>
   <p>If a model's API call fails for a company, that model's row is marked "needs manual review" and is excluded entirely from the average — we never substitute a zero, a guess, or an assumed absence for a call that simply didn't complete. A company scored across 2 working models will show its average over those 2 models only, clearly marked as such.</p>
