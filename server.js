@@ -8949,6 +8949,27 @@ setupDB().then(async () => {
     }
   });
 
+  async function recalcCompanyFromSamples(slug) {
+    const allSamples = await pool.query('SELECT score, patterns FROM index_content_samples WHERE company_slug = $1', [slug]);
+    const sampleCount = allSamples.rows.length;
+    const avgScore = sampleCount ? allSamples.rows.reduce((sum, r) => sum + Number(r.score), 0) / sampleCount : 0;
+    const newAverageScore = Math.round(avgScore * 10) / 10;
+
+    const patternFreq = {};
+    allSamples.rows.forEach(r => (r.patterns || []).forEach(p => { patternFreq[p] = (patternFreq[p] || 0) + 1; }));
+    const topPatterns = Object.entries(patternFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([p]) => p);
+
+    await pool.query(
+      `UPDATE index_companies SET score = $1, patterns = $2, checks = NULL WHERE slug = $3`,
+      [newAverageScore, JSON.stringify(topPatterns), slug]
+    );
+
+    return { sampleCount, newAverageScore, topPatterns };
+  }
+
   app.post('/api/index/add-sample', async (req, res) => {
     const providedKey = req.headers['x-admin-key'];
     if (!INDEX_ADMIN_KEY || providedKey !== INDEX_ADMIN_KEY) {
@@ -8997,22 +9018,7 @@ setupDB().then(async () => {
       );
       const sample = sampleInsert.rows[0];
 
-      const allSamples = await pool.query('SELECT score, patterns FROM index_content_samples WHERE company_slug = $1', [slug]);
-      const sampleCount = allSamples.rows.length;
-      const avgScore = allSamples.rows.reduce((sum, r) => sum + Number(r.score), 0) / sampleCount;
-      const newAverageScore = Math.round(avgScore * 10) / 10;
-
-      const patternFreq = {};
-      allSamples.rows.forEach(r => (r.patterns || []).forEach(p => { patternFreq[p] = (patternFreq[p] || 0) + 1; }));
-      const topPatterns = Object.entries(patternFreq)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 4)
-        .map(([p]) => p);
-
-      await pool.query(
-        `UPDATE index_companies SET score = $1, patterns = $2, checks = NULL WHERE slug = $3`,
-        [newAverageScore, JSON.stringify(topPatterns), slug]
-      );
+      const { sampleCount, newAverageScore } = await recalcCompanyFromSamples(slug);
 
       res.json({
         slug,
@@ -9020,6 +9026,31 @@ setupDB().then(async () => {
         sample_count: sampleCount,
         sample_added: sample
       });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/index/admin-delete-sample', async (req, res) => {
+    const providedKey = req.headers['x-admin-key'];
+    if (!INDEX_ADMIN_KEY || providedKey !== INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const { sample_ids } = req.body || {};
+    if (!Array.isArray(sample_ids) || sample_ids.length === 0) {
+      return res.status(400).json({ error: 'sample_ids array is required' });
+    }
+    try {
+      const deleted = await pool.query(
+        'DELETE FROM index_content_samples WHERE id = ANY($1) RETURNING id, company_slug',
+        [sample_ids]
+      );
+      const affectedSlugs = [...new Set(deleted.rows.map(r => r.company_slug))];
+      const recalced = {};
+      for (const slug of affectedSlugs) {
+        recalced[slug] = await recalcCompanyFromSamples(slug);
+      }
+      res.json({ deleted_count: deleted.rowCount, deleted_ids: deleted.rows.map(r => r.id), recalculated: recalced });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
