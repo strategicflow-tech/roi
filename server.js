@@ -6543,7 +6543,8 @@ function renderFrictionIndexHtml(companies) {
     changelog: 'Changelog',
     landing_page: 'Landing Page',
     onboarding_sequence: 'Onboarding',
-    newsletter: 'Newsletter'
+    newsletter: 'Newsletter',
+    blog_article: 'Blog Article'
   };
 
   const rows = companies.map((c, i) => {
@@ -6647,6 +6648,7 @@ function renderFrictionIndexHtml(companies) {
     <option value="landing_page">Landing Page</option>
     <option value="onboarding_sequence">Onboarding</option>
     <option value="newsletter">Newsletter</option>
+    <option value="blog_article">Blog Article</option>
   </select>
   <table>
     <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Top Pattern</th><th>Type</th></tr></thead>
@@ -6698,7 +6700,8 @@ function renderCompanyPageHtml(company) {
     changelog: 'Changelog',
     landing_page: 'Landing Page',
     onboarding_sequence: 'Onboarding',
-    newsletter: 'Newsletter'
+    newsletter: 'Newsletter',
+    blog_article: 'Blog Article'
   };
   const typeLabel = escapeHtml(CONTENT_TYPE_LABELS[company.content_type] || company.content_type);
 
@@ -6929,7 +6932,7 @@ function renderMethodologyHtml() {
   <p>Scores range from 1 to 10, where 10 represents excellent structural quality (low decision friction) and 1 represents severe structural failure (high decision friction).</p>
 
   <h2>What we score</h2>
-  <p>Only publicly available content: changelogs, product update blog posts, landing pages, and newsletters. Each company page on the Index shows the content type scored, the excerpt that was evaluated, and the date it was scored.</p>
+  <p>Only publicly available content: changelogs, product update blog posts, landing pages, newsletters, and blog articles. Each company page on the Index shows the content type scored, the excerpt that was evaluated, and the date it was scored.</p>
 
   <h2>What the score is NOT</h2>
   <p>The score is not a judgment of the product, the company, or the team behind it. It measures the structural conversion quality of one specific piece of communication, at one point in time — nothing more.</p>

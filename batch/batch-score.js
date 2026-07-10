@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const API_URL = 'https://strategic-flow-audit.replit.app/api/index/score';
 const COMPANIES_PATH = path.join(__dirname, 'companies.json');
@@ -116,10 +117,24 @@ async function fetchWithTimeout(url, options, timeoutMs) {
   }
 }
 
+function fetchViaCurl(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    execFile('curl', [
+      '-sL', '--max-time', String(Math.ceil(timeoutMs / 1000)),
+      '-A', 'Mozilla/5.0 (compatible; StrategicFlowBot/1.0)',
+      url
+    ], { maxBuffer: 20 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return reject(err);
+      resolve(stdout);
+    });
+  });
+}
+
 async function scoreCompany(company) {
   const { name, domain, content_type, source_url } = company;
 
   let html;
+  let fetchMethod = 'fetch';
   try {
     const resp = await fetchWithTimeout(source_url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlowBot/1.0)' }
@@ -129,8 +144,15 @@ async function scoreCompany(company) {
     }
     html = await resp.text();
   } catch (err) {
-    return { type: 'failed', name, source_url, reason: `fetch_error: ${err.message}` };
+    console.log(`[${name}] native fetch failed (${err.message}) — retrying via curl...`);
+    try {
+      html = await fetchViaCurl(source_url, FETCH_TIMEOUT_MS);
+      fetchMethod = 'curl';
+    } catch (curlErr) {
+      return { type: 'failed', name, source_url, reason: `fetch_error: ${err.message}; curl_fallback_error: ${curlErr.message}` };
+    }
   }
+  console.log(`[${name}] fetched via ${fetchMethod}`);
 
   const content = extractReadableText(html);
   if (content.length < MIN_TEXT_LENGTH) {

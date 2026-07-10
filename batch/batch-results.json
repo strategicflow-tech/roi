@@ -55,6 +55,34 @@
       "source_url": "https://community.airtable.com/announcements-6",
       "score": "3.2",
       "url": "/friction-index/airtable"
+    },
+    {
+      "type": "ok",
+      "name": "Calendly",
+      "source_url": "https://calendly.com/blog/ai-platform-excellence-calendlys-new-product-catalyst",
+      "score": "3.6",
+      "url": "/friction-index/calendly"
+    },
+    {
+      "type": "ok",
+      "name": "Circle",
+      "source_url": "https://circle.so/blog/creator-economy-statistics",
+      "score": "6.8",
+      "url": "/friction-index/circle"
+    },
+    {
+      "type": "ok",
+      "name": "Webflow",
+      "source_url": "https://webflow.com/blog/web-design-trends-2026",
+      "score": "3.5",
+      "url": "/friction-index/webflow"
+    },
+    {
+      "type": "ok",
+      "name": "Semrush",
+      "source_url": "https://www.semrush.com/blog/ai-search-trends/",
+      "score": "6.8",
+      "url": "/friction-index/semrush"
     }
   ],
   "skipped": [
@@ -1182,6 +1210,36 @@
       "name": "Webflow",
       "source_url": "https://webflow.com/updates/webflow-in-chatgpt",
       "reason": "fetch_error: fetch failed"
+    },
+    {
+      "type": "failed",
+      "name": "Asana",
+      "source_url": "https://asana.com/inside-asana/asana-and-amazon-q",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Cal.com",
+      "source_url": "https://cal.com/blog/calcom-v6-6",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Duolingo",
+      "source_url": "https://blog.duolingo.com/sticking-with-it-tips-for-staying-motivated/",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Substack",
+      "source_url": "https://on.substack.com/p/a-business-model-that-works-for-creators",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Circle",
+      "source_url": "https://circle.so/blog/creator-economy-statistics",
+      "reason": "score_status_500: parse_failed"
     }
   ],
   "needs_manual": [
