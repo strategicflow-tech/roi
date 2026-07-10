@@ -338,9 +338,294 @@
         "input_excerpt": "Get all the latest updates in your inbox. ​ 2026-06-25 ​ Introducing Mixpanel Agent: your always-on product analyst Mixpanel Agent is now available for your team. It’s an always-on product analyst that answers questions about your data in plain language, automatically investigates metric changes, an",
         "scored_at": "2026-07-10T00:53:11.211Z"
       }
+    },
+    {
+      "type": "skipped",
+      "name": "HubSpot",
+      "source_url": "https://developers.hubspot.com/changelog",
+      "reason": "already_scored",
+      "existing": {
+        "id": 31,
+        "slug": "hubspot",
+        "name": "HubSpot",
+        "domain": "hubspot.com",
+        "content_type": "product_update_blog",
+        "score": "3.2",
+        "patterns": [
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Guest Language CTA",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "Every entry leads with internal feature/product names ('HubSpot Agent CLI', 'Updated SDKs for Date-based Versioning') rather than the developer-facing consequence of the change, forcing readers to infer impact themselves. The repeated generic 'Read More' CTA appears a dozen times with no differentiation, and entries run together as an undifferentiated date-stamped list with no visual grouping by severity or relevance. No adoption metrics, developer quotes, or usage data accompany any release, leaving impact unverified.",
+        "input_excerpt": "Announced Upcoming ( 5 ) Developer updates for June 2026 Announced: Jun 29, 2026 Read More HubSpot Agent CLI available in public beta Announced: Jun 23, 2026 The HubSpot Agent CLI is a new command-line interface purpose-built for AI agents to interact with your HubSpot CRM data — reading records, ..",
+        "scored_at": "2026-07-10T00:58:12.717Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Klaviyo",
+      "source_url": "https://community.klaviyo.com/product-updates-and-announcements-51/what-s-new-in-klaviyo-from-may-2026-19391",
+      "reason": "already_scored",
+      "existing": {
+        "id": 23,
+        "slug": "klaviyo",
+        "name": "Klaviyo",
+        "domain": "klaviyo.com",
+        "content_type": "product_update_blog",
+        "score": "4.5",
+        "patterns": [
+          "Filing Label Subject",
+          "Zero/Buried Social Proof",
+          "Missing Visual Hierarchy",
+          "Feature-First Bias"
+        ],
+        "diagnosis_summary": "The piece is titled as a filing artifact ('What's new in Klaviyo from May 2026') rather than a decision-oriented headline, burying three distinct product changes under one generic banner. Social proof is limited to a single buried Corkcicle quote mid-document with no context on scale or measurable outcome, and the Customer Agent update is truncated entirely ('Here's a quick rundown of'), leaving readers without closure. Structure relies on repeated 'What changed / Why does this matter' subheads rather than genuine visual hierarchy, forcing users to read linearly to find relevant updates.",
+        "input_excerpt": "New Post Log in Klaviyo Social Marketing is here: what it is, what's free, and where to start 2 days ago Home Meet the Champions Connect with Klaviyo Product updates and announcements What's new in Klaviyo from May 2026 +12 GabbyEsposito Community Manager Learn more about what’s shipped in May 2026 ",
+        "scored_at": "2026-07-10T00:51:46.062Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Stripe",
+      "source_url": "https://stripe.com/blog/changelog",
+      "reason": "already_scored",
+      "existing": {
+        "id": 24,
+        "slug": "stripe",
+        "name": "Stripe",
+        "domain": "stripe.com",
+        "content_type": "changelog",
+        "score": "3.5",
+        "patterns": [
+          "Missing Visual Hierarchy",
+          "Filing Label Subject",
+          "Feature-First Bias",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "Entries are concatenated into an undifferentiated wall of text with no bullet points, whitespace, or date/section breaks beyond inline month markers like 'Mar 2026' and 'Feb 2026', forcing readers to parse category words ('Payments', 'Revenue Recognition', 'Tax') as de facto subject lines. Each item opens with mechanical feature description ('You can now...') rather than framing user impact, and strong adoption stats (e.g., 'used in more than 80% of online domestic transactions') are buried mid-sentence rather than surfaced as proof points.",
+        "input_excerpt": "Mar 2026 Revenue Recognition With long-term deferred revenue support enabled, you can now book all revenue deferred for over 12 months into a new account for long-term deferred revenue. Payments Businesses in the UK, Europe, Canada, Australia, and Singapore can now offer Pix, Brazil’s most popular p",
+        "scored_at": "2026-07-10T00:52:02.139Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Airtable",
+      "source_url": "https://community.airtable.com/announcements-6",
+      "reason": "already_scored",
+      "existing": {
+        "id": 25,
+        "slug": "airtable",
+        "name": "Airtable",
+        "domain": "airtable.com",
+        "content_type": "product_update_blog",
+        "score": "4.5",
+        "patterns": [
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The update opens with 'Hi everyone' and immediately dives into mechanics of the 'Insert as JSON' token before establishing why a user should care, a classic feature-first structure. Formatting is degraded into a run-on paragraph where bolded distinctions like 'Insert as JSON string' and 'Insert as JSON data' are crammed inline rather than presented as a scannable list, and the text cuts off mid-sentence ('appears for inputs on the'). There is no user quote, usage stat, or adoption signal anywhere to validate the feature's value.",
+        "input_excerpt": "Hi everyone,Two quality-of-life improvements just landed in Automations, both aimed at making it easier to pass data from one step of your automation to the next. Insert as JSONWhen you're inserting dynamic data into a later action, you've always been able to pull in individual values one at a time.",
+        "scored_at": "2026-07-10T00:52:16.301Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "already_scored",
+      "existing": {
+        "id": 30,
+        "slug": "zapier",
+        "name": "Zapier",
+        "domain": "zapier.com",
+        "content_type": "changelog",
+        "score": "4.8",
+        "patterns": [
+          "Feature-First Bias",
+          "Consequence-After-Caveat",
+          "Missing Visual Hierarchy",
+          "Filing Label Subject"
+        ],
+        "diagnosis_summary": "The update opens with pricing mechanics ('priced by model tier,' '1x/3x/5x') before explaining the actual consequence users care about: cost impact. The critical caveat that 'Tool calls are not currently available for Enterprise accounts' is buried mid-paragraph after availability is already stated as blanket-inclusive, and the 75-task pause limit is similarly tucked into a subordinate clause rather than flagged upfront. The generic header 'Product updates: June 2026' tells readers nothing about the pricing change itself, and the entire body runs as dense, undifferentiated text with no visual separation between the default-tier decision, the limit warning, and the Enterprise exception.",
+        "input_excerpt": "Zapier Product updates Product updates: June 2026 Starting June 15, 2026, AI by Zapier steps are priced by model tier. The model tier you select determines how many tasks your step uses per run. Available on plans: Free Professional Team Enterprise What does this mean for you? AI steps are now price",
+        "scored_at": "2026-07-10T00:56:04.772Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Pitch",
+      "source_url": "https://pitch.com/blog/60-product-updates-q1-in-review",
+      "reason": "already_scored",
+      "existing": {
+        "id": 26,
+        "slug": "pitch",
+        "name": "Pitch",
+        "domain": "pitch.com",
+        "content_type": "product_update_blog",
+        "score": "3.2",
+        "patterns": [
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The update opens with growth stats ('25,000 teams') then pivots into an undifferentiated list of 13 features and 55 improvements—PowerPoint import, iOS beta, Apple silicon, guest management—stacked without hierarchy or prioritization, forcing readers to parse everything to find relevance. CTAs like 'Share your best work here' and 'Fill out this form to join the beta' are scattered mid-paragraph rather than structured as clear next steps. Social proof is limited to a single opening stat and never reinforced alongside specific feature claims.",
+        "input_excerpt": "This time last year, we were in private beta with a few hundred teams. By October, more than 25,000 teams were working in Pitch. After reflecting on our launch we entered the new year with one clear focus: Make it simple for teams to get started with Pitch. Since January, we’ve shipped 13 new featur",
+        "scored_at": "2026-07-10T00:52:30.470Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Typeform",
+      "source_url": "https://www.typeform.com/blog/how-thacollabs-built-a-creator-onboarding-engine-with-typeform",
+      "reason": "already_scored",
+      "existing": {
+        "id": 27,
+        "slug": "typeform",
+        "name": "Typeform",
+        "domain": "typeform.com",
+        "content_type": "product_update_blog",
+        "score": "6.5",
+        "patterns": [
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The narrative leads with Typeform feature names as section headers ('Adding structure and Logic', 'Creating a branded experience') rather than respondent outcomes, subordinating the customer's problem to product capability. The piece is a dense wall of paragraphs with minimal scannable structure until late numbered fixes appear, and despite being framed as a success story, no quantified completion-rate lift or measurable result is shown before the content cuts off, leaving the core proof point buried or absent.",
+        "input_excerpt": "Blog home Customer How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue See how ThaCollabs refined its creator intake form into a premium onboarding experience by reducing form ",
+        "scored_at": "2026-07-10T00:52:50.542Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Mixpanel",
+      "source_url": "https://docs.mixpanel.com/changelogs",
+      "reason": "already_scored",
+      "existing": {
+        "id": 28,
+        "slug": "mixpanel",
+        "name": "Mixpanel",
+        "domain": "mixpanel.com",
+        "content_type": "changelog",
+        "score": "6.3",
+        "patterns": [
+          "Zero/Buried Social Proof",
+          "Feature-First Bias",
+          "Guest Language CTA",
+          "Missing Visual Hierarchy"
+        ],
+        "diagnosis_summary": "Across six dated entries — Mixpanel Agent, Flutter Session Replay, Multi-Environment Flags, Flag Persistence, Audit Log, Databricks — not a single customer quote, adoption number, or named beta user appears despite claims like 'customers had been asking us' and 'early customers'. Every section resolves into an identical generic 'Learn more →' or 'Get started →' link rather than a specific next action, and bulleted capability lists ('Self-serve answers,' 'Root cause analysis,' 'KPI monitoring') are presented before any concrete outcome is quantified. The text runs as dense unbroken paragraphs with bullets embedded mid-sentence, and the document cuts off abruptly mid-clause ('if your Data'), signaling weak editorial hierarchy.",
+        "input_excerpt": "Get all the latest updates in your inbox. ​ 2026-06-25 ​ Introducing Mixpanel Agent: your always-on product analyst Mixpanel Agent is now available for your team. It’s an always-on product analyst that answers questions about your data in plain language, automatically investigates metric changes, an",
+        "scored_at": "2026-07-10T00:53:11.211Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Clay",
+      "source_url": "https://www.clay.com/changelog",
+      "reason": "already_scored",
+      "existing": {
+        "id": 29,
+        "slug": "clay",
+        "name": "Clay",
+        "domain": "clay.com",
+        "content_type": "changelog",
+        "score": "3.8",
+        "patterns": [
+          "Feature-First Bias",
+          "Filing Label Subject",
+          "Missing Visual Hierarchy",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The changelog is a dense, undifferentiated feed of feature bullets (e.g., 'Google BigQuery Import in Audiences,' 'Function Tags,' fifteen integration announcements in one entry) with no prioritization, impact framing, or user outcome stated before the mechanical description. Subject lines like 'Product Roundup Week of Jun 22, 2026' function as filing labels rather than value statements, and every entry terminates in an identical generic 'Learn more' CTA with zero customer proof or adoption signal to help readers triage relevance.",
+        "input_excerpt": "Jun 29, 2026 Product Roundup Week of Jun 22, 2026 Feature highlight Beta Product Roundup Week of Jun 22, 2026 Google BigQuery Import in Audiences - Import contacts and companies directly from BigQuery using SQL queries Salesforce Activities in Audiences - Import Salesforce Tasks and Events (such as ",
+        "scored_at": "2026-07-10T00:54:07.516Z",
+        "checks": null
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Typeform",
+      "source_url": "https://www.typeform.com/blog/how-thacollabs-built-a-creator-onboarding-engine-with-typeform",
+      "reason": "already_scored",
+      "existing": {
+        "id": 38,
+        "slug": "typeform",
+        "name": "Typeform",
+        "domain": "typeform.com",
+        "content_type": "product_update_blog",
+        "score": "5.8",
+        "patterns": [
+          "Zero/Buried Social Proof",
+          "Missing Visual Hierarchy",
+          "Feature-First Bias"
+        ],
+        "diagnosis_summary": "The piece walks through ThaCollabs' 30-question form problem and Typeform's four fixes with concrete before/after detail, but never quantifies the result—no stated completion-rate lift, no direct quote from Terry Oppong despite naming him repeatedly. The copy is dense, header-broken narrative with no visual pacing devices, and the excerpt ends mid-sentence without a discernible CTA.",
+        "input_excerpt": "Blog home Customer How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue See how ThaCollabs refined its creator intake form into a premium onboarding experience by reducing form ",
+        "scored_at": "2026-07-10T01:11:58.898Z",
+        "checks": [
+          {
+            "note": "The headline 'How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue' reads as a filing label describing the case study rather than leading with a specific outcome or number.",
+            "check": "Subject line / headline construction",
+            "verdict": "weak"
+          },
+          {
+            "note": "The opening paragraphs spend time on ThaCollabs' 2024 founding and Terry Oppong's business model before surfacing the actual problem (the 30-question form), delaying the hook.",
+            "check": "Lead construction",
+            "verdict": "weak"
+          },
+          {
+            "note": "Multi-question pages, consolidated multi-select questions, and Logic branching are each explicitly tied to reduced fatigue and higher completion intent.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "pass"
+          },
+          {
+            "note": "Aside from bolded subheads like 'Adding structure and Logic' and 'Creating a branded experience,' the piece is long unbroken paragraphs with no callouts, stats boxes, or imagery references.",
+            "check": "Visual hierarchy",
+            "verdict": "weak"
+          },
+          {
+            "note": "The 30-question generic Typeform-default form is contrasted concretely against bundled LinkedIn questions, multi-select consolidation, and Brand Kit-applied branding.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "pass"
+          },
+          {
+            "note": "There is no completion-rate percentage, response-quality metric, or direct quote from Terry despite the entire piece being built around his experience.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "The excerpt cuts off mid-sentence ('Once') with no visible call-to-action, guest-oriented or otherwise, offered to the reader.",
+            "check": "CTA language",
+            "verdict": "fail"
+          }
+        ]
+      }
     }
   ],
-  "failed": [],
+  "failed": [
+    {
+      "type": "failed",
+      "name": "Mixpanel",
+      "source_url": "https://docs.mixpanel.com/changelogs",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Clay",
+      "source_url": "https://www.clay.com/changelog",
+      "reason": "score_error: This operation was aborted"
+    }
+  ],
   "needs_manual": [
     {
       "type": "needs_manual",
