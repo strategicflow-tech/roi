@@ -191,44 +191,40 @@ async function attemptCompany(company) {
 
 const COMPANIES = [
   {
-    slug: 'buffer', name: 'Buffer', content_type: 'product_update_blog',
-    urls: ['https://buffer.com/changelog']
+    slug: 'pitch', name: 'Pitch', content_type: 'landing_page',
+    urls: ['https://pitch.com']
   },
   {
-    slug: 'lemlist', name: 'Lemlist', content_type: 'landing_page',
-    urls: ['https://lemlist.com']
+    slug: 'miro', name: 'Miro', content_type: 'landing_page',
+    urls: ['https://miro.com/online-whiteboard/']
   },
   {
-    slug: 'typeform', name: 'Typeform', content_type: 'landing_page',
-    urls: ['https://www.typeform.com']
+    slug: 'intercom', name: 'Intercom', content_type: 'landing_page',
+    urls: ['https://www.intercom.com']
   },
   {
-    slug: 'attio', name: 'Attio', content_type: 'landing_page',
-    urls: ['https://attio.com']
+    slug: 'airtable', name: 'Airtable', content_type: 'landing_page',
+    urls: ['https://www.airtable.com']
   },
   {
-    slug: 'loom', name: 'Loom', content_type: 'landing_page',
-    urls: ['https://www.loom.com/screen-recorder']
+    slug: 'clickup', name: 'ClickUp', content_type: 'landing_page',
+    urls: ['https://clickup.com']
   },
   {
-    slug: 'duolingo', name: 'Duolingo', content_type: 'landing_page',
-    urls: ['https://www.duolingo.com', 'https://schools.duolingo.com']
+    slug: 'asana', name: 'Asana', content_type: 'landing_page',
+    urls: ['https://asana.com/product']
   },
   {
-    slug: 'amplitude', name: 'Amplitude', content_type: 'changelog',
-    urls: ['https://amplitude.com/releases', 'https://amplitude.com/blog/product-updates']
+    slug: 'cal-com', name: 'Cal.com', content_type: 'landing_page',
+    urls: ['https://cal.com/booking-page']
   },
   {
-    slug: 'figma', name: 'Figma', content_type: 'landing_page',
-    urls: ['https://www.figma.com']
+    slug: 'kajabi', name: 'Kajabi', content_type: 'product_update_blog',
+    urls: ['https://kajabi.com/updates', 'https://kajabi.com/blog']
   },
   {
-    slug: 'dropbox', name: 'Dropbox', content_type: 'product_update_blog',
-    urls: ['https://www.dropbox.com/blog']
-  },
-  {
-    slug: 'substack', name: 'Substack', content_type: 'landing_page',
-    urls: ['https://on.substack.com']
+    slug: 'grammarly', name: 'Grammarly', content_type: 'product_update_blog',
+    urls: ['https://www.grammarly.com/blog/product-updates', 'https://www.grammarly.com/blog']
   }
 ];
 
