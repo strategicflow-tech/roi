@@ -70,5 +70,31 @@ Claude classifies every submission into one of 8 types: `product_update`, `reten
 ## Model
 `claude-sonnet-5` (alias) — do not change without testing all tier prompts.
 
+## The AI Visibility Index (sibling feature to /friction-index)
+
+Public leaderboard + per-company pages showing how Claude, GPT-4o mini, and Perplexity (sonar-pro) describe SaaS companies when asked buyer-style category questions (never mentioning the company by name). Same app, same DB, same dark-theme design system as `/friction-index`.
+
+### URL namespace — deliberately NOT `/ai-visibility`
+`/ai-visibility`, `/ai-visibility.html`, and `POST /api/ai-visibility` are a pre-existing, unrelated, already-shipped feature (instant self-scan tool: domain in, 2 ad-hoc AI queries + crawlability check, stateless, no DB table). The new index lives entirely under **`/ai-visibility-index`** and **`/api/ai-visibility-index/*`** to avoid collision. Nav label stays "AI Visibility" (points to `/ai-visibility-index`); old tool now has a one-line cross-funnel teaser linking into the new index.
+
+### Routes
+- `GET /ai-visibility-index` — leaderboard
+- `GET /ai-visibility-index/:slug` — company page (per-model breakdown, competitors shown, raw excerpts, questions asked)
+- `GET /ai-visibility-index/methodology`
+- `POST /api/ai-visibility-index/score` — admin (X-Admin-Key / INDEX_ADMIN_KEY), async job pattern (see below)
+- `GET /api/ai-visibility-index/companies` — public
+- `POST /api/ai-visibility-index/scan` — public self-scan, same async job pattern
+- `GET /api/ai-visibility-index/job/:id` — poll job status
+- `GET /sitemap-ai-visibility-index.xml`
+
+### Database tables
+`ai_visibility_companies`, `ai_visibility_model_results`, `ai_visibility_questions`, `ai_visibility_jobs` — all separate from `index_companies`/`why_jobs` (Friction Index tables are a pattern reference only, not reused).
+
+### Scoring — deterministic, not a 4th AI judgment call
+Per model: position component (1st=6, 2nd=4, 3rd+=2, absent=0) + accuracy component (pass=4, weak=2, fail=0, only scored if mentioned) = model_score (0–10). Company `visibility_score` = ROUND(AVG(model_score), 1) across `status='ok'` models only; `needs_manual` models (failed API calls) are excluded entirely, never treated as a zero. Full formula is documented live on `/ai-visibility-index/methodology`.
+
+### Phase 2 — explicitly deferred, not built
+A separate $79/mo Stripe product for ongoing tracking (own Price ID, own webhook secret, own subscriber table — NOT reusing WHY Pro's `pro_users`) is planned but intentionally not implemented yet.
+
 ## Production URL
 `https://strategic-flow-audit.replit.app`

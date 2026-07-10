@@ -1095,6 +1095,14 @@ async function setupDB() {
       created_at    TIMESTAMPTZ DEFAULT now()
     )
   `).catch(e => console.error('[DB] ai_visibility_jobs:', e.message));
+  await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS job_type TEXT NOT NULL DEFAULT 'scan'`)
+    .catch(e => console.error('[DB] ai_visibility_jobs job_type col:', e.message));
+  await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS input_name TEXT`)
+    .catch(e => console.error('[DB] ai_visibility_jobs input_name col:', e.message));
+  await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS input_category TEXT`)
+    .catch(e => console.error('[DB] ai_visibility_jobs input_category col:', e.message));
+  await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS error_message TEXT`)
+    .catch(e => console.error('[DB] ai_visibility_jobs error_message col:', e.message));
 
   console.log('[DB] All tables ready');
 }
@@ -9708,6 +9716,55 @@ setupDB().then(async () => {
 
   // ── AI VISIBILITY INDEX ────────────────────────────────────────────────────
 
+  // Runs an array of async tasks with at most `limit` in flight at once.
+  async function mapWithConcurrency(items, limit, fn) {
+    const results = new Array(items.length);
+    let next = 0;
+    async function worker() {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i], i);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
+  }
+
+  async function scoreOneModel(model, queryFn, name, domain, category, questions) {
+    let answers;
+    try {
+      // Up to 3 questions in flight at once per model — keeps each API's
+      // own rate limit respected while cutting wall-clock time vs sequential.
+      answers = await mapWithConcurrency(questions, 3, (q) => queryFn(q));
+    } catch (err) {
+      console.error(`[ai-visibility-index] ${model} query failed:`, err.message);
+      return { model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null };
+    }
+
+    if (!answers.length || answers.some(a => !a)) {
+      return { model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null };
+    }
+
+    try {
+      const analysis = await analyzeVisibilityAnswers(name, domain, category, null, answers);
+      const excerptSource = analysis.mentioned
+        ? (answers.find(a => a.toLowerCase().includes(name.toLowerCase()) || a.toLowerCase().includes(domain.toLowerCase())) || answers[0])
+        : answers[0];
+      return {
+        model,
+        status: 'ok',
+        mentioned: !!analysis.mentioned,
+        position: analysis.mentioned ? analysis.position : 'absent',
+        description_accuracy: analysis.mentioned ? analysis.description_accuracy : null,
+        competitors_shown: Array.isArray(analysis.competitors_shown) ? analysis.competitors_shown : [],
+        raw_answer_excerpt: excerptSource ? excerptSource.slice(0, 400) : null
+      };
+    } catch (err) {
+      console.error(`[ai-visibility-index] ${model} analysis failed:`, err.message);
+      return { model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null };
+    }
+  }
+
   async function runAiVisibilityScoring(name, domain, category) {
     const slug = slugify(name);
     const questions = await buildBuyerQuestions(name, category);
@@ -9718,45 +9775,13 @@ setupDB().then(async () => {
       perplexity: queryPerplexityForVisibility
     };
 
-    const modelResults = [];
-    for (const model of ['claude', 'gpt', 'perplexity']) {
-      const answers = [];
-      let failed = false;
-      try {
-        for (const q of questions) {
-          const answer = await modelQueryFns[model](q);
-          answers.push(answer);
-          await new Promise(r => setTimeout(r, 400));
-        }
-      } catch (err) {
-        console.error(`[ai-visibility-index] ${model} query failed:`, err.message);
-        failed = true;
-      }
-
-      if (failed || answers.some(a => !a)) {
-        modelResults.push({ model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null });
-        continue;
-      }
-
-      try {
-        const analysis = await analyzeVisibilityAnswers(name, domain, category, null, answers);
-        const excerptSource = analysis.mentioned
-          ? (answers.find(a => a.toLowerCase().includes(name.toLowerCase()) || a.toLowerCase().includes(domain.toLowerCase())) || answers[0])
-          : answers[0];
-        modelResults.push({
-          model,
-          status: 'ok',
-          mentioned: !!analysis.mentioned,
-          position: analysis.mentioned ? analysis.position : 'absent',
-          description_accuracy: analysis.mentioned ? analysis.description_accuracy : null,
-          competitors_shown: Array.isArray(analysis.competitors_shown) ? analysis.competitors_shown : [],
-          raw_answer_excerpt: excerptSource ? excerptSource.slice(0, 400) : null
-        });
-      } catch (err) {
-        console.error(`[ai-visibility-index] ${model} analysis failed:`, err.message);
-        modelResults.push({ model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null });
-      }
-    }
+    // The 3 models are fully independent of each other — run them in parallel.
+    // Within each model, the 5 questions also run with limited concurrency (see scoreOneModel).
+    const modelResults = await Promise.all(
+      ['claude', 'gpt', 'perplexity'].map(model =>
+        scoreOneModel(model, modelQueryFns[model], name, domain, category, questions)
+      )
+    );
 
     const okScores = modelResults
       .filter(r => r.status === 'ok')
@@ -9792,6 +9817,21 @@ setupDB().then(async () => {
     }
   }
 
+  // Shared fire-and-forget runner used by both the admin score endpoint and the public scan endpoint.
+  function runAiVisibilityJobInBackground(jobId, name, domain, category) {
+    (async () => {
+      try {
+        await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
+        const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(name, domain, category);
+        await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
+        await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
+      } catch (err) {
+        console.error('[ai-visibility-index job]', err.message);
+        await pool.query(`UPDATE ai_visibility_jobs SET status = 'failed', error_message = $1 WHERE id = $2`, [err.message, jobId]).catch(() => {});
+      }
+    })();
+  }
+
   app.post('/api/ai-visibility-index/score', async (req, res) => {
     if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -9800,13 +9840,26 @@ setupDB().then(async () => {
     if (!name || !domain || !category) {
       return res.status(400).json({ error: 'name, domain, and category are required' });
     }
+    const slug = slugify(name);
+
     try {
-      const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(name, domain, category);
-      await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
-      res.json({ slug, visibility_score: visibilityScore, model_results: modelResults });
+      const existing = await pool.query('SELECT slug, visibility_score, scored_at FROM ai_visibility_companies WHERE slug = $1', [slug]);
+      if (existing.rows.length) {
+        return res.status(409).json({ error: 'already_scored', company: existing.rows[0] });
+      }
+
+      const jobResult = await pool.query(
+        `INSERT INTO ai_visibility_jobs (job_type, input_domain, input_name, input_category, status)
+         VALUES ('admin_score', $1, $2, $3, 'pending') RETURNING id`,
+        [domain, name, category]
+      );
+      const jobId = jobResult.rows[0].id;
+      res.json({ job_id: jobId, slug, status: 'pending' });
+
+      runAiVisibilityJobInBackground(jobId, name, domain, category);
     } catch (err) {
       console.error('[ai-visibility-index score]', err.message);
-      res.status(500).json({ error: 'Scoring failed' });
+      res.status(500).json({ error: 'Failed to start scoring' });
     }
   });
 
@@ -9828,8 +9881,14 @@ setupDB().then(async () => {
     const domain = rawDomain.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
     const companyName = (name || domain.split('.')[0]).trim();
     const companyCategory = (category || 'SaaS').trim();
+    const slug = slugify(companyName);
 
     try {
+      const existing = await pool.query('SELECT slug, visibility_score, scored_at FROM ai_visibility_companies WHERE slug = $1', [slug]);
+      if (existing.rows.length) {
+        return res.status(409).json({ error: 'already_scored', company: existing.rows[0] });
+      }
+
       const recent = await pool.query(
         `SELECT id FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
         [domain, email]
@@ -9839,23 +9898,14 @@ setupDB().then(async () => {
       }
 
       const jobResult = await pool.query(
-        `INSERT INTO ai_visibility_jobs (input_domain, input_email, status) VALUES ($1,$2,'pending') RETURNING id`,
-        [domain, email]
+        `INSERT INTO ai_visibility_jobs (job_type, input_domain, input_email, input_name, input_category, status)
+         VALUES ('scan', $1, $2, $3, $4, 'pending') RETURNING id`,
+        [domain, email, companyName, companyCategory]
       );
       const jobId = jobResult.rows[0].id;
       res.json({ job_id: jobId, status: 'pending' });
 
-      (async () => {
-        try {
-          await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
-          const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(companyName, domain, companyCategory);
-          await persistAiVisibilityScoring(companyName, domain, companyCategory, slug, questions, modelResults, visibilityScore);
-          await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
-        } catch (err) {
-          console.error('[ai-visibility-index scan job]', err.message);
-          await pool.query(`UPDATE ai_visibility_jobs SET status = 'failed' WHERE id = $1`, [jobId]);
-        }
-      })();
+      runAiVisibilityJobInBackground(jobId, companyName, domain, companyCategory);
     } catch (err) {
       console.error('[ai-visibility-index scan]', err.message);
       res.status(500).json({ error: 'Failed to start scan' });
@@ -9864,7 +9914,7 @@ setupDB().then(async () => {
 
   app.get('/api/ai-visibility-index/job/:id', async (req, res) => {
     try {
-      const r = await pool.query('SELECT id, status, result_slug FROM ai_visibility_jobs WHERE id = $1', [req.params.id]);
+      const r = await pool.query('SELECT id, status, result_slug, error_message FROM ai_visibility_jobs WHERE id = $1', [req.params.id]);
       if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
       res.json(r.rows[0]);
     } catch (err) {
