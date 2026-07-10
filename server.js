@@ -1122,6 +1122,19 @@ async function setupDB() {
   await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS error_message TEXT`)
     .catch(e => console.error('[DB] ai_visibility_jobs error_message col:', e.message));
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_leads (
+      id                SERIAL PRIMARY KEY,
+      email             TEXT NOT NULL,
+      domain            TEXT NOT NULL,
+      category          TEXT,
+      company_slug      TEXT REFERENCES ai_visibility_companies(slug),
+      visibility_score  NUMERIC(3,1),
+      source            TEXT DEFAULT 'self_scan',
+      created_at        TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_leads:', e.message));
+
   console.log('[DB] All tables ready');
 }
 
@@ -7306,6 +7319,7 @@ function renderAiVisIndexHtml(companies) {
   .scan-form input::placeholder{color:var(--muted);}
   .scan-form button{background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;font-family:'Figtree',sans-serif;}
   .scan-form button:disabled{opacity:0.6;cursor:not-allowed;}
+  .scan-microcopy{margin-top:10px;font-size:12px;color:var(--muted);opacity:0.85;}
   .scan-status{margin-top:14px;font-size:14px;color:var(--muted);min-height:20px;}
   .scan-status.error{color:#ff6b6b;}
   .scan-status.success{color:var(--teal);}
@@ -7354,6 +7368,7 @@ function renderAiVisIndexHtml(companies) {
       <input type="email" id="scanEmail" placeholder="you@company.com" autocomplete="off" required>
       <button type="submit" id="scanBtn">Check my AI visibility — free</button>
     </form>
+    <div class="scan-microcopy">We'll only use this to show you your results and follow up if you'd like a full readout.</div>
     <div class="scan-status" id="scanStatus"></div>
   </div>
 </div>
@@ -9985,13 +10000,20 @@ setupDB().then(async () => {
   }
 
   // Shared fire-and-forget runner used by both the admin score endpoint and the public scan endpoint.
-  function runAiVisibilityJobInBackground(jobId, name, domain, category) {
+  function runAiVisibilityJobInBackground(jobId, name, domain, category, email) {
     (async () => {
       try {
         await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
         const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(name, domain, category);
         await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
         await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
+        if (email) {
+          await pool.query(
+            `INSERT INTO ai_visibility_leads (email, domain, category, company_slug, visibility_score, source)
+             VALUES ($1,$2,$3,$4,$5,'self_scan')`,
+            [email, domain, category, slug, visibilityScore]
+          ).catch(e => console.error('[ai-visibility-index leads insert]', e.message));
+        }
       } catch (err) {
         console.error('[ai-visibility-index job]', err.message);
         await pool.query(`UPDATE ai_visibility_jobs SET status = 'failed', error_message = $1 WHERE id = $2`, [err.message, jobId]).catch(() => {});
@@ -10140,6 +10162,19 @@ setupDB().then(async () => {
     }
   });
 
+  app.get('/api/ai-visibility-index/leads', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const r = await pool.query('SELECT * FROM ai_visibility_leads ORDER BY created_at DESC');
+      res.json({ leads: r.rows, count: r.rows.length });
+    } catch (err) {
+      console.error('[ai-visibility-index leads]', err.message);
+      res.status(500).json({ error: 'Failed to load leads' });
+    }
+  });
+
   app.post('/api/ai-visibility-index/scan', async (req, res) => {
     const { domain: rawDomain, email, name, category } = req.body;
     if (!rawDomain || !email || !category) {
@@ -10172,7 +10207,7 @@ setupDB().then(async () => {
       const jobId = jobResult.rows[0].id;
       res.json({ job_id: jobId, status: 'pending' });
 
-      runAiVisibilityJobInBackground(jobId, companyName, domain, companyCategory);
+      runAiVisibilityJobInBackground(jobId, companyName, domain, companyCategory, email);
     } catch (err) {
       console.error('[ai-visibility-index scan]', err.message);
       res.status(500).json({ error: 'Failed to start scan' });
