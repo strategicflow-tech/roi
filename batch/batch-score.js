@@ -19,17 +19,67 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const CHROME_PHRASES = [
+  'skip to main content', 'contact support', 'log in', 'sign up',
+  'cookie', 'privacy policy', 'all rights reserved'
+];
+
+function decodeEntities(str) {
+  return str
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'").replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
+    .replace(/&hellip;/g, '…').replace(/&rsquo;/g, '’').replace(/&lsquo;/g, '‘')
+    .replace(/&rdquo;/g, '”').replace(/&ldquo;/g, '“')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+}
+
+function extractMainContentHtml(html) {
+  let stripped = String(html || '');
+  stripped = stripped.replace(/<script[\s\S]*?<\/script>/gi, ' ');
+  stripped = stripped.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  stripped = stripped.replace(/<nav[\s\S]*?<\/nav>/gi, ' ');
+  stripped = stripped.replace(/<footer[\s\S]*?<\/footer>/gi, ' ');
+  stripped = stripped.replace(/<header[\s\S]*?<\/header>/gi, ' ');
+  stripped = stripped.replace(/<aside[\s\S]*?<\/aside>/gi, ' ');
+
+  const mainMatch = stripped.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+  if (mainMatch && mainMatch[1].replace(/<[^>]*>/g, '').trim().length > 200) {
+    return mainMatch[1];
+  }
+  const articleMatch = stripped.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+  if (articleMatch && articleMatch[1].replace(/<[^>]*>/g, '').trim().length > 200) {
+    return articleMatch[1];
+  }
+
+  const divMatches = [...stripped.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi)];
+  let best = null;
+  let bestLen = 0;
+  for (const m of divMatches) {
+    const textLen = m[1].replace(/<[^>]*>/g, '').trim().length;
+    if (textLen > bestLen) { bestLen = textLen; best = m[1]; }
+  }
+  if (best && bestLen > 200) return best;
+
+  return stripped;
+}
+
 function extractReadableText(html) {
-  let text = String(html || '');
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, ' ');
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
-  text = text.replace(/<nav[\s\S]*?<\/nav>/gi, ' ');
-  text = text.replace(/<footer[\s\S]*?<\/footer>/gi, ' ');
-  text = text.replace(/<header[\s\S]*?<\/header>/gi, ' ');
+  let text = extractMainContentHtml(html);
   text = text.replace(/<[^>]*>/g, ' ');
-  text = text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  text = decodeEntities(text);
   text = text.replace(/\s+/g, ' ').trim();
   return text.slice(0, MAX_CONTENT_LENGTH);
+}
+
+function isJunkHeavy(text) {
+  const sample = text.slice(0, 1000).toLowerCase();
+  let hits = 0;
+  for (const phrase of CHROME_PHRASES) {
+    if (sample.includes(phrase)) hits++;
+  }
+  return hits >= 3;
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -62,6 +112,9 @@ async function scoreCompany(company) {
   if (content.length < MIN_TEXT_LENGTH) {
     return { type: 'needs_manual', name, source_url, reason: `extracted_text_too_short (${content.length} chars)` };
   }
+  if (isJunkHeavy(content)) {
+    return { type: 'needs_manual', name, source_url, reason: 'junk_ratio_too_high' };
+  }
 
   try {
     const resp = await fetchWithTimeout(API_URL, {
@@ -80,6 +133,9 @@ async function scoreCompany(company) {
     }
     if (resp.status === 409) {
       return { type: 'skipped', name, source_url, reason: 'already_scored', existing: data.company };
+    }
+    if (resp.status === 422 && data.error === 'polluted_input') {
+      return { type: 'needs_manual', name, source_url, reason: 'polluted_input (model-flagged)' };
     }
     return { type: 'failed', name, source_url, reason: `score_status_${resp.status}: ${data.error || 'unknown'}` };
   } catch (err) {

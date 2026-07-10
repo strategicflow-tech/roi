@@ -50,12 +50,14 @@ function buildIndexScoringPrompt(contentType, content) {
 {
   "score": <number 1-10, one decimal allowed, where 10 = excellent structural quality (low decision friction) and 1 = severe structural failure (high decision friction)>,
   "patterns": [<array of 1-4 labels, ONLY from this exact canonical list, no others: ${INDEX_CANONICAL_PATTERNS.map(p => `"${p}"`).join(', ')}>],
-  "diagnosis_summary": "<2-3 sentences, clinical tone, referencing the actual content>"
+  "diagnosis_summary": "<2-3 sentences, clinical tone, referencing the actual content>",
+  "input_quality": "<clean | polluted>"
 }
 
 Rules:
 - patterns must contain ONLY labels from the canonical list above, spelled exactly as given. Do not invent new labels. Pick the ones that genuinely apply, ranked by severity (most severe first).
 - Be brutally specific in diagnosis_summary — reference actual phrases or structural decisions in the content.
+- Set "input_quality" to "polluted" if the provided content appears to be mostly navigation menus, footer templates, cookie banners, or site chrome rather than the actual email/changelog/blog/landing page content. Otherwise set it to "clean".
 - Return ONLY valid JSON, no markdown, no backticks, no explanation.
 
 Content to analyze:
@@ -8668,6 +8670,10 @@ setupDB().then(async () => {
 
       const prompt = buildIndexScoringPrompt(content_type, content);
       const result = await scoreContentWithClaude(prompt);
+
+      if (result.input_quality === 'polluted') {
+        return res.status(422).json({ error: 'polluted_input' });
+      }
 
       const score = typeof result.score === 'number' ? result.score : parseFloat(result.score);
       const patterns = Array.isArray(result.patterns)
