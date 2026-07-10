@@ -6708,7 +6708,7 @@ function filterTable(){
 </html>`;
 }
 
-function renderCompanyPageHtml(company) {
+function renderCompanyPageHtml(company, samples) {
   const name = escapeHtml(company.name);
   const domain = escapeHtml(company.domain);
   const score = Number(company.score).toFixed(1);
@@ -6731,6 +6731,39 @@ function renderCompanyPageHtml(company) {
   const scoredDate = company.scored_at
     ? new Date(company.scored_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
+
+  const sampleRows = Array.isArray(samples) ? samples : [];
+  const sampleCount = sampleRows.length;
+
+  const samplesHtml = sampleCount > 1 ? `
+  <div class="samples-section">
+    <h2 class="samples-heading">Samples analyzed</h2>
+    ${sampleRows.map((s, i) => {
+      const sType = escapeHtml(CONTENT_TYPE_LABELS[s.content_type] || s.content_type);
+      const sScore = Number(s.score).toFixed(1);
+      const sDate = s.scored_at
+        ? new Date(s.scored_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+      const sPatterns = Array.isArray(s.patterns) ? s.patterns : [];
+      const sSummary = escapeHtml(s.diagnosis_summary || '');
+      const sExcerpt = escapeHtml(s.input_excerpt || '');
+      return `
+    <details class="sample-card">
+      <summary class="sample-summary">
+        <span class="badge">${sType}</span>
+        <span class="sample-score">${sScore}/10</span>
+        <span class="sample-date">${sDate}</span>
+      </summary>
+      <div class="sample-details">
+        <div class="patterns">
+          ${sPatterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n          ')}
+        </div>
+        <p class="summary">${sSummary}</p>
+        ${sExcerpt ? `<div class="excerpt-label">Scored excerpt${s.content_length ? ` (${Number(s.content_length).toLocaleString('en-US')} chars analyzed)` : ''}</div><blockquote>${sExcerpt}</blockquote>` : ''}
+      </div>
+    </details>`;
+    }).join('\n    ')}
+  </div>` : '';
 
   const checks = Array.isArray(company.checks) ? company.checks : null;
   const VERDICT_STYLE = {
@@ -6817,6 +6850,15 @@ function renderCompanyPageHtml(company) {
   .verdict-chip{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;padding:3px 10px;border-radius:20px;white-space:nowrap;}
   .check-note{font-size:13px;color:var(--muted);line-height:1.5;margin:0;}
   .excerpt-label{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;}
+  .samples-section{margin:32px 0;}
+  .samples-heading{font-size:14px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-family:'DM Mono',monospace;margin:0 0 16px;}
+  .sample-card{background:var(--card);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .sample-summary{cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;list-style:none;}
+  .sample-summary::-webkit-details-marker{display:none;}
+  .sample-score{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;font-size:15px;}
+  .sample-date{color:var(--muted);font-size:13px;}
+  .sample-details{margin-top:14px;padding-top:14px;border-top:1px solid var(--hairline);}
+  .avg-note{font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);margin:-16px 0 24px;}
   .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
@@ -6842,13 +6884,16 @@ function renderCompanyPageHtml(company) {
     </div>
   </div>
   <div class="score-display">${score}/10</div>
-  <div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}${typeLabel} · <a href="/friction-index/methodology">How scoring works →</a></div>
+  ${sampleCount > 1
+    ? `<div class="avg-note">Average across ${sampleCount} samples</div>`
+    : `<div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}${typeLabel} · <a href="/friction-index/methodology">How scoring works →</a></div>`}
   <div class="patterns">
     ${patterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n    ')}
   </div>
   ${checksHtml}
   <p class="summary">${summary}</p>
   ${excerpt ? `<div class="excerpt-label">Scored excerpt${company.content_length ? ` (${company.content_length.toLocaleString('en-US')} chars analyzed)` : ''}</div><blockquote>${excerpt}</blockquote>` : ''}
+  ${samplesHtml}
   <div class="cta-row">
     <a class="cta-primary" href="/why">Find the friction in your own content — free</a>
     <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get the full rebuild</a>
@@ -6961,7 +7006,7 @@ function renderMethodologyHtml() {
   <p>The score is not a judgment of the product, the company, or the team behind it. It measures the structural conversion quality of one specific piece of communication, at one point in time — nothing more.</p>
 
   <h2>Limitations</h2>
-  <p>Scores reflect a single content sample. Companies iterate constantly, and a score can improve the next time that company's content is re-scored. If you believe a score is out of date or based on the wrong sample, companies can request a re-score or a correction by contacting <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a>.</p>
+  <p>Companies are scored on one or more representative content samples. Scores shown are the average across all samples analyzed for that company. Each sample's individual breakdown is visible on the company page. If you believe a score is out of date or based on the wrong sample, companies can request a re-score or a correction by contacting <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a>.</p>
 
   <h2>The pattern library</h2>
   <p>When content is scored, it may be tagged with one or more of these six canonical failure patterns:</p>
@@ -9043,8 +9088,9 @@ setupDB().then(async () => {
     try {
       const r = await pool.query('SELECT * FROM index_companies WHERE slug = $1', [req.params.slug]);
       if (!r.rows.length) return res.status(404).send('Company not found');
+      const samplesRes = await pool.query('SELECT * FROM index_content_samples WHERE company_slug = $1 ORDER BY scored_at ASC', [req.params.slug]);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(renderCompanyPageHtml(r.rows[0]));
+      res.send(renderCompanyPageHtml(r.rows[0], samplesRes.rows));
     } catch (err) {
       res.status(500).send('Error loading company page');
     }
