@@ -6875,7 +6875,7 @@ function filterTable(){
 </html>`;
 }
 
-function renderCompanyPageHtml(company, samples) {
+function renderCompanyPageHtml(company, samples, hasAiVisibilityEntry) {
   const name = escapeHtml(company.name);
   const domain = escapeHtml(company.domain);
   const score = Number(company.score).toFixed(1);
@@ -6901,6 +6901,10 @@ function renderCompanyPageHtml(company, samples) {
 
   const sampleRows = Array.isArray(samples) ? samples : [];
   const sampleCount = sampleRows.length;
+  const aiVisCrossLinkBanner = hasAiVisibilityEntry ? `
+  <div class="cross-link-banner">
+    ${name} is also on <a href="/ai-visibility-index/${escapeHtml(company.slug)}">The AI Visibility Index</a> — see how Claude, GPT, and Perplexity describe it too.
+  </div>` : '';
 
   const samplesHtml = sampleCount > 1 ? `
   <div class="samples-section">
@@ -7026,6 +7030,8 @@ function renderCompanyPageHtml(company, samples) {
   .sample-date{color:var(--muted);font-size:13px;}
   .sample-details{margin-top:14px;padding-top:14px;border-top:1px solid var(--hairline);}
   .avg-note{font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);margin:-16px 0 24px;}
+  .cross-link-banner{background:var(--card2);border:1px solid var(--hairline);border-radius:10px;padding:14px 18px;font-size:14px;color:var(--muted);margin-bottom:24px;}
+  .cross-link-banner a{color:var(--teal);}
   .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
@@ -7055,6 +7061,7 @@ function renderCompanyPageHtml(company, samples) {
   ${sampleCount > 1
     ? `<div class="avg-note">Average across ${sampleCount} samples</div>`
     : `<div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}${typeLabel} · <a href="/friction-index/methodology">How scoring works →</a></div>`}
+  ${aiVisCrossLinkBanner}
   <div class="patterns">
     ${patterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n    ')}
   </div>
@@ -9719,9 +9726,12 @@ setupDB().then(async () => {
     try {
       const r = await pool.query('SELECT * FROM index_companies WHERE slug = $1', [req.params.slug]);
       if (!r.rows.length) return res.status(404).send('Company not found');
-      const samplesRes = await pool.query('SELECT * FROM index_content_samples WHERE company_slug = $1 ORDER BY scored_at ASC', [req.params.slug]);
+      const [samplesRes, aiVisRes] = await Promise.all([
+        pool.query('SELECT * FROM index_content_samples WHERE company_slug = $1 ORDER BY scored_at ASC', [req.params.slug]),
+        pool.query('SELECT slug FROM ai_visibility_companies WHERE slug = $1', [req.params.slug])
+      ]);
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(renderCompanyPageHtml(r.rows[0], samplesRes.rows));
+      res.send(renderCompanyPageHtml(r.rows[0], samplesRes.rows, aiVisRes.rows.length > 0));
     } catch (err) {
       res.status(500).send('Error loading company page');
     }
