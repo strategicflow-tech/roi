@@ -7735,6 +7735,7 @@ function renderAiVisIndexMethodologyHtml() {
   <h2>The honesty rule: we never fabricate failed calls</h2>
   <p>If a model's API call fails for a company, that model's row is marked "needs manual review" and is excluded entirely from the average — we never substitute a zero, a guess, or an assumed absence for a call that simply didn't complete. A company scored across 2 working models will show its average over those 2 models only, clearly marked as such.</p>
   <p>Category is provided by the company being scanned, since automated category detection from a domain name alone is unreliable — a mismatched category will produce a misleading score.</p>
+  <p>Category wording matters — an ambiguous or broad category description can pull generated buyer questions toward an adjacent but incorrect industry (e.g. "behavioral" read as analytics rather than diagnostics). Companies should describe their category as specifically and unambiguously as possible.</p>
 
   <h2>What "position" and "description accuracy" mean</h2>
   <ul>
