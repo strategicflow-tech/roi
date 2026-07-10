@@ -7348,7 +7348,12 @@ function renderAiVisIndexHtml(companies) {
   </table>`}
   <div class="cta-banner">
     <div>Want to know how AI assistants describe your company?</div>
-    <a href="/ai-visibility-index/methodology">See how scoring works</a>
+    <form class="scan-form" id="scanForm">
+      <input type="text" id="scanDomain" placeholder="yourcompany.com" autocomplete="off" required>
+      <input type="email" id="scanEmail" placeholder="you@company.com" autocomplete="off" required>
+      <button type="submit" id="scanBtn">Check my AI visibility — free</button>
+    </form>
+    <div class="scan-status" id="scanStatus"></div>
   </div>
 </div>
 <footer class="site-footer">
@@ -7362,6 +7367,94 @@ function renderAiVisIndexHtml(companies) {
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+  <script>
+    (function(){
+      const form = document.getElementById('scanForm');
+      const statusEl = document.getElementById('scanStatus');
+      const btn = document.getElementById('scanBtn');
+      if (!form) return;
+      function setStatus(msg, cls) {
+        statusEl.textContent = msg;
+        statusEl.className = 'scan-status' + (cls ? ' ' + cls : '');
+      }
+      function isValidDomain(d) {
+        return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(d);
+      }
+      function pollJob(jobId) {
+        let attempts = 0;
+        const maxAttempts = 60;
+        const interval = setInterval(async function() {
+          attempts++;
+          try {
+            const r = await fetch('/api/ai-visibility-index/job/' + jobId);
+            const j = await r.json();
+            if (j.status === 'done') {
+              clearInterval(interval);
+              setStatus('Done! Redirecting to your results...', 'success');
+              setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.result_slug; }, 900);
+            } else if (j.status === 'error' || j.status === 'failed') {
+              clearInterval(interval);
+              setStatus(j.error_message || 'Something went wrong while scanning. Please try again later.', 'error');
+              btn.disabled = false;
+            } else if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              setStatus('This is taking longer than expected. We will email your results once ready.', '');
+              btn.disabled = false;
+            } else {
+              setStatus('Analyzing how AI describes your company... (' + attempts * 5 + 's)', '');
+            }
+          } catch (e) {
+            clearInterval(interval);
+            setStatus('Lost connection while checking status. Please try again.', 'error');
+            btn.disabled = false;
+          }
+        }, 5000);
+      }
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const domain = document.getElementById('scanDomain').value.trim().replace(/^https?:\\/\\//i, '').replace(/\\/.*$/, '').toLowerCase();
+        const email = document.getElementById('scanEmail').value.trim();
+        if (!isValidDomain(domain)) {
+          setStatus('Please enter a valid domain, like yourcompany.com', 'error');
+          return;
+        }
+        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+          setStatus('Please enter a valid email address.', 'error');
+          return;
+        }
+        btn.disabled = true;
+        setStatus('Starting your free scan...', '');
+        try {
+          const r = await fetch('/api/ai-visibility-index/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: domain, email: email })
+          });
+          const j = await r.json();
+          if (r.status === 409 && j.company) {
+            setStatus('This company is already on the index. Redirecting...', 'success');
+            setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.company.slug; }, 900);
+            return;
+          }
+          if (r.status === 429) {
+            setStatus(j.error || 'A scan for this domain or email was already requested in the last 24 hours.', 'error');
+            btn.disabled = false;
+            return;
+          }
+          if (!r.ok) {
+            setStatus(j.error || 'Something went wrong. Please try again.', 'error');
+            btn.disabled = false;
+            return;
+          }
+          setStatus('Analyzing how AI describes your company...', '');
+          pollJob(j.job_id);
+        } catch (err) {
+          setStatus('Network error. Please try again.', 'error');
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
 </footer>
 </body>
 </html>`;
