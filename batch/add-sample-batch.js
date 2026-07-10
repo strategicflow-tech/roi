@@ -227,8 +227,8 @@ const COMPANIES = [
     urls: ['https://www.semrush.com/blog/ai-search-with-semrush-one/', 'https://www.semrush.com/blog/agentic-search-optimization-with-semrush/']
   },
   {
-    slug: 'circle', name: 'Circle', content_type: 'landing_page',
-    urls: ['https://circle.so']
+    slug: 'circle', name: 'Circle', content_type: 'product_update_blog',
+    urls: ['https://circle.so/blog/ai-native-community-platform']
   }
 ];
 
