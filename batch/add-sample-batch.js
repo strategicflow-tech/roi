@@ -127,7 +127,11 @@ function fetchViaCurl(url, timeoutMs) {
   });
 }
 
-async function fetchOne(url) {
+async function fetchOne(url, forceCurl) {
+  if (forceCurl) {
+    const html = await fetchViaCurl(url, FETCH_TIMEOUT_MS);
+    return { html, fetchMethod: 'curl' };
+  }
   let html;
   let fetchMethod = 'fetch';
   try {
@@ -146,12 +150,12 @@ async function fetchOne(url) {
 }
 
 async function attemptCompany(company) {
-  const { slug, name, content_type, urls } = company;
+  const { slug, name, content_type, urls, forceCurl } = company;
 
   let lastReason = null;
   for (const url of urls) {
     try {
-      const { html, fetchMethod } = await fetchOne(url);
+      const { html, fetchMethod } = await fetchOne(url, forceCurl);
       const content = extractReadableText(html);
 
       if (content.length < MIN_TEXT_LENGTH) {
@@ -191,40 +195,40 @@ async function attemptCompany(company) {
 
 const COMPANIES = [
   {
-    slug: 'pitch', name: 'Pitch', content_type: 'landing_page',
-    urls: ['https://pitch.com']
+    slug: 'beehiiv', name: 'Beehiiv', content_type: 'product_update_blog',
+    urls: ['https://www.beehiiv.com/changelog', 'https://www.beehiiv.com/blog']
   },
   {
-    slug: 'miro', name: 'Miro', content_type: 'landing_page',
-    urls: ['https://miro.com/online-whiteboard/']
+    slug: 'calendly', name: 'Calendly', content_type: 'landing_page',
+    urls: ['https://calendly.com/features']
   },
   {
-    slug: 'intercom', name: 'Intercom', content_type: 'landing_page',
-    urls: ['https://www.intercom.com']
+    slug: 'clay', name: 'Clay', content_type: 'landing_page',
+    urls: ['https://www.clay.com/enterprise']
   },
   {
-    slug: 'airtable', name: 'Airtable', content_type: 'landing_page',
-    urls: ['https://www.airtable.com']
+    slug: 'customer-io', name: 'Customer.io', content_type: 'landing_page',
+    urls: ['https://customer.io']
   },
   {
-    slug: 'clickup', name: 'ClickUp', content_type: 'landing_page',
-    urls: ['https://clickup.com']
+    slug: 'framer', name: 'Framer', content_type: 'landing_page',
+    urls: ['https://www.framer.com/pricing']
   },
   {
-    slug: 'asana', name: 'Asana', content_type: 'landing_page',
-    urls: ['https://asana.com/product']
+    slug: 'monday-com', name: 'Monday.com', content_type: 'landing_page',
+    urls: ['https://monday.com/crm']
   },
   {
-    slug: 'cal-com', name: 'Cal.com', content_type: 'landing_page',
-    urls: ['https://cal.com/booking-page']
+    slug: 'trello', name: 'Trello', content_type: 'product_update_blog',
+    urls: ['https://trello.com/blog', 'https://trello.com/en/whats-new']
   },
   {
-    slug: 'kajabi', name: 'Kajabi', content_type: 'product_update_blog',
-    urls: ['https://kajabi.com/updates', 'https://kajabi.com/blog']
+    slug: 'webflow', name: 'Webflow', content_type: 'landing_page',
+    urls: ['https://webflow.com/feature/ecommerce'], forceCurl: true
   },
   {
-    slug: 'grammarly', name: 'Grammarly', content_type: 'product_update_blog',
-    urls: ['https://www.grammarly.com/blog/product-updates', 'https://www.grammarly.com/blog']
+    slug: 'zapier', name: 'Zapier', content_type: 'product_update_blog',
+    urls: ['https://zapier.com/workflows']
   }
 ];
 
