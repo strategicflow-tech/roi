@@ -1,36 +1,41 @@
 {
-  "ok": [],
-  "skipped": [],
-  "failed": [
+  "ok": [
     {
-      "type": "failed",
+      "type": "ok",
       "name": "Intercom",
       "source_url": "https://www.intercom.com/changes/en/150878-translate-side-conversations-automatically",
-      "reason": "score_status_401: unauthorized"
+      "score": "3.5",
+      "url": "/friction-index/intercom"
     },
+    {
+      "type": "ok",
+      "name": "Klaviyo",
+      "source_url": "https://community.klaviyo.com/product-updates-and-announcements-51/what-s-new-in-klaviyo-from-may-2026-19391",
+      "score": "3.2",
+      "url": "/friction-index/klaviyo"
+    },
+    {
+      "type": "ok",
+      "name": "Linear",
+      "source_url": "https://linear.app/changelog/2026-07-02-initiative-properties",
+      "score": "4.2",
+      "url": "/friction-index/linear"
+    },
+    {
+      "type": "ok",
+      "name": "Stripe",
+      "source_url": "https://stripe.com/blog/changelog",
+      "score": "3.5",
+      "url": "/friction-index/stripe"
+    }
+  ],
+  "skipped": [],
+  "failed": [
     {
       "type": "failed",
       "name": "HubSpot",
       "source_url": "https://community.hubspot.com/t/q2-2026-revenue-hub-release-round-up/151895",
       "reason": "fetch_status_403"
-    },
-    {
-      "type": "failed",
-      "name": "Klaviyo",
-      "source_url": "https://community.klaviyo.com/product-updates-and-announcements-51/what-s-new-in-klaviyo-from-may-2026-19391",
-      "reason": "score_status_401: unauthorized"
-    },
-    {
-      "type": "failed",
-      "name": "Linear",
-      "source_url": "https://linear.app/changelog/2026-07-02-initiative-properties",
-      "reason": "score_status_401: unauthorized"
-    },
-    {
-      "type": "failed",
-      "name": "Stripe",
-      "source_url": "https://stripe.com/blog/changelog",
-      "reason": "score_status_401: unauthorized"
     }
   ],
   "needs_manual": []
