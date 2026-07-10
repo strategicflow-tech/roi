@@ -41,6 +41,20 @@
       "source_url": "https://developers.hubspot.com/changelog",
       "score": "3.2",
       "url": "/friction-index/hubspot"
+    },
+    {
+      "type": "ok",
+      "name": "ClickUp",
+      "source_url": "https://feedback.clickup.com/changelog",
+      "score": "3.5",
+      "url": "/friction-index/clickup"
+    },
+    {
+      "type": "ok",
+      "name": "Airtable",
+      "source_url": "https://community.airtable.com/announcements-6",
+      "score": "3.2",
+      "url": "/friction-index/airtable"
     }
   ],
   "skipped": [
@@ -610,6 +624,370 @@
           }
         ]
       }
+    },
+    {
+      "type": "skipped",
+      "name": "Loom",
+      "source_url": "https://www.atlassian.com/blog/loom/unstuck-your-meetings",
+      "reason": "already_scored",
+      "existing": {
+        "id": 52,
+        "slug": "loom",
+        "name": "Loom",
+        "domain": "loom.com",
+        "content_type": "changelog",
+        "score": "5.6",
+        "patterns": [
+          "Zero/Buried Social Proof",
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Guest Language CTA"
+        ],
+        "diagnosis_summary": "The piece leans on third-party Atlassian meeting-fatigue statistics rather than any proof that Loom's AI actually works, and features like 'Customizable and Secure' are listed without concrete before/after metrics. The closing CTA ('Try Loom AI for meetings today... one click away') is generic boilerplate rather than a benefit-specific action, and the dense paragraph blocks under each numbered feature undercut what little structure the headers provide.",
+        "input_excerpt": "Unstuck your meetings: Loom’s new AI for productive meetings August 6, 2025 Published In AI at Work The Problem with Meetings Ah, the classic virtual meeting. Though meant to be a platform for discussion and decision-making, many meetings offer little value, devolving into time-consuming sessions that clutter our schedules and detract from our actual work. Without clear objectives, they often become unfocused, draining energy and majorly hindering productivity. Just how much productivity is being lost? According to a recent research study by Atlassian, 80% of respondents believe they’d be more productive if they spent less time in meetings. In fact, meetings are often seen as the number one barrier to getting work done, with 78% of people saying they’re expected to attend so many that it’s hard to finish their tasks. Enter Loom AI for Meetings Welcome to great meetings with less work. With Loom, you can record your meetings and let AI do the heavy lifting: generating meeting notes, cap",
+        "scored_at": "2026-07-10T01:30:01.824Z",
+        "checks": [
+          {
+            "note": "'Unstuck your meetings' relies on a vague pun rather than stating the concrete outcome, forcing readers to keep reading to learn what 'unstuck' means.",
+            "check": "Subject line / headline construction",
+            "verdict": "weak"
+          },
+          {
+            "note": "The lead opens with a generic meeting-fatigue narrative and delays the actual product introduction until the 'Enter Loom AI for Meetings' section.",
+            "check": "Lead construction",
+            "verdict": "weak"
+          },
+          {
+            "note": "Features like 'Works Wherever You Work' and 'Customizable and Secure' are described functionally with slogan-style hooks ('Put Loom in the room!') rather than tied to measurable outcomes.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "weak"
+          },
+          {
+            "note": "Despite a numbered feature list (1-4), the surrounding sections are dense unbroken paragraphs with no bolding, bullets, or scannable breaks.",
+            "check": "Visual hierarchy",
+            "verdict": "weak"
+          },
+          {
+            "note": "The 'Imagine a world where every meeting is a strategic advantage' passage is abstract imagery with no specific before/after time savings or metrics.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "fail"
+          },
+          {
+            "note": "The only data cited (Atlassian's 80%/78% stats) describes the meeting problem, not any evidence that Loom's AI feature itself delivers results for real customers.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "The closing 'Try Loom AI for meetings today' paired with 'it's one click away' is generic marketing language rather than a benefit-specific call to action.",
+            "check": "CTA language",
+            "verdict": "weak"
+          }
+        ],
+        "content_length": 5122
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Pitch",
+      "source_url": "https://pitch.com/blog/60-product-updates-q1-in-review",
+      "reason": "already_scored",
+      "existing": {
+        "id": 53,
+        "slug": "pitch",
+        "name": "Pitch",
+        "domain": "pitch.com",
+        "content_type": "product_update_blog",
+        "score": "4.8",
+        "patterns": [
+          "Feature-First Bias",
+          "Guest Language CTA",
+          "Zero/Buried Social Proof",
+          "Missing Visual Hierarchy"
+        ],
+        "diagnosis_summary": "The post opens with a nostalgic recap of beta numbers and '25,000 teams' rather than a reader-facing benefit, then cascades into an unstructured list of thirteen features and fifty-five improvements (template gallery, PowerPoint importer, iOS beta, Apple silicon) with little consistent translation into outcomes. Social proof is a single buried stat never revisited, and CTAs like 'Download it here,' 'Fill out this form,' and 'Share your best work here' are generic, guest-facing instructions rather than benefit-driven prompts.",
+        "input_excerpt": "This time last year, we were in private beta with a few hundred teams. By October, more than 25,000 teams were working in Pitch. After reflecting on our launch we entered the new year with one clear focus: Make it simple for teams to get started with Pitch. Since January, we’ve shipped 13 new features and 55 improvements that make creating and collaborating on decks fast and easy. Check out the latest updates and see why it’s never been a better time to get your team on board. Make the switch to Pitch faster When teams have a central space to work they can accomplish anything — from raising money to delivering more customer-centric products . But getting teams to change their ways of working can be tough, even when the benefits outweigh the temporary discomfort of doing things differently. So this quarter, we set out to make it easy for teams to get started, migrate over their existing materials, and create beautiful decks quicker than ever. Explore the template gallery We get a lot of",
+        "scored_at": "2026-07-10T01:30:25.490Z",
+        "checks": [
+          {
+            "note": "There is no standalone headline; the piece opens directly into a narrative recap ('This time last year, we were in private beta...') instead of a scannable title.",
+            "check": "Subject line / headline construction",
+            "verdict": "fail"
+          },
+          {
+            "note": "The lead spends its first sentences on company milestones (private beta, '25,000 teams') before stating the actual quarter's focus, delaying reader relevance.",
+            "check": "Lead construction",
+            "verdict": "weak"
+          },
+          {
+            "note": "Sections like 'Import PowerPoint files' and 'Create slick-looking charts in a few clicks' describe mechanics more than they quantify the resulting time or effort saved.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "weak"
+          },
+          {
+            "note": "Bolded section labels (e.g. 'Explore the template gallery,' 'Work across a variety of devices') exist but the body under each is dense unbroken prose with only one bulleted pair in the editing section.",
+            "check": "Visual hierarchy",
+            "verdict": "weak"
+          },
+          {
+            "note": "Numbers like '13 new features,' '55 improvements,' and '50 well-crafted templates' are concrete, but they sit alongside vague claims like 'blazingly fast' and 'stunning presentations' without a clear before/after state.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "weak"
+          },
+          {
+            "note": "The '25,000 teams' figure appears once in the intro and is never reinforced with a customer name, quote, or use case anywhere in the update.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "CTAs such as 'Share your best work here,' 'Fill out this form to join the beta,' and 'Download it here and see for yourself' rely on generic 'here' phrasing rather than specific, outcome-oriented action language.",
+            "check": "CTA language",
+            "verdict": "weak"
+          }
+        ],
+        "content_length": 5916
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Lemlist",
+      "source_url": "https://www.lemlist.com/blog/the-4-pillars-of-email-deliverability-and-why-most-teams-only-fix-it-after-it-breaks-",
+      "reason": "already_scored",
+      "existing": {
+        "id": 59,
+        "slug": "lemlist",
+        "name": "Lemlist",
+        "domain": "lemlist.com",
+        "content_type": "product_update_blog",
+        "score": "6.2",
+        "patterns": [
+          "Zero/Buried Social Proof",
+          "Missing Visual Hierarchy",
+          "Feature-First Bias",
+          "Guest Language CTA"
+        ],
+        "diagnosis_summary": "The piece builds a clear four-pillar framework and uses a concrete 'panic fix mode' contrast to make the reactive/proactive distinction land, but it never grounds any claim in a real customer outcome or metric. The infrastructure section lists SPF/DKIM/DMARC/MX records and warm-up mechanics with only thin translation into business consequence, and the closing CTA ('Start a 14-day free trial / Book a demo') is generic boilerplate disconnected from the deliverability argument just made.",
+        "input_excerpt": "New Describe your outreach goals, AI builds your campaign in minutes Meet lemAgent The 4 pillars of email deliverability (and why most teams only fix it after it breaks) Ivona | June 30, 2026 | 4 min read Infrastructure, reputation, content, and monitoring aren't separate checkboxes, they're one system. Here's how they fit together. Most people think deliverability just means \"not landing in spam.\" That's only part of the picture. Landing in the inbox is the result you see, but deliverability is built on four things working together: infrastructure, reputation, content, and monitoring. Here's the problem: most teams only think about these once something goes wrong. Reply rates slow down. Bounce rate spikes. Nobody notices, because nobody is watching. By the time emails start disappearing into spam, the team is in panic fix mode, and panic fix mode means you're already behind. Fixing a broken setup takes much longer than preventing one. The goal is to move from reactive (fixing problems",
+        "scored_at": "2026-07-10T01:33:36.545Z",
+        "checks": [
+          {
+            "note": "\"The 4 pillars of email deliverability (and why most teams only fix it after it breaks)\" pairs a clear framework promise with a specific failure-mode hook.",
+            "check": "Subject line / headline construction",
+            "verdict": "pass"
+          },
+          {
+            "note": "The opening line ('Infrastructure, reputation, content, and monitoring aren't separate checkboxes, they're one system') states the thesis immediately and frames the rest of the piece.",
+            "check": "Lead construction",
+            "verdict": "pass"
+          },
+          {
+            "note": "Terms like SPF, DKIM, DMARC, and MX records are listed with only a brief 'so providers trust you' justification rather than a full outcome translation.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "weak"
+          },
+          {
+            "note": "Beyond the four numbered headers, the body runs as dense unbroken paragraphs with inline links (e.g. the Infrastructure list items are not visually separated as bullets).",
+            "check": "Visual hierarchy",
+            "verdict": "weak"
+          },
+          {
+            "note": "The 'reply rates slow down, bounce rate spikes... panic fix mode' scenario gives a concrete before/after picture of reactive versus proactive teams.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "pass"
+          },
+          {
+            "note": "No customer names, data points, testimonials, or case results appear anywhere in the piece to back up the deliverability claims.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "The closing 'Start a 14-day free trial / Book a demo' buttons and the unrelated 'Meet lemAgent' teaser at the top are generic and disconnected from the pillars content just delivered.",
+            "check": "CTA language",
+            "verdict": "weak"
+          }
+        ],
+        "content_length": 4433
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Clay",
+      "source_url": "https://www.clay.com/changelog",
+      "reason": "already_scored",
+      "existing": {
+        "id": 60,
+        "slug": "clay",
+        "name": "Clay",
+        "domain": "clay.com",
+        "content_type": "changelog",
+        "score": "2.8",
+        "patterns": [
+          "Missing Visual Hierarchy",
+          "Filing Label Subject",
+          "Feature-First Bias",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The changelog runs four weekly roundups plus a Codex announcement as one undifferentiated text stream, with headlines reduced to filing labels like 'Product Roundup Week of Jun 22, 2026' that convey no benefit. Features such as 'Function Tags' or 'HTTP API Source: Pagination Support' are described by mechanism ('offset/limit, page, cursor') rather than by what changes for the user, and every section terminates in the same generic 'Learn more' with zero customer proof anywhere in the document.",
+        "input_excerpt": "Jun 29, 2026 Product Roundup Week of Jun 22, 2026 Feature highlight Beta Product Roundup Week of Jun 22, 2026 Google BigQuery Import in Audiences - Import contacts and companies directly from BigQuery using SQL queries Salesforce Activities in Audiences - Import Salesforce Tasks and Events (such as emails) and view them on account detail pages Function Tags - Add, remove, and manage tags on functions to keep your library organized Inline Schedule Presets - Set time and day-of-week or day-of-month controls inline when scheduling runs Learn more Jun 22, 2026 Product Roundup Week of Jun 15, 2026 Feature highlight Beta Product Roundup Week of Jun 15, 2026 Sandbox Mode: Now Available to All Users - Sandbox Mode (and Sculptor Sandbox) rolled out to 100% of users, and publishing from a sandbox now copies rows to production so you don't re-run them and spend credits twice Credit Usage Dashboard: Deeper Spend Attribution & Breakdowns - MCP usage broken down by user and function, personal/BYOK A",
+        "scored_at": "2026-07-10T01:33:51.193Z",
+        "checks": [
+          {
+            "note": "Headlines are date-stamped filing labels ('Product Roundup Week of Jun 15, 2026') rather than outcome-oriented statements.",
+            "check": "Subject line / headline construction",
+            "verdict": "fail"
+          },
+          {
+            "note": "Each roundup jumps straight into a bulleted feature dump with no framing sentence establishing why the update matters.",
+            "check": "Lead construction",
+            "verdict": "fail"
+          },
+          {
+            "note": "A few items translate to outcome (Sandbox Mode's 'so you don't re-run them and spend credits twice') but most, like 'Function Tags' or 'Static IPs for Enterprise Integrations', stop at describing the mechanism.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "weak"
+          },
+          {
+            "note": "Four separate weekly roundups and a standalone announcement are concatenated into one continuous block with no headers, spacing, or bullet separation visible in the structure.",
+            "check": "Visual hierarchy",
+            "verdict": "fail"
+          },
+          {
+            "note": "Concrete numbers appear ('up to 50K rows', '750,000+ company records') but no before/after state is ever contrasted to show the prior limitation.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "weak"
+          },
+          {
+            "note": "Across five separate entries covering major features like BigQuery Import and Clay MCP in Codex, there is no customer quote, adoption stat, or usage figure cited.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "Every single entry ends with the identical generic 'Learn more' with no context on what clicking leads to or who it's for.",
+            "check": "CTA language",
+            "verdict": "fail"
+          }
+        ],
+        "content_length": 3734
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Attio",
+      "source_url": "https://attio.com/changelog/2026/what-s-new-in-workflows",
+      "reason": "already_scored",
+      "existing": {
+        "id": 61,
+        "slug": "attio",
+        "name": "Attio",
+        "domain": "attio.com",
+        "content_type": "changelog",
+        "score": "5.8",
+        "patterns": [
+          "Filing Label Subject",
+          "Zero/Buried Social Proof",
+          "Missing Visual Hierarchy",
+          "Feature-First Bias"
+        ],
+        "diagnosis_summary": "The headline 'What's new in Workflows' is a filing label that tells readers nothing about the benefit inside, despite a genuinely strong lead ('More of the work, off your plate'). The body reads as an undifferentiated feature dump—structured outputs, loop blocks, app connections, error messages—stitched into one paragraph with no visual separation, and no customer example or usage metric ever validates that any of this works in practice.",
+        "input_excerpt": "What's new in Workflows Copy link to this entry More of the work, off your plate. Workflows put your customer context to work, turning repeatable tasks into agents that run themselves. Earlier this month, we launched blocks with custom agents, code execution, and apps like Notion, Linear, and Fin. Now, it's getting even more powerful: Define agent outputs. Custom Agents now support structured outputs: define the schema you want and the agent returns only those fields, so its result perfectly fits your next blocks. Loop over anything. The loop block now iterates over arrays of objects, not just simple lists, so batch work across nested data runs end to end. Connect more of your stack. New app blocks and native field support across your tools: find leads by email and pause them in campaigns with Lemlist, plus native email and phone support for Linear, Typeform, and Webflow. Error messages now point you to the problem too. See exactly which block received bad data, so a stalled workflow i",
+        "scored_at": "2026-07-10T01:34:10.111Z",
+        "checks": [
+          {
+            "note": "'What's new in Workflows' names the feature category rather than the outcome, functioning as an internal filing label.",
+            "check": "Subject line / headline construction",
+            "verdict": "fail"
+          },
+          {
+            "note": "'More of the work, off your plate' opens with a concrete benefit before any feature name is introduced.",
+            "check": "Lead construction",
+            "verdict": "pass"
+          },
+          {
+            "note": "Lines like 'the loop block now iterates over arrays of objects' are followed by outcome tags ('so batch work... runs end to end') but the pattern is mechanical and repeats for every bullet.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "weak"
+          },
+          {
+            "note": "Structured-output, loop, integration, and error-messaging updates are all run together in one continuous paragraph with no headers or bullet breaks.",
+            "check": "Visual hierarchy",
+            "verdict": "fail"
+          },
+          {
+            "note": "Named tools like Notion, Lemlist, and Webflow add specificity, but there's no before/after comparison showing what the workflow looked like without these changes.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "weak"
+          },
+          {
+            "note": "No customer name, quote, or adoption metric appears anywhere in the update despite claims of increased power.",
+            "check": "Social proof",
+            "verdict": "fail"
+          },
+          {
+            "note": "Closing actions are direct and specific: 'Watch workshop,' 'find out more in our Help Center,' and 'Get started with the SDK docs.'",
+            "check": "CTA language",
+            "verdict": "pass"
+          }
+        ],
+        "content_length": 1375
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Chowly",
+      "source_url": "https://www.chowly.com",
+      "reason": "already_scored",
+      "existing": {
+        "id": 71,
+        "slug": "chowly",
+        "name": "Chowly",
+        "domain": "chowly.com",
+        "content_type": "landing_page",
+        "score": "7.8",
+        "patterns": [
+          "Missing Visual Hierarchy",
+          "Feature-First Bias"
+        ],
+        "diagnosis_summary": "The page pairs a strong benefit-driven headline ('Stop Renting Customers from Apps. Own Them') with unusually concrete proof points ($94K saved, +256% revenue, 21.4x ROI), which is rare and effective. However, the mid-page stats block renders as '+ 0 % Average Revenue Increase' and '$ 0 /mo Average Savings' — likely unrendered counters — and the 'How It Works' section leads with feature labels (Get Found, Get Orders, Keep Customers) before outcomes, creating a structural gap between what's promised and what's legible.",
+        "input_excerpt": "Stop Renting Customers from Apps. Own Them You’re losing thousands a month in commission fees. Chowly’s AI Agent Powered Platform shifts orders from 3rd party to 1st party, increases direct sales, and puts more profit back in your pocket. Get Free Demo Increase Web Traffic Show Up 1st in AI Overviews Increase Conversion Rates Optimized for Mobile Ordering 40%+ 1st Party Sales Increase See Case Studies 50+ POS Integrations Toast Square Aloha SpotOn Clover 17K+ Restaurant Locations Rosati's Mod Pizza Amato's Stuft Pizza 4.8/5 G2 Rating Based on 100+ reviews Proof Points Real Results From Real Restaurants See how independent operators are growing revenue and cutting costs with the Chowly Platform. Taco Nazo Taco Nazo Cut $94K in Commission Costs and Grew Direct Orders 51.7% 51.7% direct order crossover $94K first-year savings 5 locations Beeryland Beeryland Grew First-Party Revenue 18% With Chowly +18.78% first-party delivery revenue 7.76x ROI Live in 19 days Read Case Study Taqueria El T",
+        "scored_at": "2026-07-10T01:39:56.455Z",
+        "checks": [
+          {
+            "note": "'Stop Renting Customers from Apps. Own Them' frames a clear ownership benefit rather than a generic product label.",
+            "check": "Subject line / headline construction",
+            "verdict": "pass"
+          },
+          {
+            "note": "The opening line names a specific cost ('losing thousands a month in commission fees') before introducing the product.",
+            "check": "Lead construction",
+            "verdict": "pass"
+          },
+          {
+            "note": "Each platform pillar (SEO, ordering, loyalty, dispute management) is attached to a hard number like '17x ROI' or '$1,244 Recovered'.",
+            "check": "Feature-to-outcome translation",
+            "verdict": "pass"
+          },
+          {
+            "note": "The stats section displays placeholder values ('+ 0 % Average Revenue Increase', '$ 0 /mo Average Savings') suggesting counters that fail to render outside their intended script context.",
+            "check": "Visual hierarchy",
+            "verdict": "weak"
+          },
+          {
+            "note": "El Tapatio's case study gives an exact before/after figure, '$1,874/mo to $9,732/mo in Online Sales', which is precise and verifiable.",
+            "check": "Before/after contrast or concreteness",
+            "verdict": "pass"
+          },
+          {
+            "note": "Named operators (Taco Nazo, Beeryland, Two Eggs!), a 4.8/5 G2 rating from 100+ reviews, and '17K+ Restaurant Locations' are surfaced prominently rather than buried.",
+            "check": "Social proof",
+            "verdict": "pass"
+          },
+          {
+            "note": "The primary CTA 'Get Free Demo' is generic and doesn't carry the same specificity or urgency as the surrounding case-study numbers.",
+            "check": "CTA language",
+            "verdict": "weak"
+          }
+        ],
+        "content_length": 5939
+      }
     }
   ],
   "failed": [
@@ -624,6 +1002,186 @@
       "name": "Clay",
       "source_url": "https://www.clay.com/changelog",
       "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Monday.com",
+      "source_url": "https://monday.com/whats-new",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Loom",
+      "source_url": "https://www.atlassian.com/blog/loom/unstuck-your-meetings",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Pitch",
+      "source_url": "https://pitch.com/blog/60-product-updates-q1-in-review",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Miro",
+      "source_url": "https://miro.com/changelog/",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Typeform",
+      "source_url": "https://www.typeform.com/blog/how-thacollabs-built-a-creator-onboarding-engine-with-typeform",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Webflow",
+      "source_url": "https://webflow.com/updates/webflow-in-chatgpt",
+      "reason": "fetch_error: fetch failed"
+    },
+    {
+      "type": "failed",
+      "name": "Framer",
+      "source_url": "https://www.framer.com/updates/fable-5",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Customer.io",
+      "source_url": "https://customer.io/learn/omnichannel/customer-messaging-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Apollo.io",
+      "source_url": "https://knowledge.apollo.io/hc/en-us/articles/43226752968077-Release-Notes-2026",
+      "reason": "fetch_status_403"
+    },
+    {
+      "type": "failed",
+      "name": "Canva",
+      "source_url": "https://www.canva.com",
+      "reason": "fetch_status_403"
+    },
+    {
+      "type": "failed",
+      "name": "Grammarly",
+      "source_url": "https://www.grammarly.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Dropbox",
+      "source_url": "https://www.dropbox.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Trello",
+      "source_url": "https://trello.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Buffer",
+      "source_url": "https://buffer.com/resources/buffer-home/",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Beehiiv",
+      "source_url": "https://www.beehiiv.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Kajabi",
+      "source_url": "https://kajabi.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Notion",
+      "source_url": "https://www.notion.com/releases/2026-07-09",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Figma",
+      "source_url": "https://www.figma.com/blog/gpt-5-6-is-now-available-in-figma-make/",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Chowly",
+      "source_url": "https://www.chowly.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Webflow",
+      "source_url": "https://webflow.com/updates/webflow-in-chatgpt",
+      "reason": "fetch_error: fetch failed"
+    },
+    {
+      "type": "failed",
+      "name": "Customer.io",
+      "source_url": "https://customer.io/learn/omnichannel/customer-messaging-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Notion",
+      "source_url": "https://www.notion.com/releases/2026-07-09",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Chowly",
+      "source_url": "https://www.chowly.com",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Webflow",
+      "source_url": "https://webflow.com/updates/webflow-in-chatgpt",
+      "reason": "fetch_error: fetch failed"
+    },
+    {
+      "type": "failed",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "reason": "score_error: This operation was aborted"
+    },
+    {
+      "type": "failed",
+      "name": "Webflow",
+      "source_url": "https://webflow.com/updates/webflow-in-chatgpt",
+      "reason": "fetch_error: fetch failed"
     }
   ],
   "needs_manual": [
@@ -656,6 +1214,54 @@
       "name": "Hotjar",
       "source_url": "https://www.hotjar.com/blog/",
       "reason": "polluted_input (model-flagged)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Asana",
+      "source_url": "https://asana.com/whats-new",
+      "reason": "extracted_text_too_short (225 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Calendly",
+      "source_url": "https://calendly.com/release-notes",
+      "reason": "extracted_text_too_short (42 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Calendly",
+      "source_url": "https://calendly.com/release-notes",
+      "reason": "extracted_text_too_short (42 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Cal.com",
+      "source_url": "https://cal.com/blog/category/updates",
+      "reason": "extracted_text_too_short (249 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Duolingo",
+      "source_url": "https://www.duolingo.com",
+      "reason": "extracted_text_too_short (8 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Substack",
+      "source_url": "https://substack.com",
+      "reason": "extracted_text_too_short (345 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Circle",
+      "source_url": "https://circle.so",
+      "reason": "extracted_text_too_short (228 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Semrush",
+      "source_url": "https://www.semrush.com/news/",
+      "reason": "extracted_text_too_short (398 chars)"
     }
   ]
 }
