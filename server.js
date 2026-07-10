@@ -44,6 +44,16 @@ const INDEX_CANONICAL_PATTERNS = [
   'Zero/Buried Social Proof'
 ];
 
+const INDEX_SEVEN_CHECKS = [
+  { name: 'Subject line / headline construction', explanation: 'Does the subject or headline lead with an outcome the reader cares about, rather than a feature name or internal label?' },
+  { name: 'Lead construction', explanation: 'Does the opening line hook the reader with a concrete stake or benefit before any setup or preamble?' },
+  { name: 'Feature-to-outcome translation', explanation: 'Are features explained in terms of what the reader can now do or achieve, not just what was shipped?' },
+  { name: 'Visual hierarchy', explanation: 'Does formatting (headings, spacing, emphasis) guide the eye to the most important information first?' },
+  { name: 'Before/after contrast or concreteness', explanation: 'Does the content use specific, concrete before/after framing rather than vague or abstract claims?' },
+  { name: 'Social proof', explanation: 'Is there evidence — numbers, quotes, customer names — that others have used or validated this?' },
+  { name: 'CTA language', explanation: 'Does the call to action use ownership language ("Get your X") rather than guest language ("Learn more", "Submit")?' }
+];
+
 function buildIndexScoringPrompt(contentType, content) {
   return `You are WHY., a friction diagnostic tool, scoring content for the public Decision Friction Index. Analyze the following ${contentType} and return a JSON object with this exact structure:
 
@@ -51,12 +61,16 @@ function buildIndexScoringPrompt(contentType, content) {
   "score": <number 1-10, one decimal allowed, where 10 = excellent structural quality (low decision friction) and 1 = severe structural failure (high decision friction)>,
   "patterns": [<array of 1-4 labels, ONLY from this exact canonical list, no others: ${INDEX_CANONICAL_PATTERNS.map(p => `"${p}"`).join(', ')}>],
   "diagnosis_summary": "<2-3 sentences, clinical tone, referencing the actual content>",
-  "input_quality": "<clean | polluted>"
+  "input_quality": "<clean | polluted>",
+  "checks": [<array of EXACTLY 7 objects, one per diagnostic point below, IN THIS EXACT ORDER, each shaped { "check": "<name>", "verdict": "<pass | weak | fail>", "note": "<one sentence, specific to this content>" }:
+    ${INDEX_SEVEN_CHECKS.map((c, i) => `${i + 1}. "${c.name}"`).join(', ')}
+  >]
 }
 
 Rules:
 - patterns must contain ONLY labels from the canonical list above, spelled exactly as given. Do not invent new labels. Pick the ones that genuinely apply, ranked by severity (most severe first).
 - Be brutally specific in diagnosis_summary — reference actual phrases or structural decisions in the content.
+- checks MUST contain exactly 7 objects, in the fixed order given above, with "check" spelled exactly as given. Each "note" must be one sentence and reference something specific in this content, not a generic statement.
 - Set "input_quality" to "polluted" if the provided content appears to be mostly navigation menus, footer templates, cookie banners, or site chrome rather than the actual email/changelog/blog/landing page content. Otherwise set it to "clean".
 - Return ONLY valid JSON, no markdown, no backticks, no explanation.
 
@@ -894,9 +908,11 @@ async function setupDB() {
       patterns          JSONB NOT NULL,
       diagnosis_summary TEXT NOT NULL,
       input_excerpt     TEXT,
+      checks            JSONB,
       scored_at         TIMESTAMPTZ DEFAULT now()
     )
   `).catch(e => console.error('[DB] index_companies:', e.message));
+  await pool.query(`ALTER TABLE index_companies ADD COLUMN IF NOT EXISTS checks JSONB`).catch(e => console.error('[DB] index_companies.checks:', e.message));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS why_jobs (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6646,6 +6662,7 @@ function renderFrictionIndexHtml(companies) {
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
+    <a href="/friction-index/methodology">Methodology</a> ·
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
@@ -6681,6 +6698,29 @@ function renderCompanyPageHtml(company) {
     newsletter: 'Newsletter'
   };
   const typeLabel = escapeHtml(CONTENT_TYPE_LABELS[company.content_type] || company.content_type);
+
+  const scoredDate = company.scored_at
+    ? new Date(company.scored_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+
+  const checks = Array.isArray(company.checks) ? company.checks : null;
+  const VERDICT_STYLE = {
+    pass: 'background:rgba(0,212,200,0.12);color:var(--teal);border:1px solid var(--teal-dim);',
+    weak: 'background:var(--card2);color:var(--muted);border:1px solid var(--hairline);',
+    fail: 'background:rgba(229,72,77,0.10);color:#e5484d;border:1px solid #e5484d;'
+  };
+  const checksHtml = checks ? `
+  <div class="checks-section">
+    <h2 class="checks-heading">7-point breakdown</h2>
+    ${checks.map(c => `
+    <div class="check-row">
+      <div class="check-row-top">
+        <span class="check-name">${escapeHtml(c.check)}</span>
+        <span class="verdict-chip" style="${VERDICT_STYLE[c.verdict] || VERDICT_STYLE.weak}">${escapeHtml(c.verdict)}</span>
+      </div>
+      <p class="check-note">${escapeHtml(c.note)}</p>
+    </div>`).join('\n    ')}
+  </div>` : '';
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -6740,6 +6780,13 @@ function renderCompanyPageHtml(company) {
   .framework-note{font-size:13px;color:var(--muted);margin:-16px 0 24px;}
   .framework-note a{color:var(--muted);text-decoration:underline;}
   .framework-note a:hover{color:var(--teal);}
+  .checks-section{margin:32px 0;}
+  .checks-heading{font-size:14px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-family:'DM Mono',monospace;margin:0 0 16px;}
+  .check-row{background:var(--card);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .check-row-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;}
+  .check-name{font-weight:600;font-size:14px;color:#fff;}
+  .verdict-chip{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+  .check-note{font-size:13px;color:var(--muted);line-height:1.5;margin:0;}
   .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
@@ -6765,10 +6812,11 @@ function renderCompanyPageHtml(company) {
     </div>
   </div>
   <div class="score-display">${score}/10</div>
-  <div class="framework-note">Scored with the Strategic Flow <a href="/why">7-point diagnostic framework</a></div>
+  <div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}${typeLabel} · <a href="/friction-index/methodology">How scoring works →</a></div>
   <div class="patterns">
     ${patterns.map(p => `<span class="pattern-tag">${escapeHtml(p)}</span>`).join('\n    ')}
   </div>
+  ${checksHtml}
   <p class="summary">${summary}</p>
   ${excerpt ? `<blockquote>${excerpt}</blockquote>` : ''}
   <div class="cta-row">
@@ -6783,6 +6831,124 @@ function renderCompanyPageHtml(company) {
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
+    <a href="/friction-index/methodology">Methodology</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
+</body>
+</html>`;
+}
+
+function renderMethodologyHtml() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'How scores are produced — The Decision Friction Index Methodology',
+    description: 'How Strategic Flow scores public SaaS content on structural conversion quality using a 7-point diagnostic framework.',
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
+    author: { '@type': 'Organization', name: 'Strategic Flow' }
+  };
+
+  const checksListHtml = INDEX_SEVEN_CHECKS.map((c, i) => `
+      <li><strong>${i + 1}. ${escapeHtml(c.name)}</strong> — ${escapeHtml(c.explanation)}</li>`).join('');
+
+  const patternsListHtml = INDEX_CANONICAL_PATTERNS.map(p => {
+    const defs = {
+      'Filing Label Subject': 'A subject line that names an internal category or feature instead of the outcome for the reader.',
+      'Feature-First Bias': 'Leading with what was built rather than what the reader can now do.',
+      'Guest Language CTA': 'A call to action phrased as a favor to the sender ("Learn more", "Submit") instead of a benefit to the reader.',
+      'Consequence-After-Caveat': 'Burying the real stakes or impact after qualifiers, caveats, or disclaimers.',
+      'Missing Visual Hierarchy': 'No formatting cues to guide the reader to what matters most.',
+      'Zero/Buried Social Proof': 'No evidence of validation from other users, or proof buried far from the point it should support.'
+    };
+    return `\n      <li><strong>${escapeHtml(p)}</strong> — ${escapeHtml(defs[p] || '')}</li>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — How the Decision Friction Index Scores Content | Strategic Flow</title>
+<meta name="description" content="How Strategic Flow scores public SaaS content on structural conversion quality using a 7-point diagnostic framework applied consistently by an AI diagnostic engine.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:60px 24px;}
+  h1{font-size:32px;margin:0 0 8px;}
+  .subtitle{color:var(--muted);font-size:16px;margin-bottom:40px;}
+  h2{font-size:20px;margin:40px 0 16px;color:#fff;}
+  p{font-size:15px;line-height:1.7;color:#dce8f5;margin:0 0 16px;}
+  ul{padding-left:20px;margin:0 0 16px;}
+  li{font-size:14px;line-height:1.7;color:#dce8f5;margin-bottom:10px;}
+  li strong{color:#fff;}
+  a{color:var(--teal);}
+  .contact-note{background:var(--card);border:1px solid var(--hairline);border-radius:10px;padding:16px 20px;font-size:14px;color:var(--muted);}
+  .contact-note a{color:var(--teal);}
+  .back-link{color:var(--muted);text-decoration:none;font-size:14px;display:inline-block;margin-top:24px;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:720px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index">The Index</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
+  </nav>
+</div>
+<div class="wrap">
+  <h1>Methodology</h1>
+  <p class="subtitle">How scores on the Decision Friction Index are produced.</p>
+
+  <h2>How scores are produced</h2>
+  <p>Every piece of content on the Index is evaluated against the same 7-point structural framework. Scoring is performed by an AI diagnostic engine (Claude, Anthropic) applying the Strategic Flow framework consistently across every company — the same checks, in the same order, every time.</p>
+  <ul>${checksListHtml}
+  </ul>
+  <p>Scores range from 1 to 10, where 10 represents excellent structural quality (low decision friction) and 1 represents severe structural failure (high decision friction).</p>
+
+  <h2>What we score</h2>
+  <p>Only publicly available content: changelogs, product update blog posts, landing pages, and newsletters. Each company page on the Index shows the content type scored, the excerpt that was evaluated, and the date it was scored.</p>
+
+  <h2>What the score is NOT</h2>
+  <p>The score is not a judgment of the product, the company, or the team behind it. It measures the structural conversion quality of one specific piece of communication, at one point in time — nothing more.</p>
+
+  <h2>Limitations</h2>
+  <p>Scores reflect a single content sample. Companies iterate constantly, and a score can improve the next time that company's content is re-scored. If you believe a score is out of date or based on the wrong sample, companies can request a re-score or a correction by contacting <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a>.</p>
+
+  <h2>The pattern library</h2>
+  <p>When content is scored, it may be tagged with one or more of these six canonical failure patterns:</p>
+  <ul>${patternsListHtml}
+  </ul>
+
+  <div class="contact-note">Think your score is wrong, or your content has changed since it was scored? Email <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a> to request a re-score or correction.</div>
+
+  <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
+</div>
+<footer class="site-footer">
+  <div>The Decision Friction Index is published by Strategic Flow — behavioral email architecture diagnostics for B2B SaaS.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
+    <a href="/friction-index/methodology">Methodology</a> ·
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
@@ -8682,10 +8848,20 @@ setupDB().then(async () => {
       const diagnosisSummary = result.diagnosis_summary || '';
       const inputExcerpt = String(content).slice(0, 300);
 
+      let checks = null;
+      if (Array.isArray(result.checks) && result.checks.length === 7) {
+        const valid = result.checks.every((c, i) =>
+          c && c.check === INDEX_SEVEN_CHECKS[i].name &&
+          ['pass', 'weak', 'fail'].includes(c.verdict) &&
+          typeof c.note === 'string' && c.note.trim().length > 0
+        );
+        if (valid) checks = result.checks;
+      }
+
       const insert = await pool.query(
-        `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [slug, name, domain, content_type, score, JSON.stringify(patterns), diagnosisSummary, inputExcerpt]
+        `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt, checks)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [slug, name, domain, content_type, score, JSON.stringify(patterns), diagnosisSummary, inputExcerpt, checks ? JSON.stringify(checks) : null]
       );
       const row = insert.rows[0];
       res.json({ slug: row.slug, score: row.score, patterns: row.patterns, url: `/friction-index/${row.slug}` });
@@ -8746,6 +8922,11 @@ setupDB().then(async () => {
     } catch (err) {
       res.status(500).send('Error loading Decision Friction Index');
     }
+  });
+
+  app.get('/friction-index/methodology', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(renderMethodologyHtml());
   });
 
   app.get('/friction-index/:slug', async (req, res) => {
