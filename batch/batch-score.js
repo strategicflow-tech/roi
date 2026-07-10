@@ -65,11 +65,25 @@ function extractMainContentHtml(html) {
   return stripped;
 }
 
+function stripFilterChrome(text) {
+  const markers = ['Latest Posts', 'Latest posts', 'Recent Posts', 'Recent posts', 'Latest articles', 'Trending topics'];
+  for (const marker of markers) {
+    const idx = text.indexOf(marker);
+    if (idx > 0 && idx < text.length * 0.6) {
+      return text.slice(idx + marker.length);
+    }
+  }
+  text = text.replace(/Use this dropdown to filter[\s\S]*?desktop tag list below\.\s*/gi, '');
+  text = text.replace(/(?:[A-Za-z][A-Za-z .]{1,30}\(\d+\)\s*){4,}/g, '');
+  return text;
+}
+
 function extractReadableText(html) {
   let text = extractMainContentHtml(html);
   text = text.replace(/<[^>]*>/g, ' ');
   text = decodeEntities(text);
   text = text.replace(/\s+/g, ' ').trim();
+  text = stripFilterChrome(text).trim();
   return text.slice(0, MAX_CONTENT_LENGTH);
 }
 
@@ -149,10 +163,18 @@ function parseIntArg(name) {
   return arg ? parseInt(arg.slice(prefix.length), 10) : null;
 }
 
+function parseOnlyArg() {
+  const prefix = '--only=';
+  const arg = process.argv.find(a => a.startsWith(prefix));
+  if (!arg) return null;
+  return arg.slice(prefix.length).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
 async function main() {
   const pilotMode = process.argv.includes('--pilot');
   const startArg = parseIntArg('start');
   const countArg = parseIntArg('count');
+  const onlyArg = parseOnlyArg();
 
   if (!fs.existsSync(COMPANIES_PATH)) {
     console.error(`FATAL: ${COMPANIES_PATH} not found.`);
@@ -161,7 +183,10 @@ async function main() {
   let companies = JSON.parse(fs.readFileSync(COMPANIES_PATH, 'utf8'));
   const offset = startArg || 0;
 
-  if (pilotMode) {
+  if (onlyArg) {
+    companies = companies.filter(c => onlyArg.includes(c.name.toLowerCase()));
+    console.log(`Running filtered batch: ${companies.length} companies (${companies.map(c => c.name).join(', ')}).\n`);
+  } else if (pilotMode) {
     companies = companies.slice(0, 5);
     console.log(`[pilot mode] Running first ${companies.length} companies only.\n`);
   } else if (startArg !== null || countArg !== null) {
@@ -205,7 +230,7 @@ async function main() {
   }
 
   let merged = results;
-  if ((startArg !== null || countArg !== null) && fs.existsSync(RESULTS_PATH)) {
+  if ((startArg !== null || countArg !== null || onlyArg) && fs.existsSync(RESULTS_PATH)) {
     try {
       const prev = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf8'));
       merged = {

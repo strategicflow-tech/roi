@@ -9,7 +9,7 @@
   { "name": "Monday.com", "domain": "monday.com", "content_type": "product_update_blog", "source_url": "https://monday.com/whats-new" },
   { "name": "ClickUp", "domain": "clickup.com", "content_type": "changelog", "source_url": "https://feedback.clickup.com/changelog" },
   { "name": "Airtable", "domain": "airtable.com", "content_type": "product_update_blog", "source_url": "https://community.airtable.com/announcements-6" },
-  { "name": "Zapier", "domain": "zapier.com", "content_type": "changelog", "source_url": "https://help.zapier.com/hc/en-us/sections/46597589948685-Product-updates-June-2026" },
+  { "name": "Zapier", "domain": "zapier.com", "content_type": "changelog", "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026" },
   { "name": "Calendly", "domain": "calendly.com", "content_type": "product_update_blog", "source_url": "https://calendly.com/release-notes" },
   { "name": "Loom", "domain": "loom.com", "content_type": "changelog", "source_url": "https://www.atlassian.com/blog/loom/unstuck-your-meetings" },
   { "name": "Pitch", "domain": "pitch.com", "content_type": "product_update_blog", "source_url": "https://pitch.com/blog/60-product-updates-q1-in-review" },

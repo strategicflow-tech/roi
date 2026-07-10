@@ -20,6 +20,27 @@
       "source_url": "https://miro.com/changelog/",
       "score": "3.8",
       "url": "/friction-index/miro"
+    },
+    {
+      "type": "ok",
+      "name": "Clay",
+      "source_url": "https://www.clay.com/changelog",
+      "score": "3.8",
+      "url": "/friction-index/clay"
+    },
+    {
+      "type": "ok",
+      "name": "Zapier",
+      "source_url": "https://help.zapier.com/hc/en-us/articles/46597632373389-AI-by-Zapier-new-model-based-pricing-starting-June-15-2026",
+      "score": "4.8",
+      "url": "/friction-index/zapier"
+    },
+    {
+      "type": "ok",
+      "name": "HubSpot",
+      "source_url": "https://developers.hubspot.com/changelog",
+      "score": "3.2",
+      "url": "/friction-index/hubspot"
     }
   ],
   "skipped": [
@@ -272,6 +293,51 @@
         "input_excerpt": "Unstuck your meetings: Loom&#039;s new AI for productive meetings - Inside Atlassian Skip to content Unstuck your meetings: Loom&#8217;s new AI for productive meetings August 6, 2025 Published In AI at Work The Problem with Meetings Ah, the classic virtual meeting. Though meant to be a platform for ",
         "scored_at": "2026-07-10T00:33:48.365Z"
       }
+    },
+    {
+      "type": "skipped",
+      "name": "Typeform",
+      "source_url": "https://www.typeform.com/blog/how-thacollabs-built-a-creator-onboarding-engine-with-typeform",
+      "reason": "already_scored",
+      "existing": {
+        "id": 27,
+        "slug": "typeform",
+        "name": "Typeform",
+        "domain": "typeform.com",
+        "content_type": "product_update_blog",
+        "score": "6.5",
+        "patterns": [
+          "Feature-First Bias",
+          "Missing Visual Hierarchy",
+          "Zero/Buried Social Proof"
+        ],
+        "diagnosis_summary": "The narrative leads with Typeform feature names as section headers ('Adding structure and Logic', 'Creating a branded experience') rather than respondent outcomes, subordinating the customer's problem to product capability. The piece is a dense wall of paragraphs with minimal scannable structure until late numbered fixes appear, and despite being framed as a success story, no quantified completion-rate lift or measurable result is shown before the content cuts off, leaving the core proof point buried or absent.",
+        "input_excerpt": "Blog home Customer How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue How ThaCollabs built a creator onboarding engine with Typeform without the form fatigue See how ThaCollabs refined its creator intake form into a premium onboarding experience by reducing form ",
+        "scored_at": "2026-07-10T00:52:50.542Z"
+      }
+    },
+    {
+      "type": "skipped",
+      "name": "Mixpanel",
+      "source_url": "https://docs.mixpanel.com/changelogs",
+      "reason": "already_scored",
+      "existing": {
+        "id": 28,
+        "slug": "mixpanel",
+        "name": "Mixpanel",
+        "domain": "mixpanel.com",
+        "content_type": "changelog",
+        "score": "6.3",
+        "patterns": [
+          "Zero/Buried Social Proof",
+          "Feature-First Bias",
+          "Guest Language CTA",
+          "Missing Visual Hierarchy"
+        ],
+        "diagnosis_summary": "Across six dated entries — Mixpanel Agent, Flutter Session Replay, Multi-Environment Flags, Flag Persistence, Audit Log, Databricks — not a single customer quote, adoption number, or named beta user appears despite claims like 'customers had been asking us' and 'early customers'. Every section resolves into an identical generic 'Learn more →' or 'Get started →' link rather than a specific next action, and bulleted capability lists ('Self-serve answers,' 'Root cause analysis,' 'KPI monitoring') are presented before any concrete outcome is quantified. The text runs as dense unbroken paragraphs with bullets embedded mid-sentence, and the document cuts off abruptly mid-clause ('if your Data'), signaling weak editorial hierarchy.",
+        "input_excerpt": "Get all the latest updates in your inbox. ​ 2026-06-25 ​ Introducing Mixpanel Agent: your always-on product analyst Mixpanel Agent is now available for your team. It’s an always-on product analyst that answers questions about your data in plain language, automatically investigates metric changes, an",
+        "scored_at": "2026-07-10T00:53:11.211Z"
+      }
     }
   ],
   "failed": [],
@@ -281,6 +347,30 @@
       "name": "Calendly",
       "source_url": "https://calendly.com/release-notes",
       "reason": "extracted_text_too_short (42 chars)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "HubSpot",
+      "source_url": "https://developers.hubspot.com/changelog",
+      "reason": "polluted_input (model-flagged)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Hotjar",
+      "source_url": "https://www.hotjar.com/blog/",
+      "reason": "polluted_input (model-flagged)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "HubSpot",
+      "source_url": "https://developers.hubspot.com/changelog",
+      "reason": "polluted_input (model-flagged)"
+    },
+    {
+      "type": "needs_manual",
+      "name": "Hotjar",
+      "source_url": "https://www.hotjar.com/blog/",
+      "reason": "polluted_input (model-flagged)"
     }
   ]
 }
