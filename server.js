@@ -9998,6 +9998,28 @@ setupDB().then(async () => {
     })();
   }
 
+  // Deletes a company and all its associated model results / questions.
+  // Used to remove bad or misleading scores (e.g. wrong category guess).
+  app.delete('/api/ai-visibility-index/company/:slug', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { slug } = req.params;
+    try {
+      const companyResult = await pool.query('SELECT slug FROM ai_visibility_companies WHERE slug = $1', [slug]);
+      if (!companyResult.rows.length) {
+        return res.status(404).json({ error: 'company_not_found' });
+      }
+      await pool.query('DELETE FROM ai_visibility_model_results WHERE company_slug = $1', [slug]);
+      await pool.query('DELETE FROM ai_visibility_questions WHERE company_slug = $1', [slug]);
+      await pool.query('DELETE FROM ai_visibility_companies WHERE slug = $1', [slug]);
+      res.json({ deleted: slug });
+    } catch (err) {
+      console.error('[ai-visibility-index delete company]', err.message);
+      res.status(500).json({ error: 'Failed to delete company' });
+    }
+  });
+
   // Retries specific failed models for an already-scored company, keeping the
   // existing 'ok' results untouched, then recomputes the average. If a retried
   // model still fails, the company is flagged partial_coverage=true so the
