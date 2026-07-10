@@ -7652,10 +7652,20 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
     <div>${allCompetitors.map(c => `<span class="pattern-tag">${escapeHtml(c)}</span>`).join(' ')}</div>
   </div>` : '';
 
+  const badgeSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" viewBox="0 0 300 120">
+    <rect width="300" height="120" rx="12" fill="#0b0f10"/>
+    <rect x="1" y="1" width="298" height="118" rx="11" fill="none" stroke="#1f2a2a" stroke-width="1"/>
+    <image href="https://logo.clearbit.com/${escapeHtml(company.domain)}" x="18" y="18" width="36" height="36" clip-path="inset(0 round 8px)"/>
+    <text x="66" y="34" font-family="Figtree, sans-serif" font-size="14" font-weight="600" fill="#ffffff">${name}</text>
+    <text x="66" y="52" font-family="Figtree, sans-serif" font-size="11" fill="#9aa6a6">AI Visibility Score</text>
+    <text x="18" y="88" font-family="Figtree, sans-serif" font-size="30" font-weight="700" fill="#00d4c8">${score}<tspan font-size="14" fill="#9aa6a6">/10</tspan></text>
+    <text x="18" y="106" font-family="Figtree, sans-serif" font-size="10" fill="#5f6b6b">Verified by Strategic Flow</text>
+  </svg>`;
+
   const badgeEmbedHtml = isPro ? `
   <div class="pro-embed-section">
     <h2 class="questions-heading">Your embeddable badge</h2>
-    <img src="/api/ai-visibility-index/badge/${escapeHtml(company.slug)}" alt="${name} AI Visibility badge" width="300" height="120">
+    ${badgeSvg}
     <p class="embed-hint">Copy this snippet to embed the badge on your own site:</p>
     <pre class="full-answer-block">&lt;img src="https://strategic-flow-audit.replit.app/api/ai-visibility-index/badge/${escapeHtml(company.slug)}" alt="${name} AI Visibility Score" width="300" height="120"&gt;</pre>
   </div>` : `
