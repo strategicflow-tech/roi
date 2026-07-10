@@ -7370,7 +7370,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
       ${r.raw_answer_excerpt ? `
       <tr class="excerpt-row">
         <td></td>
-        <td colspan="4"><blockquote>${escapeHtml(r.raw_answer_excerpt)}</blockquote></td>
+        <td colspan="4"><span class="excerpt-label">Full model answers (all 5 questions, unedited)</span><pre class="full-answer-block">${escapeHtml(r.raw_answer_excerpt)}</pre></td>
       </tr>` : ''}`;
   }).join('\n');
 
@@ -7424,6 +7424,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   .competitors-label{color:var(--muted);font-size:12px;margin-right:6px;}
   .pattern-tag{display:inline-block;background:var(--card2);border:1px solid var(--hairline);color:#fff;font-size:12px;padding:3px 10px;border-radius:16px;margin:2px 2px 0 0;}
   blockquote{background:var(--card2);border-left:3px solid var(--teal);padding:10px 14px;margin:6px 0 0;font-style:italic;color:var(--muted);font-size:12px;}
+  .full-answer-block{background:var(--card2);border-left:3px solid var(--teal);padding:10px 14px;margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto;font-family:inherit;}
   .questions-section{margin:32px 0;}
   .questions-heading{font-size:14px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-family:'DM Mono',monospace;margin:0 0 16px;}
   .questions-section ul{padding-left:20px;margin:0;}
@@ -9763,9 +9764,13 @@ setupDB().then(async () => {
 
     try {
       const analysis = await analyzeVisibilityAnswers(name, domain, category, null, answers);
-      const excerptSource = analysis.mentioned
-        ? (answers.find(a => a.toLowerCase().includes(name.toLowerCase()) || a.toLowerCase().includes(domain.toLowerCase())) || answers[0])
-        : answers[0];
+      // Store the FULL, untruncated text of all 5 answers (not a preview) so every
+      // published score is independently auditable end-to-end against the real
+      // model output — never claim a result is verified if the evidence backing it
+      // isn't fully stored. Column is TEXT (no practical length limit).
+      const fullAnswerRecord = answers
+        .map((a, i) => `Q${i + 1}: ${questions[i]}\n\n${a}`)
+        .join('\n\n---\n\n');
       return {
         model,
         status: 'ok',
@@ -9773,7 +9778,7 @@ setupDB().then(async () => {
         position: analysis.mentioned ? analysis.position : 'absent',
         description_accuracy: analysis.mentioned ? analysis.description_accuracy : null,
         competitors_shown: Array.isArray(analysis.competitors_shown) ? analysis.competitors_shown : [],
-        raw_answer_excerpt: excerptSource ? excerptSource.slice(0, 400) : null
+        raw_answer_excerpt: fullAnswerRecord || null
       };
     } catch (err) {
       console.error(`[ai-visibility-index] ${model} analysis failed:`, err.message);
