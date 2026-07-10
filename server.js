@@ -153,11 +153,27 @@ async function queryPerplexityForVisibility(question) {
 
 async function analyzeVisibilityAnswers(companyName, domain, category, knownPositioning, modelAnswers) {
   const answersBlock = modelAnswers.map((a, i) => `Answer ${i + 1}:\n${a}`).join('\n\n');
-  const prompt = `Given these 5 AI assistant answers to buyer questions in ${category}, determine: was
-${companyName} (${domain}) mentioned in any answer (true/false), what position did it appear in
-across mentions (1st/2nd/3rd_plus/absent), is the company's description (if any)
-accurate to its actual positioning as ${knownPositioning || 'a ' + category + ' company'}, and which competitor names
-appeared instead or alongside. Return ONLY valid JSON, no markdown, no backticks, in this exact shape:
+  const prompt = `Given these 5 AI assistant answers to buyer questions in ${category}, determine
+whether ${companyName} (${domain}) was mentioned in any answer (true/false), what position it
+held, is the company's description (if any) accurate to its actual positioning as
+${knownPositioning || 'a ' + category + ' company'}, and which competitor names appeared instead
+or alongside.
+
+POSITION MUST BE DETERMINED PER-ANSWER, THEN THE STRONGEST (BEST) POSITION ACROSS ALL 5 ANSWERS WINS:
+- Position is the ORDER IN WHICH ${companyName} IS NAMED relative to other vendors in that
+  specific answer's text — the first vendor named in the answer is "1st", the second distinct
+  vendor named is "2nd", the third or later is "3rd_plus". Read strictly in the order names
+  appear in the text, not by which one the model seems to prefer overall.
+- If an answer frames another vendor as the primary/top pick and then names ${companyName}
+  afterward — including phrasing like "X is the strongest choice, but ${companyName} is a common
+  alternative", "if you want Y instead, ${companyName}...", or any construction where a different
+  vendor's name appears first in the text — ${companyName} is NOT "1st" in that answer. Score it
+  by its actual named order (2nd, 3rd_plus, etc.), even if the model calls it "the most common
+  alternative" or otherwise implies popularity.
+- Being named as the ONLY vendor, or being the first vendor name of the answer, is the only way
+  to earn "1st" for that answer.
+
+Return ONLY valid JSON, no markdown, no backticks, in this exact shape:
 { "mentioned": <true|false>, "position": "<1st|2nd|3rd_plus|absent>", "description_accuracy": "<pass|weak|fail>", "competitors_shown": [<array of competitor name strings>], "summary_note": "<one sentence>" }
 
 If mentioned is false, position must be "absent" and description_accuracy should reflect that there was nothing to judge (use "fail" only if a wrong/misleading claim was made about the company anyway, otherwise use "weak" as a neutral placeholder — never invent an accuracy verdict for content that doesn't exist).
