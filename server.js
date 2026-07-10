@@ -94,6 +94,99 @@ async function scoreContentWithClaude(prompt) {
   return result;
 }
 
+// ─── AI VISIBILITY INDEX — question generation, model queries, analysis ────
+
+async function buildBuyerQuestions(companyName, category) {
+  const prompt = `Given a company named ${companyName} in the category ${category}, generate exactly 5
+realistic buyer questions a prospective customer would type into an AI assistant while
+evaluating vendors in this space. Questions should NOT mention ${companyName} directly —
+they should be the kind of category/use-case questions a buyer asks BEFORE knowing which
+vendors exist. Return ONLY valid JSON in this exact shape, no markdown, no backticks:
+{ "questions": ["<question 1>", "<question 2>", "<question 3>", "<question 4>", "<question 5>"] }`;
+
+  const result = await scoreContentWithClaude(prompt);
+  if (!Array.isArray(result?.questions) || result.questions.length !== 5) {
+    throw new Error('question_generation_failed');
+  }
+  return result.questions;
+}
+
+async function queryClaudeForVisibility(question) {
+  const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: 'user', content: question }] })
+  });
+  if (!apiResp.ok) throw new Error(`claude_http_${apiResp.status}`);
+  const data = await apiResp.json();
+  const textBlock = data.content?.find(b => b.type === 'text');
+  const text = textBlock?.text || '';
+  if (!text) throw new Error('claude_empty_response');
+  return text;
+}
+
+async function queryGPTForVisibility(question) {
+  const apiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1000, messages: [{ role: 'user', content: question }] })
+  });
+  if (!apiResp.ok) throw new Error(`gpt_http_${apiResp.status}`);
+  const data = await apiResp.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('gpt_empty_response');
+  return text;
+}
+
+async function queryPerplexityForVisibility(question) {
+  const apiResp = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+    body: JSON.stringify({ model: 'sonar-pro', max_tokens: 1000, messages: [{ role: 'user', content: question }] })
+  });
+  if (!apiResp.ok) throw new Error(`perplexity_http_${apiResp.status}`);
+  const data = await apiResp.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('perplexity_empty_response');
+  return text;
+}
+
+async function analyzeVisibilityAnswers(companyName, domain, category, knownPositioning, modelAnswers) {
+  const answersBlock = modelAnswers.map((a, i) => `Answer ${i + 1}:\n${a}`).join('\n\n');
+  const prompt = `Given these 5 AI assistant answers to buyer questions in ${category}, determine: was
+${companyName} (${domain}) mentioned in any answer (true/false), what position did it appear in
+across mentions (1st/2nd/3rd_plus/absent), is the company's description (if any)
+accurate to its actual positioning as ${knownPositioning || 'a ' + category + ' company'}, and which competitor names
+appeared instead or alongside. Return ONLY valid JSON, no markdown, no backticks, in this exact shape:
+{ "mentioned": <true|false>, "position": "<1st|2nd|3rd_plus|absent>", "description_accuracy": "<pass|weak|fail>", "competitors_shown": [<array of competitor name strings>], "summary_note": "<one sentence>" }
+
+If mentioned is false, position must be "absent" and description_accuracy should reflect that there was nothing to judge (use "fail" only if a wrong/misleading claim was made about the company anyway, otherwise use "weak" as a neutral placeholder — never invent an accuracy verdict for content that doesn't exist).
+
+${answersBlock}`;
+
+  const result = await scoreContentWithClaude(prompt);
+  if (typeof result?.mentioned !== 'boolean' || !result.position) {
+    throw new Error('analysis_parse_failed');
+  }
+  return {
+    mentioned: result.mentioned,
+    position: result.position,
+    description_accuracy: result.description_accuracy || null,
+    competitors_shown: Array.isArray(result.competitors_shown) ? result.competitors_shown : [],
+    summary_note: result.summary_note || ''
+  };
+}
+
+// Deterministic scoring formula — documented on /ai-visibility/methodology.
+// Position: 1st=6, 2nd=4, 3rd_plus=2, absent=0. Accuracy (only if mentioned): pass=4, weak=2, fail=0.
+function computeVisibilityModelScore(mentioned, position, descriptionAccuracy) {
+  const POSITION_POINTS = { '1st': 6, '2nd': 4, '3rd_plus': 2, 'absent': 0 };
+  const ACCURACY_POINTS = { pass: 4, weak: 2, fail: 0 };
+  const positionComponent = POSITION_POINTS[position] ?? 0;
+  const accuracyComponent = mentioned ? (ACCURACY_POINTS[descriptionAccuracy] ?? 0) : 0;
+  return positionComponent + accuracyComponent;
+}
+
 // ── IN-MEMORY JOB STORE (for polling-based generation) ──────────────────────
 // Each job: { status:'pending'|'complete'|'failed', result, error, created }
 const jobs = new Map();
@@ -955,6 +1048,53 @@ async function setupDB() {
 
   await pool.query(`ALTER TABLE why_jobs ADD COLUMN IF NOT EXISTS raw_response_snippet TEXT`)
     .catch(e => console.error('[DB] why_jobs raw_response_snippet col:', e.message));
+
+  // ─── AI VISIBILITY INDEX TABLES ─────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_companies (
+      id                SERIAL PRIMARY KEY,
+      slug              TEXT UNIQUE NOT NULL,
+      name              TEXT NOT NULL,
+      domain            TEXT NOT NULL,
+      category          TEXT NOT NULL,
+      visibility_score  NUMERIC(3,1),
+      scored_at         TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_companies:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_model_results (
+      id                    SERIAL PRIMARY KEY,
+      company_slug          TEXT NOT NULL REFERENCES ai_visibility_companies(slug) ON DELETE CASCADE,
+      model                 TEXT NOT NULL,
+      mentioned             BOOLEAN NOT NULL,
+      position              TEXT,
+      description_accuracy  TEXT,
+      competitors_shown     JSONB,
+      raw_answer_excerpt    TEXT,
+      status                TEXT NOT NULL DEFAULT 'ok',
+      queried_at            TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_model_results:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_questions (
+      id            SERIAL PRIMARY KEY,
+      company_slug  TEXT NOT NULL REFERENCES ai_visibility_companies(slug) ON DELETE CASCADE,
+      question      TEXT NOT NULL
+    )
+  `).catch(e => console.error('[DB] ai_visibility_questions:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_jobs (
+      id            SERIAL PRIMARY KEY,
+      status        TEXT NOT NULL DEFAULT 'pending',
+      input_domain  TEXT,
+      input_email   TEXT,
+      result_slug   TEXT,
+      created_at    TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_jobs:', e.message));
 
   console.log('[DB] All tables ready');
 }
