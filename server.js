@@ -281,15 +281,7 @@ app.use(session({
   }
 }));
 
-// In-memory magic token store — { token: { email, expires } }
-const magicTokens = new Map();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, data] of magicTokens) {
-    if (data.expires < now) magicTokens.delete(token);
-  }
-}, 30 * 60 * 1000);
+// Magic tokens stored in DB — see magic_tokens table in setupDB
 
 // ── AUTH MIDDLEWARE ────────────────────────────────────────────────────────────
 const PROTECTED_PATHS = [
@@ -664,8 +656,11 @@ app.post('/auth/magic', async (req, res) => {
   }
 
   const token = crypto.randomBytes(32).toString('hex');
-  const expires = Date.now() + 15 * 60 * 1000;
-  magicTokens.set(token, { email, expires });
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await pool.query(
+    `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
+    [token, email, expiresAt]
+  );
 
   const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
   const magicLink = `${baseUrl}/auth/verify/${token}`;
@@ -681,7 +676,7 @@ app.post('/auth/magic', async (req, res) => {
           <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;color:#111111;">Your sign-in link</h2>
           <p style="font-size:15px;color:#6b7280;margin:0 0 32px;line-height:1.6;">Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
           <a href="${magicLink}" style="display:inline-block;background:#4A8FE7;color:#ffffff;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;">Sign in to Strategic Flow →</a>
-          <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.6;">If you didn't request this, ignore this email. Your account is safe.<br>Link expires: ${new Date(expires).toUTCString()}</p>
+          <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.6;">If you didn't request this, ignore this email. Your account is safe.<br>Link expires: ${expiresAt.toUTCString()}</p>
         </div>
       `
     });
@@ -697,15 +692,16 @@ app.post('/auth/magic', async (req, res) => {
 // ── GET /auth/verify/:token ───────────────────────────────────────────────────
 app.get('/auth/verify/:token', async (req, res) => {
   const token = req.params.token;
-  const data = magicTokens.get(token);
+  const result = await pool.query('SELECT email, expires_at FROM magic_tokens WHERE token = $1', [token]);
+  const data = result.rows[0];
 
   if (!data) return res.redirect('/login.html?error=invalid');
-  if (data.expires < Date.now()) {
-    magicTokens.delete(token);
+  if (new Date(data.expires_at) < new Date()) {
+    await pool.query('DELETE FROM magic_tokens WHERE token = $1', [token]);
     return res.redirect('/login.html?error=expired');
   }
 
-  magicTokens.delete(token);
+  await pool.query('DELETE FROM magic_tokens WHERE token = $1', [token]);
   req.session.userEmail = data.email;
   req.session.signedInAt = Date.now();
   await new Promise((resolve, reject) => {
@@ -1160,6 +1156,15 @@ async function setupDB() {
       UNIQUE(email, company_slug)
     )
   `).catch(e => console.error('[DB] ai_visibility_subscribers:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS magic_tokens (
+      token TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] magic_tokens:', e.message));
 
   console.log('[DB] All tables ready');
 }
@@ -5521,8 +5526,11 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
       });
 
       const token = crypto.randomBytes(32).toString('hex');
-      const expires = Date.now() + 24 * 60 * 60 * 1000;
-      magicTokens.set(token, { email, expires });
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await pool.query(
+        `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
+        [token, email, expiresAt]
+      );
 
       const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
       const magicLink = `${baseUrl}/auth/verify/${token}`;
