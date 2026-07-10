@@ -6611,7 +6611,7 @@ function renderFrictionIndexHtml(companies) {
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index" class="current">The Index</a>
-    <a href="https://strategic-flow-pro.replit.app">Pricing</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
   </nav>
 </div>
 <div class="wrap">
@@ -6644,7 +6644,7 @@ function renderFrictionIndexHtml(companies) {
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
-    <a href="https://strategic-flow-pro.replit.app">Pricing</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
@@ -6751,7 +6751,7 @@ function renderCompanyPageHtml(company) {
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index" class="current">The Index</a>
-    <a href="https://strategic-flow-pro.replit.app">Pricing</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
   </nav>
 </div>
 <div class="wrap">
@@ -6771,7 +6771,7 @@ function renderCompanyPageHtml(company) {
   ${excerpt ? `<blockquote>${excerpt}</blockquote>` : ''}
   <div class="cta-row">
     <a class="cta-primary" href="/why">Score your own content free</a>
-    <a class="cta-secondary" href="https://strategic-flow-pro.replit.app">Get the full rebuild</a>
+    <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get the full rebuild</a>
   </div>
   <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
 </div>
@@ -6781,7 +6781,7 @@ function renderCompanyPageHtml(company) {
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
-    <a href="https://strategic-flow-pro.replit.app">Pricing</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
