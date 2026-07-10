@@ -19,7 +19,6 @@
   { "name": "Framer", "domain": "framer.com", "content_type": "changelog", "source_url": "https://www.framer.com/updates/fable-5" },
   { "name": "Amplitude", "domain": "amplitude.com", "content_type": "product_update_blog", "source_url": "https://amplitude.com/blog/wave" },
   { "name": "Mixpanel", "domain": "mixpanel.com", "content_type": "changelog", "source_url": "https://docs.mixpanel.com/changelogs" },
-  { "name": "Hotjar", "domain": "hotjar.com", "content_type": "product_update_blog", "source_url": "https://www.hotjar.com/blog/" },
   { "name": "Customer.io", "domain": "customer.io", "content_type": "product_update_blog", "source_url": "https://customer.io/learn/omnichannel/customer-messaging-2026" },
   { "name": "Lemlist", "domain": "lemlist.com", "content_type": "product_update_blog", "source_url": "https://www.lemlist.com/blog/the-4-pillars-of-email-deliverability-and-why-most-teams-only-fix-it-after-it-breaks-" },
   { "name": "Apollo.io", "domain": "apollo.io", "content_type": "changelog", "source_url": "https://knowledge.apollo.io/hc/en-us/articles/43226752968077-Release-Notes-2026" },
