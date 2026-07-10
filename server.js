@@ -917,6 +917,29 @@ async function setupDB() {
   await pool.query(`ALTER TABLE index_companies ADD COLUMN IF NOT EXISTS checks JSONB`).catch(e => console.error('[DB] index_companies.checks:', e.message));
   await pool.query(`ALTER TABLE index_companies ADD COLUMN IF NOT EXISTS content_length INTEGER`).catch(e => console.error('[DB] index_companies.content_length:', e.message));
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS index_content_samples (
+      id                SERIAL PRIMARY KEY,
+      company_slug      TEXT NOT NULL REFERENCES index_companies(slug) ON DELETE CASCADE,
+      content_type      TEXT NOT NULL,
+      score             NUMERIC(3,1) NOT NULL,
+      patterns          JSONB NOT NULL,
+      checks            JSONB,
+      diagnosis_summary TEXT NOT NULL,
+      input_excerpt     TEXT,
+      content_length    INTEGER,
+      source_url        TEXT,
+      scored_at         TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] index_content_samples:', e.message));
+  await pool.query(`
+    INSERT INTO index_content_samples (company_slug, content_type, score, patterns, checks, diagnosis_summary, input_excerpt, content_length, scored_at)
+    SELECT c.slug, c.content_type, c.score, c.patterns, c.checks, c.diagnosis_summary, c.input_excerpt, c.content_length, c.scored_at
+    FROM index_companies c
+    WHERE NOT EXISTS (
+      SELECT 1 FROM index_content_samples s WHERE s.company_slug = c.slug
+    )
+  `).catch(e => console.error('[DB] index_content_samples backfill:', e.message));
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS why_jobs (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       status        TEXT NOT NULL DEFAULT 'pending',
@@ -8876,6 +8899,82 @@ setupDB().then(async () => {
       );
       const row = insert.rows[0];
       res.json({ slug: row.slug, score: row.score, patterns: row.patterns, url: `/friction-index/${row.slug}` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/index/add-sample', async (req, res) => {
+    const providedKey = req.headers['x-admin-key'];
+    if (!INDEX_ADMIN_KEY || providedKey !== INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const { slug, content_type, content, source_url } = req.body || {};
+    if (!slug || !content_type || !content) {
+      return res.status(400).json({ error: 'slug, content_type, and content are required' });
+    }
+
+    try {
+      const companyRes = await pool.query('SELECT * FROM index_companies WHERE slug = $1', [slug]);
+      if (!companyRes.rows.length) {
+        return res.status(404).json({ error: 'company_not_found' });
+      }
+
+      const prompt = buildIndexScoringPrompt(content_type, content);
+      const result = await scoreContentWithClaude(prompt);
+
+      if (result.input_quality === 'polluted') {
+        return res.status(422).json({ error: 'polluted_input' });
+      }
+
+      const score = typeof result.score === 'number' ? result.score : parseFloat(result.score);
+      const patterns = Array.isArray(result.patterns)
+        ? result.patterns.filter(p => INDEX_CANONICAL_PATTERNS.includes(p))
+        : [];
+      const diagnosisSummary = result.diagnosis_summary || '';
+      const inputExcerpt = String(content).slice(0, 1000);
+      const contentLength = String(content).length;
+
+      let checks = null;
+      if (Array.isArray(result.checks) && result.checks.length === 7) {
+        const valid = result.checks.every((c, i) =>
+          c && c.check === INDEX_SEVEN_CHECKS[i].name &&
+          ['pass', 'weak', 'fail'].includes(c.verdict) &&
+          typeof c.note === 'string' && c.note.trim().length > 0
+        );
+        if (valid) checks = result.checks;
+      }
+
+      const sampleInsert = await pool.query(
+        `INSERT INTO index_content_samples (company_slug, content_type, score, patterns, checks, diagnosis_summary, input_excerpt, content_length, source_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [slug, content_type, score, JSON.stringify(patterns), checks ? JSON.stringify(checks) : null, diagnosisSummary, inputExcerpt, contentLength, source_url || null]
+      );
+      const sample = sampleInsert.rows[0];
+
+      const allSamples = await pool.query('SELECT score, patterns FROM index_content_samples WHERE company_slug = $1', [slug]);
+      const sampleCount = allSamples.rows.length;
+      const avgScore = allSamples.rows.reduce((sum, r) => sum + Number(r.score), 0) / sampleCount;
+      const newAverageScore = Math.round(avgScore * 10) / 10;
+
+      const patternFreq = {};
+      allSamples.rows.forEach(r => (r.patterns || []).forEach(p => { patternFreq[p] = (patternFreq[p] || 0) + 1; }));
+      const topPatterns = Object.entries(patternFreq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([p]) => p);
+
+      await pool.query(
+        `UPDATE index_companies SET score = $1, patterns = $2, checks = NULL WHERE slug = $3`,
+        [newAverageScore, JSON.stringify(topPatterns), slug]
+      );
+
+      res.json({
+        slug,
+        new_average_score: newAverageScore,
+        sample_count: sampleCount,
+        sample_added: sample
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
