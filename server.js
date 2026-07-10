@@ -8694,6 +8694,23 @@ setupDB().then(async () => {
     }
   });
 
+  app.post('/api/index/admin-delete', async (req, res) => {
+    const providedKey = req.headers['x-admin-key'];
+    if (!INDEX_ADMIN_KEY || providedKey !== INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const { slugs } = req.body || {};
+    if (!Array.isArray(slugs) || slugs.length === 0) {
+      return res.status(400).json({ error: 'slugs array is required' });
+    }
+    try {
+      const result = await pool.query('DELETE FROM index_companies WHERE slug = ANY($1) RETURNING slug', [slugs]);
+      res.json({ deleted_count: result.rowCount, deleted_slugs: result.rows.map(r => r.slug) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/index/companies', async (req, res) => {
     const { content_type } = req.query;
     try {
