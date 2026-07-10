@@ -6655,8 +6655,8 @@ function renderFrictionIndexHtml(companies) {
     </tbody>
   </table>`}
   <div class="cta-banner">
-    <div>Want to know your own score?</div>
-    <a href="/why">Score your own content free</a>
+    <div>Wondering how your own content holds up?</div>
+    <a href="/why">Find the friction in your own content — free</a>
   </div>
 </div>
 <footer class="site-footer">
@@ -6824,7 +6824,7 @@ function renderCompanyPageHtml(company) {
   <p class="summary">${summary}</p>
   ${excerpt ? `<div class="excerpt-label">Scored excerpt${company.content_length ? ` (${company.content_length.toLocaleString('en-US')} chars analyzed)` : ''}</div><blockquote>${excerpt}</blockquote>` : ''}
   <div class="cta-row">
-    <a class="cta-primary" href="/why">Score your own content free</a>
+    <a class="cta-primary" href="/why">Find the friction in your own content — free</a>
     <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get the full rebuild</a>
   </div>
   <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
@@ -6943,6 +6943,9 @@ function renderMethodologyHtml() {
   </ul>
 
   <div class="contact-note">Think your score is wrong, or your content has changed since it was scored? Email <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a> to request a re-score or correction.</div>
+
+  <h2>Index scores vs WHY.™ Friction Scores</h2>
+  <p>The Decision Friction Index and the WHY.™ diagnostic tool are built on the same underlying framework but serve different purposes. Index scores are produced with the fixed 7-point structural evaluation so companies can be compared consistently. WHY.™ delivers a deeper diagnosis of a single piece of content — friction points, predicted reader questions, and a rebuilt version — rather than a comparative ranking. The two scores are not directly interchangeable.</p>
 
   <a class="back-link" href="/friction-index">← Back to the Decision Friction Index</a>
 </div>
