@@ -30,7 +30,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const MODEL          = 'claude-sonnet-5';
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
-const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com']);
+const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com', 'alex@strategicflow.tech']);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 
 // ── DECISION FRICTION INDEX ──────────────────────────────────────────────────
