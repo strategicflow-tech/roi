@@ -1074,9 +1074,11 @@ async function setupDB() {
       domain            TEXT NOT NULL,
       category          TEXT NOT NULL,
       visibility_score  NUMERIC(3,1),
-      scored_at         TIMESTAMPTZ DEFAULT now()
+      scored_at         TIMESTAMPTZ DEFAULT now(),
+      partial_coverage  BOOLEAN DEFAULT false
     )
   `).catch(e => console.error('[DB] ai_visibility_companies:', e.message));
+  await pool.query(`ALTER TABLE ai_visibility_companies ADD COLUMN IF NOT EXISTS partial_coverage BOOLEAN DEFAULT false`).catch(e => console.error('[DB] ai_visibility_companies partial_coverage:', e.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ai_visibility_model_results (
@@ -7220,11 +7222,12 @@ function renderAiVisIndexHtml(companies) {
     const safeSlug = escapeHtml(c.slug);
     const safeCategory = escapeHtml(c.category);
     const scoreDisplay = c.visibility_score !== null ? Number(c.visibility_score).toFixed(1) : '—';
+    const partialTag = c.partial_coverage ? ' <span class="partial-tag" title="Partial coverage — not all 3 models succeeded">partial</span>' : '';
     return `
       <tr>
         <td class="rank">${i + 1}</td>
         <td class="logo-cell"><img src="https://logo.clearbit.com/${safeDomain}" alt="${safeName} logo" loading="lazy" onerror="this.style.display='none'"></td>
-        <td class="name-cell"><a href="/ai-visibility-index/${safeSlug}">${safeName}</a></td>
+        <td class="name-cell"><a href="/ai-visibility-index/${safeSlug}">${safeName}</a>${partialTag}</td>
         <td class="score-cell">${scoreDisplay}</td>
         <td class="type-cell">${safeCategory}</td>
       </tr>`;
@@ -7340,6 +7343,9 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   const scoredDate = company.scored_at
     ? new Date(company.scored_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
+  const okModelCount = (modelResults || []).filter(r => r.status === 'ok').length;
+  const partialCoverageBanner = company.partial_coverage ? `
+  <div class="partial-coverage-banner">Partial coverage — ${okModelCount} of 3 models. One or more model queries failed and could not be retried successfully; this score is not directly comparable to fully-verified 3-model scores.</div>` : '';
 
   const modelRows = (modelResults || []).map(r => {
     const modelLabel = escapeHtml(AI_VIS_MODEL_LABELS[r.model] || r.model);
@@ -7410,7 +7416,9 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   h1{font-size:28px;margin:0;}
   .badge{display:inline-block;background:var(--card2);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:6px;margin-top:8px;}
   .score-display{font-family:'DM Mono',monospace;font-size:64px;color:var(--teal);font-weight:600;margin:24px 0;}
+  .partial-coverage-banner{background:#3a2405;border:1px solid #b8860b;color:#f0c14b;font-size:13px;font-weight:600;padding:10px 16px;border-radius:8px;margin:-16px 0 20px;}
   .framework-note{font-size:13px;color:var(--muted);margin:-16px 0 24px;}
+  .partial-tag{display:inline-block;background:#3a2405;border:1px solid #b8860b;color:#f0c14b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:2px 6px;border-radius:4px;margin-left:6px;}
   .framework-note a{color:var(--muted);text-decoration:underline;}
   .framework-note a:hover{color:var(--teal);}
   .cross-link-banner{background:var(--card2);border:1px solid var(--hairline);border-radius:10px;padding:14px 18px;font-size:14px;color:var(--muted);margin-bottom:24px;}
@@ -7466,6 +7474,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
     </div>
   </div>
   <div class="score-display">${score}/10</div>
+  ${partialCoverageBanner}
   <div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}<a href="/ai-visibility-index/methodology">How scoring works →</a></div>
   ${crossLinkBanner}
   <table>
@@ -9854,6 +9863,84 @@ setupDB().then(async () => {
     })();
   }
 
+  // Retries specific failed models for an already-scored company, keeping the
+  // existing 'ok' results untouched, then recomputes the average. If a retried
+  // model still fails, the company is flagged partial_coverage=true so the
+  // public page shows a visible "Partial coverage" label instead of a clean
+  // score indistinguishable from a fully-verified one.
+  app.post('/api/ai-visibility-index/retry-model', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { slug, models } = req.body;
+    if (!slug || !Array.isArray(models) || !models.length) {
+      return res.status(400).json({ error: 'slug and models[] are required' });
+    }
+    try {
+      const companyResult = await pool.query('SELECT * FROM ai_visibility_companies WHERE slug = $1', [slug]);
+      if (!companyResult.rows.length) {
+        return res.status(404).json({ error: 'company_not_found' });
+      }
+      const company = companyResult.rows[0];
+      const existingResults = (await pool.query('SELECT * FROM ai_visibility_model_results WHERE company_slug = $1', [slug])).rows;
+      const questionsRows = (await pool.query('SELECT question FROM ai_visibility_questions WHERE company_slug = $1 ORDER BY id', [slug])).rows;
+      const questions = questionsRows.map(r => r.question);
+
+      const jobResult = await pool.query(
+        `INSERT INTO ai_visibility_jobs (job_type, input_domain, input_name, input_category, status)
+         VALUES ('admin_retry', $1, $2, $3, 'pending') RETURNING id`,
+        [company.domain, company.name, company.category]
+      );
+      const jobId = jobResult.rows[0].id;
+      res.json({ job_id: jobId, slug, status: 'pending' });
+
+      (async () => {
+        try {
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
+          const modelQueryFns = {
+            claude: queryClaudeForVisibility,
+            gpt: queryGPTForVisibility,
+            perplexity: queryPerplexityForVisibility
+          };
+          const retried = await Promise.all(
+            models.map(model => scoreOneModel(model, modelQueryFns[model], company.name, company.domain, company.category, questions))
+          );
+          const retriedByModel = Object.fromEntries(retried.map(r => [r.model, r]));
+          const mergedResults = ['claude', 'gpt', 'perplexity'].map(m => retriedByModel[m] || existingResults.find(r => r.model === m));
+
+          const okScores = mergedResults
+            .filter(r => r.status === 'ok')
+            .map(r => computeVisibilityModelScore(r.mentioned, r.position, r.description_accuracy));
+          const visibilityScore = okScores.length
+            ? Math.round((okScores.reduce((a, b) => a + b, 0) / okScores.length) * 10) / 10
+            : null;
+          const partialCoverage = mergedResults.some(r => r.status !== 'ok');
+
+          await pool.query('DELETE FROM ai_visibility_model_results WHERE company_slug = $1', [slug]);
+          for (const r of mergedResults) {
+            await pool.query(
+              `INSERT INTO ai_visibility_model_results
+                (company_slug, model, status, mentioned, position, description_accuracy, competitors_shown, raw_answer_excerpt)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [slug, r.model, r.status, r.mentioned, r.position, r.description_accuracy, JSON.stringify(r.competitors_shown || []), r.raw_answer_excerpt]
+            );
+          }
+          await pool.query(
+            `UPDATE ai_visibility_companies SET visibility_score = $1, partial_coverage = $2, scored_at = NOW() WHERE slug = $3`,
+            [visibilityScore, partialCoverage, slug]
+          );
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
+        } catch (err) {
+          console.error('[ai-visibility-index retry job]', err.message);
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'failed', error_message = $1 WHERE id = $2`, [err.message, jobId]).catch(() => {});
+        }
+      })();
+    } catch (err) {
+      console.error('[ai-visibility-index retry-model]', err.message);
+      res.status(500).json({ error: 'internal_error' });
+    }
+  });
+
   app.post('/api/ai-visibility-index/score', async (req, res) => {
     if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -9887,7 +9974,7 @@ setupDB().then(async () => {
 
   app.get('/api/ai-visibility-index/companies', async (req, res) => {
     try {
-      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
+      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at, partial_coverage FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
       res.json({ companies: r.rows, count: r.rows.length });
     } catch (err) {
       console.error('[ai-visibility-index companies]', err.message);
@@ -9947,7 +10034,7 @@ setupDB().then(async () => {
 
   app.get('/ai-visibility-index', async (req, res) => {
     try {
-      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
+      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at, partial_coverage FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
       res.setHeader('Cache-Control', 'public, max-age=300');
       res.send(renderAiVisIndexHtml(r.rows));
     } catch (err) {
