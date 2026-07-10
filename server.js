@@ -7350,6 +7350,7 @@ function renderAiVisIndexHtml(companies) {
     <div>Want to know how AI assistants describe your company?</div>
     <form class="scan-form" id="scanForm">
       <input type="text" id="scanDomain" placeholder="yourcompany.com" autocomplete="off" required>
+      <input type="text" id="scanCategory" placeholder="e.g. email marketing platform, project management tool, CRM for startups" autocomplete="off" required>
       <input type="email" id="scanEmail" placeholder="you@company.com" autocomplete="off" required>
       <button type="submit" id="scanBtn">Check my AI visibility — free</button>
     </form>
@@ -7414,8 +7415,13 @@ function renderAiVisIndexHtml(companies) {
         e.preventDefault();
         const domain = document.getElementById('scanDomain').value.trim().replace(/^https?:\\/\\//i, '').replace(/\\/.*$/, '').toLowerCase();
         const email = document.getElementById('scanEmail').value.trim();
+        const category = document.getElementById('scanCategory').value.trim();
         if (!isValidDomain(domain)) {
           setStatus('Please enter a valid domain, like yourcompany.com', 'error');
+          return;
+        }
+        if (!category) {
+          setStatus('Please describe what your company does, e.g. "email marketing platform".', 'error');
           return;
         }
         if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
@@ -7428,7 +7434,7 @@ function renderAiVisIndexHtml(companies) {
           const r = await fetch('/api/ai-visibility-index/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ domain: domain, email: email })
+            body: JSON.stringify({ domain: domain, email: email, category: category })
           });
           const j = await r.json();
           if (r.status === 409 && j.company) {
@@ -7728,6 +7734,7 @@ function renderAiVisIndexMethodologyHtml() {
 
   <h2>The honesty rule: we never fabricate failed calls</h2>
   <p>If a model's API call fails for a company, that model's row is marked "needs manual review" and is excluded entirely from the average — we never substitute a zero, a guess, or an assumed absence for a call that simply didn't complete. A company scored across 2 working models will show its average over those 2 models only, clearly marked as such.</p>
+  <p>Category is provided by the company being scanned, since automated category detection from a domain name alone is unreliable — a mismatched category will produce a misleading score.</p>
 
   <h2>What "position" and "description accuracy" mean</h2>
   <ul>
@@ -10112,12 +10119,12 @@ setupDB().then(async () => {
 
   app.post('/api/ai-visibility-index/scan', async (req, res) => {
     const { domain: rawDomain, email, name, category } = req.body;
-    if (!rawDomain || !email) {
-      return res.status(400).json({ error: 'domain and email are required' });
+    if (!rawDomain || !email || !category) {
+      return res.status(400).json({ error: 'domain, email, and category are required' });
     }
     const domain = rawDomain.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
     const companyName = (name || domain.split('.')[0]).trim();
-    const companyCategory = (category || 'SaaS').trim();
+    const companyCategory = category.trim();
     const slug = slugify(companyName);
 
     try {
