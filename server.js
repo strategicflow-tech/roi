@@ -6796,6 +6796,7 @@ function renderFrictionIndexHtml(companies) {
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index" class="current">The Index</a>
+    <a href="/ai-visibility-index">AI Visibility</a>
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
   </nav>
 </div>
@@ -7012,6 +7013,7 @@ function renderCompanyPageHtml(company, samples) {
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index" class="current">The Index</a>
+    <a href="/ai-visibility-index">AI Visibility</a>
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
   </nav>
 </div>
@@ -7126,6 +7128,7 @@ function renderMethodologyHtml() {
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index">The Index</a>
+    <a href="/ai-visibility-index">AI Visibility</a>
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
   </nav>
 </div>
@@ -7167,6 +7170,428 @@ function renderMethodologyHtml() {
     <a href="/why">WHY. Diagnostic</a> ·
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a> ·
     <a href="/friction-index/methodology">Methodology</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
+</body>
+</html>`;
+}
+
+// ─── AI VISIBILITY INDEX — page renderers ───────────────────────────────────
+
+const AI_VIS_MODEL_LABELS = { claude: 'Claude', gpt: 'GPT-4o mini', perplexity: 'Perplexity' };
+const AI_VIS_POSITION_LABELS = { '1st': '1st mention', '2nd': '2nd mention', '3rd_plus': '3rd+ mention', absent: 'Not mentioned' };
+
+function renderAiVisIndexHtml(companies) {
+  const count = companies.length;
+  const avgScore = count
+    ? +(companies.reduce((s, c) => s + (c.visibility_score !== null ? Number(c.visibility_score) : 0), 0) / count).toFixed(1)
+    : 0;
+
+  const rows = companies.map((c, i) => {
+    const safeDomain = escapeHtml(c.domain);
+    const safeName = escapeHtml(c.name);
+    const safeSlug = escapeHtml(c.slug);
+    const safeCategory = escapeHtml(c.category);
+    const scoreDisplay = c.visibility_score !== null ? Number(c.visibility_score).toFixed(1) : '—';
+    return `
+      <tr>
+        <td class="rank">${i + 1}</td>
+        <td class="logo-cell"><img src="https://logo.clearbit.com/${safeDomain}" alt="${safeName} logo" loading="lazy" onerror="this.style.display='none'"></td>
+        <td class="name-cell"><a href="/ai-visibility-index/${safeSlug}">${safeName}</a></td>
+        <td class="score-cell">${scoreDisplay}</td>
+        <td class="type-cell">${safeCategory}</td>
+      </tr>`;
+  }).join('\n');
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Dataset',
+    name: 'The AI Visibility Index',
+    description: `${count} SaaS companies scored on how Claude, GPT, and Perplexity describe them when asked buyer-style category questions.`,
+    creator: { '@type': 'Organization', name: 'Strategic Flow' },
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
+    hasPart: {
+      '@type': 'ItemList',
+      itemListElement: companies.map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: c.name,
+        url: `https://strategic-flow-audit.replit.app/ai-visibility-index/${c.slug}`
+      }))
+    }
+  };
+
+  const subtitleText = `${count} SaaS companies scored on whether Claude, GPT, and Perplexity mention them — and describe them accurately — when buyers ask category questions.${count ? ` Average visibility score: ${avgScore}/10.` : ''}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Visibility Index — ${count} SaaS Companies Scored | Strategic Flow</title>
+<meta name="description" content="${escapeHtml(subtitleText)}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:1000px;margin:0 auto;padding:60px 24px;}
+  h1{font-size:36px;margin-bottom:8px;}
+  .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
+  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
+  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
+  td.score-cell{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;}
+  td.name-cell a{color:#fff;text-decoration:none;font-weight:600;}
+  td.name-cell a:hover{color:var(--teal);}
+  td.logo-cell img{width:24px;height:24px;border-radius:4px;object-fit:contain;background:#fff;}
+  .rank{color:var(--muted);font-family:'DM Mono',monospace;}
+  .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
+  .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
+  .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .site-footer{max-width:1000px;margin:60px auto 0;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index">The Index</a>
+    <a href="/ai-visibility-index" class="current">AI Visibility</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
+  </nav>
+</div>
+<div class="wrap">
+  <h1>The AI Visibility Index</h1>
+  <p class="subtitle">${escapeHtml(subtitleText)}</p>
+  ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
+  <table>
+    <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Category</th></tr></thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>`}
+  <div class="cta-banner">
+    <div>Want to know how AI assistants describe your company?</div>
+    <a href="/ai-visibility-index/methodology">See how scoring works</a>
+  </div>
+</div>
+<footer class="site-footer">
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="/friction-index">The Decision Friction Index</a> ·
+    <a href="/ai-visibility-index/methodology">Methodology</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
+</body>
+</html>`;
+}
+
+function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFrictionIndexEntry) {
+  const name = escapeHtml(company.name);
+  const domain = escapeHtml(company.domain);
+  const category = escapeHtml(company.category);
+  const score = company.visibility_score !== null ? Number(company.visibility_score).toFixed(1) : '—';
+  const scoredDate = company.scored_at
+    ? new Date(company.scored_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+
+  const modelRows = (modelResults || []).map(r => {
+    const modelLabel = escapeHtml(AI_VIS_MODEL_LABELS[r.model] || r.model);
+    if (r.status !== 'ok') {
+      return `
+      <tr>
+        <td class="model-cell">${modelLabel}</td>
+        <td colspan="4" class="needs-manual">Needs manual review — this model's query failed and was excluded from the average.</td>
+      </tr>`;
+    }
+    const positionLabel = escapeHtml(AI_VIS_POSITION_LABELS[r.position] || r.position || '—');
+    const accuracyLabel = escapeHtml(r.description_accuracy || '—');
+    const competitors = Array.isArray(r.competitors_shown) ? r.competitors_shown : [];
+    const modelScore = computeVisibilityModelScore(r.mentioned, r.position, r.description_accuracy);
+    return `
+      <tr>
+        <td class="model-cell">${modelLabel}</td>
+        <td>${r.mentioned ? 'Yes' : 'No'}</td>
+        <td>${positionLabel}</td>
+        <td>${accuracyLabel}</td>
+        <td class="score-cell">${modelScore}/10</td>
+      </tr>
+      ${competitors.length ? `
+      <tr class="competitors-row">
+        <td></td>
+        <td colspan="4"><span class="competitors-label">Shown instead/alongside:</span> ${competitors.map(c => `<span class="pattern-tag">${escapeHtml(c)}</span>`).join(' ')}</td>
+      </tr>` : ''}
+      ${r.raw_answer_excerpt ? `
+      <tr class="excerpt-row">
+        <td></td>
+        <td colspan="4"><blockquote>${escapeHtml(r.raw_answer_excerpt)}</blockquote></td>
+      </tr>` : ''}`;
+  }).join('\n');
+
+  const questionsHtml = (questions || []).map(q => `<li>${escapeHtml(q.question)}</li>`).join('\n      ');
+
+  const crossLinkBanner = hasFrictionIndexEntry ? `
+  <div class="cross-link-banner">
+    ${name} is also on <a href="/friction-index/${escapeHtml(company.slug)}">The Decision Friction Index</a> — see its content structure score too.
+  </div>` : '';
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: company.name,
+    url: `https://${company.domain}`,
+    logo: `https://logo.clearbit.com/${company.domain}`,
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' }
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${name} AI Visibility Score: ${score}/10 | The AI Visibility Index</title>
+<meta name="description" content="How Claude, GPT, and Perplexity describe ${name} when buyers ask ${category} category questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:760px;margin:0 auto;padding:60px 24px;}
+  .header{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+  .header img{width:48px;height:48px;border-radius:8px;background:#fff;object-fit:contain;}
+  h1{font-size:28px;margin:0;}
+  .badge{display:inline-block;background:var(--card2);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:4px 10px;border-radius:6px;margin-top:8px;}
+  .score-display{font-family:'DM Mono',monospace;font-size:64px;color:var(--teal);font-weight:600;margin:24px 0;}
+  .framework-note{font-size:13px;color:var(--muted);margin:-16px 0 24px;}
+  .framework-note a{color:var(--muted);text-decoration:underline;}
+  .framework-note a:hover{color:var(--teal);}
+  .cross-link-banner{background:var(--card2);border:1px solid var(--hairline);border-radius:10px;padding:14px 18px;font-size:14px;color:var(--muted);margin-bottom:24px;}
+  .cross-link-banner a{color:var(--teal);}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:32px;}
+  th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--hairline);font-size:13px;}
+  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;}
+  td.model-cell{font-weight:600;}
+  td.score-cell{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;}
+  td.needs-manual{color:var(--muted);font-style:italic;}
+  .competitors-label{color:var(--muted);font-size:12px;margin-right:6px;}
+  .pattern-tag{display:inline-block;background:var(--card2);border:1px solid var(--hairline);color:#fff;font-size:12px;padding:3px 10px;border-radius:16px;margin:2px 2px 0 0;}
+  blockquote{background:var(--card2);border-left:3px solid var(--teal);padding:10px 14px;margin:6px 0 0;font-style:italic;color:var(--muted);font-size:12px;}
+  .questions-section{margin:32px 0;}
+  .questions-heading{font-size:14px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-family:'DM Mono',monospace;margin:0 0 16px;}
+  .questions-section ul{padding-left:20px;margin:0;}
+  .questions-section li{font-size:14px;line-height:1.7;color:#dce8f5;margin-bottom:8px;}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .cta-primary,.cta-secondary{display:inline-block;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;}
+  .cta-primary{background:var(--teal);color:var(--bg);}
+  .cta-secondary{background:var(--card2);color:#fff;border:1px solid var(--hairline);}
+  .back-link{color:var(--muted);text-decoration:none;font-size:14px;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:760px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .site-footer{max-width:760px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index">The Index</a>
+    <a href="/ai-visibility-index" class="current">AI Visibility</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
+  </nav>
+</div>
+<div class="wrap">
+  <div class="header">
+    <img src="https://logo.clearbit.com/${domain}" alt="${name} logo" onerror="this.style.display='none'">
+    <div>
+      <h1>${name}</h1>
+      <span class="badge">${category}</span>
+    </div>
+  </div>
+  <div class="score-display">${score}/10</div>
+  <div class="framework-note">${scoredDate ? `Scored ${scoredDate} · ` : ''}<a href="/ai-visibility-index/methodology">How scoring works →</a></div>
+  ${crossLinkBanner}
+  <table>
+    <thead><tr><th>Model</th><th>Mentioned</th><th>Position</th><th>Description</th><th>Score</th></tr></thead>
+    <tbody>
+      ${modelRows}
+    </tbody>
+  </table>
+  <div class="questions-section">
+    <h2 class="questions-heading">Questions we asked</h2>
+    <ul>
+      ${questionsHtml}
+    </ul>
+  </div>
+  <div class="cta-row">
+    <a class="cta-primary" href="/ai-visibility">Check your own AI visibility — free</a>
+    <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get tracked over time</a>
+  </div>
+  <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
+</div>
+<footer class="site-footer">
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="/friction-index">The Decision Friction Index</a> ·
+    <a href="/ai-visibility-index/methodology">Methodology</a> ·
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
+    <a href="mailto:strategicflow@proton.me">Contact</a>
+  </div>
+  <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
+</footer>
+</body>
+</html>`;
+}
+
+function renderAiVisIndexMethodologyHtml() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: 'How scores are produced — The AI Visibility Index Methodology',
+    description: 'How Strategic Flow scores SaaS companies on visibility across Claude, GPT, and Perplexity using a deterministic position + accuracy formula.',
+    publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
+    author: { '@type': 'Organization', name: 'Strategic Flow' }
+  };
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — How the AI Visibility Index Scores Companies | Strategic Flow</title>
+<meta name="description" content="How Strategic Flow scores SaaS companies on AI visibility across Claude, GPT, and Perplexity using a deterministic, hand-recomputable formula.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:60px 24px;}
+  h1{font-size:32px;margin:0 0 8px;}
+  .subtitle{color:var(--muted);font-size:16px;margin-bottom:40px;}
+  h2{font-size:20px;margin:40px 0 16px;color:#fff;}
+  p{font-size:15px;line-height:1.7;color:#dce8f5;margin:0 0 16px;}
+  ul{padding-left:20px;margin:0 0 16px;}
+  li{font-size:14px;line-height:1.7;color:#dce8f5;margin-bottom:10px;}
+  li strong{color:#fff;}
+  a{color:var(--teal);}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:10px;overflow:hidden;margin:0 0 16px;}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--hairline);font-size:13px;}
+  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;}
+  td.pts{font-family:'DM Mono',monospace;color:var(--teal);}
+  .contact-note{background:var(--card);border:1px solid var(--hairline);border-radius:10px;padding:16px 20px;font-size:14px;color:var(--muted);}
+  .contact-note a{color:var(--teal);}
+  .back-link{color:var(--muted);text-decoration:none;font-size:14px;display:inline-block;margin-top:24px;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:720px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
+  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .site-header nav a.current{color:var(--teal);}
+  .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/why">WHY. Diagnostic</a>
+    <a href="/friction-index">The Index</a>
+    <a href="/ai-visibility-index" class="current">AI Visibility</a>
+    <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a>
+  </nav>
+</div>
+<div class="wrap">
+  <h1>Methodology</h1>
+  <p class="subtitle">How scores on the AI Visibility Index are produced.</p>
+
+  <h2>The 3-model approach</h2>
+  <p>Each company is evaluated by generating 5 realistic buyer questions for its category — questions a prospective customer would ask an AI assistant BEFORE knowing which vendors exist, never mentioning the company by name. Those exact 5 questions are then sent as-is to three different AI models: Claude (Anthropic), GPT-4o mini (OpenAI), and Perplexity Sonar Pro (web-grounded search). Perplexity is included specifically because it grounds its answers in live web results, which is the mechanism most likely to reflect real-world current visibility.</p>
+
+  <h2>How each model's answers are scored</h2>
+  <p>For each model, the 5 raw answers are analyzed to determine: whether the company was mentioned at all, what position it appeared in across mentions, and whether its description (if any) was accurate. A deterministic formula — not a model's own self-assessment — converts this into a 0–10 score per model:</p>
+  <table>
+    <thead><tr><th>Component</th><th>Condition</th><th>Points</th></tr></thead>
+    <tbody>
+      <tr><td>Position</td><td>1st mention</td><td class="pts">6</td></tr>
+      <tr><td>Position</td><td>2nd mention</td><td class="pts">4</td></tr>
+      <tr><td>Position</td><td>3rd or later mention</td><td class="pts">2</td></tr>
+      <tr><td>Position</td><td>Not mentioned</td><td class="pts">0</td></tr>
+      <tr><td>Accuracy</td><td>Description accurate (pass) — only scored if mentioned</td><td class="pts">4</td></tr>
+      <tr><td>Accuracy</td><td>Description weak</td><td class="pts">2</td></tr>
+      <tr><td>Accuracy</td><td>Description fails / not mentioned</td><td class="pts">0</td></tr>
+    </tbody>
+  </table>
+  <p><strong>model_score = position points + accuracy points</strong> (maximum 10, minimum 0). You can recompute any model's score by hand from the position and accuracy shown in that model's row on the company page.</p>
+
+  <h2>How the company's overall visibility_score is computed</h2>
+  <p>The company's visibility_score is the average of the model_score values across all models with a successful (status = "ok") query, rounded to one decimal place. This is a plain average computed in code — not a separate AI judgment.</p>
+
+  <h2>The honesty rule: we never fabricate failed calls</h2>
+  <p>If a model's API call fails for a company, that model's row is marked "needs manual review" and is excluded entirely from the average — we never substitute a zero, a guess, or an assumed absence for a call that simply didn't complete. A company scored across 2 working models will show its average over those 2 models only, clearly marked as such.</p>
+
+  <h2>What "position" and "description accuracy" mean</h2>
+  <ul>
+    <li><strong>Position</strong> — where the company appeared across the 5 answers, if mentioned at all: 1st (led the recommendation), 2nd, 3rd or later, or not mentioned in any answer.</li>
+    <li><strong>Description accuracy</strong> — "pass" means the model's characterization of the company matches its actual positioning; "weak" means partially accurate or vague; "fail" means the model's description materially misrepresents the company. Only scored when the company was mentioned.</li>
+  </ul>
+
+  <h2>What we ask, and why it's shown</h2>
+  <p>Every company page lists the exact 5 buyer questions used to test it, along with the raw excerpt of what each model actually said. Nothing is summarized away — you can verify the score against the real model output.</p>
+
+  <div class="contact-note">Think a score is wrong, or your company's positioning has changed? Email <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a> to request a re-score.</div>
+
+  <h2>AI Visibility Index vs the free AI Visibility Check</h2>
+  <p>The free instant checker at <a href="/ai-visibility">/ai-visibility</a> gives you a quick one-time score. The AI Visibility Index is the permanent, publicly listed, periodically re-scored version — built for companies who want ongoing tracking and a public comparison page.</p>
+
+  <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
+</div>
+<footer class="site-footer">
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>
+    <a href="https://strategicflow.tech">Strategic Flow</a> ·
+    <a href="/why">WHY. Diagnostic</a> ·
+    <a href="/friction-index">The Decision Friction Index</a> ·
+    <a href="/ai-visibility-index/methodology">Methodology</a> ·
     <a href="https://strategic-flow-pro.replit.app/packages/">Pricing</a> ·
     <a href="mailto:strategicflow@proton.me">Contact</a>
   </div>
@@ -9273,6 +9698,224 @@ setupDB().then(async () => {
       const urls = [
         `<url><loc>https://strategic-flow-audit.replit.app/friction-index</loc><changefreq>daily</changefreq><priority>0.9</priority></url>`,
         ...r.rows.map(c => `<url><loc>https://strategic-flow-audit.replit.app/friction-index/${c.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`)
+      ].join('\n  ');
+      res.setHeader('Content-Type', 'application/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls}\n</urlset>`);
+    } catch (err) {
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
+  // ── AI VISIBILITY INDEX ────────────────────────────────────────────────────
+
+  async function runAiVisibilityScoring(name, domain, category) {
+    const slug = slugify(name);
+    const questions = await buildBuyerQuestions(name, category);
+
+    const modelQueryFns = {
+      claude: queryClaudeForVisibility,
+      gpt: queryGPTForVisibility,
+      perplexity: queryPerplexityForVisibility
+    };
+
+    const modelResults = [];
+    for (const model of ['claude', 'gpt', 'perplexity']) {
+      const answers = [];
+      let failed = false;
+      try {
+        for (const q of questions) {
+          const answer = await modelQueryFns[model](q);
+          answers.push(answer);
+          await new Promise(r => setTimeout(r, 400));
+        }
+      } catch (err) {
+        console.error(`[ai-visibility-index] ${model} query failed:`, err.message);
+        failed = true;
+      }
+
+      if (failed || answers.some(a => !a)) {
+        modelResults.push({ model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null });
+        continue;
+      }
+
+      try {
+        const analysis = await analyzeVisibilityAnswers(name, domain, category, null, answers);
+        const excerptSource = analysis.mentioned
+          ? (answers.find(a => a.toLowerCase().includes(name.toLowerCase()) || a.toLowerCase().includes(domain.toLowerCase())) || answers[0])
+          : answers[0];
+        modelResults.push({
+          model,
+          status: 'ok',
+          mentioned: !!analysis.mentioned,
+          position: analysis.mentioned ? analysis.position : 'absent',
+          description_accuracy: analysis.mentioned ? analysis.description_accuracy : null,
+          competitors_shown: Array.isArray(analysis.competitors_shown) ? analysis.competitors_shown : [],
+          raw_answer_excerpt: excerptSource ? excerptSource.slice(0, 400) : null
+        });
+      } catch (err) {
+        console.error(`[ai-visibility-index] ${model} analysis failed:`, err.message);
+        modelResults.push({ model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null });
+      }
+    }
+
+    const okScores = modelResults
+      .filter(r => r.status === 'ok')
+      .map(r => computeVisibilityModelScore(r.mentioned, r.position, r.description_accuracy));
+    const visibilityScore = okScores.length
+      ? Math.round((okScores.reduce((a, b) => a + b, 0) / okScores.length) * 10) / 10
+      : null;
+
+    return { slug, questions, modelResults, visibilityScore };
+  }
+
+  async function persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore) {
+    await pool.query(
+      `INSERT INTO ai_visibility_companies (slug, name, domain, category, visibility_score, scored_at)
+       VALUES ($1,$2,$3,$4,$5, NOW())
+       ON CONFLICT (slug) DO UPDATE SET name=$2, domain=$3, category=$4, visibility_score=$5, scored_at=NOW()`,
+      [slug, name, domain, category, visibilityScore]
+    );
+
+    await pool.query('DELETE FROM ai_visibility_questions WHERE company_slug = $1', [slug]);
+    for (const q of questions) {
+      await pool.query('INSERT INTO ai_visibility_questions (company_slug, question) VALUES ($1,$2)', [slug, q]);
+    }
+
+    await pool.query('DELETE FROM ai_visibility_model_results WHERE company_slug = $1', [slug]);
+    for (const r of modelResults) {
+      await pool.query(
+        `INSERT INTO ai_visibility_model_results
+          (company_slug, model, status, mentioned, position, description_accuracy, competitors_shown, raw_answer_excerpt)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [slug, r.model, r.status, r.mentioned, r.position, r.description_accuracy, JSON.stringify(r.competitors_shown || []), r.raw_answer_excerpt]
+      );
+    }
+  }
+
+  app.post('/api/ai-visibility-index/score', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { name, domain, category } = req.body;
+    if (!name || !domain || !category) {
+      return res.status(400).json({ error: 'name, domain, and category are required' });
+    }
+    try {
+      const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(name, domain, category);
+      await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
+      res.json({ slug, visibility_score: visibilityScore, model_results: modelResults });
+    } catch (err) {
+      console.error('[ai-visibility-index score]', err.message);
+      res.status(500).json({ error: 'Scoring failed' });
+    }
+  });
+
+  app.get('/api/ai-visibility-index/companies', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
+      res.json({ companies: r.rows, count: r.rows.length });
+    } catch (err) {
+      console.error('[ai-visibility-index companies]', err.message);
+      res.status(500).json({ error: 'Failed to load companies' });
+    }
+  });
+
+  app.post('/api/ai-visibility-index/scan', async (req, res) => {
+    const { domain: rawDomain, email, name, category } = req.body;
+    if (!rawDomain || !email) {
+      return res.status(400).json({ error: 'domain and email are required' });
+    }
+    const domain = rawDomain.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
+    const companyName = (name || domain.split('.')[0]).trim();
+    const companyCategory = (category || 'SaaS').trim();
+
+    try {
+      const recent = await pool.query(
+        `SELECT id FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
+        [domain, email]
+      );
+      if (recent.rows.length > 0) {
+        return res.status(429).json({ error: 'A scan for this domain or email was already requested in the last 24 hours.' });
+      }
+
+      const jobResult = await pool.query(
+        `INSERT INTO ai_visibility_jobs (input_domain, input_email, status) VALUES ($1,$2,'pending') RETURNING id`,
+        [domain, email]
+      );
+      const jobId = jobResult.rows[0].id;
+      res.json({ job_id: jobId, status: 'pending' });
+
+      (async () => {
+        try {
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
+          const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(companyName, domain, companyCategory);
+          await persistAiVisibilityScoring(companyName, domain, companyCategory, slug, questions, modelResults, visibilityScore);
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
+        } catch (err) {
+          console.error('[ai-visibility-index scan job]', err.message);
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'failed' WHERE id = $1`, [jobId]);
+        }
+      })();
+    } catch (err) {
+      console.error('[ai-visibility-index scan]', err.message);
+      res.status(500).json({ error: 'Failed to start scan' });
+    }
+  });
+
+  app.get('/api/ai-visibility-index/job/:id', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT id, status, result_slug FROM ai_visibility_jobs WHERE id = $1', [req.params.id]);
+      if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
+      res.json(r.rows[0]);
+    } catch (err) {
+      console.error('[ai-visibility-index job]', err.message);
+      res.status(500).json({ error: 'Failed to load job' });
+    }
+  });
+
+  app.get('/ai-visibility-index', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT slug, name, domain, category, visibility_score, scored_at FROM ai_visibility_companies ORDER BY visibility_score DESC NULLS LAST, name ASC');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.send(renderAiVisIndexHtml(r.rows));
+    } catch (err) {
+      console.error('[ai-visibility-index page]', err.message);
+      res.status(500).send('Error loading the AI Visibility Index');
+    }
+  });
+
+  app.get('/ai-visibility-index/methodology', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(renderAiVisIndexMethodologyHtml());
+  });
+
+  app.get('/ai-visibility-index/:slug', async (req, res) => {
+    try {
+      const companyResult = await pool.query('SELECT * FROM ai_visibility_companies WHERE slug = $1', [req.params.slug]);
+      if (!companyResult.rows.length) return res.status(404).send('Company not found');
+      const company = companyResult.rows[0];
+
+      const [modelResultsResult, questionsResult, frictionResult] = await Promise.all([
+        pool.query('SELECT * FROM ai_visibility_model_results WHERE company_slug = $1 ORDER BY model', [company.slug]),
+        pool.query('SELECT question FROM ai_visibility_questions WHERE company_slug = $1 ORDER BY id', [company.slug]),
+        pool.query('SELECT slug FROM index_companies WHERE slug = $1', [company.slug])
+      ]);
+
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0));
+    } catch (err) {
+      console.error('[ai-visibility-index company page]', err.message);
+      res.status(500).send('Error loading company page');
+    }
+  });
+
+  app.get('/sitemap-ai-visibility-index.xml', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT slug, scored_at FROM ai_visibility_companies ORDER BY scored_at DESC');
+      const urls = [
+        `<url><loc>https://strategic-flow-audit.replit.app/ai-visibility-index</loc><changefreq>daily</changefreq><priority>0.9</priority></url>`,
+        `<url><loc>https://strategic-flow-audit.replit.app/ai-visibility-index/methodology</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
+        ...r.rows.map(c => `<url><loc>https://strategic-flow-audit.replit.app/ai-visibility-index/${c.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`)
       ].join('\n  ');
       res.setHeader('Content-Type', 'application/xml');
       res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls}\n</urlset>`);
