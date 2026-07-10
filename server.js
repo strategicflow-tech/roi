@@ -142,7 +142,7 @@ async function queryPerplexityForVisibility(question) {
   const apiResp = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}` },
-    body: JSON.stringify({ model: 'sonar-pro', max_tokens: 1000, messages: [{ role: 'user', content: question }] })
+    body: JSON.stringify({ model: 'sonar', max_tokens: 1000, messages: [{ role: 'user', content: question }] })
   });
   if (!apiResp.ok) throw new Error(`perplexity_http_${apiResp.status}`);
   const data = await apiResp.json();
