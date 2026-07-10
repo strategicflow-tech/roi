@@ -87,18 +87,30 @@ async function scoreCompany(company) {
   }
 }
 
+function parseIntArg(name) {
+  const prefix = `--${name}=`;
+  const arg = process.argv.find(a => a.startsWith(prefix));
+  return arg ? parseInt(arg.slice(prefix.length), 10) : null;
+}
+
 async function main() {
   const pilotMode = process.argv.includes('--pilot');
+  const startArg = parseIntArg('start');
+  const countArg = parseIntArg('count');
 
   if (!fs.existsSync(COMPANIES_PATH)) {
     console.error(`FATAL: ${COMPANIES_PATH} not found.`);
     process.exit(1);
   }
   let companies = JSON.parse(fs.readFileSync(COMPANIES_PATH, 'utf8'));
+  const offset = startArg || 0;
 
   if (pilotMode) {
     companies = companies.slice(0, 5);
     console.log(`[pilot mode] Running first ${companies.length} companies only.\n`);
+  } else if (startArg !== null || countArg !== null) {
+    companies = companies.slice(offset, countArg !== null ? offset + countArg : undefined);
+    console.log(`Running batch slice: start=${offset} count=${companies.length}.\n`);
   } else {
     console.log(`Running full batch: ${companies.length} companies.\n`);
   }
@@ -107,7 +119,7 @@ async function main() {
 
   for (let i = 0; i < companies.length; i++) {
     const company = companies[i];
-    const label = `[${i + 1}/${companies.length}] ${company.name}`;
+    const label = `[${offset + i + 1}/${offset + companies.length}] ${company.name}`;
 
     const result = await scoreCompany(company);
 
@@ -136,7 +148,22 @@ async function main() {
     }
   }
 
-  fs.writeFileSync(RESULTS_PATH, JSON.stringify(results, null, 2));
+  let merged = results;
+  if ((startArg !== null || countArg !== null) && fs.existsSync(RESULTS_PATH)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(RESULTS_PATH, 'utf8'));
+      merged = {
+        ok: [...(prev.ok || []), ...results.ok],
+        skipped: [...(prev.skipped || []), ...results.skipped],
+        failed: [...(prev.failed || []), ...results.failed],
+        needs_manual: [...(prev.needs_manual || []), ...results.needs_manual]
+      };
+    } catch (e) {
+      console.error('Warning: could not merge with previous results, overwriting.', e.message);
+    }
+  }
+
+  fs.writeFileSync(RESULTS_PATH, JSON.stringify(merged, null, 2));
   console.log(`\nDone. ok=${results.ok.length} skipped=${results.skipped.length} failed=${results.failed.length} needs_manual=${results.needs_manual.length}`);
   console.log(`Results written to ${RESULTS_PATH}`);
 }

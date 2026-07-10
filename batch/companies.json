@@ -1,6 +1,6 @@
 [
   { "name": "Intercom", "domain": "intercom.com", "content_type": "changelog", "source_url": "https://www.intercom.com/changes/en/150878-translate-side-conversations-automatically" },
-  { "name": "HubSpot", "domain": "hubspot.com", "content_type": "product_update_blog", "source_url": "https://community.hubspot.com/t/q2-2026-revenue-hub-release-round-up/151895" },
+  { "name": "HubSpot", "domain": "hubspot.com", "content_type": "product_update_blog", "source_url": "https://developers.hubspot.com/changelog" },
   { "name": "Klaviyo", "domain": "klaviyo.com", "content_type": "product_update_blog", "source_url": "https://community.klaviyo.com/product-updates-and-announcements-51/what-s-new-in-klaviyo-from-may-2026-19391" },
   { "name": "Linear", "domain": "linear.app", "content_type": "changelog", "source_url": "https://linear.app/changelog/2026-07-02-initiative-properties" },
   { "name": "Stripe", "domain": "stripe.com", "content_type": "changelog", "source_url": "https://stripe.com/blog/changelog" },
