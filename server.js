@@ -72,6 +72,7 @@ Rules:
 - Be brutally specific in diagnosis_summary — reference actual phrases or structural decisions in the content.
 - checks MUST contain exactly 7 objects, in the fixed order given above, with "check" spelled exactly as given. Each "note" must be one sentence and reference something specific in this content, not a generic statement.
 - Set "input_quality" to "polluted" if the provided content appears to be mostly navigation menus, footer templates, cookie banners, or site chrome rather than the actual email/changelog/blog/landing page content. Otherwise set it to "clean".
+- The content may be truncated at the end due to technical limits. Never penalize or mention an abrupt ending, incomplete final sentence, or missing conclusion — evaluate only the structure of what is present.
 - Return ONLY valid JSON, no markdown, no backticks, no explanation.
 
 Content to analyze:
@@ -909,10 +910,12 @@ async function setupDB() {
       diagnosis_summary TEXT NOT NULL,
       input_excerpt     TEXT,
       checks            JSONB,
+      content_length    INTEGER,
       scored_at         TIMESTAMPTZ DEFAULT now()
     )
   `).catch(e => console.error('[DB] index_companies:', e.message));
   await pool.query(`ALTER TABLE index_companies ADD COLUMN IF NOT EXISTS checks JSONB`).catch(e => console.error('[DB] index_companies.checks:', e.message));
+  await pool.query(`ALTER TABLE index_companies ADD COLUMN IF NOT EXISTS content_length INTEGER`).catch(e => console.error('[DB] index_companies.content_length:', e.message));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS why_jobs (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6787,6 +6790,7 @@ function renderCompanyPageHtml(company) {
   .check-name{font-weight:600;font-size:14px;color:#fff;}
   .verdict-chip{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;padding:3px 10px;border-radius:20px;white-space:nowrap;}
   .check-note{font-size:13px;color:var(--muted);line-height:1.5;margin:0;}
+  .excerpt-label{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;}
   .site-footer{max-width:720px;margin:0 auto;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
@@ -6818,7 +6822,7 @@ function renderCompanyPageHtml(company) {
   </div>
   ${checksHtml}
   <p class="summary">${summary}</p>
-  ${excerpt ? `<blockquote>${excerpt}</blockquote>` : ''}
+  ${excerpt ? `<div class="excerpt-label">Scored excerpt${company.content_length ? ` (${company.content_length.toLocaleString('en-US')} chars analyzed)` : ''}</div><blockquote>${excerpt}</blockquote>` : ''}
   <div class="cta-row">
     <a class="cta-primary" href="/why">Score your own content free</a>
     <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get the full rebuild</a>
@@ -8846,7 +8850,8 @@ setupDB().then(async () => {
         ? result.patterns.filter(p => INDEX_CANONICAL_PATTERNS.includes(p))
         : [];
       const diagnosisSummary = result.diagnosis_summary || '';
-      const inputExcerpt = String(content).slice(0, 300);
+      const inputExcerpt = String(content).slice(0, 1000);
+      const contentLength = String(content).length;
 
       let checks = null;
       if (Array.isArray(result.checks) && result.checks.length === 7) {
@@ -8859,9 +8864,9 @@ setupDB().then(async () => {
       }
 
       const insert = await pool.query(
-        `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt, checks)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [slug, name, domain, content_type, score, JSON.stringify(patterns), diagnosisSummary, inputExcerpt, checks ? JSON.stringify(checks) : null]
+        `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt, checks, content_length)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [slug, name, domain, content_type, score, JSON.stringify(patterns), diagnosisSummary, inputExcerpt, checks ? JSON.stringify(checks) : null, contentLength]
       );
       const row = insert.rows[0];
       res.json({ slug: row.slug, score: row.score, patterns: row.patterns, url: `/friction-index/${row.slug}` });

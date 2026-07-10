@@ -78,13 +78,23 @@ function stripFilterChrome(text) {
   return text;
 }
 
+function truncateAtSentenceBoundary(text, maxLength) {
+  if (text.length <= maxLength) return text;
+  const cut = text.slice(0, maxLength);
+  const lastBoundary = cut.lastIndexOf('. ');
+  if (lastBoundary > maxLength * 0.5) {
+    return cut.slice(0, lastBoundary + 1);
+  }
+  return cut;
+}
+
 function extractReadableText(html) {
   let text = extractMainContentHtml(html);
   text = text.replace(/<[^>]*>/g, ' ');
   text = decodeEntities(text);
   text = text.replace(/\s+/g, ' ').trim();
   text = stripFilterChrome(text).trim();
-  return text.slice(0, MAX_CONTENT_LENGTH);
+  return truncateAtSentenceBoundary(text, MAX_CONTENT_LENGTH);
 }
 
 function isJunkHeavy(text) {
