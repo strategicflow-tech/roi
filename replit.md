@@ -96,5 +96,20 @@ Per model: position component (1st=6, 2nd=4, 3rd+=2, absent=0) + accuracy compon
 ### Phase 2 — explicitly deferred, not built
 A separate $79/mo Stripe product for ongoing tracking (own Price ID, own webhook secret, own subscriber table — NOT reusing WHY Pro's `pro_users`) is planned but intentionally not implemented yet.
 
+## AI Visibility Pro ($29/mo — Stripe wiring deferred)
+
+Pro tier scaffolding for the AI Visibility Index: badge, score history chart, competitor watch, and free-scan gating. Stripe checkout is intentionally NOT wired yet (real Price ID pending) — the upgrade button calls a stub endpoint that returns `{status:'coming_soon'}`.
+
+### New tables
+- `ai_visibility_score_history` — one row per (re)score, backfilled idempotently from existing `visibility_score` values; appended to on every scoring write (`persistAiVisibilityScoring` and `/retry-model`).
+- `ai_visibility_subscribers` — UNIQUE(email, company_slug); `status='active'` is what gates badge access and the Pro view on company pages.
+
+### New/changed routes
+- `GET /api/ai-visibility-index/badge/:slug` — public SVG badge, 404 unless subscriber is active for that slug.
+- `POST /api/ai-visibility-index/upgrade-checkout` — stub only, logs the click and returns `coming_soon`; swap in real Stripe Checkout once Alex provides the Price ID.
+- `GET /ai-visibility-index/:slug` — now also renders score history chart (needs ≥2 history rows), Competitor Watch (deduped `competitors_shown` across models), and either the badge embed (Pro) or an upsell block with the inert upgrade button.
+- `GET /ai-visibility-index/methodology` — has an "AI Visibility Pro" preview section.
+- `POST /api/ai-visibility-index/scan` — free scan is gated by email: any prior row in `ai_visibility_leads` for that email returns `{status:'free_scan_used', ...}` instead of starting a new scan. Frontend swaps the form for an upsell block on that response.
+
 ## Production URL
 `https://strategic-flow-audit.replit.app`

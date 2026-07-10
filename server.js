@@ -1135,6 +1135,32 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] ai_visibility_leads:', e.message));
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_score_history (
+      id                SERIAL PRIMARY KEY,
+      company_slug      TEXT NOT NULL REFERENCES ai_visibility_companies(slug) ON DELETE CASCADE,
+      visibility_score  NUMERIC(3,1),
+      recorded_at       TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_score_history:', e.message));
+
+  await pool.query(`
+    INSERT INTO ai_visibility_score_history (company_slug, visibility_score, recorded_at)
+    SELECT slug, visibility_score, NOW() FROM ai_visibility_companies c
+    WHERE NOT EXISTS (SELECT 1 FROM ai_visibility_score_history h WHERE h.company_slug = c.slug)
+  `).catch(e => console.error('[DB] ai_visibility_score_history backfill:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_subscribers (
+      id            SERIAL PRIMARY KEY,
+      email         TEXT NOT NULL,
+      company_slug  TEXT NOT NULL REFERENCES ai_visibility_companies(slug) ON DELETE CASCADE,
+      status        TEXT NOT NULL DEFAULT 'inactive',
+      created_at    TIMESTAMPTZ DEFAULT now(),
+      UNIQUE(email, company_slug)
+    )
+  `).catch(e => console.error('[DB] ai_visibility_subscribers:', e.message));
+
   console.log('[DB] All tables ready');
 }
 
@@ -7324,6 +7350,13 @@ function renderAiVisIndexHtml(companies) {
   .scan-status.error{color:#ff6b6b;}
   .scan-status.success{color:var(--teal);}
   @media (max-width:480px){.scan-form{flex-direction:column;}}
+  .scan-upsell{margin-top:20px;text-align:left;background:var(--bg);border:1px solid var(--hairline);border-radius:12px;padding:24px;}
+  .scan-upsell h3{margin:0 0 8px;font-size:18px;color:#fff;}
+  .scan-upsell p{margin:0 0 10px;color:var(--muted);}
+  .scan-upsell ul{margin:0 0 18px;padding-left:20px;color:var(--muted);}
+  .scan-upsell li{margin-bottom:6px;}
+  .upsell-upgrade-btn{background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;}
+  .upsell-upgrade-status{margin-top:10px;font-size:13px;color:var(--muted);}
   .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
   .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
   .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
@@ -7370,6 +7403,18 @@ function renderAiVisIndexHtml(companies) {
     </form>
     <div class="scan-microcopy">We'll only use this to show you your results and follow up if you'd like a full readout.</div>
     <div class="scan-status" id="scanStatus"></div>
+    <div class="scan-upsell" id="scanUpsell" style="display:none;">
+      <h3>You've already used your free scan</h3>
+      <p>Unlock AI Visibility Pro to keep monitoring:</p>
+      <ul>
+        <li>Ongoing monitoring across Claude, GPT, and Perplexity</li>
+        <li>Score history chart over time</li>
+        <li>Shareable AI Visibility badge for your site</li>
+        <li>Competitor watch — see who shows up alongside you</li>
+      </ul>
+      <button class="upsell-upgrade-btn" id="upsellUpgradeBtn">Unlock AI Visibility Pro — $29/mo</button>
+      <div class="upsell-upgrade-status" id="upsellUpgradeStatus"></div>
+    </div>
   </div>
 </div>
 <footer class="site-footer">
@@ -7452,6 +7497,13 @@ function renderAiVisIndexHtml(companies) {
             body: JSON.stringify({ domain: domain, email: email, category: category })
           });
           const j = await r.json();
+          if (j.status === 'free_scan_used') {
+            form.style.display = 'none';
+            var upsell = document.getElementById('scanUpsell');
+            if (upsell) upsell.style.display = 'block';
+            setStatus('', '');
+            return;
+          }
           if (r.status === 409 && j.company) {
             setStatus('This company is already on the index. Redirecting...', 'success');
             setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.company.slug; }, 900);
@@ -7474,6 +7526,24 @@ function renderAiVisIndexHtml(companies) {
           btn.disabled = false;
         }
       });
+      var upsellBtn = document.getElementById('upsellUpgradeBtn');
+      if (upsellBtn) {
+        upsellBtn.addEventListener('click', async function() {
+          upsellBtn.disabled = true;
+          try {
+            const r = await fetch('/api/ai-visibility-index/upgrade-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ source: 'free_scan_used' })
+            });
+            const j = await r.json();
+            document.getElementById('upsellUpgradeStatus').textContent = j.message || 'Checkout opening soon.';
+          } catch (e) {
+            document.getElementById('upsellUpgradeStatus').textContent = 'Something went wrong. Please try again.';
+          }
+          upsellBtn.disabled = false;
+        });
+      }
     })();
   </script>
 </footer>
@@ -7481,7 +7551,7 @@ function renderAiVisIndexHtml(companies) {
 </html>`;
 }
 
-function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFrictionIndexEntry) {
+function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFrictionIndexEntry, scoreHistory, isPro) {
   const name = escapeHtml(company.name);
   const domain = escapeHtml(company.domain);
   const category = escapeHtml(company.category);
@@ -7532,6 +7602,61 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   <div class="cross-link-banner">
     ${name} is also on <a href="/friction-index/${escapeHtml(company.slug)}">The Decision Friction Index</a> — see its content structure score too.
   </div>` : '';
+
+  const historyRows = (scoreHistory || []).filter(h => h.visibility_score !== null);
+  let historyChartHtml = '';
+  if (historyRows.length >= 2) {
+    const W = 680, H = 140, PAD = 16;
+    const scores = historyRows.map(h => Number(h.visibility_score));
+    const minS = 0, maxS = 10;
+    const stepX = (W - PAD * 2) / (historyRows.length - 1);
+    const points = scores.map((s, i) => {
+      const x = PAD + i * stepX;
+      const y = H - PAD - ((s - minS) / (maxS - minS)) * (H - PAD * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const firstDate = new Date(historyRows[0].recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const lastDate = new Date(historyRows[historyRows.length - 1].recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    historyChartHtml = `
+  <div class="history-section">
+    <h2 class="questions-heading">Score history</h2>
+    <svg viewBox="0 0 ${W} ${H}" class="history-svg">
+      <polyline points="${points}" fill="none" stroke="#00d4c8" stroke-width="2"/>
+    </svg>
+    <div class="history-range"><span>${firstDate}</span><span>${lastDate}</span></div>
+  </div>`;
+  }
+
+  const allCompetitors = [];
+  const seenCompetitors = new Set();
+  (modelResults || []).forEach(r => {
+    (Array.isArray(r.competitors_shown) ? r.competitors_shown : []).forEach(c => {
+      const key = String(c).trim().toLowerCase();
+      if (key && !seenCompetitors.has(key)) {
+        seenCompetitors.add(key);
+        allCompetitors.push(c);
+      }
+    });
+  });
+  const competitorWatchHtml = allCompetitors.length ? `
+  <div class="competitor-watch-section">
+    <h2 class="questions-heading">Competitors mentioned alongside you</h2>
+    <div>${allCompetitors.map(c => `<span class="pattern-tag">${escapeHtml(c)}</span>`).join(' ')}</div>
+  </div>` : '';
+
+  const badgeEmbedHtml = isPro ? `
+  <div class="pro-embed-section">
+    <h2 class="questions-heading">Your embeddable badge</h2>
+    <img src="/api/ai-visibility-index/badge/${escapeHtml(company.slug)}" alt="${name} AI Visibility badge" width="300" height="120">
+    <p class="embed-hint">Copy this snippet to embed the badge on your own site:</p>
+    <pre class="full-answer-block">&lt;img src="https://strategic-flow-audit.replit.app/api/ai-visibility-index/badge/${escapeHtml(company.slug)}" alt="${name} AI Visibility Score" width="300" height="120"&gt;</pre>
+  </div>` : `
+  <div class="pro-upsell-section">
+    <h2 class="questions-heading">AI Visibility Pro <span class="partial-tag">Preview</span></h2>
+    <p class="upsell-copy">Monitoring over time, a shareable score badge, and competitor watch — unlock full AI Visibility Pro for this company.</p>
+    <button class="cta-primary upgrade-btn" data-slug="${escapeHtml(company.slug)}">Unlock AI Visibility Pro — $29/mo</button>
+    <div class="upgrade-status"></div>
+  </div>`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -7598,6 +7723,13 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
   .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
+  .history-section,.competitor-watch-section,.pro-embed-section,.pro-upsell-section{margin:32px 0;}
+  .history-svg{width:100%;height:140px;background:var(--card);border-radius:12px;padding:8px 0;}
+  .history-range{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px;font-family:'DM Mono',monospace;}
+  .upsell-copy{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 16px;}
+  .upgrade-btn{border:none;cursor:pointer;font-family:'Figtree',sans-serif;font-size:14px;}
+  .upgrade-status{margin-top:10px;font-size:13px;color:var(--muted);}
+  .embed-hint{font-size:13px;color:var(--muted);margin:12px 0 6px;}
   @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
 </style>
 </head>
@@ -7629,12 +7761,15 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
       ${modelRows}
     </tbody>
   </table>
+  ${historyChartHtml}
+  ${competitorWatchHtml}
   <div class="questions-section">
     <h2 class="questions-heading">Questions we asked</h2>
     <ul>
       ${questionsHtml}
     </ul>
   </div>
+  ${badgeEmbedHtml}
   <div class="cta-row">
     <a class="cta-primary" href="/ai-visibility">Check your own AI visibility — free</a>
     <a class="cta-secondary" href="https://strategic-flow-pro.replit.app/packages/">Get tracked over time</a>
@@ -7653,6 +7788,28 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   </div>
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
 </footer>
+<script>
+  (function(){
+    var btn = document.querySelector('.upgrade-btn');
+    if (!btn) return;
+    btn.addEventListener('click', async function(){
+      btn.disabled = true;
+      var statusEl = document.querySelector('.upgrade-status');
+      try {
+        var r = await fetch('/api/ai-visibility-index/upgrade-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: btn.dataset.slug })
+        });
+        var j = await r.json();
+        statusEl.textContent = j.message || 'Checkout opening soon.';
+      } catch (err) {
+        statusEl.textContent = 'Checkout opening soon.';
+      }
+      btn.disabled = false;
+    });
+  })();
+</script>
 </body>
 </html>`;
 }
@@ -7765,6 +7922,21 @@ function renderAiVisIndexMethodologyHtml() {
 
   <h2>AI Visibility Index vs the free AI Visibility Check</h2>
   <p>The free instant checker at <a href="/ai-visibility">/ai-visibility</a> gives you a quick one-time score. The AI Visibility Index is the permanent, publicly listed, periodically re-scored version — built for companies who want ongoing tracking and a public comparison page.</p>
+
+  <h2>AI Visibility Pro <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#f0c14b;background:#3a2405;border:1px solid #b8860b;border-radius:4px;padding:2px 6px;vertical-align:middle;">Preview</span></h2>
+  <p>AI Visibility Pro ($29/mo) unlocks ongoing monitoring, a score history chart, a shareable embeddable badge for your own site, and competitor watch — all built on top of the same scoring pipeline shown above. Below is an example of the badge Pro subscribers can embed:</p>
+  <div style="background:#0b0f10;border:1px solid #1f2a2a;border-radius:12px;padding:16px;display:inline-block;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" viewBox="0 0 300 120">
+      <rect width="300" height="120" rx="12" fill="#0b0f10"/>
+      <rect x="1" y="1" width="298" height="118" rx="11" fill="none" stroke="#1f2a2a" stroke-width="1"/>
+      <rect x="18" y="18" width="36" height="36" rx="8" fill="#1f2a2a"/>
+      <text x="66" y="34" font-family="Figtree, sans-serif" font-size="14" font-weight="600" fill="#ffffff">Example Co.</text>
+      <text x="66" y="52" font-family="Figtree, sans-serif" font-size="11" fill="#9aa6a6">AI Visibility Score</text>
+      <text x="18" y="88" font-family="Figtree, sans-serif" font-size="30" font-weight="700" fill="#00d4c8">7.5<tspan font-size="14" fill="#9aa6a6">/10</tspan></text>
+      <text x="18" y="106" font-family="Figtree, sans-serif" font-size="10" fill="#5f6b6b">Verified by Strategic Flow</text>
+    </svg>
+  </div>
+  <p style="margin-top:16px;"><button onclick="fetch('/api/ai-visibility-index/upgrade-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'methodology'})}).then(r=>r.json()).then(j=>{this.nextElementSibling.textContent=j.message||'Checkout opening soon.'})" style="background:#00d4c8;color:#0a1628;border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;">Unlock AI Visibility Pro — $29/mo</button><span style="display:block;margin-top:10px;font-size:13px;color:var(--muted);"></span></p>
 
   <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
 </div>
@@ -9982,6 +10154,10 @@ setupDB().then(async () => {
        ON CONFLICT (slug) DO UPDATE SET name=$2, domain=$3, category=$4, visibility_score=$5, scored_at=NOW()`,
       [slug, name, domain, category, visibilityScore]
     );
+    await pool.query(
+      `INSERT INTO ai_visibility_score_history (company_slug, visibility_score) VALUES ($1, $2)`,
+      [slug, visibilityScore]
+    );
 
     await pool.query('DELETE FROM ai_visibility_questions WHERE company_slug = $1', [slug]);
     for (const q of questions) {
@@ -10109,6 +10285,10 @@ setupDB().then(async () => {
             `UPDATE ai_visibility_companies SET visibility_score = $1, partial_coverage = $2, scored_at = NOW() WHERE slug = $3`,
             [visibilityScore, partialCoverage, slug]
           );
+          await pool.query(
+            `INSERT INTO ai_visibility_score_history (company_slug, visibility_score) VALUES ($1, $2)`,
+            [slug, visibilityScore]
+          );
           await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
         } catch (err) {
           console.error('[ai-visibility-index retry job]', err.message);
@@ -10186,6 +10366,11 @@ setupDB().then(async () => {
     const slug = slugify(companyName);
 
     try {
+      const existingLead = await pool.query('SELECT COUNT(*) FROM ai_visibility_leads WHERE email = $1', [email]);
+      if (parseInt(existingLead.rows[0].count, 10) > 0) {
+        return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+      }
+
       const existing = await pool.query('SELECT slug, visibility_score, scored_at FROM ai_visibility_companies WHERE slug = $1', [slug]);
       if (existing.rows.length) {
         return res.status(409).json({ error: 'already_scored', company: existing.rows[0] });
@@ -10241,20 +10426,61 @@ setupDB().then(async () => {
     res.send(renderAiVisIndexMethodologyHtml());
   });
 
+  app.get('/api/ai-visibility-index/badge/:slug', async (req, res) => {
+    try {
+      const subResult = await pool.query(
+        `SELECT s.status, c.name, c.domain, c.visibility_score
+         FROM ai_visibility_subscribers s
+         JOIN ai_visibility_companies c ON c.slug = s.company_slug
+         WHERE s.company_slug = $1 AND s.status = 'active'
+         LIMIT 1`,
+        [req.params.slug]
+      );
+      if (!subResult.rows.length) {
+        return res.status(404).send('Badge not available');
+      }
+      const { name, domain, visibility_score } = subResult.rows[0];
+      const scoreLabel = visibility_score != null ? Number(visibility_score).toFixed(1) : '—';
+      const logoUrl = `https://logo.clearbit.com/${domain}`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" viewBox="0 0 300 120">
+  <rect width="300" height="120" rx="12" fill="#0b0f10"/>
+  <rect x="1" y="1" width="298" height="118" rx="11" fill="none" stroke="#1f2a2a" stroke-width="1"/>
+  <image href="${logoUrl}" x="18" y="18" width="36" height="36" clip-path="inset(0% round 8px)"/>
+  <text x="66" y="34" font-family="Figtree, sans-serif" font-size="14" font-weight="600" fill="#ffffff">${name}</text>
+  <text x="66" y="52" font-family="Figtree, sans-serif" font-size="11" fill="#9aa6a6">AI Visibility Score</text>
+  <text x="18" y="88" font-family="Figtree, sans-serif" font-size="30" font-weight="700" fill="#00d4c8">${scoreLabel}<tspan font-size="14" fill="#9aa6a6">/10</tspan></text>
+  <text x="18" y="106" font-family="Figtree, sans-serif" font-size="10" fill="#5f6b6b">Verified by Strategic Flow</text>
+</svg>`;
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(svg);
+    } catch (err) {
+      console.error('[ai-visibility-index badge]', err.message);
+      res.status(500).send('Error generating badge');
+    }
+  });
+
+  app.post('/api/ai-visibility-index/upgrade-checkout', (req, res) => {
+    console.log('[ai-visibility-index] upgrade-checkout clicked (placeholder, no Stripe wired yet):', JSON.stringify(req.body || {}));
+    res.json({ status: 'coming_soon', message: 'AI Visibility Pro checkout is opening soon.' });
+  });
+
   app.get('/ai-visibility-index/:slug', async (req, res) => {
     try {
       const companyResult = await pool.query('SELECT * FROM ai_visibility_companies WHERE slug = $1', [req.params.slug]);
       if (!companyResult.rows.length) return res.status(404).send('Company not found');
       const company = companyResult.rows[0];
 
-      const [modelResultsResult, questionsResult, frictionResult] = await Promise.all([
+      const [modelResultsResult, questionsResult, frictionResult, historyResult, subResult] = await Promise.all([
         pool.query('SELECT * FROM ai_visibility_model_results WHERE company_slug = $1 ORDER BY model', [company.slug]),
         pool.query('SELECT question FROM ai_visibility_questions WHERE company_slug = $1 ORDER BY id', [company.slug]),
-        pool.query('SELECT slug FROM index_companies WHERE slug = $1', [company.slug])
+        pool.query('SELECT slug FROM index_companies WHERE slug = $1', [company.slug]),
+        pool.query('SELECT visibility_score, recorded_at FROM ai_visibility_score_history WHERE company_slug = $1 ORDER BY recorded_at ASC', [company.slug]),
+        pool.query(`SELECT status FROM ai_visibility_subscribers WHERE company_slug = $1 AND status = 'active' LIMIT 1`, [company.slug])
       ]);
 
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0));
+      res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0, historyResult.rows, subResult.rows.length > 0));
     } catch (err) {
       console.error('[ai-visibility-index company page]', err.message);
       res.status(500).send('Error loading company page');
