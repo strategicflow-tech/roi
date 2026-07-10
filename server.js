@@ -6792,6 +6792,11 @@ function renderFrictionIndexHtml(companies) {
   h1{font-size:36px;margin-bottom:8px;}
   .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
   select{background:var(--card);color:#fff;border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;margin-bottom:24px;}
+  .filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;}
+  .filter-row select{margin-bottom:24px;}
+  .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px;white-space:nowrap;transition:color 0.15s;}
+  .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
+  @media (max-width:480px){.filter-row{flex-direction:column;align-items:stretch;}.filter-row select{margin-bottom:0;}}
   table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
   th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
   th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
@@ -6830,16 +6835,19 @@ function renderFrictionIndexHtml(companies) {
   <h1>The Decision Friction Index</h1>
   <p class="subtitle">${escapeHtml(subtitleText)}</p>
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
-  <select id="filter" onchange="filterTable()">
-    <option value="all">All content types</option>
-    <option value="email">Email</option>
-    <option value="product_update_blog">Product Update</option>
-    <option value="changelog">Changelog</option>
-    <option value="landing_page">Landing Page</option>
-    <option value="onboarding_sequence">Onboarding</option>
-    <option value="newsletter">Newsletter</option>
-    <option value="blog_article">Blog Article</option>
-  </select>
+  <div class="filter-row">
+    <select id="filter" onchange="filterTable()">
+      <option value="all">All content types</option>
+      <option value="email">Email</option>
+      <option value="product_update_blog">Product Update</option>
+      <option value="changelog">Changelog</option>
+      <option value="landing_page">Landing Page</option>
+      <option value="onboarding_sequence">Onboarding</option>
+      <option value="newsletter">Newsletter</option>
+      <option value="blog_article">Blog Article</option>
+    </select>
+    <a class="methodology-btn" href="/friction-index/methodology">How scores work →</a>
+  </div>
   <table>
     <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Top Pattern</th><th>Type</th></tr></thead>
     <tbody id="rows">
@@ -7277,6 +7285,11 @@ function renderAiVisIndexHtml(companies) {
   .wrap{max-width:1000px;margin:0 auto;padding:60px 24px;}
   h1{font-size:36px;margin-bottom:8px;}
   .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
+  .index-header-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .index-header-row h1{margin-bottom:8px;}
+  .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;transition:color 0.15s;}
+  .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
+  @media (max-width:480px){.index-header-row{flex-direction:column;align-items:flex-start;}}
   table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
   th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
   th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
@@ -7288,6 +7301,15 @@ function renderAiVisIndexHtml(companies) {
   .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
   .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
   .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
+  .scan-form{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px;}
+  .scan-form input{background:var(--bg);color:#fff;border:1px solid var(--hairline);padding:12px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;flex:1;min-width:200px;}
+  .scan-form input::placeholder{color:var(--muted);}
+  .scan-form button{background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;font-family:'Figtree',sans-serif;}
+  .scan-form button:disabled{opacity:0.6;cursor:not-allowed;}
+  .scan-status{margin-top:14px;font-size:14px;color:var(--muted);min-height:20px;}
+  .scan-status.error{color:#ff6b6b;}
+  .scan-status.success{color:var(--teal);}
+  @media (max-width:480px){.scan-form{flex-direction:column;}}
   .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
   .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
   .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
@@ -7312,7 +7334,10 @@ function renderAiVisIndexHtml(companies) {
   </nav>
 </div>
 <div class="wrap">
-  <h1>The AI Visibility Index</h1>
+  <div class="index-header-row">
+    <h1>The AI Visibility Index</h1>
+    <a class="methodology-btn" href="/ai-visibility-index/methodology">How scores work →</a>
+  </div>
   <p class="subtitle">${escapeHtml(subtitleText)}</p>
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
   <table>
