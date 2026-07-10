@@ -10479,8 +10479,9 @@ setupDB().then(async () => {
         pool.query(`SELECT status FROM ai_visibility_subscribers WHERE company_slug = $1 AND status = 'active' LIMIT 1`, [company.slug])
       ]);
 
-      res.setHeader('Cache-Control', 'public, max-age=300');
-      res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0, historyResult.rows, subResult.rows.length > 0));
+      const isPro = subResult.rows.length > 0 || isAdmin(req.session && req.session.userEmail);
+      res.setHeader('Cache-Control', isPro ? 'private, no-store' : 'public, max-age=300');
+      res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0, historyResult.rows, isPro));
     } catch (err) {
       console.error('[ai-visibility-index company page]', err.message);
       res.status(500).send('Error loading company page');
