@@ -191,44 +191,44 @@ async function attemptCompany(company) {
 
 const COMPANIES = [
   {
-    slug: 'chowly', name: 'Chowly', content_type: 'product_update_blog',
-    urls: []
+    slug: 'buffer', name: 'Buffer', content_type: 'product_update_blog',
+    urls: ['https://buffer.com/changelog']
   },
   {
-    slug: 'stripe', name: 'Stripe', content_type: 'landing_page',
-    urls: ['https://stripe.com']
+    slug: 'lemlist', name: 'Lemlist', content_type: 'landing_page',
+    urls: ['https://lemlist.com']
   },
   {
-    slug: 'slack', name: 'Slack', content_type: 'product_update_blog',
-    urls: ['https://slack.com/blog/news/slack-feature-drop-june2026', 'https://slack.com/blog/news/feature-drop-may2026']
+    slug: 'typeform', name: 'Typeform', content_type: 'landing_page',
+    urls: ['https://www.typeform.com']
   },
   {
-    slug: 'hubspot', name: 'HubSpot', content_type: 'landing_page',
-    urls: ['https://www.hubspot.com']
+    slug: 'attio', name: 'Attio', content_type: 'landing_page',
+    urls: ['https://attio.com']
   },
   {
-    slug: 'notion', name: 'Notion', content_type: 'product_update_blog',
-    urls: ['https://www.notion.com/releases', 'https://www.notion.so/releases']
+    slug: 'loom', name: 'Loom', content_type: 'landing_page',
+    urls: ['https://www.loom.com/screen-recorder']
   },
   {
-    slug: 'linear', name: 'Linear', content_type: 'landing_page',
-    urls: ['https://linear.app']
+    slug: 'duolingo', name: 'Duolingo', content_type: 'landing_page',
+    urls: ['https://www.duolingo.com', 'https://schools.duolingo.com']
   },
   {
-    slug: 'klaviyo', name: 'Klaviyo', content_type: 'changelog',
-    urls: ['https://developers.klaviyo.com/en/docs/changelog_', 'https://www.klaviyo.com/whats-new']
+    slug: 'amplitude', name: 'Amplitude', content_type: 'changelog',
+    urls: ['https://amplitude.com/releases', 'https://amplitude.com/blog/product-updates']
   },
   {
-    slug: 'mixpanel', name: 'Mixpanel', content_type: 'product_update_blog',
-    urls: ['https://mixpanel.com/blog/how-to-plan-b2b-product-rollouts-metrics-analytics/']
+    slug: 'figma', name: 'Figma', content_type: 'landing_page',
+    urls: ['https://www.figma.com']
   },
   {
-    slug: 'semrush', name: 'Semrush', content_type: 'product_update_blog',
-    urls: ['https://www.semrush.com/blog/ai-search-with-semrush-one/', 'https://www.semrush.com/blog/agentic-search-optimization-with-semrush/']
+    slug: 'dropbox', name: 'Dropbox', content_type: 'product_update_blog',
+    urls: ['https://www.dropbox.com/blog']
   },
   {
-    slug: 'circle', name: 'Circle', content_type: 'product_update_blog',
-    urls: ['https://circle.so/blog/ai-native-community-platform']
+    slug: 'substack', name: 'Substack', content_type: 'landing_page',
+    urls: ['https://on.substack.com']
   }
 ];
 
