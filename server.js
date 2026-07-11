@@ -7653,7 +7653,10 @@ function renderAiVisIndexHtml(companies) {
 </html>`;
 }
 
-function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFrictionIndexEntry, scoreHistory, isPro) {
+function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFrictionIndexEntry, scoreHistory, isPro, opts) {
+  const isPrivate  = !!(opts && opts.isPrivate);
+  const adminBlock = (opts && opts.adminBlock) || '';
+
   const name = escapeHtml(company.name);
   const domain = escapeHtml(company.domain);
   const category = escapeHtml(company.category);
@@ -7700,7 +7703,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
 
   const questionsHtml = (questions || []).map(q => `<li>${escapeHtml(q.question)}</li>`).join('\n      ');
 
-  const crossLinkBanner = hasFrictionIndexEntry ? `
+  const crossLinkBanner = (!isPrivate && hasFrictionIndexEntry) ? `
   <div class="cross-link-banner">
     ${name} is also on <a href="/friction-index/${escapeHtml(company.slug)}">The Decision Friction Index</a> — see its content structure score too.
   </div>` : '';
@@ -7758,7 +7761,12 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
     <div class="inline-badge-verified">Verified by Strategic Flow</div>
   </div>`;
 
-  const badgeEmbedHtml = isPro ? `
+  const badgeEmbedHtml = isPrivate ? `
+  <div class="pro-upsell-section">
+    <h2 class="questions-heading">Track your AI visibility over time</h2>
+    <p class="upsell-copy">AI models re-rank constantly. AI Visibility Pro monitors your score monthly, shows your history chart, and gives you a shareable badge.</p>
+    <a class="cta-primary upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+  </div>` : isPro ? `
   <div class="pro-embed-section">
     <h2 class="questions-heading">Your embeddable badge</h2>
     ${badgeHtml}
@@ -7851,8 +7859,10 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   .inline-badge-score{font-family:'DM Mono',monospace;font-size:32px;font-weight:700;color:#00d4c8;line-height:1;}
   .inline-badge-denom{font-size:14px;color:#9aa6a6;font-weight:400;}
   .inline-badge-verified{font-size:10px;color:#5f6b6b;margin-top:6px;}
+  .private-banner{background:#0d1e38;border:1px solid #1a3050;color:#7a9ab8;font-size:13px;font-weight:600;padding:10px 16px;border-radius:8px;margin:0 0 20px;font-family:'DM Mono',monospace;letter-spacing:0.04em;}
   @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
 </style>
+${isPrivate ? '<meta name="robots" content="noindex, nofollow">' : ''}
 </head>
 <body>
 <div class="site-header">
@@ -7865,6 +7875,8 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   </nav>
 </div>
 <div class="wrap">
+  ${isPrivate ? '<div class="private-banner">Private result — not on the public leaderboard</div>' : ''}
+  ${adminBlock}
   <div class="header">
     <img src="https://logo.clearbit.com/${domain}" alt="${name} logo" onerror="this.style.display='none'">
     <div>
@@ -11043,34 +11055,28 @@ setupDB().then(async () => {
       if (!r.rows.length) return res.status(404).send('Scan not found');
       const scan = r.rows[0];
       const modelResults = Array.isArray(scan.model_results) ? scan.model_results : [];
-      const questions = Array.isArray(scan.questions) ? scan.questions : [];
       const isAdmin = req.query.admin_key === process.env.INDEX_ADMIN_KEY;
-      const scoreLabel = scan.visibility_score != null ? Number(scan.visibility_score).toFixed(1) : '—';
-      const modelLabel = { claude: 'Claude', gpt: 'GPT-4o mini', perplexity: 'Perplexity' };
-      const accuracyLabel = { pass: 'Accurate', weak: 'Partially accurate', fail: 'Inaccurate' };
 
-      const modelCardsHtml = modelResults.map(mr => {
-        const mentioned = mr.mentioned && mr.status === 'ok';
-        const posStr = mr.position ? `#${mr.position}` : '—';
-        const accStr = mr.description_accuracy ? (accuracyLabel[mr.description_accuracy] || mr.description_accuracy) : '—';
-        const competitors = Array.isArray(mr.competitors_shown) ? mr.competitors_shown : [];
-        const excerpt = mr.raw_answer_excerpt ? `<div class="excerpt">"${escapeHtml(mr.raw_answer_excerpt)}"</div>` : '';
-        return `<div class="model-card${mentioned ? '' : ' not-mentioned'}">
-          <div class="model-header">
-            <span class="model-name">${escapeHtml(modelLabel[mr.model] || mr.model)}</span>
-            ${mentioned ? `<span class="badge badge-ok">Mentioned</span>` : `<span class="badge badge-miss">Not mentioned</span>`}
-          </div>
-          ${mentioned ? `
-          <div class="model-detail"><span class="detail-label">Position</span><span class="detail-val">${posStr}</span></div>
-          <div class="model-detail"><span class="detail-label">Description accuracy</span><span class="detail-val">${accStr}</span></div>
-          ${competitors.length ? `<div class="model-detail"><span class="detail-label">Also mentioned</span><span class="detail-val">${competitors.map(escapeHtml).join(', ')}</span></div>` : ''}
-          ${excerpt}` : `<p class="not-mentioned-note">This model did not include ${escapeHtml(scan.name)} in its response.</p>`}
-        </div>`;
-      }).join('');
+      // Normalize questions: private scans store plain strings; shared renderer expects { question } objects
+      const questions = (Array.isArray(scan.questions) ? scan.questions : []).map(q =>
+        (typeof q === 'string') ? { question: q } : q
+      );
 
+      // Normalize company shape for the shared renderer
+      const company = {
+        name:             scan.name,
+        domain:           scan.domain,
+        category:         scan.category,
+        slug:             scan.id,
+        visibility_score: scan.visibility_score,
+        scored_at:        null,
+        partial_coverage: false
+      };
+
+      // Admin-only promote block (identical logic, just isolated here)
       const adminBlock = isAdmin ? `
-      <div class="admin-promote">
-        <p class="admin-label">Admin only</p>
+      <div style="background:#0f1e14;border:1px solid #1a3020;border-radius:12px;padding:24px;margin-bottom:32px;">
+        <div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4ade80;margin:0 0 8px;">Admin only</div>
         <p style="font-size:14px;color:var(--muted);margin:0 0 16px;">Promote this scan to the public AI Visibility Index leaderboard.</p>
         <button id="promoteBtn" class="cta-primary" style="font-size:14px;">Make public on leaderboard</button>
         <div id="promoteStatus" style="margin-top:12px;font-size:13px;color:var(--muted);"></div>
@@ -11086,7 +11092,7 @@ setupDB().then(async () => {
               });
               const j = await r.json();
               if (j.slug) {
-                document.getElementById('promoteStatus').innerHTML = 'Now public! <a href="/ai-visibility-index/' + j.slug + '" style="color:var(--teal);">View on leaderboard →</a>';
+                document.getElementById('promoteStatus').innerHTML = 'Now public! <a href="/ai-visibility-index/' + j.slug + '" style="color:var(--teal);">View on leaderboard \u2192</a>';
               } else {
                 document.getElementById('promoteStatus').textContent = j.error || 'Something went wrong.';
                 document.getElementById('promoteBtn').disabled = false;
@@ -11100,108 +11106,13 @@ setupDB().then(async () => {
       </div>` : '';
 
       res.setHeader('Cache-Control', 'private, no-store');
-      res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<title>${escapeHtml(scan.name)} — AI Visibility Score | Strategic Flow</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  :root{--bg:#0a1628;--card:#0f2035;--teal:#00d4c8;--muted:#7a9ab8;--hairline:#1a3050;--green:#22c55e;--red:#f87171;}
-  *{box-sizing:border-box;}
-  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
-  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
-  .site-header .wordmark{font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
-  .site-header nav a{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;margin-left:24px;}
-  .site-header nav a:hover{color:var(--teal);}
-  .wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
-  .private-tag{display:inline-block;background:#1a3050;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;margin-bottom:20px;}
-  .company-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;}
-  .company-logo{width:56px;height:56px;border-radius:10px;background:var(--card);flex-shrink:0;overflow:hidden;}
-  .company-logo img{width:100%;height:100%;object-fit:contain;}
-  .company-meta{flex:1;}
-  .company-meta h1{font-size:28px;font-weight:700;margin:0 0 4px;}
-  .company-meta .domain{font-size:14px;color:var(--muted);}
-  .company-meta .category{font-size:13px;color:var(--muted);margin-top:4px;}
-  .score-band{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:24px 28px;margin-bottom:32px;display:flex;align-items:center;gap:32px;flex-wrap:wrap;}
-  .score-value{font-size:52px;font-weight:700;color:var(--teal);font-family:'DM Mono',monospace;line-height:1;}
-  .score-denom{font-size:20px;color:var(--muted);font-weight:400;}
-  .score-label{font-size:13px;color:var(--muted);margin-top:4px;}
-  .models-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:32px;}
-  .model-card{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px;}
-  .model-card.not-mentioned{opacity:0.7;}
-  .model-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .model-name{font-size:15px;font-weight:600;}
-  .badge{font-size:11px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;letter-spacing:0.04em;}
-  .badge-ok{background:#0d2a1f;color:var(--green);}
-  .badge-miss{background:#2a1a1a;color:var(--red);}
-  .model-detail{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--hairline);}
-  .model-detail:last-of-type{border-bottom:none;}
-  .detail-label{color:var(--muted);}
-  .detail-val{font-weight:500;}
-  .not-mentioned-note{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
-  .excerpt{font-size:12px;color:var(--muted);font-style:italic;margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline);line-height:1.5;}
-  .section-heading{font-size:13px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 16px;}
-  .questions-list{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px 24px;margin-bottom:32px;}
-  .questions-list li{font-size:14px;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--hairline);line-height:1.5;}
-  .questions-list li:last-child{border-bottom:none;}
-  .pro-upsell{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:28px;margin-bottom:32px;text-align:center;}
-  .pro-upsell h2{font-size:18px;margin:0 0 8px;}
-  .pro-upsell p{font-size:14px;color:var(--muted);margin:0 0 20px;line-height:1.6;}
-  .cta-primary{display:inline-block;background:var(--teal);color:var(--bg);padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;border:none;cursor:pointer;font-family:'Figtree',sans-serif;}
-  .admin-promote{background:#0f1e14;border:1px solid #1a3020;border-radius:12px;padding:24px;margin-bottom:32px;}
-  .admin-label{font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4ade80;margin:0 0 8px;}
-  .site-footer{max-width:1000px;margin:0 auto;padding:24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;text-align:center;}
-  .site-footer a{color:var(--muted);text-decoration:none;}
-</style>
-</head>
-<body>
-<div class="site-header">
-  <a class="wordmark" href="/">Strategic Flow</a>
-  <nav>
-    <a href="/ai-visibility-index">AI Visibility Index</a>
-    <a href="/ai-visibility-index/methodology">How it works</a>
-  </nav>
-</div>
-<div class="wrap">
-  <div class="private-tag">Private result — not on the public leaderboard</div>
-  <div class="company-header">
-    <div class="company-logo"><img src="https://logo.clearbit.com/${escapeHtml(scan.domain)}" alt="" onerror="this.style.display='none'"></div>
-    <div class="company-meta">
-      <h1>${escapeHtml(scan.name)}</h1>
-      <div class="domain">${escapeHtml(scan.domain)}</div>
-      <div class="category">${escapeHtml(scan.category)}</div>
-    </div>
-  </div>
-  <div class="score-band">
-    <div>
-      <div class="score-value">${scoreLabel}<span class="score-denom">/10</span></div>
-      <div class="score-label">AI Visibility Score</div>
-    </div>
-    <div style="font-size:14px;color:var(--muted);line-height:1.7;">
-      ${escapeHtml(buildAiVisScanSummary(scan.name, modelResults))}
-    </div>
-  </div>
-  ${adminBlock}
-  <p class="section-heading">Breakdown by model</p>
-  <div class="models-grid">${modelCardsHtml}</div>
-  ${questions.length ? `
-  <p class="section-heading">Questions asked</p>
-  <ul class="questions-list">${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>` : ''}
-  <div class="pro-upsell">
-    <h2>Track your AI visibility over time</h2>
-    <p>AI models re-rank constantly. AI Visibility Pro monitors your score monthly, shows your history chart, and gives you a shareable badge.</p>
-    <a class="cta-primary" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
-  </div>
-</div>
-<footer class="site-footer">
-  © 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a> · <a href="mailto:strategicflow@proton.me">Contact</a>
-</footer>
-</body>
-</html>`);
+      res.send(renderAiVisIndexCompanyHtml(
+        company, modelResults, questions,
+        false,   // hasFrictionIndexEntry — never shown for private scans
+        [],      // scoreHistory — no history for private scans
+        false,   // isPro
+        { isPrivate: true, adminBlock }
+      ));
     } catch (err) {
       console.error('[ai-visibility-index my-scan]', err.message);
       res.status(500).send('Error loading scan');
