@@ -10146,6 +10146,46 @@ setupDB().then(async () => {
     }
   });
 
+  app.get('/sitemap.xml', async (req, res) => {
+    const base = 'https://strategic-flow-audit.replit.app';
+    const now = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>${base}/sitemap-static.xml</loc>
+    <lastmod>${now}</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>${base}/sitemap-index.xml</loc>
+    <lastmod>${now}</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>${base}/sitemap-ai-visibility-index.xml</loc>
+    <lastmod>${now}</lastmod>
+  </sitemap>
+</sitemapindex>`);
+  });
+
+  app.get('/sitemap-static.xml', (req, res) => {
+    const base = 'https://strategic-flow-audit.replit.app';
+    const now = new Date().toISOString().slice(0, 10);
+    const staticUrls = [
+      { loc: `${base}/`,                                  priority: '1.0', changefreq: 'weekly'  },
+      { loc: `${base}/why`,                               priority: '0.9', changefreq: 'weekly'  },
+      { loc: `${base}/friction-index`,                    priority: '0.9', changefreq: 'daily'   },
+      { loc: `${base}/friction-index/methodology`,        priority: '0.6', changefreq: 'monthly' },
+      { loc: `${base}/ai-visibility-index`,               priority: '0.9', changefreq: 'daily'   },
+      { loc: `${base}/ai-visibility-index/methodology`,   priority: '0.6', changefreq: 'monthly' },
+      { loc: `${base}/ai-visibility`,                     priority: '0.7', changefreq: 'monthly' },
+    ];
+    const urls = staticUrls.map(u =>
+      `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
+    ).join('\n');
+    res.setHeader('Content-Type', 'application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+  });
+
   app.get('/sitemap-index.xml', async (req, res) => {
     try {
       const r = await pool.query('SELECT slug, scored_at FROM index_companies ORDER BY scored_at DESC');
