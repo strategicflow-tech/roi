@@ -6879,6 +6879,8 @@ function renderFrictionIndexHtml(companies) {
   .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px;white-space:nowrap;transition:color 0.15s;}
   .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
   @media (max-width:480px){.filter-row{flex-direction:column;align-items:stretch;}.filter-row select{margin-bottom:0;}}
+  .show-more-btn{display:block;margin:16px auto 0;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 20px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:color 0.15s,border-color 0.15s;}
+  .show-more-btn:hover{color:var(--teal);border-color:var(--teal);}
   table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
   th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
   th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
@@ -6935,7 +6937,10 @@ function renderFrictionIndexHtml(companies) {
     <tbody id="rows">
       ${rows}
     </tbody>
-  </table>`}
+  </table>
+  <div id="showMoreWrap" style="text-align:center;">
+    <button class="show-more-btn" id="showMoreBtn"></button>
+  </div>`}
   <div class="cta-banner">
     <div>Wondering how your own content holds up?</div>
     <a href="/why">Find the friction in your own content — free</a>
@@ -6954,12 +6959,45 @@ function renderFrictionIndexHtml(companies) {
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
 </footer>
 <script>
-function filterTable(){
-  const val = document.getElementById('filter').value;
-  document.querySelectorAll('#rows tr').forEach(tr => {
-    tr.style.display = (val === 'all' || tr.dataset.contentType === val) ? '' : 'none';
+(function(){
+  var INIT = 5, BATCH = 10, shown = INIT;
+  function getMatchingRows() {
+    var val = document.getElementById('filter').value;
+    return Array.from(document.querySelectorAll('#rows tr')).filter(function(tr){
+      return val === 'all' || tr.dataset.contentType === val;
+    });
+  }
+  function renderRows() {
+    var all = Array.from(document.querySelectorAll('#rows tr'));
+    var val = document.getElementById('filter').value;
+    all.forEach(function(tr){
+      tr.style.display = (val === 'all' || tr.dataset.contentType === val) ? '' : 'none';
+    });
+    var matching = getMatchingRows();
+    matching.forEach(function(tr, i){ tr.style.display = i < shown ? '' : 'none'; });
+    var remaining = matching.length - shown;
+    var wrap = document.getElementById('showMoreWrap');
+    var btn  = document.getElementById('showMoreBtn');
+    if (!wrap) return;
+    if (remaining <= 0) {
+      wrap.style.display = 'none';
+    } else {
+      wrap.style.display = '';
+      btn.textContent = remaining <= BATCH
+        ? 'Show ' + remaining + ' more'
+        : 'Show 10 more (' + remaining + ' remaining)';
+    }
+  }
+  window.filterTable = function(){
+    shown = INIT;
+    renderRows();
+  };
+  document.getElementById('showMoreBtn').addEventListener('click', function(){
+    shown += BATCH;
+    renderRows();
   });
-}
+  renderRows();
+})();
 </script>
 </body>
 </html>`;
@@ -7372,6 +7410,8 @@ function renderAiVisIndexHtml(companies) {
   .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;transition:color 0.15s;}
   .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
   @media (max-width:480px){.index-header-row{flex-direction:column;align-items:flex-start;}}
+  .show-more-btn{display:block;margin:16px auto 0;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 20px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:color 0.15s,border-color 0.15s;}
+  .show-more-btn:hover{color:var(--teal);border-color:var(--teal);}
   table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
   th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
   th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
@@ -7432,10 +7472,13 @@ function renderAiVisIndexHtml(companies) {
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
   <table>
     <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Category</th></tr></thead>
-    <tbody>
+    <tbody id="avRows">
       ${rows}
     </tbody>
-  </table>`}
+  </table>
+  <div id="avShowMoreWrap" style="text-align:center;">
+    <button class="show-more-btn" id="avShowMoreBtn"></button>
+  </div>`}
   <div class="cta-banner">
     <div>Want to know how AI assistants describe your company?</div>
     <form class="scan-form" id="scanForm">
@@ -7572,6 +7615,33 @@ function renderAiVisIndexHtml(companies) {
         }
       });
     })();
+  </script>
+  <script>
+  (function(){
+    var INIT = 5, BATCH = 10, shown = INIT;
+    var tbody = document.getElementById('avRows');
+    var wrap  = document.getElementById('avShowMoreWrap');
+    var btn   = document.getElementById('avShowMoreBtn');
+    if (!tbody || !wrap || !btn) return;
+    function renderRows() {
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.forEach(function(tr, i){ tr.style.display = i < shown ? '' : 'none'; });
+      var remaining = rows.length - shown;
+      if (remaining <= 0) {
+        wrap.style.display = 'none';
+      } else {
+        wrap.style.display = '';
+        btn.textContent = remaining <= BATCH
+          ? 'Show ' + remaining + ' more'
+          : 'Show 10 more (' + remaining + ' remaining)';
+      }
+    }
+    btn.addEventListener('click', function(){
+      shown += BATCH;
+      renderRows();
+    });
+    renderRows();
+  })();
   </script>
 </footer>
 </body>
