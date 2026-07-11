@@ -10266,7 +10266,8 @@ setupDB().then(async () => {
                 </div>
               </div>
             `
-          }).catch(e => console.error('[ai-vis scan] email send error:', e.message));
+          }).then(r => console.log('[ai-vis scan] email sent to', email, '— Resend ID:', r?.data?.id || 'n/a'))
+            .catch(e => console.error('[ai-vis scan] email send error:', e.message));
 
         } else {
           // Admin score: write to public leaderboard tables as before
