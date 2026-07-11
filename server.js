@@ -10040,9 +10040,14 @@ setupDB().then(async () => {
       // Remove score-row overlay (<div class="score-row">…</div>) that appears on
       // already-processed teardown pages — contains Strategic Flow's own score + patterns
       // and would contaminate the Claude scoring prompt if left in.
-      const withoutOverlay = withoutMeta.replace(/<div class="score-row">[\s\S]*?<\/div>\s*<\/div>/g, '');
+      // Lookahead stops exactly at the first bef-* content div — removes score-row
+      // including all nested divs (score-badge, score-num, score-label, patterns text)
+      const withoutOverlay = withoutMeta.replace(/<div class="score-row">[\s\S]*?(?=<div class="bef-)/g, '');
+      // Remove before-issues block — SF diagnostic annotations (⚠ Filing Label, Feature-First…)
+      // embedded after the original email/post footer. Contaminates Claude scoring.
+      const withoutIssues = withoutOverlay.replace(/<div class="before-issues">[\s\S]*?<\/div>\s*(?=<\/div>|$)/g, '');
       // Strip all tags, clean whitespace
-      return stripHtml(withoutOverlay).replace(/\s+/g, ' ').trim().slice(0, 8000);
+      return stripHtml(withoutIssues).replace(/\s+/g, ' ').trim().slice(0, 8000);
     }
 
     // ── MAIN LOOP (background — responds immediately) ──────────────────────────
@@ -10114,6 +10119,9 @@ setupDB().then(async () => {
 
         // ── Before content ──────────────────────────────────────────────────
         const beforeText = extractBeforeContent(html);
+        // Temporary diagnostic log — remove after Sequel/Leadpages fix confirmed
+        const _hasAnno = beforeText.includes('Filing Label') || beforeText.includes('Feature-First') || beforeText.includes('before-issues');
+        console.log(`[import-teardowns] extract: ${page} len=${beforeText.length} hasAnnotation=${_hasAnno} preview=${beforeText.slice(0,80).replace(/\n/g,' ')}`);
         if (beforeText.length < 80) {
           results.skipped.push({ page, reason: 'insufficient before content', chars: beforeText.length });
           continue;
