@@ -10037,8 +10037,12 @@ setupDB().then(async () => {
 
       // Remove meta-bar (Source/Type/Date header)
       const withoutMeta = panelHtml.replace(/<div class="meta-bar"[\s\S]*?<\/div>\s*<\/div>/,'');
+      // Remove score-row overlay (<div class="score-row">…</div>) that appears on
+      // already-processed teardown pages — contains Strategic Flow's own score + patterns
+      // and would contaminate the Claude scoring prompt if left in.
+      const withoutOverlay = withoutMeta.replace(/<div class="score-row">[\s\S]*?<\/div>\s*<\/div>/g, '');
       // Strip all tags, clean whitespace
-      return stripHtml(withoutMeta).slice(0, 8000);
+      return stripHtml(withoutOverlay).replace(/\s+/g, ' ').trim().slice(0, 8000);
     }
 
     // ── MAIN LOOP (background — responds immediately) ──────────────────────────
@@ -10052,10 +10056,15 @@ setupDB().then(async () => {
 
     const rawLinks = [...hubHtml.matchAll(/href="([\w\-\.]+\.html)"/g)].map(m => m[1]);
     const SKIP_PAGES = new Set(['glossary.html','activation-intelligence.html','addons.html']);
-    const pages = [...new Set(rawLinks)].filter(p => !SKIP_PAGES.has(p));
+    const allPages = [...new Set(rawLinks)].filter(p => !SKIP_PAGES.has(p));
 
-    console.log(`[import-teardowns] START — ${pages.length} candidate pages, ~${Math.ceil(pages.length * 8 / 60)}min estimated`);
-    res.json({ status: 'running', message: `Import started in background. ${pages.length} candidates. Check server logs for progress.`, candidates: pages.length });
+    // ?rerun=page1.html,page2.html — restrict to these pages and force-delete existing entries first
+    const rerunParam = req.query.rerun ? req.query.rerun.split(',').map(s => s.trim()).filter(Boolean) : null;
+    const pages = rerunParam ? allPages.filter(p => rerunParam.includes(p)) : allPages;
+    const isRerun = !!rerunParam;
+
+    console.log(`[import-teardowns] START — ${pages.length} candidate pages${isRerun ? ' (RERUN mode)' : ''}, ~${Math.ceil(pages.length * 8 / 60)}min estimated`);
+    res.json({ status: 'running', message: `Import started in background. ${pages.length} candidates${isRerun ? ' (rerun)' : ''}. Check server logs for progress.`, candidates: pages.length, rerun: isRerun });
 
     // Run the actual loop after responding
     const results = { imported: [], skipped: [], failed: [] };
@@ -10114,8 +10123,15 @@ setupDB().then(async () => {
         const slug = slugify(companyName);
         const existing = await pool.query('SELECT slug FROM index_companies WHERE slug = $1', [slug]);
         if (existing.rows.length) {
-          results.skipped.push({ page, reason: 'already in index', slug });
-          continue;
+          if (isRerun) {
+            // Force-delete existing entry (and any content samples) before re-scoring
+            await pool.query('DELETE FROM index_content_samples WHERE company_slug = $1', [slug]);
+            await pool.query('DELETE FROM index_companies WHERE slug = $1', [slug]);
+            console.log(`[import-teardowns] deleted existing ${slug} for rerun`);
+          } else {
+            results.skipped.push({ page, reason: 'already in index', slug });
+            continue;
+          }
         }
 
         // ── Score with Claude ───────────────────────────────────────────────
