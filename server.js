@@ -10119,9 +10119,6 @@ setupDB().then(async () => {
 
         // ── Before content ──────────────────────────────────────────────────
         const beforeText = extractBeforeContent(html);
-        // Temporary diagnostic log — remove after Sequel/Leadpages fix confirmed
-        const _hasAnno = beforeText.includes('Filing Label') || beforeText.includes('Feature-First') || beforeText.includes('before-issues');
-        console.log(`[import-teardowns] extract: ${page} len=${beforeText.length} hasAnnotation=${_hasAnno} preview=${beforeText.slice(0,80).replace(/\n/g,' ')}`);
         if (beforeText.length < 80) {
           results.skipped.push({ page, reason: 'insufficient before content', chars: beforeText.length });
           continue;
