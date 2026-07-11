@@ -83,7 +83,7 @@ async function scoreContentWithClaude(prompt) {
   const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: MODEL, max_tokens: 16000, messages: [{ role: 'user', content: prompt }] })
   });
   const data = await apiResp.json();
   const textBlock = data.content?.find(b => b.type === 'text');
@@ -9968,6 +9968,198 @@ setupDB().then(async () => {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // ── TEARDOWN IMPORT ────────────────────────────────────────────────────────
+  // GET /api/index/import-teardowns?admin_key=<key>
+  // Fetches all teardown + showcase pages from strategicflow.tech/teardowns.html,
+  // parses the BEFORE content from each, and scores them into index_companies.
+  // Sequential with 4s delay. Safe to re-run — skips slugs already in the index.
+  app.get('/api/index/import-teardowns', async (req, res) => {
+    if (!INDEX_ADMIN_KEY || req.query.admin_key !== INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const BASE = 'https://strategicflow.tech';
+    const DELAY_MS = 4000;
+    const stripHtml = s => s.replace(/<[^>]+>/g, ' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
+
+    // content_type mapping from free-text Type: field
+    function mapContentType(typeStr) {
+      const t = (typeStr || '').toLowerCase();
+      if (t.includes('changelog'))                                   return 'changelog';
+      if (t.includes('newsletter'))                                  return 'newsletter';
+      if (t.includes('landing page'))                                return 'landing_page';
+      if (t.includes('onboarding'))                                  return 'onboarding_sequence';
+      if (t.includes('blog article'))                                return 'blog_article';
+      if (t.includes('blog') || t.includes('product') || t.includes('announcement') || t.includes('update')) return 'product_update_blog';
+      return 'email';
+    }
+
+    // Extract domain from Source: path (e.g. "neon.com/docs/changelog" → "neon.com")
+    function parseDomainFromSource(src) {
+      return src.trim().replace(/^https?:\/\//i,'').split('/')[0].split('?')[0].toLowerCase();
+    }
+
+    // Extract domain from From: field (e.g. "Uber <uber@uber.com>" or "ElevenLabs Blog")
+    function parseDomainFromFrom(fromText) {
+      const m = fromText.match(/@([\w.\-]+)/);
+      if (m) return m[1].toLowerCase();
+      // No @ — try to extract a bare domain word from the sender name (e.g. "ElevenLabs Blog" → null, let name extraction handle)
+      return null;
+    }
+
+    // Extract company name: prefer bef-wordmark/bef-logo text (≥2 chars), else domain root
+    function extractCompanyName(html, domain) {
+      const domainRoot = domain ? domain.split('.')[0].toLowerCase() : '';
+      const capitaliseRoot = () => domainRoot ? (domainRoot.charAt(0).toUpperCase() + domainRoot.slice(1)) : null;
+      // Try text inside bef-wordmark or bef-logo (skip SVG-only nodes and single-char logo marks)
+      const logoMatches = [...html.matchAll(/class="bef-(?:wordmark|logo|logo-text)"[^>]*>([\s\S]*?)<\/(?:div|span|p)/g)];
+      for (const m of logoMatches) {
+        const t = stripHtml(m[1]).replace(/[.\s]+$/, '').trim();
+        if (!t || t.length < 2 || t.length >= 50 || /svg|path|viewBox|<img/i.test(t)) continue;
+        // If logo text words concatenated == domain root (e.g. "Lin ear" → "linear"), use domain root
+        if (domainRoot && t.replace(/\s+/g, '').toLowerCase() === domainRoot) return capitaliseRoot();
+        return t;
+      }
+      // Fallback: capitalise domain root (e.g. neon.com → Neon, ahrefs.com → Ahrefs)
+      return capitaliseRoot();
+    }
+
+    // Extract all bef-* text from the panel-before section
+    function extractBeforeContent(html) {
+      // Isolate panel-before div
+      const panelStart = html.indexOf('id="panel-before"');
+      const panelEnd   = html.indexOf('id="panel-after"');
+      const panelHtml  = panelStart >= 0 && panelEnd > panelStart
+        ? html.slice(panelStart, panelEnd)
+        : (panelStart >= 0 ? html.slice(panelStart, panelStart + 30000) : '');
+
+      // Remove meta-bar (Source/Type/Date header)
+      const withoutMeta = panelHtml.replace(/<div class="meta-bar"[\s\S]*?<\/div>\s*<\/div>/,'');
+      // Strip all tags, clean whitespace
+      return stripHtml(withoutMeta).slice(0, 8000);
+    }
+
+    // ── MAIN LOOP (background — responds immediately) ──────────────────────────
+    let hubHtml;
+    try {
+      const hubRes = await fetch(`${BASE}/teardowns.html`, { headers: { 'User-Agent': 'StrategicFlow-Importer/1.0' } });
+      hubHtml = await hubRes.text();
+    } catch (e) {
+      return res.status(502).json({ error: `Could not fetch teardowns.html: ${e.message}` });
+    }
+
+    const rawLinks = [...hubHtml.matchAll(/href="([\w\-\.]+\.html)"/g)].map(m => m[1]);
+    const SKIP_PAGES = new Set(['glossary.html','activation-intelligence.html','addons.html']);
+    const pages = [...new Set(rawLinks)].filter(p => !SKIP_PAGES.has(p));
+
+    console.log(`[import-teardowns] START — ${pages.length} candidate pages, ~${Math.ceil(pages.length * 8 / 60)}min estimated`);
+    res.json({ status: 'running', message: `Import started in background. ${pages.length} candidates. Check server logs for progress.`, candidates: pages.length });
+
+    // Run the actual loop after responding
+    const results = { imported: [], skipped: [], failed: [] };
+    (async () => {
+    for (const page of pages) {
+      await new Promise(r => setTimeout(r, DELAY_MS));
+      try {
+        const pageRes = await fetch(`${BASE}/${page}`, { headers: { 'User-Agent': 'StrategicFlow-Importer/1.0' } });
+        if (!pageRes.ok) { results.failed.push({ page, reason: `HTTP ${pageRes.status}` }); continue; }
+        const html = await pageRes.text();
+
+        // Skip pages without a before panel (field-notes, analysis articles)
+        if (!html.includes('panel-before')) {
+          results.skipped.push({ page, reason: 'no panel-before' });
+          continue;
+        }
+
+        // ── Parse meta-bar ──────────────────────────────────────────────────
+        const sourceM  = html.match(/<span>Source:<\/span>\s*([^<\n]+)/);
+        const typeM    = html.match(/<span>Type:<\/span>\s*([^<\n]+)/);
+        const fromM    = html.match(/<span>From:<\/span>\s*([^<\n]+)/);
+        const subjectM = html.match(/class="subject-line"[^>]*>([^<]+)/);
+
+        const isEmailFormat = !sourceM && !!fromM;
+
+        let domain, contentType;
+        if (isEmailFormat) {
+          domain      = parseDomainFromFrom(fromM[1]);
+          contentType = 'email';
+        } else if (sourceM) {
+          domain      = parseDomainFromSource(sourceM[1]);
+          contentType = mapContentType(typeM ? typeM[1] : '');
+        } else {
+          results.skipped.push({ page, reason: 'no Source: or From: in meta-bar' });
+          continue;
+        }
+
+        // ── Company name ────────────────────────────────────────────────────
+        // domain may be null for pages with "From: X Blog" (no @ address) — company name extracted from bef-logo
+        const companyName = extractCompanyName(html, domain);
+        if (!companyName) { results.failed.push({ page, reason: 'could not extract company name' }); continue; }
+        // If domain still null, try to infer from company name (best-effort, may stay null)
+        if (!domain) {
+          const slug0 = companyName.replace(/\s+/g,'').toLowerCase();
+          domain = slug0 + '.com'; // best-effort placeholder; will be blank on leaderboard
+        }
+
+        // ── Before content ──────────────────────────────────────────────────
+        const beforeText = extractBeforeContent(html);
+        if (beforeText.length < 80) {
+          results.skipped.push({ page, reason: 'insufficient before content', chars: beforeText.length });
+          continue;
+        }
+
+        // ── Slug dedup check ────────────────────────────────────────────────
+        const slug = slugify(companyName);
+        const existing = await pool.query('SELECT slug FROM index_companies WHERE slug = $1', [slug]);
+        if (existing.rows.length) {
+          results.skipped.push({ page, reason: 'already in index', slug });
+          continue;
+        }
+
+        // ── Score with Claude ───────────────────────────────────────────────
+        console.log(`[import-teardowns] scoring ${companyName} (${page})`);
+        const prompt = buildIndexScoringPrompt(contentType, beforeText);
+        const scored = await scoreContentWithClaude(prompt);
+
+        if (scored.input_quality === 'polluted') {
+          results.failed.push({ page, company: companyName, reason: 'polluted_input' });
+          continue;
+        }
+
+        const score    = typeof scored.score === 'number' ? scored.score : parseFloat(scored.score);
+        const patterns = Array.isArray(scored.patterns) ? scored.patterns.filter(p => INDEX_CANONICAL_PATTERNS.includes(p)) : [];
+        const diagSummary = scored.diagnosis_summary || '';
+        const inputExcerpt = beforeText.slice(0, 1000);
+
+        let checks = null;
+        if (Array.isArray(scored.checks) && scored.checks.length === 7) {
+          const valid = scored.checks.every((c, i) =>
+            c && c.check === INDEX_SEVEN_CHECKS[i].name &&
+            ['pass','weak','fail'].includes(c.verdict) &&
+            typeof c.note === 'string' && c.note.trim().length > 0
+          );
+          if (valid) checks = scored.checks;
+        }
+
+        const ins = await pool.query(
+          `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt, checks, content_length)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING slug, score`,
+          [slug, companyName, domain, contentType, score, JSON.stringify(patterns), diagSummary, inputExcerpt, checks ? JSON.stringify(checks) : null, beforeText.length]
+        );
+        results.imported.push({ page, slug: ins.rows[0].slug, name: companyName, domain, score: ins.rows[0].score });
+        console.log(`[import-teardowns] ✓ ${companyName} → score ${ins.rows[0].score}`);
+
+      } catch (err) {
+        console.error(`[import-teardowns] ✗ ${page}: ${err.message}`);
+        results.failed.push({ page, reason: err.message });
+      }
+    }
+    console.log(`[import-teardowns] DONE — imported:${results.imported.length} skipped:${results.skipped.length} failed:${results.failed.length}`);
+    console.log('[import-teardowns] imported:', JSON.stringify(results.imported.map(r => `${r.name} (${r.score})`)));
+    if (results.failed.length) console.log('[import-teardowns] failed:', JSON.stringify(results.failed));
+    })().catch(e => console.error('[import-teardowns] fatal:', e.message));
   });
 
   async function recalcCompanyFromSamples(slug) {
