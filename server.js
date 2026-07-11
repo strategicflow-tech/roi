@@ -253,6 +253,7 @@ setInterval(() => {
 app.use('/stripe/webhook',          express.raw({ type: 'application/json' }));
 app.use('/webhook/stripe',          express.raw({ type: 'application/json' }));
 app.use('/api/why-stripe-webhook',  express.raw({ type: 'application/json' }));
+app.use('/api/ai-visibility-index/stripe-webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
 
 app.use((req, res, next) => {
@@ -730,6 +731,17 @@ app.get('/auth/verify/:token', async (req, res) => {
   } catch (e) {
     console.error('[auth/verify] tier check error:', e.message);
   }
+  try {
+    const aiVisSub = await pool.query(
+      `SELECT 1 FROM ai_visibility_subscribers WHERE email = $1 AND status = 'active' LIMIT 1`,
+      [data.email.toLowerCase().trim()]
+    );
+    if (aiVisSub.rows.length > 0) {
+      return res.redirect('/ai-visibility-index');
+    }
+  } catch (e) {
+    console.error('[auth/verify] ai-vis sub check error:', e.message);
+  }
   res.redirect('/');
 });
 
@@ -1156,6 +1168,13 @@ async function setupDB() {
       UNIQUE(email, company_slug)
     )
   `).catch(e => console.error('[DB] ai_visibility_subscribers:', e.message));
+
+  await pool.query(`ALTER TABLE ai_visibility_subscribers ALTER COLUMN company_slug DROP NOT NULL`).catch(() => {});
+  await pool.query(`ALTER TABLE ai_visibility_subscribers DROP CONSTRAINT IF EXISTS ai_visibility_subscribers_company_slug_fkey`).catch(() => {});
+  await pool.query(`ALTER TABLE ai_visibility_subscribers ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE ai_visibility_subscribers ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`).catch(() => {});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ai_vis_sub_stripe_sub_id ON ai_visibility_subscribers(stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL`).catch(() => {});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ai_vis_sub_global_email ON ai_visibility_subscribers(email) WHERE company_slug IS NULL`).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS magic_tokens (
@@ -7363,7 +7382,7 @@ function renderAiVisIndexHtml(companies) {
   .scan-upsell p{margin:0 0 10px;color:var(--muted);}
   .scan-upsell ul{margin:0 0 18px;padding-left:20px;color:var(--muted);}
   .scan-upsell li{margin-bottom:6px;}
-  .upsell-upgrade-btn{background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;}
+  .upsell-upgrade-btn{display:inline-block;background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;text-decoration:none;}
   .upsell-upgrade-status{margin-top:10px;font-size:13px;color:var(--muted);}
   .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
   .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
@@ -7420,8 +7439,7 @@ function renderAiVisIndexHtml(companies) {
         <li>Shareable AI Visibility badge for your site</li>
         <li>Competitor watch — see who shows up alongside you</li>
       </ul>
-      <button class="upsell-upgrade-btn" id="upsellUpgradeBtn">Unlock AI Visibility Pro — $29/mo</button>
-      <div class="upsell-upgrade-status" id="upsellUpgradeStatus"></div>
+      <a class="upsell-upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
     </div>
   </div>
 </div>
@@ -7534,24 +7552,6 @@ function renderAiVisIndexHtml(companies) {
           btn.disabled = false;
         }
       });
-      var upsellBtn = document.getElementById('upsellUpgradeBtn');
-      if (upsellBtn) {
-        upsellBtn.addEventListener('click', async function() {
-          upsellBtn.disabled = true;
-          try {
-            const r = await fetch('/api/ai-visibility-index/upgrade-checkout', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ source: 'free_scan_used' })
-            });
-            const j = await r.json();
-            document.getElementById('upsellUpgradeStatus').textContent = j.message || 'Checkout opening soon.';
-          } catch (e) {
-            document.getElementById('upsellUpgradeStatus').textContent = 'Something went wrong. Please try again.';
-          }
-          upsellBtn.disabled = false;
-        });
-      }
     })();
   </script>
 </footer>
@@ -7674,8 +7674,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   <div class="pro-upsell-section">
     <h2 class="questions-heading">AI Visibility Pro <span class="partial-tag">Preview</span></h2>
     <p class="upsell-copy">Monitoring over time, a shareable score badge, and competitor watch — unlock full AI Visibility Pro for this company.</p>
-    <button class="cta-primary upgrade-btn" data-slug="${escapeHtml(company.slug)}">Unlock AI Visibility Pro — $29/mo</button>
-    <div class="upgrade-status"></div>
+    <a class="cta-primary upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
   </div>`;
 
   const jsonLd = {
@@ -7817,26 +7816,6 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
 </footer>
 <script>
-  (function(){
-    var btn = document.querySelector('.upgrade-btn');
-    if (!btn) return;
-    btn.addEventListener('click', async function(){
-      btn.disabled = true;
-      var statusEl = document.querySelector('.upgrade-status');
-      try {
-        var r = await fetch('/api/ai-visibility-index/upgrade-checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: btn.dataset.slug })
-        });
-        var j = await r.json();
-        statusEl.textContent = j.message || 'Checkout opening soon.';
-      } catch (err) {
-        statusEl.textContent = 'Checkout opening soon.';
-      }
-      btn.disabled = false;
-    });
-  })();
 </script>
 </body>
 </html>`;
@@ -7964,7 +7943,7 @@ function renderAiVisIndexMethodologyHtml() {
       <text x="18" y="106" font-family="Figtree, sans-serif" font-size="10" fill="#5f6b6b">Verified by Strategic Flow</text>
     </svg>
   </div>
-  <p style="margin-top:16px;"><button onclick="fetch('/api/ai-visibility-index/upgrade-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'methodology'})}).then(r=>r.json()).then(j=>{this.nextElementSibling.textContent=j.message||'Checkout opening soon.'})" style="background:#00d4c8;color:#0a1628;border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;">Unlock AI Visibility Pro — $29/mo</button><span style="display:block;margin-top:10px;font-size:13px;color:var(--muted);"></span></p>
+  <p style="margin-top:16px;"><a href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;font-family:'Figtree',sans-serif;">Unlock AI Visibility Pro — $29/mo</a></p>
 
   <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
 </div>
@@ -10489,8 +10468,149 @@ setupDB().then(async () => {
   });
 
   app.post('/api/ai-visibility-index/upgrade-checkout', (req, res) => {
-    console.log('[ai-visibility-index] upgrade-checkout clicked (placeholder, no Stripe wired yet):', JSON.stringify(req.body || {}));
-    res.json({ status: 'coming_soon', message: 'AI Visibility Pro checkout is opening soon.' });
+    res.json({ status: 'ok' });
+  });
+
+  app.get('/ai-visibility-index/upgrade-success', (req, res) => {
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're in — AI Visibility Pro | Strategic Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--teal:#00d4c8;--muted:#7a9ab8;--hairline:#1a3050;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;width:100%;}
+  .site-header .wordmark{font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav{display:flex;gap:24px;}
+  .site-header nav a{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
+  .site-header nav a:hover{color:var(--teal);}
+  .wrap{max-width:560px;margin:0 auto;padding:80px 24px;text-align:center;flex:1;}
+  .check{font-size:52px;margin-bottom:24px;}
+  h1{font-size:32px;margin:0 0 12px;font-weight:700;}
+  .sub{font-size:17px;color:var(--muted);line-height:1.6;margin:0 0 36px;}
+  .card{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:28px 32px;text-align:left;margin-bottom:32px;}
+  .card h2{font-size:14px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 16px;}
+  .card ul{margin:0;padding:0;list-style:none;}
+  .card li{padding:8px 0;border-bottom:1px solid var(--hairline);font-size:15px;color:#fff;}
+  .card li:last-child{border-bottom:none;}
+  .card li::before{content:"✓ ";color:var(--teal);font-weight:700;}
+  .cta{display:inline-block;background:var(--teal);color:var(--bg);padding:14px 32px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px;}
+  .hint{font-size:13px;color:var(--muted);}
+  .site-footer{max-width:1000px;margin:0 auto;padding:24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;text-align:center;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/ai-visibility-index">AI Visibility Index</a>
+    <a href="/ai-visibility-index/methodology">How it works</a>
+  </nav>
+</div>
+<div class="wrap">
+  <div class="check">🎉</div>
+  <h1>You're all set.</h1>
+  <p class="sub">Your AI Visibility Pro subscription is active. Check your email — we sent you a sign-in link to access your Pro dashboard.</p>
+  <div class="card">
+    <h2>What you've unlocked</h2>
+    <ul>
+      <li>Score history chart — track your AI visibility over time</li>
+      <li>Competitor watch — see who shows up alongside you</li>
+      <li>Embeddable badge for your website</li>
+      <li>Ongoing rescoring across Claude, GPT, and Perplexity</li>
+    </ul>
+  </div>
+  <a class="cta" href="/ai-visibility-index">Browse the AI Visibility Index →</a>
+  <p class="hint">Didn't get the email? Check spam, or <a href="mailto:strategicflow@proton.me" style="color:var(--teal);">contact us</a>.</p>
+</div>
+<footer class="site-footer">
+  © 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a> · <a href="mailto:strategicflow@proton.me">Contact</a>
+</footer>
+</body>
+</html>`);
+  });
+
+  app.post('/api/ai-visibility-index/stripe-webhook', async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const secret = process.env.AI_VIS_STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('[ai-vis-webhook] AI_VIS_STRIPE_WEBHOOK_SECRET not set');
+      return res.status(400).send('Webhook secret not configured');
+    }
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } catch (err) {
+      console.error('[ai-vis-webhook] signature error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    try {
+      if (event.type === 'checkout.session.completed') {
+        const sess = event.data.object;
+        const email = (sess.customer_details?.email || '').toLowerCase().trim();
+        const customerId = sess.customer;
+        const subscriptionId = sess.subscription;
+        if (!email) {
+          console.error('[ai-vis-webhook] no email in checkout session', sess.id);
+          return res.json({ received: true });
+        }
+        await pool.query(`
+          INSERT INTO ai_visibility_subscribers (email, company_slug, stripe_customer_id, stripe_subscription_id, status)
+          VALUES ($1, NULL, $2, $3, 'active')
+          ON CONFLICT (email) WHERE company_slug IS NULL
+          DO UPDATE SET
+            stripe_customer_id     = EXCLUDED.stripe_customer_id,
+            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+            status                 = 'active'
+        `, [email, customerId, subscriptionId]);
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        await pool.query(
+          `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
+          [token, email, expiresAt]
+        );
+        const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+        await resend.emails.send({
+          from: 'Strategic Flow <noreply@strategicflow.tech>',
+          to: email,
+          subject: 'Your AI Visibility Pro access link',
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a1628;color:#ffffff;padding:40px 32px;border:1px solid #1a3050;">
+              <p style="font-size:11px;letter-spacing:0.1em;color:#7a9ab8;text-transform:uppercase;margin:0 0 32px;">AI Visibility Pro</p>
+              <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your access link</h2>
+              <p style="font-size:15px;color:#7a9ab8;margin:0 0 32px;line-height:1.6;">Thanks for subscribing. Click below to sign in and see your AI Visibility Pro dashboard. This link expires in 1 hour.</p>
+              <a href="${baseUrl}/auth/verify/${token}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;border-radius:8px;">Access AI Visibility Pro →</a>
+              <p style="font-size:12px;color:#5a7a98;margin:0;line-height:1.6;">If you didn't subscribe, ignore this email.</p>
+            </div>
+          `
+        }).catch(e => console.error('[ai-vis-webhook] email send error:', e.message));
+        console.log('[ai-vis-webhook] checkout.session.completed — subscriber upserted + magic link sent to', email);
+      } else if (event.type === 'customer.subscription.deleted') {
+        const sub = event.data.object;
+        await pool.query(
+          `UPDATE ai_visibility_subscribers SET status = 'canceled' WHERE stripe_subscription_id = $1`,
+          [sub.id]
+        );
+        console.log('[ai-vis-webhook] subscription canceled:', sub.id);
+      } else if (event.type === 'customer.subscription.updated') {
+        const sub = event.data.object;
+        const newStatus = sub.status === 'active' ? 'active' : sub.status;
+        await pool.query(
+          `UPDATE ai_visibility_subscribers SET status = $1 WHERE stripe_subscription_id = $2`,
+          [newStatus, sub.id]
+        );
+        console.log('[ai-vis-webhook] subscription updated:', sub.id, '->', newStatus);
+      }
+    } catch (e) {
+      console.error('[ai-vis-webhook] handler error:', e.message);
+    }
+    res.json({ received: true });
   });
 
   app.get('/ai-visibility-index/:slug', async (req, res) => {
@@ -10499,15 +10619,17 @@ setupDB().then(async () => {
       if (!companyResult.rows.length) return res.status(404).send('Company not found');
       const company = companyResult.rows[0];
 
-      const [modelResultsResult, questionsResult, frictionResult, historyResult, subResult] = await Promise.all([
+      const sessionEmail = (req.session && req.session.userEmail || '').toLowerCase().trim();
+      const [modelResultsResult, questionsResult, frictionResult, historyResult, subResult, sessionSubResult] = await Promise.all([
         pool.query('SELECT * FROM ai_visibility_model_results WHERE company_slug = $1 ORDER BY model', [company.slug]),
         pool.query('SELECT question FROM ai_visibility_questions WHERE company_slug = $1 ORDER BY id', [company.slug]),
         pool.query('SELECT slug FROM index_companies WHERE slug = $1', [company.slug]),
         pool.query('SELECT visibility_score, recorded_at FROM ai_visibility_score_history WHERE company_slug = $1 ORDER BY recorded_at ASC', [company.slug]),
-        pool.query(`SELECT status FROM ai_visibility_subscribers WHERE company_slug = $1 AND status = 'active' LIMIT 1`, [company.slug])
+        pool.query(`SELECT status FROM ai_visibility_subscribers WHERE company_slug = $1 AND status = 'active' LIMIT 1`, [company.slug]),
+        sessionEmail ? pool.query(`SELECT status FROM ai_visibility_subscribers WHERE email = $1 AND status = 'active' LIMIT 1`, [sessionEmail]) : Promise.resolve({ rows: [] })
       ]);
 
-      const isPro = subResult.rows.length > 0 || isAdmin(req.session && req.session.userEmail);
+      const isPro = subResult.rows.length > 0 || sessionSubResult.rows.length > 0 || isAdmin(req.session && req.session.userEmail);
       res.setHeader('Cache-Control', isPro ? 'private, no-store' : 'public, max-age=300');
       res.send(renderAiVisIndexCompanyHtml(company, modelResultsResult.rows, questionsResult.rows, frictionResult.rows.length > 0, historyResult.rows, isPro));
     } catch (err) {
