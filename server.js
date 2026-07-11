@@ -9975,6 +9975,27 @@ setupDB().then(async () => {
   // Fetches all teardown + showcase pages from strategicflow.tech/teardowns.html,
   // parses the BEFORE content from each, and scores them into index_companies.
   // Sequential with 4s delay. Safe to re-run — skips slugs already in the index.
+  // ONE-TIME name cleanup — delete after use
+  app.get('/api/index/fix-import-names', async (req, res) => {
+    if (!INDEX_ADMIN_KEY || req.query.admin_key !== INDEX_ADMIN_KEY) return res.status(401).json({ error: 'unauthorized' });
+    const fixes = [
+      ["Wizzair",       "travel"],
+      ["Perplexity",    "team-mail"],
+      ["Limelight",     "limelighthq"],
+      ["HubSpot",       "hub-spot"],
+      ["Booking",       "news"],
+      ["HeyGen",        "heygen"],
+      ["Dot Compliance","dotcompliance"],
+      ["Cato Networks", "catonetworks"],
+    ];
+    const results = [];
+    for (const [name, slug] of fixes) {
+      const r = await pool.query('UPDATE index_companies SET name=$1 WHERE slug=$2 RETURNING slug,name', [name, slug]);
+      results.push({ slug, name, updated: r.rowCount });
+    }
+    res.json({ fixed: results });
+  });
+
   app.get('/api/index/import-teardowns', async (req, res) => {
     if (!INDEX_ADMIN_KEY || req.query.admin_key !== INDEX_ADMIN_KEY) {
       return res.status(401).json({ error: 'unauthorized' });
