@@ -341,6 +341,11 @@ app.get('/ai-visibility', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/ai-visibility.html'));
 });
 
+app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glossary.html')));
+app.get('/scorecard', (req, res) => res.sendFile(path.join(__dirname, 'public/scorecard.html')));
+app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/assessment.html')));
+app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-email-architecture-study.html')));
+
 
 async function callPerplexityVisibility(brand, domain, query) {
   const key = process.env.PERPLEXITY_API_KEY;
@@ -10171,13 +10176,28 @@ setupDB().then(async () => {
     const base = 'https://strategic-flow-audit.replit.app';
     const now = new Date().toISOString().slice(0, 10);
     const staticUrls = [
-      { loc: `${base}/`,                                  priority: '1.0', changefreq: 'weekly'  },
-      { loc: `${base}/why`,                               priority: '0.9', changefreq: 'weekly'  },
-      { loc: `${base}/friction-index`,                    priority: '0.9', changefreq: 'daily'   },
-      { loc: `${base}/friction-index/methodology`,        priority: '0.6', changefreq: 'monthly' },
-      { loc: `${base}/ai-visibility-index`,               priority: '0.9', changefreq: 'daily'   },
-      { loc: `${base}/ai-visibility-index/methodology`,   priority: '0.6', changefreq: 'monthly' },
-      { loc: `${base}/ai-visibility`,                     priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/`,                                        priority: '1.0', changefreq: 'weekly'  },
+      { loc: `${base}/why`,                                     priority: '0.9', changefreq: 'weekly'  },
+      { loc: `${base}/friction-index`,                          priority: '0.9', changefreq: 'daily'   },
+      { loc: `${base}/friction-index/methodology`,              priority: '0.6', changefreq: 'monthly' },
+      { loc: `${base}/ai-visibility-index`,                     priority: '0.9', changefreq: 'daily'   },
+      { loc: `${base}/ai-visibility-index/methodology`,         priority: '0.6', changefreq: 'monthly' },
+      { loc: `${base}/ai-visibility`,                           priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/patterns`,                                priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/pattern-intelligence`,                    priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/audience-mirror`,                         priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/best-send-window`,                        priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/dead-email-resurrector`,                  priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/fatigue-detector`,                        priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/sequence-gap-finder`,                     priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/release-note-system`,                     priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/changelog-audit-page`,                    priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/onboarding-audit-page`,                   priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/linkedin-audit-page`,                     priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/saas-email-architecture-study`,           priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/glossary`,                                priority: '0.6', changefreq: 'monthly' },
+      { loc: `${base}/scorecard`,                               priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/assessment`,                              priority: '0.7', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
