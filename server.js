@@ -1144,6 +1144,22 @@ async function setupDB() {
   `).catch(e => console.error('[DB] ai_visibility_leads:', e.message));
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_visibility_private_scans (
+      id               TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      email            TEXT NOT NULL,
+      domain           TEXT NOT NULL,
+      name             TEXT NOT NULL,
+      category         TEXT NOT NULL,
+      visibility_score NUMERIC(3,1),
+      model_results    JSONB,
+      questions        JSONB,
+      created_at       TIMESTAMPTZ DEFAULT now()
+    )
+  `).catch(e => console.error('[DB] ai_visibility_private_scans:', e.message));
+
+  await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS private_scan_id TEXT`).catch(() => {});
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ai_visibility_score_history (
       id                SERIAL PRIMARY KEY,
       company_slug      TEXT NOT NULL REFERENCES ai_visibility_companies(slug) ON DELETE CASCADE,
@@ -7478,7 +7494,10 @@ function renderAiVisIndexHtml(companies) {
             if (j.status === 'done') {
               clearInterval(interval);
               setStatus('Done! Redirecting to your results...', 'success');
-              setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.result_slug; }, 900);
+              const dest = j.private_scan_id
+                ? '/ai-visibility-index/my-scan/' + j.private_scan_id
+                : '/ai-visibility-index/' + j.result_slug;
+              setTimeout(function(){ window.location.href = dest; }, 900);
             } else if (j.status === 'error' || j.status === 'failed') {
               clearInterval(interval);
               setStatus(j.error_message || 'Something went wrong while scanning. Please try again later.', 'error');
@@ -10182,20 +10201,77 @@ setupDB().then(async () => {
     }
   }
 
+  async function persistPrivateScan(email, name, domain, category, questions, modelResults, visibilityScore) {
+    const result = await pool.query(
+      `INSERT INTO ai_visibility_private_scans (email, domain, name, category, visibility_score, model_results, questions)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb) RETURNING id`,
+      [email, domain, name, category, visibilityScore, JSON.stringify(modelResults), JSON.stringify(questions)]
+    );
+    return result.rows[0].id;
+  }
+
+  function buildAiVisScanSummary(name, modelResults) {
+    const ok = modelResults.filter(r => r.status === 'ok');
+    const mentioned = ok.filter(r => r.mentioned);
+    if (!mentioned.length) return `None of the ${ok.length} AI models mentioned ${name} when asked buyer-style questions.`;
+    const best = mentioned.reduce((b, r) => (r.position && r.position < (b.position || 999) ? r : b), mentioned[0]);
+    const label = { claude: 'Claude', gpt: 'GPT-4o', perplexity: 'Perplexity' }[best.model] || best.model;
+    if (mentioned.length === ok.length && ok.length === 3) {
+      return `Claude, GPT-4o, and Perplexity all mentioned ${name}${best.position ? ` — your best position was #${best.position} on ${label}` : ''}.`;
+    }
+    const missing = ok.filter(r => !r.mentioned).map(r => ({ claude: 'Claude', gpt: 'GPT-4o', perplexity: 'Perplexity' }[r.model] || r.model));
+    return `${name} was mentioned by ${mentioned.length} out of ${ok.length} AI model${ok.length !== 1 ? 's' : ''}${missing.length ? ` — not yet visible on ${missing.join(' or ')}` : ''}.`;
+  }
+
   // Shared fire-and-forget runner used by both the admin score endpoint and the public scan endpoint.
   function runAiVisibilityJobInBackground(jobId, name, domain, category, email) {
     (async () => {
       try {
         await pool.query(`UPDATE ai_visibility_jobs SET status = 'running' WHERE id = $1`, [jobId]);
         const { slug, questions, modelResults, visibilityScore } = await runAiVisibilityScoring(name, domain, category);
-        await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
-        await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
+
         if (email) {
+          // Self-scan: store privately, do NOT write to public leaderboard tables
+          const privateScanId = await persistPrivateScan(email, name, domain, category, questions, modelResults, visibilityScore);
+          await pool.query(
+            `UPDATE ai_visibility_jobs SET status = 'done', private_scan_id = $1 WHERE id = $2`,
+            [privateScanId, jobId]
+          );
           await pool.query(
             `INSERT INTO ai_visibility_leads (email, domain, category, company_slug, visibility_score, source)
-             VALUES ($1,$2,$3,$4,$5,'self_scan')`,
-            [email, domain, category, slug, visibilityScore]
+             VALUES ($1, $2, $3, NULL, $4, 'self_scan')`,
+            [email, domain, category, visibilityScore]
           ).catch(e => console.error('[ai-visibility-index leads insert]', e.message));
+
+          const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+          const scoreLabel = visibilityScore != null ? Number(visibilityScore).toFixed(1) : '—';
+          const summary = buildAiVisScanSummary(name, modelResults);
+          await resend.emails.send({
+            from: 'Strategic Flow <noreply@strategicflow.tech>',
+            to: email,
+            subject: `Your AI Visibility Score: ${scoreLabel}/10 — Strategic Flow`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#ffffff;color:#111111;border:1px solid #e5e7eb;">
+                <div style="background:#0a1628;padding:28px 32px 20px;">
+                  <p style="font-size:11px;letter-spacing:0.1em;color:#7a9ab8;text-transform:uppercase;margin:0 0 8px;">AI Visibility Index · Strategic Flow</p>
+                  <p style="font-size:32px;font-weight:700;color:#00d4c8;margin:0;">${scoreLabel}<span style="font-size:16px;color:#7a9ab8;font-weight:400;">/10</span></p>
+                  <p style="font-size:15px;color:#ffffff;margin:8px 0 0;font-weight:600;">${name}</p>
+                </div>
+                <div style="padding:28px 32px;">
+                  <p style="font-size:15px;color:#111111;line-height:1.6;margin:0 0 20px;">${summary}</p>
+                  <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 24px;">See your full breakdown — which models mentioned you, where you ranked, and what they said:</p>
+                  <a href="${baseUrl}/ai-visibility-index/my-scan/${privateScanId}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 26px;text-decoration:none;font-size:14px;font-weight:700;border-radius:6px;margin-bottom:28px;">View your results →</a>
+                  <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin:0 0 20px;padding-top:20px;border-top:1px solid #f3f4f6;">AI models re-rank constantly. Check back monthly to see if your visibility changes.</p>
+                  <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0;">Want ongoing monitoring, a score history chart, and a shareable badge? <a href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" style="color:#0a1628;font-weight:600;">AI Visibility Pro is $29/mo</a> — no setup required.</p>
+                </div>
+              </div>
+            `
+          }).catch(e => console.error('[ai-vis scan] email send error:', e.message));
+
+        } else {
+          // Admin score: write to public leaderboard tables as before
+          await persistAiVisibilityScoring(name, domain, category, slug, questions, modelResults, visibilityScore);
+          await pool.query(`UPDATE ai_visibility_jobs SET status = 'done', result_slug = $1 WHERE id = $2`, [slug, jobId]);
         }
       } catch (err) {
         console.error('[ai-visibility-index job]', err.message);
@@ -10408,7 +10484,7 @@ setupDB().then(async () => {
 
   app.get('/api/ai-visibility-index/job/:id', async (req, res) => {
     try {
-      const r = await pool.query('SELECT id, status, result_slug, error_message FROM ai_visibility_jobs WHERE id = $1', [req.params.id]);
+      const r = await pool.query('SELECT id, status, result_slug, private_scan_id, error_message FROM ai_visibility_jobs WHERE id = $1', [req.params.id]);
       if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
       res.json(r.rows[0]);
     } catch (err) {
@@ -10611,6 +10687,203 @@ setupDB().then(async () => {
       console.error('[ai-vis-webhook] handler error:', e.message);
     }
     res.json({ received: true });
+  });
+
+  app.get('/ai-visibility-index/my-scan/:id', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT * FROM ai_visibility_private_scans WHERE id = $1', [req.params.id]);
+      if (!r.rows.length) return res.status(404).send('Scan not found');
+      const scan = r.rows[0];
+      const modelResults = Array.isArray(scan.model_results) ? scan.model_results : [];
+      const questions = Array.isArray(scan.questions) ? scan.questions : [];
+      const isAdmin = req.query.admin_key === process.env.INDEX_ADMIN_KEY;
+      const scoreLabel = scan.visibility_score != null ? Number(scan.visibility_score).toFixed(1) : '—';
+      const modelLabel = { claude: 'Claude', gpt: 'GPT-4o mini', perplexity: 'Perplexity' };
+      const accuracyLabel = { pass: 'Accurate', weak: 'Partially accurate', fail: 'Inaccurate' };
+
+      const modelCardsHtml = modelResults.map(mr => {
+        const mentioned = mr.mentioned && mr.status === 'ok';
+        const posStr = mr.position ? `#${mr.position}` : '—';
+        const accStr = mr.description_accuracy ? (accuracyLabel[mr.description_accuracy] || mr.description_accuracy) : '—';
+        const competitors = Array.isArray(mr.competitors_shown) ? mr.competitors_shown : [];
+        const excerpt = mr.raw_answer_excerpt ? `<div class="excerpt">"${escapeHtml(mr.raw_answer_excerpt)}"</div>` : '';
+        return `<div class="model-card${mentioned ? '' : ' not-mentioned'}">
+          <div class="model-header">
+            <span class="model-name">${escapeHtml(modelLabel[mr.model] || mr.model)}</span>
+            ${mentioned ? `<span class="badge badge-ok">Mentioned</span>` : `<span class="badge badge-miss">Not mentioned</span>`}
+          </div>
+          ${mentioned ? `
+          <div class="model-detail"><span class="detail-label">Position</span><span class="detail-val">${posStr}</span></div>
+          <div class="model-detail"><span class="detail-label">Description accuracy</span><span class="detail-val">${accStr}</span></div>
+          ${competitors.length ? `<div class="model-detail"><span class="detail-label">Also mentioned</span><span class="detail-val">${competitors.map(escapeHtml).join(', ')}</span></div>` : ''}
+          ${excerpt}` : `<p class="not-mentioned-note">This model did not include ${escapeHtml(scan.name)} in its response.</p>`}
+        </div>`;
+      }).join('');
+
+      const adminBlock = isAdmin ? `
+      <div class="admin-promote">
+        <p class="admin-label">Admin only</p>
+        <p style="font-size:14px;color:var(--muted);margin:0 0 16px;">Promote this scan to the public AI Visibility Index leaderboard.</p>
+        <button id="promoteBtn" class="cta-primary" style="font-size:14px;">Make public on leaderboard</button>
+        <div id="promoteStatus" style="margin-top:12px;font-size:13px;color:var(--muted);"></div>
+        <script>
+          document.getElementById('promoteBtn').addEventListener('click', async function() {
+            this.disabled = true;
+            document.getElementById('promoteStatus').textContent = 'Promoting...';
+            try {
+              const r = await fetch('/api/ai-visibility-index/promote-scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Key': ${JSON.stringify(req.query.admin_key || '')} },
+                body: JSON.stringify({ private_scan_id: ${JSON.stringify(scan.id)} })
+              });
+              const j = await r.json();
+              if (j.slug) {
+                document.getElementById('promoteStatus').innerHTML = 'Now public! <a href="/ai-visibility-index/' + j.slug + '" style="color:var(--teal);">View on leaderboard →</a>';
+              } else {
+                document.getElementById('promoteStatus').textContent = j.error || 'Something went wrong.';
+                document.getElementById('promoteBtn').disabled = false;
+              }
+            } catch (e) {
+              document.getElementById('promoteStatus').textContent = 'Network error.';
+              document.getElementById('promoteBtn').disabled = false;
+            }
+          });
+        </script>
+      </div>` : '';
+
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>${escapeHtml(scan.name)} — AI Visibility Score | Strategic Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a1628;--card:#0f2035;--teal:#00d4c8;--muted:#7a9ab8;--hairline:#1a3050;--green:#22c55e;--red:#f87171;}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
+  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
+  .site-header nav a{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;margin-left:24px;}
+  .site-header nav a:hover{color:var(--teal);}
+  .wrap{max-width:820px;margin:0 auto;padding:48px 24px 80px;}
+  .private-tag{display:inline-block;background:#1a3050;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:4px;margin-bottom:20px;}
+  .company-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;}
+  .company-logo{width:56px;height:56px;border-radius:10px;background:var(--card);flex-shrink:0;overflow:hidden;}
+  .company-logo img{width:100%;height:100%;object-fit:contain;}
+  .company-meta{flex:1;}
+  .company-meta h1{font-size:28px;font-weight:700;margin:0 0 4px;}
+  .company-meta .domain{font-size:14px;color:var(--muted);}
+  .company-meta .category{font-size:13px;color:var(--muted);margin-top:4px;}
+  .score-band{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:24px 28px;margin-bottom:32px;display:flex;align-items:center;gap:32px;flex-wrap:wrap;}
+  .score-value{font-size:52px;font-weight:700;color:var(--teal);font-family:'DM Mono',monospace;line-height:1;}
+  .score-denom{font-size:20px;color:var(--muted);font-weight:400;}
+  .score-label{font-size:13px;color:var(--muted);margin-top:4px;}
+  .models-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:32px;}
+  .model-card{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px;}
+  .model-card.not-mentioned{opacity:0.7;}
+  .model-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .model-name{font-size:15px;font-weight:600;}
+  .badge{font-size:11px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;letter-spacing:0.04em;}
+  .badge-ok{background:#0d2a1f;color:var(--green);}
+  .badge-miss{background:#2a1a1a;color:var(--red);}
+  .model-detail{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--hairline);}
+  .model-detail:last-of-type{border-bottom:none;}
+  .detail-label{color:var(--muted);}
+  .detail-val{font-weight:500;}
+  .not-mentioned-note{font-size:13px;color:var(--muted);margin:0;line-height:1.5;}
+  .excerpt{font-size:12px;color:var(--muted);font-style:italic;margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline);line-height:1.5;}
+  .section-heading{font-size:13px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 16px;}
+  .questions-list{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px 24px;margin-bottom:32px;}
+  .questions-list li{font-size:14px;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--hairline);line-height:1.5;}
+  .questions-list li:last-child{border-bottom:none;}
+  .pro-upsell{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:28px;margin-bottom:32px;text-align:center;}
+  .pro-upsell h2{font-size:18px;margin:0 0 8px;}
+  .pro-upsell p{font-size:14px;color:var(--muted);margin:0 0 20px;line-height:1.6;}
+  .cta-primary{display:inline-block;background:var(--teal);color:var(--bg);padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;border:none;cursor:pointer;font-family:'Figtree',sans-serif;}
+  .admin-promote{background:#0f1e14;border:1px solid #1a3020;border-radius:12px;padding:24px;margin-bottom:32px;}
+  .admin-label{font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:#4ade80;margin:0 0 8px;}
+  .site-footer{max-width:1000px;margin:0 auto;padding:24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;text-align:center;}
+  .site-footer a{color:var(--muted);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="site-header">
+  <a class="wordmark" href="/">Strategic Flow</a>
+  <nav>
+    <a href="/ai-visibility-index">AI Visibility Index</a>
+    <a href="/ai-visibility-index/methodology">How it works</a>
+  </nav>
+</div>
+<div class="wrap">
+  <div class="private-tag">Private result — not on the public leaderboard</div>
+  <div class="company-header">
+    <div class="company-logo"><img src="https://logo.clearbit.com/${escapeHtml(scan.domain)}" alt="" onerror="this.style.display='none'"></div>
+    <div class="company-meta">
+      <h1>${escapeHtml(scan.name)}</h1>
+      <div class="domain">${escapeHtml(scan.domain)}</div>
+      <div class="category">${escapeHtml(scan.category)}</div>
+    </div>
+  </div>
+  <div class="score-band">
+    <div>
+      <div class="score-value">${scoreLabel}<span class="score-denom">/10</span></div>
+      <div class="score-label">AI Visibility Score</div>
+    </div>
+    <div style="font-size:14px;color:var(--muted);line-height:1.7;">
+      ${escapeHtml(buildAiVisScanSummary(scan.name, modelResults))}
+    </div>
+  </div>
+  ${adminBlock}
+  <p class="section-heading">Breakdown by model</p>
+  <div class="models-grid">${modelCardsHtml}</div>
+  ${questions.length ? `
+  <p class="section-heading">Questions asked</p>
+  <ul class="questions-list">${questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>` : ''}
+  <div class="pro-upsell">
+    <h2>Track your AI visibility over time</h2>
+    <p>AI models re-rank constantly. AI Visibility Pro monitors your score monthly, shows your history chart, and gives you a shareable badge.</p>
+    <a class="cta-primary" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+  </div>
+</div>
+<footer class="site-footer">
+  © 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a> · <a href="mailto:strategicflow@proton.me">Contact</a>
+</footer>
+</body>
+</html>`);
+    } catch (err) {
+      console.error('[ai-visibility-index my-scan]', err.message);
+      res.status(500).send('Error loading scan');
+    }
+  });
+
+  app.post('/api/ai-visibility-index/promote-scan', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { private_scan_id } = req.body;
+    if (!private_scan_id) return res.status(400).json({ error: 'private_scan_id required' });
+    try {
+      const r = await pool.query('SELECT * FROM ai_visibility_private_scans WHERE id = $1', [private_scan_id]);
+      if (!r.rows.length) return res.status(404).json({ error: 'Scan not found' });
+      const scan = r.rows[0];
+      const modelResults = Array.isArray(scan.model_results) ? scan.model_results : [];
+      const questions = Array.isArray(scan.questions) ? scan.questions : [];
+      const slug = slugify(scan.name);
+      await persistAiVisibilityScoring(scan.name, scan.domain, scan.category, slug, questions, modelResults, scan.visibility_score);
+      await pool.query(
+        `UPDATE ai_visibility_leads SET company_slug = $1 WHERE email = $2 AND company_slug IS NULL`,
+        [slug, scan.email]
+      ).catch(() => {});
+      console.log('[ai-vis promote-scan] promoted', private_scan_id, '→ slug:', slug);
+      res.json({ slug });
+    } catch (err) {
+      console.error('[ai-vis promote-scan]', err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.get('/ai-visibility-index/:slug', async (req, res) => {
