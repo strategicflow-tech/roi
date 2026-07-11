@@ -937,7 +937,7 @@
 
 <nav>
   <a href="#" class="nav-logo">Strategic Flow <span>Architecture</span></a>
-  <span class="nav-tag">Enterprise · $2,500/mo</span>
+  <span class="nav-tag">Enterprise Retainer</span>
   <a href="#" onclick="startCheckout(); return false;" class="nav-cta">Book Assessment →</a>
 </nav>
 
@@ -1108,30 +1108,43 @@
   <div class="section-label">// The business case</div>
   <h2 class="section-title">The maths your<br><em>leadership needs.</em></h2>
   <p class="section-body">
-    A company with <strong>50,000 subscribers sending 4 emails per month</strong> — this is what the delta looks like when structural bugs are fixed.
+    Run your own numbers. Architecture replaces what a part-time content strategist costs — and adds recovered click value on top.
   </p>
 
-  <div class="roi-calculator">
+  <div class="roi-calculator" id="arch-roi-calc">
     <div class="roi-header">
-      <span class="roi-header-title">ROI Projection — Sample 50K subscriber base</span>
+      <span class="roi-header-title">Architecture ROI Calculator</span>
       <span class="roi-header-tag">Strategic Flow Architecture</span>
     </div>
-    <div class="roi-body">
-      <div class="roi-cell">
-        <div class="roi-cell-label">Current open rate</div>
-        <div class="roi-cell-value negative">18%</div>
-        <div class="roi-cell-note">9,000 readers per email<br>Industry average for SaaS product updates</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:24px 28px;border-bottom:1px solid rgba(255,255,255,0.06);">
+      <div>
+        <label for="arch-emails" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:8px;">Emails sent / month</label>
+        <input type="number" id="arch-emails" value="40000" min="1000" step="1000"
+          oninput="archCalc()"
+          style="width:100%;box-sizing:border-box;background:#0f0f0d;border:1px solid rgba(255,255,255,0.12);color:var(--white);font-family:'DM Mono',monospace;font-size:16px;padding:10px 12px;border-radius:2px;outline:none;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:6px;line-height:1.4;">List size × sends per month</div>
       </div>
-      <div class="roi-cell">
-        <div class="roi-cell-label">Rebuilt open rate</div>
-        <div class="roi-cell-value positive">31%</div>
-        <div class="roi-cell-note">15,500 readers per email<br>Strategic Flow average post-rebuild</div>
+      <div>
+        <label for="arch-openrate" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:8px;">Current open rate (%)</label>
+        <input type="number" id="arch-openrate" value="22" min="1" max="80" step="1"
+          oninput="archCalc()"
+          style="width:100%;box-sizing:border-box;background:#0f0f0d;border:1px solid rgba(255,255,255,0.12);color:var(--white);font-family:'DM Mono',monospace;font-size:16px;padding:10px 12px;border-radius:2px;outline:none;">
       </div>
-      <div class="roi-cell">
-        <div class="roi-cell-label">Monthly delta</div>
-        <div class="roi-cell-value positive">+26K</div>
-        <div class="roi-cell-note">Additional readers seeing your CTA<br>across 4 emails per month</div>
+      <div>
+        <label for="arch-rpc" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:8px;">Revenue per click ($)</label>
+        <input type="number" id="arch-rpc" value="50" min="1" step="1"
+          oninput="archCalc()"
+          style="width:100%;box-sizing:border-box;background:#0f0f0d;border:1px solid rgba(255,255,255,0.12);color:var(--white);font-family:'DM Mono',monospace;font-size:16px;padding:10px 12px;border-radius:2px;outline:none;">
       </div>
+    </div>
+
+    <div class="roi-body" id="arch-roi-output"></div>
+
+    <div id="arch-roi-compare" style="padding:20px 28px;border-top:1px solid rgba(255,255,255,0.06);font-size:14px;color:var(--mid);line-height:1.75;"></div>
+
+    <div style="padding:10px 28px 20px;font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,0.25);letter-spacing:.04em;line-height:1.6;">
+      Based on Strategic Flow portfolio benchmarks. Your results depend on list size, current open rate, and audience.
     </div>
   </div>
 </section>
@@ -1294,6 +1307,54 @@ async function logout() {
 
 checkAuth();
 setInterval(checkAuth, 5 * 60 * 1000);
+
+function archCalc() {
+  var emails  = parseFloat(document.getElementById('arch-emails').value)   || 0;
+  var rate    = parseFloat(document.getElementById('arch-openrate').value)  || 0;
+  var rpc     = parseFloat(document.getElementById('arch-rpc').value)       || 0;
+
+  var scenarios = [
+    { label: 'Conservative', delta: 8,  color: 'var(--mid)' },
+    { label: 'Average',      delta: 13, color: 'var(--signal)' },
+    { label: 'Optimistic',   delta: 18, color: '#7c8cf8' }
+  ];
+
+  var outEl = document.getElementById('arch-roi-output');
+  var cmpEl = document.getElementById('arch-roi-compare');
+  if (!outEl || !cmpEl) return;
+
+  var html = '';
+  var avgValue = 0;
+
+  for (var i = 0; i < scenarios.length; i++) {
+    var s = scenarios[i];
+    var predicted   = Math.min(rate + s.delta, 80);
+    var addlOpens   = emails * (s.delta / 100);
+    var addlClicks  = addlOpens * 0.03;
+    var monthlyVal  = addlClicks * rpc;
+    if (s.label === 'Average') avgValue = monthlyVal;
+
+    html += '<div class="roi-cell">' +
+      '<div class="roi-cell-label" style="color:' + s.color + '">' + s.label + '</div>' +
+      '<div class="roi-cell-value positive" style="color:' + s.color + '">' + predicted.toFixed(0) + '%</div>' +
+      '<div class="roi-cell-note">' +
+        '+' + Math.round(addlOpens).toLocaleString() + ' opens/mo<br>' +
+        '+' + Math.round(addlClicks).toLocaleString() + ' clicks \u2192 <strong style="color:' + s.color + '">$' + Math.round(monthlyVal).toLocaleString() + '/mo</strong>' +
+      '</div>' +
+    '</div>';
+  }
+
+  outEl.innerHTML = html;
+
+  var emailsLabel = emails >= 1000 ? (emails / 1000).toFixed(0) + 'K' : String(Math.round(emails));
+  var valueStr    = '$' + Math.round(avgValue).toLocaleString();
+  cmpEl.innerHTML =
+    'A part-time content strategist costs <strong style="color:var(--white);">$4,000\u20136,000/mo</strong> fully loaded. ' +
+    'At <strong style="color:var(--white);">' + emailsLabel + ' emails/month</strong>, Architecture produces comparable output for ' +
+    '<strong style="color:var(--signal);">$2,500/mo</strong>, plus <strong style="color:var(--signal);">' + valueStr + '</strong> in recovered click value.';
+}
+
+document.addEventListener('DOMContentLoaded', archCalc);
 </script>
 
 <!-- COOKIE CONSENT BANNER -->
