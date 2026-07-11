@@ -1,0 +1,350 @@
+{
+  "ok": [
+    {
+      "name": "HeyGen",
+      "response": {
+        "job_id": 65,
+        "slug": "heygen",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "dbt Labs",
+      "response": {
+        "job_id": 66,
+        "slug": "dbt-labs",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Landbot",
+      "response": {
+        "job_id": 67,
+        "slug": "landbot",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Gamma",
+      "response": {
+        "job_id": 68,
+        "slug": "gamma",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Optimizely",
+      "response": {
+        "job_id": 69,
+        "slug": "optimizely",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Zoho Analytics",
+      "response": {
+        "job_id": 70,
+        "slug": "zoho-analytics",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Ahrefs",
+      "response": {
+        "job_id": 71,
+        "slug": "ahrefs",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Seamless.ai",
+      "response": {
+        "job_id": 72,
+        "slug": "seamless-ai",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Wrike",
+      "response": {
+        "job_id": 73,
+        "slug": "wrike",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "SEOmonitor",
+      "response": {
+        "job_id": 74,
+        "slug": "seomonitor",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Userpilot",
+      "response": {
+        "job_id": 75,
+        "slug": "userpilot",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Cloud Campaign",
+      "response": {
+        "job_id": 76,
+        "slug": "cloud-campaign",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "TripleDart",
+      "response": {
+        "job_id": 77,
+        "slug": "tripledart",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Lokalise",
+      "response": {
+        "job_id": 78,
+        "slug": "lokalise",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Sequel.io",
+      "response": {
+        "job_id": 79,
+        "slug": "sequel-io",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "SplitMetrics",
+      "response": {
+        "job_id": 80,
+        "slug": "splitmetrics",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Limelight",
+      "response": {
+        "job_id": 81,
+        "slug": "limelight",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Dot Compliance",
+      "response": {
+        "job_id": 82,
+        "slug": "dot-compliance",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "EasyLlama",
+      "response": {
+        "job_id": 83,
+        "slug": "easyllama",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Tilled",
+      "response": {
+        "job_id": 84,
+        "slug": "tilled",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Revolut",
+      "response": {
+        "job_id": 85,
+        "slug": "revolut",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Qonto",
+      "response": {
+        "job_id": 86,
+        "slug": "qonto",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Alt21",
+      "response": {
+        "job_id": 87,
+        "slug": "alt21",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Nilus",
+      "response": {
+        "job_id": 88,
+        "slug": "nilus",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "QuickSpark",
+      "response": {
+        "job_id": 89,
+        "slug": "quickspark",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "TimePayment",
+      "response": {
+        "job_id": 90,
+        "slug": "timepayment",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Confluence Technologies",
+      "response": {
+        "job_id": 91,
+        "slug": "confluence-technologies",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Spreedly",
+      "response": {
+        "job_id": 92,
+        "slug": "spreedly",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Tuum",
+      "response": {
+        "job_id": 93,
+        "slug": "tuum",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Tresorit",
+      "response": {
+        "job_id": 94,
+        "slug": "tresorit",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Cato Networks",
+      "response": {
+        "job_id": 95,
+        "slug": "cato-networks",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Wiz",
+      "response": {
+        "job_id": 96,
+        "slug": "wiz",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "ReversingLabs",
+      "response": {
+        "job_id": 97,
+        "slug": "reversinglabs",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Finite State",
+      "response": {
+        "job_id": 98,
+        "slug": "finite-state",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "ElevenLabs",
+      "response": {
+        "job_id": 99,
+        "slug": "elevenlabs",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Atlassian",
+      "response": {
+        "job_id": 100,
+        "slug": "atlassian",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Uber",
+      "response": {
+        "job_id": 101,
+        "slug": "uber",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Wizz Air",
+      "response": {
+        "job_id": 102,
+        "slug": "wizz-air",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Booking.com",
+      "response": {
+        "job_id": 103,
+        "slug": "booking-com",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Memrise",
+      "response": {
+        "job_id": 104,
+        "slug": "memrise",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Lodgify",
+      "response": {
+        "job_id": 105,
+        "slug": "lodgify",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Zoho Workplace",
+      "response": {
+        "job_id": 106,
+        "slug": "zoho-workplace",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "Medallia",
+      "response": {
+        "job_id": 107,
+        "slug": "medallia",
+        "status": "pending"
+      }
+    }
+  ],
+  "failed": [],
+  "skipped": []
+}
