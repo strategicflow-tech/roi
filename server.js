@@ -7598,7 +7598,7 @@ function renderAiVisIndexHtml(companies) {
             return;
           }
           if (r.status === 429) {
-            setStatus(j.error || 'A scan for this domain or email was already requested in the last 24 hours.', 'error');
+            setStatus(j.error || 'This domain is currently being processed. Please try again in 24 hours.', '');
             btn.disabled = false;
             return;
           }
@@ -10531,11 +10531,15 @@ setupDB().then(async () => {
       }
 
       const recent = await pool.query(
-        `SELECT id FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
+        `SELECT id, input_email FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
         [domain, email]
       );
       if (recent.rows.length > 0) {
-        return res.status(429).json({ error: 'A scan for this domain or email was already requested in the last 24 hours.' });
+        const emailMatch = recent.rows.some(r => r.input_email === email);
+        if (emailMatch) {
+          return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+        }
+        return res.status(429).json({ error: 'This domain is currently being processed. Please try again in 24 hours.' });
       }
 
       const jobResult = await pool.query(
