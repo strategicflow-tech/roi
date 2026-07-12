@@ -6848,7 +6848,13 @@ function renderFrictionIndexHtml(companies) {
     description: `${count} SaaS companies scored on structural conversion quality using the Strategic Flow 7-point diagnostic framework.`,
     creator: { '@type': 'Organization', name: 'Strategic Flow' },
     publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
-    hasPart: {
+    license: 'https://strategic-flow-pro.replit.app/terms.html',
+    hasPart: companies.map((c) => ({
+      '@type': 'CreativeWork',
+      name: c.name,
+      url: `https://strategic-flow-audit.replit.app/friction-index/${c.slug}`
+    })),
+    mainEntity: {
       '@type': 'ItemList',
       itemListElement: companies.map((c, i) => ({
         '@type': 'ListItem',
@@ -7380,7 +7386,13 @@ function renderAiVisIndexHtml(companies) {
     description: `${count} SaaS companies scored on how Claude, GPT, and Perplexity describe them when asked buyer-style category questions.`,
     creator: { '@type': 'Organization', name: 'Strategic Flow' },
     publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
-    hasPart: {
+    license: 'https://strategic-flow-pro.replit.app/terms.html',
+    hasPart: companies.map((c) => ({
+      '@type': 'CreativeWork',
+      name: c.name,
+      url: `https://strategic-flow-audit.replit.app/ai-visibility-index/${c.slug}`
+    })),
+    mainEntity: {
       '@type': 'ItemList',
       itemListElement: companies.map((c, i) => ({
         '@type': 'ListItem',
@@ -7797,7 +7809,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
 <meta name="description" content="How Claude, GPT, and Perplexity describe ${name} when buyers ask ${category} category questions.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+${isPrivate ? '' : `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`}
 <style>
   :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
   *{box-sizing:border-box;}
