@@ -7432,7 +7432,7 @@ function renderAiVisIndexHtml(companies) {
     { '@type': 'Question', name: 'How often is the AI Visibility Index updated?',
       acceptedAnswer: { '@type': 'Answer', text: 'The index is refreshed monthly, adding new companies and rescoring existing ones as AI models update how they describe them.' }},
     { '@type': 'Question', name: 'Can I check my own company\u2019s AI Visibility Score?',
-      acceptedAnswer: { '@type': 'Answer', text: 'Yes \u2014 run the free check at strategic-flow-audit.replit.app/why to see how AI assistants currently describe your company.' }}
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes \u2014 use the free check form at the top of this page to see how AI assistants currently describe your company.' }}
   ]
 }).replace(/</g, '\\u003c')}</script>
 <style>
@@ -7572,7 +7572,7 @@ function renderAiVisIndexHtml(companies) {
     </div>
     <div class="faq-item">
       <div class="faq-q">Can I check my own company's AI Visibility Score?</div>
-      <div class="faq-a">Yes — run the free check at <a href="/why">strategic-flow-audit.replit.app/why</a> to see how AI assistants currently describe your company.</div>
+      <div class="faq-a">Yes — use the free check form <a href="#scanForm">above on this page</a> to see how AI assistants currently describe your company.</div>
     </div>
   </div>
 </div>
