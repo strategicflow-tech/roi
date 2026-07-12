@@ -7415,6 +7415,26 @@ function renderAiVisIndexHtml(companies) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<script type="application/ld+json">${JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    { '@type': 'Question', name: 'What is AI Visibility?',
+      acceptedAnswer: { '@type': 'Answer', text: 'AI Visibility is whether ChatGPT, Claude, Perplexity, and Gemini mention your company \u2014 and describe it accurately \u2014 when someone asks a category question instead of typing your brand name directly.' }},
+    { '@type': 'Question', name: 'How is the AI Visibility Score calculated?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Each company is scored 1\u201310 across five signals: whether it\u2019s mentioned at all, its position within the answer, description accuracy, which competitors appear alongside it, and whether the model cites a specific detail rather than a generic label.' }},
+    { '@type': 'Question', name: 'What\u2019s a good AI Visibility Score?',
+      acceptedAnswer: { '@type': 'Answer', text: 'A score of 8 or above means an AI model can recommend the company accurately without a human correcting the description. The average across the 73 companies audited is 7.6/10, so scores below that indicate a real visibility gap, not just room for improvement.' }},
+    { '@type': 'Question', name: 'Is AI Visibility the same as SEO?',
+      acceptedAnswer: { '@type': 'Answer', text: 'No. SEO measures whether Google ranks a page. AI Visibility measures whether a model has absorbed enough accurate information \u2014 through training data or retrieval \u2014 to represent a company correctly inside a generated answer. A company can rank first on Google and still be invisible or misdescribed inside ChatGPT.' }},
+    { '@type': 'Question', name: 'Why do some companies score low despite having good websites?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Low scores are usually a structure problem, not a content-quality problem \u2014 missing schema markup that identifies what the company does, no third-party source models can cite (review sites, comparison posts, community threads), or messaging too generic for a model to retrieve anything specific.' }},
+    { '@type': 'Question', name: 'How often is the AI Visibility Index updated?',
+      acceptedAnswer: { '@type': 'Answer', text: 'The index is refreshed monthly, adding new companies and rescoring existing ones as AI models update how they describe them.' }},
+    { '@type': 'Question', name: 'Can I check my own company\u2019s AI Visibility Score?',
+      acceptedAnswer: { '@type': 'Answer', text: 'Yes \u2014 run the free check at strategic-flow-audit.replit.app/why to see how AI assistants currently describe your company.' }}
+  ]
+}).replace(/</g, '\\u003c')}</script>
 <style>
   :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
   *{box-sizing:border-box;}
@@ -7468,6 +7488,12 @@ function renderAiVisIndexHtml(companies) {
   .site-footer a:hover{color:var(--teal);}
   .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
   @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+  .faq-section{margin:48px 0 0;}
+  .faq-heading{font-size:13px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 20px;}
+  .faq-item{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px 24px;margin-bottom:10px;}
+  .faq-q{font-size:15px;font-weight:600;color:#fff;margin:0 0 8px;line-height:1.4;}
+  .faq-a{font-size:14px;color:var(--muted);line-height:1.7;margin:0;}
+  .faq-a a{color:var(--teal);}
 </style>
 </head>
 <body>
@@ -7516,6 +7542,37 @@ function renderAiVisIndexHtml(companies) {
         <li>Competitor watch — see who shows up alongside you</li>
       </ul>
       <a class="upsell-upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+    </div>
+  </div>
+  <div class="faq-section">
+    <h2 class="faq-heading">Frequently asked questions</h2>
+    <div class="faq-item">
+      <div class="faq-q">What is AI Visibility?</div>
+      <div class="faq-a">AI Visibility is whether ChatGPT, Claude, Perplexity, and Gemini mention your company — and describe it accurately — when someone asks a category question instead of typing your brand name directly.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How is the AI Visibility Score calculated?</div>
+      <div class="faq-a">Each company is scored 1–10 across five signals: whether it's mentioned at all, its position within the answer, description accuracy, which competitors appear alongside it, and whether the model cites a specific detail rather than a generic label.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What's a good AI Visibility Score?</div>
+      <div class="faq-a">A score of 8 or above means an AI model can recommend the company accurately without a human correcting the description. The average across the 73 companies audited is 7.6/10, so scores below that indicate a real visibility gap, not just room for improvement.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is AI Visibility the same as SEO?</div>
+      <div class="faq-a">No. SEO measures whether Google ranks a page. AI Visibility measures whether a model has absorbed enough accurate information — through training data or retrieval — to represent a company correctly inside a generated answer. A company can rank first on Google and still be invisible or misdescribed inside ChatGPT.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Why do some companies score low despite having good websites?</div>
+      <div class="faq-a">Low scores are usually a structure problem, not a content-quality problem — missing schema markup that identifies what the company does, no third-party source models can cite (review sites, comparison posts, community threads), or messaging too generic for a model to retrieve anything specific.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How often is the AI Visibility Index updated?</div>
+      <div class="faq-a">The index is refreshed monthly, adding new companies and rescoring existing ones as AI models update how they describe them.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I check my own company's AI Visibility Score?</div>
+      <div class="faq-a">Yes — run the free check at <a href="/why">strategic-flow-audit.replit.app/why</a> to see how AI assistants currently describe your company.</div>
     </div>
   </div>
 </div>
