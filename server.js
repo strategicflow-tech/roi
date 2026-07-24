@@ -4430,7 +4430,7 @@ Return ONLY the complete HTML. No markdown, no explanation.`;
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }]
     });
-    const html = response.content[0].text;
+    const html = response.content.find(b => b.type === 'text')?.text;
     res.json({ html });
   } catch (err) {
     console.error('[showcase]', err.message);
@@ -4469,7 +4469,7 @@ app.post('/api/score-subject', async (req, res) => {
       }]
     });
 
-    const text = response.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const text = (response.content.find(b => b.type === 'text')?.text ?? '').trim().replace(/```json|```/g, '').trim();
     const bugs = JSON.parse(text);
     res.json({ bugs });
   } catch (err) {
