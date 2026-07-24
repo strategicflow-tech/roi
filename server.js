@@ -8599,7 +8599,7 @@ Check ALL 7 structural issues for web content:
 7. Buried contrast — the core tension or before/after comparison is hidden
 
 For the 3 alternative headlines: provide genuine rewrites of the original headline, not fabricated topics.
-For read-through projection: estimate based on headline and hook quality (e.g. a filing-label headline with a caveat opener will lose the majority of readers in the first paragraph).
+For the read-through projection: do NOT invent numeric rates. Only return numeric values for currentReadThroughRate and projectedReadThroughRate if you have a reliable, published benchmark for this specific content type and structural pattern. If no such benchmark exists, set both to null and write a qualitative explanation in readThroughNote instead (e.g. "Headlines that announce the topic instead of the reader's outcome consistently underperform outcome-first headlines, though exact read-through lift varies too much by traffic source and audience to benchmark reliably").
 
 Return ONLY valid JSON — no markdown, no prose outside the JSON:
 {
@@ -8607,8 +8607,9 @@ Return ONLY valid JSON — no markdown, no prose outside the JSON:
   "bugs": [
     { "name": "<bug name>", "description": "<specific problem in THIS content, one sentence>" }
   ],
-  "currentReadThroughRate": <decimal e.g. 0.30>,
-  "projectedReadThroughRate": <decimal e.g. 0.55>,
+  "currentReadThroughRate": <decimal if real benchmark exists, otherwise null>,
+  "projectedReadThroughRate": <decimal if real benchmark exists, otherwise null>,
+  "readThroughNote": "<qualitative note if numeric rates are null, otherwise omit or set to null>",
   "rebuiltScore": <number 7-10>,
   "abSubjects": [
     { "subject": "<headline variant 1 — curiosity gap>", "openRate": "<estimated click-through lift e.g. +14%>" },
@@ -8714,6 +8715,7 @@ Return ONLY valid JSON:
         // Web fields
         currentReadThroughRate:  combined.currentReadThroughRate  || null,
         projectedReadThroughRate:combined.projectedReadThroughRate|| null,
+        readThroughNote:         combined.readThroughNote         || null,
       };
 
       await setJob(jobId, { status: 'complete', result });

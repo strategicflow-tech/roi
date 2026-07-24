@@ -2129,20 +2129,37 @@ function renderResults(result, subscribers) {
 
   } else {
     // Web content
-    const curr = result.currentReadThroughRate  || 0.30;
-    const proj = result.projectedReadThroughRate || 0.55;
-    const uplift = Math.round((proj - curr) / curr * 100);
+    const curr = result.currentReadThroughRate;
+    const proj = result.projectedReadThroughRate;
 
     document.getElementById('roiCurrentLabel').textContent   = 'Est. read-through rate';
     document.getElementById('roiProjectedLabel').textContent = 'Projected read-through rate';
     document.getElementById('roiDeltaLabel').textContent     = 'Estimated uplift';
-    document.getElementById('roiCurrent').textContent        = Math.round(curr * 100) + '%';
-    document.getElementById('roiCurrentReaders').textContent = 'current headline + hook performance';
-    document.getElementById('roiProjected').textContent      = Math.round(proj * 100) + '%';
-    document.getElementById('roiProjectedReaders').textContent = 'with optimised headline + hook';
-    document.getElementById('roiDelta').textContent          = '+' + uplift + '%';
-    document.getElementById('roiDeltaNote').textContent      = 'Estimated click-through / read-through lift';
-    engagementNoteEl.style.display = 'none';
+
+    if (curr != null && proj != null && curr > 0) {
+      const uplift = Math.round((proj - curr) / curr * 100);
+      document.getElementById('roiCurrent').textContent          = Math.round(curr * 100) + '%';
+      document.getElementById('roiCurrentReaders').textContent   = 'current headline + hook performance';
+      document.getElementById('roiProjected').textContent        = Math.round(proj * 100) + '%';
+      document.getElementById('roiProjectedReaders').textContent = 'with optimised headline + hook';
+      document.getElementById('roiDelta').textContent            = '+' + uplift + '%';
+      document.getElementById('roiDeltaNote').textContent        = 'Estimated click-through / read-through lift';
+      engagementNoteEl.style.display = 'none';
+    } else {
+      document.getElementById('roiCurrent').textContent          = 'n/a';
+      document.getElementById('roiCurrentReaders').textContent   = 'no reliable benchmark';
+      document.getElementById('roiProjected').textContent        = 'n/a';
+      document.getElementById('roiProjectedReaders').textContent = 'no reliable benchmark';
+      document.getElementById('roiDelta').textContent            = '—';
+      document.getElementById('roiDeltaNote').textContent        = 'See note below';
+      const note = result.readThroughNote;
+      if (note) {
+        engagementNoteEl.textContent   = note;
+        engagementNoteEl.style.display = 'block';
+      } else {
+        engagementNoteEl.style.display = 'none';
+      }
+    }
   }
 
   // Capture text for paid rebuild
