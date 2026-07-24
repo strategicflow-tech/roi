@@ -111,7 +111,8 @@
     transition: border-color 0.2s; -webkit-appearance: none;
   }
   input[type="email"]:focus, input[type="text"]:focus, input[type="number"]:focus {
-    border-color: rgba(78,225,255,0.35);
+    border-color: rgba(78,225,255,0.55);
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.10), 0 0 14px rgba(78,225,255,0.08);
   }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
@@ -146,6 +147,11 @@
   .editor-window {
     border: 1px solid var(--border); border-top: none;
     background: var(--panel); overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.06), 0 0 22px rgba(78,225,255,0.05);
+    transition: box-shadow 0.35s ease;
+  }
+  .editor-window:focus-within {
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.22), 0 0 30px rgba(78,225,255,0.11);
   }
   .editor-header {
     display: flex; align-items: center; gap: 8px; padding: 9px 14px;
@@ -537,6 +543,112 @@
     .cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}
     .cookie-actions{justify-content:flex-end;}
   }
+
+  /* ── SCI-FI LAYER — Panel 1 input page only ────────── */
+
+  /* 1 · Ambient grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(78,225,255,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(78,225,255,0.045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    animation: ambientGridDrift 28s linear infinite;
+  }
+
+  /* 2 · System-status line above headline */
+  .sys-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.22em;
+    color: rgba(78,225,255,0.38);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    display: flex; align-items: center; gap: 9px;
+    user-select: none;
+  }
+  .sys-status::before {
+    content: '';
+    display: inline-block; flex-shrink: 0;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--teal);
+    animation: statusPulse 3.5s ease-in-out infinite;
+  }
+
+  /* 3 · Blinking cursor on headline */
+  .panel-title-cursor {
+    display: inline-block;
+    width: 3px; height: 0.78em;
+    background: var(--scan-cyan);
+    margin-left: 5px;
+    vertical-align: middle;
+    border-radius: 1px;
+    animation: cursorBlink 1.05s step-end infinite;
+  }
+
+  /* 4 · Editor pre-cursor — blinking block at line 1 when empty + unfocused */
+  .editor-body-wrap { position: relative; }
+  .editor-pre-cursor {
+    position: absolute;
+    top: 14px;
+    left: 56px; /* 42px line-nums min-width + 14px textarea padding-left */
+    width: 2px; height: calc(13px * 1.4);
+    background: var(--scan-cyan); opacity: 0.55;
+    border-radius: 1px; pointer-events: none; z-index: 1;
+    animation: cursorBlink 1.05s step-end infinite;
+  }
+  /* Hide when user has typed or focused */
+  .editor-textarea:focus ~ .editor-pre-cursor,
+  .editor-textarea:not(:placeholder-shown) ~ .editor-pre-cursor {
+    opacity: 0; animation: none;
+  }
+  .editor-textarea:focus { outline: none; }
+
+  /* 5 · Run button scan-line sweep on hover */
+  .btn-primary { position: relative; overflow: hidden; }
+  .btn-primary::after {
+    content: '';
+    position: absolute; top: 0; bottom: 0; left: -70%;
+    width: 45%;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(255,255,255,0.17),
+      transparent);
+    transform: skewX(-18deg);
+    pointer-events: none;
+  }
+  .btn-primary:not(:disabled):hover::after {
+    animation: btnSweep 0.52s ease-out forwards;
+  }
+
+  /* ── KEYFRAMES ──────────────────────────────────────── */
+  @keyframes ambientGridDrift {
+    from { background-position: 0 0; }
+    to   { background-position: 48px 48px; }
+  }
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.22; }
+  }
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+  @keyframes btnSweep {
+    from { left: -70%; }
+    to   { left: 130%; }
+  }
+
+  /* ── PREFERS-REDUCED-MOTION ─────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    body::before                   { animation: none; }
+    .sys-status::before            { animation: none; }
+    .panel-title-cursor            { animation: none; opacity: 1; }
+    .editor-pre-cursor             { animation: none; opacity: 0.55; }
+    .btn-primary::after            { display: none; }
+  }
+
 </style>
 <meta name="description" content="See the Strategic Flow email audit in action. Live demo of the Decision Friction Model — 7-point structural diagnosis, score 1-10, named failure pattern, rebuilt copy.">
 <link rel="canonical" href="https://strategic-flow-audit.replit.app/demo.html">
@@ -555,8 +667,9 @@
 
   <!-- PANEL 1: INPUT ──────────────────────────────────── -->
   <div class="panel active" id="panel-1">
+    <div class="sys-status" aria-hidden="true">// System Ready — Awaiting Input</div>
     <div class="panel-label">// Free Demo — One-time assessment</div>
-    <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em></h1>
+    <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em><span class="panel-title-cursor" aria-hidden="true"></span></h1>
     <p class="panel-sub">Paste any SaaS product email. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt subject lines, hook rewrite, and ROI projection. One time, free, no card.</p>
 
     <div class="form-group">
@@ -597,6 +710,7 @@
                       placeholder="Paste the full email body here..."
                       oninput="updateLineNums(this)"
                       aria-label="Email body"></textarea>
+            <span class="editor-pre-cursor" aria-hidden="true"></span>
           </div>
         </div>
       </div>
