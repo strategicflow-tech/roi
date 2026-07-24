@@ -8525,7 +8525,106 @@ app.post('/api/demo', async (req, res) => {
 
   (async () => {
     try {
-      const combinedPrompt = `You are the Strategic Flow diagnostic and rebuild engine.
+      // ── Build content-type-aware prompt ──────────────────────────────────────
+      const ct = (content_type || 'email').toLowerCase();
+      const isSocial = ct === 'linkedin_post';
+      const isWeb    = ['blog_post','product_update','changelog','release_notes'].includes(ct);
+      // isEmail = everything else (including plain 'email')
+
+      let combinedPrompt;
+
+      if (isSocial) {
+        // ── GROUP 2: LinkedIn Post ───────────────────────────────────────────
+        combinedPrompt = `You are the Strategic Flow diagnostic and rebuild engine.
+
+Content type: LinkedIn Post
+Company / Author: ${company || 'Unknown'}
+Opening line submitted by user: ${subject}
+Post body: ${body.slice(0, 1200)}
+
+Do BOTH diagnostic and rebuild in one response.
+
+IMPORTANT — this is a LinkedIn post, not an email:
+- Do NOT invent or rebuild a subject line. LinkedIn posts have no subject line.
+- Rebuild the opening line (the first 1-2 sentences) for stronger scroll-stopping power.
+- Frame the CTA rebuild around repost/comment/follow prompts, not email clicks.
+- For the engagement projection: only provide numeric rates if you have a reliable benchmark; otherwise set both to null and explain qualitatively in engagementNote.
+
+Check these 7 structural issues as they apply to LinkedIn posts:
+1. Opening line weakness — first line fails to stop the scroll; no pattern interrupt, no consequence-first hook
+2. Caveat opener — post opens with disclaimer, background context, or caveat before the insight
+3. Feature-first language — leads with what the product/company does instead of the reader's problem or outcome
+4. Flat visual hierarchy — major and minor points at same visual weight, no rhythm or white-space
+5. Zero quantified claims — no numbers, benchmarks, or concrete results above the fold
+6. Weak or missing CTA — ends with passive ask ("thoughts?") vs clear prompt (follow/repost/comment with ownership)
+7. Buried contrast — the core tension or insight is hidden mid-post or at the end
+
+Return ONLY valid JSON — no markdown, no prose outside the JSON:
+{
+  "score": <number 1-10>,
+  "bugs": [
+    { "name": "<bug name>", "description": "<specific problem in THIS post, one sentence>" }
+  ],
+  "currentEngagementRate": <decimal e.g. 0.02, or null if no reliable benchmark>,
+  "projectedEngagementRate": <decimal e.g. 0.05, or null if no reliable benchmark>,
+  "engagementNote": "<one sentence qualitative note on engagement impact, e.g. 'Caveat-opener posts consistently underperform consequence-first hooks in B2B LinkedIn content by a wide margin'>",
+  "rebuiltScore": <number 7-10>,
+  "abSubjects": null,
+  "whatChanged": [
+    { "fix": "Fix 1 — Opening line", "before": "<original first 1-2 sentences verbatim>", "after": "<rebuilt opening line — consequence-first, scroll-stopping>", "why": "<one sentence>" },
+    { "fix": "Fix 2 — Hook structure", "before": "<original hook pattern description>", "after": "<rebuilt hook>", "why": "<one sentence>" },
+    { "fix": "Fix 3 — CTA", "before": "<original closing / CTA>", "after": "<rebuilt CTA — repost/comment/follow prompt with ownership language>", "why": "<one sentence>" }
+  ]
+}`;
+
+      } else if (isWeb) {
+        // ── GROUP 3: Blog Post, Product Update, Changelog, Release Notes ────
+        const ctLabel = { blog_post:'Blog Post', product_update:'Product Update', changelog:'Changelog', release_notes:'Release Notes' }[ct] || ct;
+        combinedPrompt = `You are the Strategic Flow diagnostic and rebuild engine.
+
+Content type: ${ctLabel}
+Company: ${company || 'Unknown'}
+Headline: ${subject}
+Body: ${body.slice(0, 1200)}
+
+Do BOTH diagnostic and rebuild in one response. This is web content, not an email.
+
+Check ALL 7 structural issues for web content:
+1. Filing label headline — headline announces the topic/product, not the reader's problem or outcome
+2. Caveat opener — content opens with context or disclaimer before the value
+3. Feature-first language — describes what the product does instead of the reader's outcome
+4. Flat visual hierarchy — major and minor points at same visual weight
+5. Zero quantified claims — no numbers, benchmarks, or time-saved data above the fold
+6. Weak or missing CTA — no ownership language ("Read more" vs "Fix my X now")
+7. Buried contrast — the core tension or before/after comparison is hidden
+
+For the 3 alternative headlines: provide genuine rewrites of the original headline, not fabricated topics.
+For read-through projection: estimate based on headline and hook quality (e.g. a filing-label headline with a caveat opener will lose the majority of readers in the first paragraph).
+
+Return ONLY valid JSON — no markdown, no prose outside the JSON:
+{
+  "score": <number 1-10>,
+  "bugs": [
+    { "name": "<bug name>", "description": "<specific problem in THIS content, one sentence>" }
+  ],
+  "currentReadThroughRate": <decimal e.g. 0.30>,
+  "projectedReadThroughRate": <decimal e.g. 0.55>,
+  "rebuiltScore": <number 7-10>,
+  "abSubjects": [
+    { "subject": "<headline variant 1 — curiosity gap>", "openRate": "<estimated click-through lift e.g. +14%>" },
+    { "subject": "<headline variant 2 — consequence-first>", "openRate": "<estimated click-through lift e.g. +19%>" },
+    { "subject": "<headline variant 3 — number-driven>", "openRate": "<estimated click-through lift e.g. +16%>" }
+  ],
+  "whatChanged": [
+    { "fix": "Fix 1 — Headline", "before": "<original headline>", "after": "<rebuilt headline — consequence-first>", "why": "<one sentence>" },
+    { "fix": "Fix 2 — Lead paragraph", "before": "<original opening paragraph or first line>", "after": "<rebuilt lead — value-first>", "why": "<one sentence>" },
+    { "fix": "Fix 3 — CTA", "before": "<original CTA>", "after": "<rebuilt CTA with ownership language>", "why": "<one sentence>" }
+  ]
+}`;
+
+      } else {
+        // ── GROUP 1: Email (original logic — unchanged) ──────────────────────
+        combinedPrompt = `You are the Strategic Flow diagnostic and rebuild engine.
 
 Company: ${company || 'Unknown'}
 Subject: ${subject}
@@ -8561,6 +8660,8 @@ Return ONLY valid JSON:
     { "fix": "Fix 4 — CTA", "before": "<original CTA>", "after": "<rebuilt CTA with ownership language>", "why": "<one sentence>" }
   ]
 }`;
+      }
+      // ── End prompt builder ───────────────────────────────────────────────────
 
       const combined = await claudeJSON(combinedPrompt, 2500);
       if (!combined) throw new Error('Assessment failed');
@@ -8596,15 +8697,23 @@ Return ONLY valid JSON:
       }
 
       const result = {
-        score: diagnostic.score,
-        rebuiltScore: rebuild.rebuiltScore || 9,
-        bugs: diagnostic.bugs || [],
-        currentOpenRate: diagnostic.currentOpenRate || 0.18,
-        projectedOpenRate: rebuild.projectedOpenRate || 0.30,
-        abSubjects: rebuild.abSubjects || [],
-        whatChanged: rebuild.whatChanged || [],
+        score:         combined.score,
+        rebuiltScore:  combined.rebuiltScore || 9,
+        bugs:          combined.bugs || [],
+        whatChanged:   combined.whatChanged || [],
         originalSubject: subject,
-        content_type: content_type || 'email'
+        content_type:  content_type || 'email',
+        // Email fields
+        currentOpenRate:      combined.currentOpenRate      || null,
+        projectedOpenRate:    combined.projectedOpenRate    || null,
+        abSubjects:           combined.abSubjects           || null,
+        // LinkedIn fields
+        currentEngagementRate:  combined.currentEngagementRate  || null,
+        projectedEngagementRate:combined.projectedEngagementRate|| null,
+        engagementNote:         combined.engagementNote         || null,
+        // Web fields
+        currentReadThroughRate:  combined.currentReadThroughRate  || null,
+        projectedReadThroughRate:combined.projectedReadThroughRate|| null,
       };
 
       await setJob(jobId, { status: 'complete', result });

@@ -1050,36 +1050,41 @@
     <div class="section-title">// The 7-bug diagnostic — full results</div>
     <div class="bug-list" id="bugList"></div>
 
-    <div class="section-title">// Subject line — rebuilt</div>
-    <div class="rebuild-grid" id="subjectRebuild"></div>
+    <div id="sectionSubjectWrap">
+      <div class="section-title" id="sectionSubjectTitle">// Subject line — rebuilt</div>
+      <div class="rebuild-grid" id="subjectRebuild"></div>
+    </div>
 
-    <div class="section-title">// 3 A/B subject line variants</div>
-    <div class="variant-list" id="variantList"></div>
+    <div id="sectionVariantsWrap">
+      <div class="section-title" id="sectionVariantsTitle">// 3 A/B subject line variants</div>
+      <div class="variant-list" id="variantList"></div>
+    </div>
 
-    <div class="section-title">// Hook — rebuilt consequence-first</div>
+    <div class="section-title" id="sectionHookTitle">// Hook — rebuilt consequence-first</div>
     <div class="rebuild-grid" id="hookRebuild"></div>
 
     <div class="section-title">// CTA — ownership language applied</div>
     <div class="rebuild-grid" id="ctaRebuild"></div>
 
-    <div class="section-title">// ROI projection</div>
+    <div class="section-title" id="sectionRoiTitle">// ROI projection</div>
     <div class="roi-grid">
       <div class="roi-cell">
-        <div class="roi-label">Current open rate</div>
+        <div class="roi-label" id="roiCurrentLabel">Current open rate</div>
         <div class="roi-value negative" id="roiCurrent">—</div>
         <div class="roi-note" id="roiCurrentReaders">—</div>
       </div>
       <div class="roi-cell">
-        <div class="roi-label">Projected open rate</div>
+        <div class="roi-label" id="roiProjectedLabel">Projected open rate</div>
         <div class="roi-value positive" id="roiProjected">—</div>
         <div class="roi-note" id="roiProjectedReaders">—</div>
       </div>
       <div class="roi-cell">
-        <div class="roi-label">Monthly delta</div>
+        <div class="roi-label" id="roiDeltaLabel">Monthly delta</div>
         <div class="roi-value positive" id="roiDelta">—</div>
         <div class="roi-note" id="roiDeltaNote">—</div>
       </div>
     </div>
+    <div id="roiEngagementNote" style="display:none;margin-top:14px;font-size:13px;color:var(--text-dim);line-height:1.65;font-style:italic;padding:12px 16px;border-left:2px solid var(--scan-cyan);background:rgba(78,225,255,0.04);"></div>
 
     <!-- ARCHITECTURE SHOWCASE -->
     <div style="margin-top:48px;margin-bottom:48px;" id="paidRebuildSection">
@@ -1961,6 +1966,12 @@ function renderResults(result, subscribers) {
   const rebuilt = result.rebuiltScore || result.newScore || 9;
   const bugs    = result.bugs || [];
 
+  // ── Detect content type group ──────────────────────────
+  const ct       = (result.content_type || 'email').toLowerCase();
+  const isSocial = ct === 'linkedin_post';
+  const isWeb    = ['blog_post','product_update','changelog','release_notes'].includes(ct);
+  const isEmail  = !isSocial && !isWeb;
+
   document.getElementById('origScore').textContent = score + '/10';
   document.getElementById('newScore').textContent  = rebuilt + '/10';
   document.getElementById('bugsFound').textContent = bugs.length + '/7';
@@ -1976,31 +1987,73 @@ function renderResults(result, subscribers) {
     </div>
   `).join('') : `<div class="bug-item"><div><div class="bug-desc" style="color:var(--teal)">No critical bugs detected.</div></div></div>`;
 
-  const origSubject = result.originalSubject || document.getElementById('demoSubject').value;
-  const newSubject  = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
-  document.getElementById('subjectRebuild').innerHTML = `
-    <div class="rebuild-cell">
-      <div class="rebuild-tag before">Before</div>
-      <div class="rebuild-text">${esc(origSubject)}</div>
-    </div>
-    <div class="rebuild-cell">
-      <div class="rebuild-tag after">After</div>
-      <div class="rebuild-text">${esc(newSubject)}</div>
-    </div>
-  `;
+  // ── Subject / Headline / Opening line section ──────────
+  const subjectWrap    = document.getElementById('sectionSubjectWrap');
+  const variantsWrap   = document.getElementById('sectionVariantsWrap');
+  const sectionHookTitle = document.getElementById('sectionHookTitle');
+  const sectionRoiTitle  = document.getElementById('sectionRoiTitle');
 
-  const variants = result.abSubjects || [];
-  document.getElementById('variantList').innerHTML = variants.length > 0 ? variants.map((v, i) => `
-    <div class="variant-item">
-      <span class="variant-tag">V${i+1}</span>
-      <span class="variant-text">${esc(typeof v === 'string' ? v : v.subject || v)}</span>
-      <span class="variant-rate">${typeof v === 'object' && v.openRate ? v.openRate : '~' + (27 + i*2) + '%'}</span>
-    </div>
-  `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--text-dim);padding:16px;">Variants not available.</div>';
+  if (isSocial) {
+    // LinkedIn: hide subject + variants entirely; rename hook section
+    subjectWrap.style.display  = 'none';
+    variantsWrap.style.display = 'none';
+    sectionHookTitle.textContent = '// Opening line — rebuilt';
+    sectionRoiTitle.textContent  = '// Engagement projection';
+  } else if (isWeb) {
+    subjectWrap.style.display  = '';
+    variantsWrap.style.display = '';
+    document.getElementById('sectionSubjectTitle').textContent  = '// Headline — rebuilt';
+    document.getElementById('sectionVariantsTitle').textContent = '// 3 alternative headlines';
+    sectionHookTitle.textContent = '// Hook / lead paragraph — rebuilt';
+    sectionRoiTitle.textContent  = '// Click-through projection';
+  } else {
+    subjectWrap.style.display  = '';
+    variantsWrap.style.display = '';
+    document.getElementById('sectionSubjectTitle').textContent  = '// Subject line — rebuilt';
+    document.getElementById('sectionVariantsTitle').textContent = '// 3 A/B subject line variants';
+    sectionHookTitle.textContent = '// Hook — rebuilt consequence-first';
+    sectionRoiTitle.textContent  = '// ROI projection';
+  }
 
-  const changes  = result.whatChanged || [];
-  const hookChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('hook')) || changes[2] || null;
-  const ctaChange  = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta'))  || changes[3] || null;
+  // ── Subject / Headline rebuild ─────────────────────────
+  if (!isSocial) {
+    const origSubject = result.originalSubject || document.getElementById('demoSubject').value;
+    const newSubject  = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
+    document.getElementById('subjectRebuild').innerHTML = `
+      <div class="rebuild-cell">
+        <div class="rebuild-tag before">Before</div>
+        <div class="rebuild-text">${esc(origSubject)}</div>
+      </div>
+      <div class="rebuild-cell">
+        <div class="rebuild-tag after">After</div>
+        <div class="rebuild-text">${esc(newSubject)}</div>
+      </div>
+    `;
+
+    const variantRateLabel = isEmail ? 'openRate' : 'openRate'; // same field; label differs in heading
+    const variants = result.abSubjects || [];
+    document.getElementById('variantList').innerHTML = variants.length > 0 ? variants.map((v, i) => `
+      <div class="variant-item">
+        <span class="variant-tag">V${i+1}</span>
+        <span class="variant-text">${esc(typeof v === 'string' ? v : v.subject || v)}</span>
+        <span class="variant-rate">${typeof v === 'object' && v.openRate ? v.openRate : ''}</span>
+      </div>
+    `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--text-dim);padding:16px;">Variants not available.</div>';
+  }
+
+  // ── Hook / Opening line rebuild ────────────────────────
+  const changes = result.whatChanged || [];
+  let hookChange, ctaChange;
+  if (isSocial) {
+    hookChange = changes.find(c => c.fix && (c.fix.toLowerCase().includes('opening') || c.fix.toLowerCase().includes('hook'))) || changes[0] || null;
+    ctaChange  = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[2] || null;
+  } else if (isWeb) {
+    hookChange = changes.find(c => c.fix && (c.fix.toLowerCase().includes('lead') || c.fix.toLowerCase().includes('hook') || c.fix.toLowerCase().includes('paragraph'))) || changes[1] || null;
+    ctaChange  = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[2] || null;
+  } else {
+    hookChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('hook')) || changes[2] || null;
+    ctaChange  = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[3] || null;
+  }
 
   document.getElementById('hookRebuild').innerHTML = hookChange ? `
     <div class="rebuild-cell">
@@ -2011,7 +2064,7 @@ function renderResults(result, subscribers) {
       <div class="rebuild-tag after">After</div>
       <div class="rebuild-text">${esc(hookChange.after || '—')}</div>
     </div>
-  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--text-dim)">Hook rebuild not available.</div></div>';
+  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--text-dim)">Rebuild not available.</div></div>';
 
   document.getElementById('ctaRebuild').innerHTML = ctaChange ? `
     <div class="rebuild-cell">
@@ -2024,20 +2077,75 @@ function renderResults(result, subscribers) {
     </div>
   ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--text-dim)">CTA rebuild not available.</div></div>';
 
-  const currentRate    = result.currentOpenRate   || 0.18;
-  const projectedRate  = result.projectedOpenRate || 0.31;
-  const currentReaders  = Math.round(subscribers * currentRate);
-  const projectedReaders = Math.round(subscribers * projectedRate);
-  const delta = (projectedReaders - currentReaders) * 4;
+  // ── Projection section (ROI / Engagement / Click-through) ─
+  const engagementNoteEl = document.getElementById('roiEngagementNote');
 
-  document.getElementById('roiCurrent').textContent         = Math.round(currentRate * 100) + '%';
-  document.getElementById('roiCurrentReaders').textContent  = currentReaders.toLocaleString() + ' readers/email';
-  document.getElementById('roiProjected').textContent       = Math.round(projectedRate * 100) + '%';
-  document.getElementById('roiProjectedReaders').textContent = projectedReaders.toLocaleString() + ' readers/email';
-  document.getElementById('roiDelta').textContent   = '+' + delta.toLocaleString();
-  document.getElementById('roiDeltaNote').textContent = 'Additional readers/month (4 emails)';
+  if (isEmail) {
+    const currentRate    = result.currentOpenRate   || 0.18;
+    const projectedRate  = result.projectedOpenRate || 0.31;
+    const currentReaders  = Math.round(subscribers * currentRate);
+    const projectedReaders = Math.round(subscribers * projectedRate);
+    const delta = (projectedReaders - currentReaders) * 4;
 
-  // Capture email text for paid rebuild
+    document.getElementById('roiCurrentLabel').textContent    = 'Current open rate';
+    document.getElementById('roiProjectedLabel').textContent  = 'Projected open rate';
+    document.getElementById('roiDeltaLabel').textContent      = 'Monthly delta';
+    document.getElementById('roiCurrent').textContent         = Math.round(currentRate * 100) + '%';
+    document.getElementById('roiCurrentReaders').textContent  = currentReaders.toLocaleString() + ' readers/email';
+    document.getElementById('roiProjected').textContent       = Math.round(projectedRate * 100) + '%';
+    document.getElementById('roiProjectedReaders').textContent = projectedReaders.toLocaleString() + ' readers/email';
+    document.getElementById('roiDelta').textContent           = '+' + delta.toLocaleString();
+    document.getElementById('roiDeltaNote').textContent       = 'Additional readers/month (4 emails)';
+    engagementNoteEl.style.display = 'none';
+
+  } else if (isSocial) {
+    const curr = result.currentEngagementRate;
+    const proj = result.projectedEngagementRate;
+
+    document.getElementById('roiCurrentLabel').textContent   = 'Est. engagement rate';
+    document.getElementById('roiProjectedLabel').textContent = 'Projected engagement rate';
+    document.getElementById('roiDeltaLabel').textContent     = 'Estimated uplift';
+    document.getElementById('roiCurrent').textContent        = curr != null ? Math.round(curr * 100) + '%' : 'n/a';
+    document.getElementById('roiCurrentReaders').textContent = 'with current hook structure';
+    document.getElementById('roiProjected').textContent      = proj != null ? Math.round(proj * 100) + '%' : 'n/a';
+    document.getElementById('roiProjectedReaders').textContent = 'with consequence-first opening';
+
+    if (curr != null && proj != null && curr > 0) {
+      const uplift = Math.round((proj - curr) / curr * 100);
+      document.getElementById('roiDelta').textContent    = '+' + uplift + '%';
+      document.getElementById('roiDeltaNote').textContent = 'Estimated engagement uplift';
+    } else {
+      document.getElementById('roiDelta').textContent    = '—';
+      document.getElementById('roiDeltaNote').textContent = 'See note below';
+    }
+
+    const note = result.engagementNote;
+    if (note) {
+      engagementNoteEl.textContent   = note;
+      engagementNoteEl.style.display = 'block';
+    } else {
+      engagementNoteEl.style.display = 'none';
+    }
+
+  } else {
+    // Web content
+    const curr = result.currentReadThroughRate  || 0.30;
+    const proj = result.projectedReadThroughRate || 0.55;
+    const uplift = Math.round((proj - curr) / curr * 100);
+
+    document.getElementById('roiCurrentLabel').textContent   = 'Est. read-through rate';
+    document.getElementById('roiProjectedLabel').textContent = 'Projected read-through rate';
+    document.getElementById('roiDeltaLabel').textContent     = 'Estimated uplift';
+    document.getElementById('roiCurrent').textContent        = Math.round(curr * 100) + '%';
+    document.getElementById('roiCurrentReaders').textContent = 'current headline + hook performance';
+    document.getElementById('roiProjected').textContent      = Math.round(proj * 100) + '%';
+    document.getElementById('roiProjectedReaders').textContent = 'with optimised headline + hook';
+    document.getElementById('roiDelta').textContent          = '+' + uplift + '%';
+    document.getElementById('roiDeltaNote').textContent      = 'Estimated click-through / read-through lift';
+    engagementNoteEl.style.display = 'none';
+  }
+
+  // Capture text for paid rebuild
   const _subj = (document.getElementById('demoSubject').value || '').trim();
   const _body = (document.getElementById('demoBody').value || '').trim();
   _rebuildEmailText = (_subj + '\n\n' + _body).slice(0, 8000);
