@@ -8482,7 +8482,7 @@ app.post('/api/distribb-publish', async (req, res) => {
 // ─── DEMO ENDPOINT ────────────────────────────────────────────────────────────
 
 app.post('/api/demo', async (req, res) => {
-  const { email, subject, body, company, subscribers } = req.body;
+  const { email, subject, body, company, subscribers, content_type } = req.body;
 
   if (!email || !subject || !body) {
     return res.status(400).json({ error: 'email, subject and body required' });
@@ -8579,6 +8579,7 @@ Return ONLY valid JSON:
           subject: `Demo run: ${companyName} — score ${origScore}/10`,
           html: `<p><strong>Work email:</strong> ${emailLower}</p>
                  <p><strong>Company name:</strong> ${companyName}</p>
+                 <p><strong>Content type:</strong> ${content_type || 'email'}</p>
                  <p><strong>Subscriber count:</strong> ${subscribers || 'not provided'}</p>
                  <p><strong>Original score:</strong> ${origScore}/10</p>
                  <p><strong>Rebuilt score:</strong> ${rebScore}/10</p>
@@ -8602,7 +8603,8 @@ Return ONLY valid JSON:
         projectedOpenRate: rebuild.projectedOpenRate || 0.30,
         abSubjects: rebuild.abSubjects || [],
         whatChanged: rebuild.whatChanged || [],
-        originalSubject: subject
+        originalSubject: subject,
+        content_type: content_type || 'email'
       };
 
       await setJob(jobId, { status: 'complete', result });

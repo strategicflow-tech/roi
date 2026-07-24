@@ -146,6 +146,31 @@
   .etab.active { color: var(--scan-cyan); border-bottom-color: var(--scan-cyan); }
   .etab:hover:not(.active) { color: var(--text-primary); }
 
+  /* ── CONTENT TYPE SELECTOR ────────────────────────── */
+  .ctype-label {
+    display: block; font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.15em; color: #FFFFFF; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .ctype-tabs {
+    display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 0;
+  }
+  .ctab {
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
+    color: var(--text-dim); background: none;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 7px 16px;
+    cursor: pointer; transition: color 0.2s, border-color 0.2s, background 0.2s;
+    white-space: nowrap;
+  }
+  .ctab.active {
+    color: var(--scan-cyan);
+    border-color: rgba(78,225,255,0.4);
+    background: rgba(78,225,255,0.08);
+  }
+  .ctab:hover:not(.active) { color: var(--text-primary); border-color: rgba(255,255,255,0.18); }
+
   /* ── CODE EDITOR WINDOW ────────────────────────────── */
   .editor-window {
     border: 1px solid var(--border); border-top: none;
@@ -829,8 +854,8 @@
   <div class="panel active" id="panel-1">
     <div class="sys-status" aria-hidden="true">// System Ready — Awaiting Input</div>
     <div class="panel-label">// Free Demo — One-time assessment</div>
-    <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em><span class="panel-title-cursor" aria-hidden="true"></span></h1>
-    <p class="panel-sub">Paste any SaaS product email. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt subject lines, hook rewrite, and ROI projection. One time, free, no card.</p>
+    <h1 class="panel-title">See exactly what's<br><em>broken in your content.</em><span class="panel-title-cursor" aria-hidden="true"></span></h1>
+    <p class="panel-sub">Paste any SaaS email, blog post, product update, changelog, release note, or LinkedIn post. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt hook, and ROI projection. One time, free, no card.</p>
 
     <div class="param-header" aria-hidden="true">
       <span class="param-header-label">// Diagnostic Parameters</span>
@@ -847,7 +872,19 @@
     </div>
 
     <div class="form-group">
-      <label for="demoSubject">Email subject line</label>
+      <span class="ctype-label">Content type</span>
+      <div class="ctype-tabs" role="tablist" aria-label="Content type">
+        <button class="ctab active" role="tab" aria-selected="true"  data-ctype="email"          onclick="switchContentType(this)">Email</button>
+        <button class="ctab"        role="tab" aria-selected="false" data-ctype="blog_post"       onclick="switchContentType(this)">Blog Post</button>
+        <button class="ctab"        role="tab" aria-selected="false" data-ctype="product_update"  onclick="switchContentType(this)">Product Update</button>
+        <button class="ctab"        role="tab" aria-selected="false" data-ctype="changelog"       onclick="switchContentType(this)">Changelog</button>
+        <button class="ctab"        role="tab" aria-selected="false" data-ctype="release_notes"   onclick="switchContentType(this)">Release Notes</button>
+        <button class="ctab"        role="tab" aria-selected="false" data-ctype="linkedin_post"   onclick="switchContentType(this)">LinkedIn Post</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="demoSubject">Headline or subject line</label>
       <input type="text" id="demoSubject" placeholder="e.g. New dashboard features available">
     </div>
 
@@ -869,7 +906,7 @@
               <span class="editor-dot dot-yellow"></span>
               <span class="editor-dot dot-green"></span>
             </div>
-            <span class="editor-fname" id="editorFname">email-body.txt</span>
+            <span class="editor-fname" id="editorFname">content-body.txt</span>
           </div>
           <div class="editor-body-wrap">
             <div class="line-nums" id="lineNums" aria-hidden="true">
@@ -911,7 +948,7 @@
         <input type="text" id="demoCompany" placeholder="e.g. Acme SaaS">
       </div>
       <div class="form-group">
-        <label for="demoSubscribers">Subscriber count</label>
+        <label for="demoSubscribers">Subscriber / follower count</label>
         <input type="number" id="demoSubscribers" placeholder="e.g. 25000" min="100">
       </div>
     </div>
@@ -921,7 +958,7 @@
       <input type="checkbox" id="terms-consent"
              style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--teal);"
              onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
-      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:#D4E0EA;line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
+      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:#D4E0EA;line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
     </div>
     <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
 
@@ -1565,6 +1602,26 @@ function switchTab(tab) {
   if (up) up.style.display = 'none';
 })();
 
+/* ── CONTENT TYPE SWITCHER ─────────────────────────────── */
+const SUBJECT_PLACEHOLDERS = {
+  email:          'e.g. New dashboard features available',
+  blog_post:      'e.g. How we cut onboarding time by 40%',
+  product_update: 'e.g. Introducing real-time collaboration',
+  changelog:      'e.g. v2.4 — bug fixes and performance improvements',
+  release_notes:  'e.g. Release 3.1.0',
+  linkedin_post:  'e.g. the opening line or hook of the post',
+};
+function switchContentType(btn) {
+  document.querySelectorAll('.ctab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
+  });
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  const ph = SUBJECT_PLACEHOLDERS[btn.dataset.ctype] || SUBJECT_PLACEHOLDERS.email;
+  document.getElementById('demoSubject').placeholder = ph;
+}
+
 /* ── FILE UPLOAD ───────────────────────────────────────── */
 function handleFileDrop(e) {
   e.preventDefault();
@@ -1798,10 +1855,11 @@ async function runDemo() {
   const body       = document.getElementById('demoBody').value.trim();
   const company    = document.getElementById('demoCompany').value.trim() || 'Your Company';
   const subscribers = parseInt(document.getElementById('demoSubscribers').value) || 10000;
+  const contentType = (document.querySelector('.ctab.active') || {}).dataset?.ctype || 'email';
 
   if (!email || !email.includes('@')) return showError('Please enter a valid email address.');
-  if (!subject) return showError('Please enter the email subject line.');
-  if (!body) return showError('Please paste the email body.');
+  if (!subject) return showError('Please enter the headline or subject line.');
+  if (!body) return showError('Please paste the content body.');
 
   document.getElementById('inputError').style.display = 'none';
   document.getElementById('runBtn').disabled = true;
@@ -1824,7 +1882,7 @@ async function runDemo() {
     const res = await fetch('/api/demo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, subject, body, company, subscribers })
+      body: JSON.stringify({ email, subject, body, company, subscribers, content_type: contentType })
     });
 
     const data = await res.json();
