@@ -94,14 +94,14 @@
     letter-spacing: -0.02em; margin-bottom: 12px;
   }
   .panel-title em { font-style: italic; color: var(--scan-cyan); }
-  .panel-sub { font-size: 15px; color: var(--text-dim); margin-bottom: 36px; max-width: 560px; line-height: 1.7; }
+  .panel-sub { font-size: 15px; color: #BFD0DC; margin-bottom: 36px; max-width: 560px; line-height: 1.7; }
 
   /* ── FORM (non-editor fields) ──────────────────────── */
   .form-group { margin-bottom: 20px; }
 
   label {
     display: block; font-family: 'DM Mono', monospace; font-size: 11px;
-    letter-spacing: 0.1em; color: #9FAAB4; text-transform: uppercase; margin-bottom: 8px;
+    letter-spacing: 0.15em; color: #FFFFFF; text-transform: uppercase; margin-bottom: 8px;
   }
 
   input[type="email"], input[type="text"], input[type="number"] {
@@ -555,10 +555,10 @@
     position: fixed; inset: 0; z-index: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(78,225,255,0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(78,225,255,0.045) 1px, transparent 1px);
-    background-size: 48px 48px;
-    animation: ambientGridDrift 28s linear infinite;
+      linear-gradient(rgba(78,225,255,0.11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(78,225,255,0.11) 1px, transparent 1px);
+    background-size: 34px 34px;
+    animation: ambientGridDrift 22s linear infinite;
   }
 
   /* 2 · System-status line above headline */
@@ -643,6 +643,163 @@
     to   { left: 130%; }
   }
 
+  /* ══════════════════════════════════════════════════════
+     HI-TECH OVERHAUL — Panel 1 input form
+  ══════════════════════════════════════════════════════ */
+
+  /* Spotlight radial behind content */
+  #panel-1 {
+    position: relative;
+  }
+  #panel-1::before {
+    content: '';
+    position: fixed;
+    top: -100px; left: 50%;
+    transform: translateX(-50%);
+    width: 1000px; height: 700px;
+    background: radial-gradient(ellipse at 50% 30%,
+      rgba(78,225,255,0.07) 0%,
+      rgba(29,158,117,0.04) 35%,
+      transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Inputs — always-on cyan character */
+  #panel-1 input[type="email"],
+  #panel-1 input[type="text"],
+  #panel-1 input[type="number"] {
+    background: rgba(3,8,18,0.92);
+    border: 1px solid rgba(78,225,255,0.32);
+    border-left: 3px solid var(--scan-cyan);
+    color: #FFFFFF;
+    font-size: 14px;
+    padding: 14px 16px;
+    transition: all 0.25s ease;
+  }
+  #panel-1 input[type="email"]:focus,
+  #panel-1 input[type="text"]:focus,
+  #panel-1 input[type="number"]:focus {
+    border-color: rgba(78,225,255,0.75);
+    border-left-color: var(--scan-cyan);
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.22),
+                0 0 28px rgba(78,225,255,0.18);
+  }
+  #panel-1 input[type="email"]::placeholder,
+  #panel-1 input[type="text"]::placeholder,
+  #panel-1 input[type="number"]::placeholder {
+    color: rgba(78,225,255,0.5);
+  }
+
+  /* Editor — dominant visual centerpiece */
+  #panel-1 .editor-window {
+    border: 1px solid rgba(78,225,255,0.38) !important;
+    border-left: 3px solid var(--scan-cyan) !important;
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.08),
+                0 0 50px rgba(78,225,255,0.16) !important;
+  }
+  #panel-1 .editor-window:focus-within {
+    border-color: rgba(78,225,255,0.65) !important;
+    box-shadow: 0 0 0 1px rgba(78,225,255,0.2),
+                0 0 65px rgba(78,225,255,0.24) !important;
+  }
+  #panel-1 .editor-fname {
+    color: var(--scan-cyan) !important;
+    opacity: 1 !important;
+    font-weight: 500;
+  }
+  #panel-1 .line-nums { color: rgba(78,225,255,0.5) !important; }
+  #panel-1 .editor-textarea::placeholder { color: rgba(78,225,255,0.45) !important; }
+  #panel-1 .editor-pre-cursor { opacity: 0.85 !important; }
+
+  /* Editor tabs */
+  #panel-1 .etab { color: #BFCAD4; }
+  #panel-1 .etab.active { color: var(--scan-cyan); }
+  #panel-1 .editor-tabs { border-color: rgba(78,225,255,0.2); }
+
+  /* Sys-status — bright and prominent */
+  .sys-status {
+    color: rgba(78,225,255,0.92) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.26em !important;
+    margin-bottom: 28px !important;
+  }
+  .sys-status::before { width: 6px !important; height: 6px !important; }
+
+  /* DIAGNOSTIC PARAMETERS header bar */
+  .param-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 16px;
+    border: 1px solid rgba(78,225,255,0.28);
+    border-bottom: none;
+    background: rgba(78,225,255,0.04);
+  }
+  .param-header-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.22em;
+    color: rgba(78,225,255,0.8);
+    text-transform: uppercase;
+  }
+  .param-lights { display: flex; gap: 5px; align-items: center; }
+  .param-light {
+    width: 5px; height: 5px; border-radius: 50%;
+    animation: statusPulse 2.8s ease-in-out infinite;
+  }
+  .param-light-c { background: var(--scan-cyan); opacity: 0.7; }
+  .param-light-g { background: var(--teal); opacity: 0.9; animation-delay: 0.6s; }
+  .param-light-r { background: var(--bug-red); opacity: 0.5; animation-delay: 1.2s; }
+
+  /* Form frame with corner brackets */
+  .form-frame {
+    border: 1px solid rgba(78,225,255,0.28);
+    padding: 24px 24px 8px;
+    background: rgba(3,8,18,0.35);
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .form-frame::before {
+    content: '';
+    position: absolute; top: -1px; right: -1px;
+    width: 18px; height: 18px;
+    border-top: 2px solid var(--scan-cyan);
+    border-right: 2px solid var(--scan-cyan);
+    pointer-events: none;
+  }
+  .form-frame::after {
+    content: '';
+    position: absolute; bottom: -1px; left: -1px;
+    width: 18px; height: 18px;
+    border-bottom: 2px solid var(--scan-cyan);
+    border-left: 2px solid var(--scan-cyan);
+    pointer-events: none;
+  }
+
+  /* Consent text bright */
+  #panel-1 label[for="terms-consent"] {
+    color: #D4E0EA !important;
+  }
+
+  /* Glowing CTA button */
+  #panel-1 .btn-primary {
+    padding: 16px 44px;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    background: linear-gradient(135deg, #23cc88 0%, #1d9e75 55%, #19886a 100%);
+    box-shadow: 0 0 32px rgba(29,158,117,0.6), 0 4px 24px rgba(0,0,0,0.45);
+    border: 1px solid rgba(50,220,150,0.35);
+    transition: all 0.3s ease;
+  }
+  #panel-1 .btn-primary:not(:disabled):hover {
+    background: linear-gradient(135deg, #2be097 0%, #23cc88 55%, #1d9e75 100%);
+    box-shadow: 0 0 52px rgba(29,158,117,0.82), 0 8px 32px rgba(0,0,0,0.5) !important;
+    transform: translateY(-2px);
+  }
+  #panel-1 .btn-primary:disabled {
+    background: linear-gradient(135deg, #23cc88 0%, #1d9e75 55%, #19886a 100%);
+  }
+
+  /* Hint text */
+  .run-hint { color: rgba(78,225,255,0.6) !important; }
+
   /* ── PREFERS-REDUCED-MOTION ─────────────────────────── */
   @media (prefers-reduced-motion: reduce) {
     body::before                   { animation: none; }
@@ -675,6 +832,15 @@
     <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em><span class="panel-title-cursor" aria-hidden="true"></span></h1>
     <p class="panel-sub">Paste any SaaS product email. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt subject lines, hook rewrite, and ROI projection. One time, free, no card.</p>
 
+    <div class="param-header" aria-hidden="true">
+      <span class="param-header-label">// Diagnostic Parameters</span>
+      <span class="param-lights">
+        <span class="param-light param-light-c"></span>
+        <span class="param-light param-light-g"></span>
+        <span class="param-light param-light-r"></span>
+      </span>
+    </div>
+    <div class="form-frame">
     <div class="form-group">
       <label for="demoEmail">Your work email</label>
       <input type="email" id="demoEmail" placeholder="you@company.com">
@@ -749,19 +915,20 @@
         <input type="number" id="demoSubscribers" placeholder="e.g. 25000" min="100">
       </div>
     </div>
+    </div><!-- /form-frame -->
 
     <div style="margin-top:16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;">
       <input type="checkbox" id="terms-consent"
              style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--teal);"
              onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
-      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:#9FAAB4;line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
+      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:#D4E0EA;line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
     </div>
     <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
 
     <div style="display:flex;align-items:center;gap:16px;margin-top:8px;">
       <button class="btn btn-primary" id="runBtn" onclick="runDemo()"
               disabled style="opacity:0.5;cursor:not-allowed;">Run Free Assessment →</button>
-      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">60 seconds · one-time only</span>
+      <span class="run-hint" style="font-family:'DM Mono',monospace;font-size:11px;color:rgba(78,225,255,0.65);">60 seconds · one-time only</span>
     </div>
 
     <div id="inputError" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-top:12px;display:none;"></div>
