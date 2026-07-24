@@ -22,536 +22,517 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Strategic Flow Architecture — Free Demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ── DESIGN TOKENS ─────────────────────────────────── */
   :root {
-    --black: #0a0a08;
-    --white: #f4f2ed;
-    --signal: #4A8FE7;
-    --signal-dim: #2D6BE4;
-    --noise: #ff4d2e;
-    --mid: #a8a39b;
-    --border: rgba(244,242,237,0.12);
-    --card: rgba(244,242,237,0.04);
+    --void:         #060a10;
+    --panel:        #0d141c;
+    --teal:         #1d9e75;
+    --scan-cyan:    #4EE1FF;
+    --bug-red:      #E5484D;
+    --text-primary: #EDEFF2;
+    --text-dim:     #7C8894;
+    --border:       rgba(255,255,255,0.08);
+    --card:         rgba(255,255,255,0.04);
+    /* Compatibility aliases — keep JS-generated HTML working */
+    --black:        #060a10;
+    --white:        #EDEFF2;
+    --signal:       #1d9e75;
+    --signal-dim:   #158f65;
+    --noise:        #E5484D;
+    --mid:          #7C8894;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
 
   body {
-    background: var(--black);
-    color: var(--white);
-    font-family: 'Instrument Sans', sans-serif;
+    background: var(--void);
+    color: var(--text-primary);
+    font-family: 'Figtree', sans-serif;
     font-size: 15px;
     line-height: 1.6;
     min-height: 100vh;
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(244,242,237,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(244,242,237,0.025) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
+  /* ── NAV ───────────────────────────────────────────── */
   nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 32px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px;
     border-bottom: 1px solid var(--border);
-    background: rgba(10,10,8,0.9);
+    background: rgba(6,10,16,0.93);
     backdrop-filter: blur(16px);
   }
-
-  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--white); }
-  .nav-logo span { color: var(--signal); }
-
+  .nav-logo { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: var(--text-primary); }
+  .nav-logo span { color: var(--scan-cyan); }
   .nav-badge {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--signal);
-    border: 1px solid rgba(74,143,231,0.3);
-    padding: 4px 10px;
-    text-transform: uppercase;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--scan-cyan);
+    border: 1px solid rgba(78,225,255,0.25); padding: 4px 10px; text-transform: uppercase;
   }
 
-  main {
-    position: relative;
-    z-index: 1;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 100px 24px 80px;
-  }
+  /* ── LAYOUT ────────────────────────────────────────── */
+  main { position: relative; z-index: 1; max-width: 820px; margin: 0 auto; padding: 100px 24px 80px; }
 
   .panel { display: none; animation: fadeUp 0.4s ease forwards; }
   .panel.active { display: block; }
-
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .panel-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    color: var(--signal);
-    text-transform: uppercase;
-    margin-bottom: 16px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.16em; color: var(--scan-cyan);
+    text-transform: uppercase; margin-bottom: 16px;
   }
-
   .panel-title {
     font-family: 'DM Serif Display', serif;
-    font-size: clamp(28px, 4vw, 48px);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: 12px;
+    font-size: clamp(28px, 4vw, 48px); line-height: 1.1;
+    letter-spacing: -0.02em; margin-bottom: 12px;
   }
+  .panel-title em { font-style: italic; color: var(--scan-cyan); }
+  .panel-sub { font-size: 15px; color: var(--text-dim); margin-bottom: 36px; max-width: 560px; line-height: 1.7; }
 
-  .panel-title em { font-style: italic; color: var(--signal); }
-
-  .panel-sub {
-    font-size: 15px;
-    color: var(--white);
-    margin-bottom: 32px;
-    max-width: 560px;
-    line-height: 1.7;
-  }
-
+  /* ── FORM (non-editor fields) ──────────────────────── */
   .form-group { margin-bottom: 20px; }
 
   label {
-    display: block;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    color: var(--white);
-    text-transform: uppercase;
-    margin-bottom: 8px;
+    display: block; font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px;
   }
 
-  input, textarea, select {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    padding: 14px 16px;
-    outline: none;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
+  input[type="email"], input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text-primary); font-family: 'DM Mono', monospace;
+    font-size: 13px; padding: 12px 14px; outline: none;
+    transition: border-color 0.2s; -webkit-appearance: none;
   }
-
-  input:focus, textarea:focus, select:focus { border-color: rgba(74,143,231,0.5); }
-  textarea { min-height: 160px; resize: vertical; line-height: 1.6; }
-  select option { background: #1a1a18; }
-
+  input[type="email"]:focus, input[type="text"]:focus, input[type="number"]:focus {
+    border-color: rgba(78,225,255,0.35);
+  }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+  /* ── BUTTONS ───────────────────────────────────────── */
   .btn {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    padding: 14px 28px;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    letter-spacing: 0.08em; padding: 13px 28px;
+    cursor: pointer; border: none; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary { background: var(--teal); color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: #158f65; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── EDITOR TABS ───────────────────────────────────── */
+  .editor-section { margin-bottom: 20px; }
+  .editor-section > label { margin-bottom: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+  .editor-tabs {
+    display: flex; border-bottom: 1px solid var(--border); margin-bottom: 0;
+  }
+  .etab {
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
+    color: var(--text-dim); background: none; border: none;
+    border-bottom: 2px solid transparent; padding: 10px 16px 9px;
+    cursor: pointer; transition: color 0.2s, border-color 0.2s; margin-bottom: -1px;
+  }
+  .etab.active { color: var(--scan-cyan); border-bottom-color: var(--scan-cyan); }
+  .etab:hover:not(.active) { color: var(--text-primary); }
+
+  /* ── CODE EDITOR WINDOW ────────────────────────────── */
+  .editor-window {
+    border: 1px solid var(--border); border-top: none;
+    background: var(--panel); overflow: hidden;
+  }
+  .editor-header {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    background: rgba(255,255,255,0.025); border-bottom: 1px solid var(--border);
+  }
+  .editor-dots { display: flex; gap: 6px; flex-shrink: 0; }
+  .editor-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-red    { background: #FF5F57; }
+  .dot-yellow { background: #FEBC2E; }
+  .dot-green  { background: #28C840; }
+  .editor-fname {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--text-dim); opacity: 0.6; margin-left: 6px;
   }
 
-  .btn-primary { background: var(--signal); color: var(--white); }
-  .btn-primary:hover { background: var(--signal-dim); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .editor-body-wrap { display: flex; }
+  .line-nums {
+    padding: 14px 0; min-width: 42px; flex-shrink: 0;
+    background: rgba(255,255,255,0.015);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: flex-end;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: rgba(124,136,148,0.35); user-select: none;
+  }
+  .line-num { padding: 0 10px; line-height: 1.86; }
 
-  .progress-wrap { margin: 32px 0; }
+  .editor-textarea {
+    width: 100%; background: transparent; border: none;
+    color: var(--text-primary); font-family: 'DM Mono', monospace;
+    font-size: 13px; padding: 14px 14px; outline: none;
+    resize: vertical; min-height: 180px; line-height: 1.86;
+    tab-size: 2;
+  }
+  .editor-textarea::placeholder { color: rgba(124,136,148,0.45); }
 
-  .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  /* ── UPLOAD TAB ────────────────────────────────────── */
+  .paste-pane { display: block; }
+  .paste-pane.hidden { display: none; }
+  .upload-pane { display: none; }
+  .upload-pane.active { display: block; }
 
-  .progress-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--white); }
-  .progress-pct { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); }
-
-  .progress-bar { height: 2px; background: var(--border); position: relative; overflow: hidden; }
-
-  .progress-fill {
-    position: absolute;
-    left: 0; top: 0; height: 100%;
-    background: var(--signal);
-    transition: width 0.6s ease;
-    width: 0%;
+  .dropzone {
+    display: block;
+    border: 1px dashed rgba(78,225,255,0.18);
+    border-top: none;
+    background: rgba(78,225,255,0.02);
+    padding: 44px 24px; text-align: center;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    position: relative; outline: none;
+  }
+  .dropzone:hover, .dropzone:focus, .dropzone.drag-over {
+    border-color: rgba(78,225,255,0.45);
+    background: rgba(78,225,255,0.05);
+  }
+  .dropzone-file-input {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%; font-size: 0;
+  }
+  .dropzone-icon { font-size: 24px; margin-bottom: 14px; display: block; }
+  .dropzone-text {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--text-dim); line-height: 1.8;
+  }
+  .dropzone-hint {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--text-dim); opacity: 0.4; margin-top: 12px;
   }
 
-  .status-log {
-    margin-top: 24px;
-    border: 1px solid var(--border);
-    padding: 20px;
-    background: var(--card);
-    min-height: 100px;
+  .file-loaded {
+    display: none; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: rgba(29,158,117,0.07);
+    border: 1px solid rgba(29,158,117,0.18); border-top: none;
+  }
+  .file-loaded.show { display: flex; }
+  .file-loaded-name {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--teal); flex: 1; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .file-clear {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 18px; cursor: pointer; padding: 0 2px;
+    line-height: 1; transition: color 0.2s; flex-shrink: 0;
+  }
+  .file-clear:hover { color: var(--bug-red); }
+  .file-error {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--bug-red); padding: 8px 0; display: none;
   }
 
-  .log-line {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--white);
-    line-height: 2;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    opacity: 0;
-    animation: fadeUp 0.3s ease forwards;
+  /* ── SCAN ANIMATION (Panel 2) ──────────────────────── */
+  .scan-layout {
+    display: grid; grid-template-columns: 1fr 220px;
+    gap: 20px; align-items: start; margin-top: 24px;
   }
 
-  .log-line.done { color: var(--signal); }
-  .log-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .scan-editor-wrap {
+    border: 1px solid var(--border); background: var(--panel);
+    overflow: hidden; position: relative;
+  }
+  .scan-editor-header {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    background: rgba(255,255,255,0.025); border-bottom: 1px solid var(--border);
+  }
+  .scan-status-badge {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--scan-cyan); border: 1px solid rgba(78,225,255,0.25);
+    padding: 2px 8px; margin-left: auto;
+    animation: scanPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes scanPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
 
+  .scan-content-area {
+    position: relative; min-height: 230px; max-height: 310px; overflow: hidden;
+  }
+  .scan-lines-display { display: flex; }
+  .scan-line-nums-col {
+    display: flex; flex-direction: column;
+    padding: 14px 10px; min-width: 38px;
+    background: rgba(255,255,255,0.015);
+    border-right: 1px solid var(--border);
+    align-items: flex-end; flex-shrink: 0;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: rgba(124,136,148,0.28); user-select: none;
+    line-height: 1.86;
+  }
+  .scan-lines-col {
+    flex: 1; min-width: 0; padding: 14px 14px;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+  }
+  .scan-line {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; min-height: 1.86em;
+  }
+  .scan-line-txt {
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    flex: 1; color: rgba(237,239,242,0.42); transition: color 0.4s;
+  }
+  .scan-line.passed .scan-line-txt { color: rgba(237,239,242,0.15); }
+  .scan-line.active-line .scan-line-txt { color: rgba(237,239,242,0.7); }
+
+  .scan-bug-tag {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 0.1em; color: var(--bug-red);
+    border: 1px solid rgba(229,72,77,0.35);
+    background: rgba(229,72,77,0.07);
+    padding: 1px 7px; white-space: nowrap; flex-shrink: 0;
+    opacity: 0; transform: translateX(8px) scale(0.88);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .scan-bug-tag.show { opacity: 1; transform: translateX(0) scale(1); }
+
+  /* The scanning beam */
+  .scan-beam {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: var(--scan-cyan);
+    box-shadow: 0 0 10px var(--scan-cyan),
+                0 -8px 20px rgba(78,225,255,0.12),
+                0  8px 20px rgba(78,225,255,0.12);
+    pointer-events: none; top: 0; z-index: 2;
+    transition: top 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Readout */
+  .scan-readout { }
+  .scan-readout-label {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--text-dim); padding-bottom: 12px;
+    border-bottom: 1px solid var(--border); margin-bottom: 18px;
+  }
+  .scan-counter {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--scan-cyan); margin-bottom: 20px;
+    line-height: 1.5; min-height: 2.4em;
+  }
+  .scan-check-list { display: flex; flex-direction: column; gap: 9px; }
+  .scan-check-item {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.04em; color: var(--text-dim);
+    transition: color 0.3s; line-height: 1.4;
+  }
+  .scan-check-item.active { color: var(--scan-cyan); }
+  .scan-check-item.done   { color: var(--teal); }
+  .scan-check-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* Error state in scan panel */
+  .scan-error {
+    display: none; margin-top: 20px;
+    border: 1px solid rgba(229,72,77,0.2);
+    background: rgba(229,72,77,0.04);
+    padding: 20px 22px;
+  }
+  .scan-error.show { display: block; }
+  .scan-error-msg {
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    color: var(--bug-red); margin-bottom: 16px; line-height: 1.6;
+  }
+
+  /* ── RESULTS PANEL ──────────────────────────────────── */
   .score-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    margin-bottom: 32px;
+    display: flex; align-items: stretch;
+    border: 1px solid var(--border); margin-bottom: 32px;
   }
-
-  .score-cell { background: var(--black); padding: 24px; }
-
+  .score-cell { background: var(--panel); padding: 24px; flex: 1; }
+  .score-sep-cell {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 12px; background: var(--panel);
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  }
+  .score-sep-arrow { font-size: 18px; color: var(--teal); line-height: 1; }
+  .score-divider { width: 1px; background: var(--border); flex-shrink: 0; }
   .score-cell-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--white);
-    text-transform: uppercase;
-    margin-bottom: 8px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--text-dim);
+    text-transform: uppercase; margin-bottom: 8px;
   }
-
   .score-num {
     font-family: 'DM Serif Display', serif;
-    font-size: 44px;
-    line-height: 1;
-    margin-bottom: 4px;
+    font-size: 44px; line-height: 1; margin-bottom: 4px;
   }
-
-  .score-num.low { color: var(--noise); }
-  .score-num.high { color: var(--signal); }
-  .score-note { font-size: 12px; color: var(--white); line-height: 1.5; }
+  .score-num.low  { color: var(--bug-red); }
+  .score-num.high { color: var(--teal); }
+  .score-note { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
 
   .section-title {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    color: var(--signal);
-    text-transform: uppercase;
-    margin-bottom: 16px;
-    margin-top: 32px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.14em; color: var(--scan-cyan);
+    text-transform: uppercase; margin-bottom: 16px; margin-top: 32px;
   }
 
   .bug-list { border: 1px solid var(--border); margin-bottom: 32px; }
-
   .bug-item {
-    display: flex;
-    gap: 16px;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    align-items: flex-start;
+    display: flex; gap: 16px; padding: 16px 20px;
+    border-bottom: 1px solid var(--border); align-items: flex-start;
   }
-
   .bug-item:last-child { border-bottom: none; }
   .bug-icon { font-size: 14px; flex-shrink: 0; margin-top: 2px; }
-  .bug-title { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 4px; }
-  .bug-desc { font-size: 12px; color: var(--white); line-height: 1.6; }
+  .bug-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .bug-desc  { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
 
   .rebuild-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    margin-bottom: 32px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); margin-bottom: 32px;
   }
-
-  .rebuild-cell { background: var(--black); padding: 24px; }
-
+  .rebuild-cell { background: var(--panel); padding: 24px; }
   .rebuild-tag {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
   }
-
-  .rebuild-tag.before { color: var(--noise); }
-  .rebuild-tag.after { color: var(--signal); }
+  .rebuild-tag.before { color: var(--bug-red); }
+  .rebuild-tag.after  { color: var(--teal); }
   .rebuild-tag::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-
-  .rebuild-text { font-size: 13px; line-height: 1.7; color: var(--white); }
+  .rebuild-text { font-size: 13px; line-height: 1.7; color: var(--text-primary); }
 
   .variant-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
-
   .variant-item {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    background: rgba(74,143,231,0.04);
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px 16px; border: 1px solid var(--border);
+    background: rgba(29,158,117,0.04);
   }
-
-  .variant-tag {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--signal);
-    letter-spacing: 0.1em;
-    flex-shrink: 0;
-    padding-top: 1px;
-  }
-
-  .variant-text { font-size: 13px; color: var(--white); line-height: 1.5; flex: 1; }
-  .variant-rate { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--signal); flex-shrink: 0; }
+  .variant-tag  { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--teal); letter-spacing: 0.1em; flex-shrink: 0; padding-top: 1px; }
+  .variant-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; flex: 1; }
+  .variant-rate { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--teal); flex-shrink: 0; }
 
   .roi-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    margin-bottom: 32px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); margin-bottom: 32px;
   }
-
-  .roi-cell { background: var(--black); padding: 20px 24px; }
-  .roi-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--white); text-transform: uppercase; margin-bottom: 8px; }
+  .roi-cell { background: var(--panel); padding: 20px 24px; }
+  .roi-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
   .roi-value { font-family: 'DM Serif Display', serif; font-size: 32px; line-height: 1; margin-bottom: 4px; }
-  .roi-value.positive { color: var(--signal); }
-  .roi-value.negative { color: var(--noise); }
-  .roi-note { font-size: 11px; color: var(--white); line-height: 1.5; }
+  .roi-value.positive { color: var(--teal); }
+  .roi-value.negative { color: var(--bug-red); }
+  .roi-note { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
 
   .locked-section {
-    border: 1px solid var(--border);
-    padding: 32px;
-    margin-bottom: 32px;
-    position: relative;
-    background: rgba(74,143,231,0.03);
+    border: 1px solid var(--border); padding: 32px;
+    margin-bottom: 32px; position: relative;
+    background: rgba(78,225,255,0.02);
   }
-
   .locked-title {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    color: var(--white);
-    text-transform: uppercase;
-    margin-bottom: 16px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.14em; color: var(--text-primary);
+    text-transform: uppercase; margin-bottom: 16px;
   }
-
   .locked-overlay { text-align: center; }
-
-  .locked-msg {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--white);
-    margin-bottom: 16px;
-  }
+  .locked-msg { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
 
   .cta-block {
-    border: 1px solid rgba(74,143,231,0.3);
-    background: rgba(74,143,231,0.05);
-    padding: 40px;
-    text-align: center;
-    margin-top: 40px;
+    border: 1px solid rgba(29,158,117,0.25);
+    background: rgba(29,158,117,0.04);
+    padding: 40px; text-align: center; margin-top: 40px;
+  }
+  .cta-block-title { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1.2; margin-bottom: 12px; }
+  .cta-block-title em { font-style: italic; color: var(--teal); }
+  .cta-block-sub { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-bottom: 24px; max-width: 480px; margin-left: auto; margin-right: auto; }
+  .cta-block-price { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 16px; }
+  .cta-block-price strong { color: var(--text-primary); }
+
+  /* ── INCLUDED SECTION ──────────────────────────────── */
+  .included-section { margin-top: 64px; padding-top: 48px; border-top: 1px solid var(--border); }
+  .included-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); margin: 24px 0 40px;
+  }
+  .included-card { background: var(--panel); padding: 28px; }
+  .included-card-num {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; color: var(--scan-cyan);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .tool-label-row { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+  .tool-arch-badge {
+    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: #f59e0b; border: 1px solid rgba(245,158,11,0.35);
+    padding: 2px 7px; white-space: nowrap; flex-shrink: 0;
+  }
+  .included-card-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .included-card-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-bottom: 16px; }
+  .included-preview {
+    border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+    padding: 14px 16px; font-family: 'DM Mono', monospace; font-size: 11px;
+  }
+  .preview-row {
+    display: flex; gap: 10px; padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: flex-start; line-height: 1.5;
+  }
+  .preview-row:last-child { border-bottom: none; }
+  .preview-row.col { flex-direction: column; gap: 3px; }
+  .preview-label { color: var(--scan-cyan); flex-shrink: 0; min-width: 32px; }
+  .preview-val    { color: var(--text-primary); flex: 1; }
+  .preview-note   { color: var(--text-dim); font-size: 10px; }
+  .preview-winner { color: #4ade80; font-size: 10px; letter-spacing: 0.06em; flex-shrink: 0; }
+  .preview-fix    { color: var(--bug-red); font-size: 10px; letter-spacing: 0.06em; flex-shrink: 0; }
+
+  .included-callout {
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    color: var(--text-primary); line-height: 1.8;
+    border-left: 2px solid var(--scan-cyan);
+    padding: 16px 20px; margin-bottom: 32px;
+    background: rgba(78,225,255,0.03);
   }
 
-  .cta-block-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 28px;
-    line-height: 1.2;
-    margin-bottom: 12px;
-  }
+  /* ── COOKIE BANNER ─────────────────────────────────── */
+  #cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:rgba(6,10,16,0.97);border-top:1px solid var(--border);padding:18px 48px;display:none;}
+  #cookie-banner.visible{display:flex;}
+  .cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
+  .cookie-text{font-size:13px;color:var(--text-dim);line-height:1.6;max-width:680px;}
+  .cookie-text a{color:var(--scan-cyan);text-decoration:underline;}
+  .cookie-actions{display:flex;gap:10px;flex-shrink:0;}
+  .cookie-btn{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-dim);transition:all .2s;}
+  .cookie-btn:hover{border-color:var(--scan-cyan);color:var(--scan-cyan);}
+  .cookie-btn.accept{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .cookie-btn.accept:hover{background:#158f65;}
 
-  .cta-block-title em { font-style: italic; color: var(--signal); }
-
-  .cta-block-sub {
-    font-size: 14px;
-    color: var(--white);
-    line-height: 1.7;
-    margin-bottom: 24px;
-    max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .cta-block-price {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--white);
-    margin-top: 16px;
-  }
-
-  .cta-block-price strong { color: var(--white); }
-
+  /* ── RESPONSIVE ────────────────────────────────────── */
   @media (max-width: 768px) {
     nav { padding: 14px 20px; }
     .nav-badge { display: none; }
     main { padding: 80px 16px 60px; }
     .form-row { grid-template-columns: 1fr; }
-    .score-row { grid-template-columns: 1fr; }
+    .scan-layout { grid-template-columns: 1fr; }
+    .score-row { flex-direction: column; }
+    .score-sep-cell { display: none; }
+    .score-divider { display: none; }
     .rebuild-grid { grid-template-columns: 1fr; }
     .roi-grid { grid-template-columns: 1fr; }
     .included-grid {
-      grid-template-columns: 1fr !important;
-      gap: 12px !important;
-      background: transparent !important;
-      border: none !important;
+      grid-template-columns: 1fr !important; gap: 12px !important;
+      background: transparent !important; border: none !important;
     }
-    .included-card {
-      border: 1px solid var(--border);
-      grid-column: auto !important;
-    }
+    .included-card { border: 1px solid var(--border); grid-column: auto !important; }
     .showcase-ba { grid-template-columns: 1fr !important; }
     .showcase-batch { grid-template-columns: auto 1fr auto auto !important; font-size:10px !important; }
-  }
-
-  /* ── INCLUDED SECTION ── */
-  .included-section {
-    margin-top: 64px;
-    padding-top: 48px;
-    border-top: 1px solid var(--border);
-  }
-
-  .included-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    margin: 24px 0 40px;
-  }
-
-  .included-card {
-    background: var(--black);
-    padding: 28px;
-  }
-
-  .included-card-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--signal);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .tool-label-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-  }
-
-  .tool-arch-badge {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #f59e0b;
-    border: 1px solid rgba(245,158,11,0.35);
-    padding: 2px 7px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .included-card-name {
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    margin-bottom: 6px;
-  }
-
-  .included-card-desc {
-    font-size: 12px;
-    color: var(--white);
-    line-height: 1.6;
-    margin-bottom: 16px;
-  }
-
-  .included-preview {
-    border: 1px solid var(--border);
-    background: rgba(244,242,237,0.02);
-    padding: 14px 16px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-  }
-
-  .preview-row {
-    display: flex;
-    gap: 10px;
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(244,242,237,0.06);
-    align-items: flex-start;
-    line-height: 1.5;
-  }
-  .preview-row:last-child { border-bottom: none; }
-  .preview-row.col { flex-direction: column; gap: 3px; }
-
-  .preview-label {
-    color: var(--signal);
-    flex-shrink: 0;
-    min-width: 32px;
-  }
-
-  .preview-val { color: var(--white); flex: 1; }
-  .preview-note { color: var(--white); font-size: 10px; }
-
-  .preview-winner {
-    color: #4ade80;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    flex-shrink: 0;
-  }
-
-  .preview-fix {
-    color: var(--noise);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    flex-shrink: 0;
-  }
-
-  .included-callout {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    color: var(--white);
-    line-height: 1.8;
-    border-left: 2px solid var(--signal);
-    padding: 16px 20px;
-    margin-bottom: 32px;
-    background: rgba(74,143,231,0.04);
-  }
-
-  /* COOKIE CONSENT BANNER */
-  #cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#161614;border-top:1px solid rgba(255,255,255,0.1);padding:18px 48px;display:none;}
-  #cookie-banner.visible{display:flex;}
-  .cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
-  .cookie-text{font-size:13px;color:#ddddd8;line-height:1.6;max-width:680px;}
-  .cookie-text a{color:#4A8FE7;text-decoration:underline;}
-  .cookie-actions{display:flex;gap:10px;flex-shrink:0;}
-  .cookie-btn{font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#ddddd8;transition:all .2s;}
-  .cookie-btn:hover{border-color:#4A8FE7;color:#4A8FE7;}
-  .cookie-btn.accept{background:#4A8FE7;color:#fff;border-color:#4A8FE7;}
-  .cookie-btn.accept:hover{background:#2D6BE4;}
-  @media(max-width:640px){
     #cookie-banner{padding:16px 18px;}
     .cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}
     .cookie-actions{justify-content:flex-end;}
@@ -572,71 +553,153 @@
 
 <main>
 
-  <!-- PANEL 1: INPUT -->
+  <!-- PANEL 1: INPUT ──────────────────────────────────── -->
   <div class="panel active" id="panel-1">
     <div class="panel-label">// Free Demo — One-time assessment</div>
     <h1 class="panel-title">See exactly what's<br><em>broken in your email.</em></h1>
     <p class="panel-sub">Paste any SaaS product email. Get the full Strategic Flow diagnostic — all 7 structural bugs, rebuilt subject lines, hook rewrite, and ROI projection. One time, free, no card.</p>
 
     <div class="form-group">
-      <label>Your work email</label>
+      <label for="demoEmail">Your work email</label>
       <input type="email" id="demoEmail" placeholder="you@company.com">
     </div>
 
     <div class="form-group">
-      <label>Email subject line</label>
+      <label for="demoSubject">Email subject line</label>
       <input type="text" id="demoSubject" placeholder="e.g. New dashboard features available">
     </div>
 
-    <div class="form-group">
-      <label>Email body — paste raw text or HTML</label>
-      <textarea id="demoBody" placeholder="Paste the full email body here..."></textarea>
+    <!-- Email body — editor + upload tabs -->
+    <div class="editor-section">
+      <div class="editor-tabs" role="tablist" aria-label="Input method">
+        <button class="etab active" id="tabPaste" role="tab" aria-selected="true"
+                onclick="switchTab('paste')">Paste text</button>
+        <button class="etab" id="tabUpload" role="tab" aria-selected="false"
+                onclick="switchTab('upload')">Upload file</button>
+      </div>
+
+      <!-- PASTE TAB: code editor window -->
+      <div class="paste-pane" id="pastePaneWrap" role="tabpanel" aria-labelledby="tabPaste">
+        <div class="editor-window">
+          <div class="editor-header">
+            <div class="editor-dots" aria-hidden="true">
+              <span class="editor-dot dot-red"></span>
+              <span class="editor-dot dot-yellow"></span>
+              <span class="editor-dot dot-green"></span>
+            </div>
+            <span class="editor-fname" id="editorFname">email-body.txt</span>
+          </div>
+          <div class="editor-body-wrap">
+            <div class="line-nums" id="lineNums" aria-hidden="true">
+              <span class="line-num">1</span>
+            </div>
+            <textarea id="demoBody" class="editor-textarea"
+                      placeholder="Paste the full email body here..."
+                      oninput="updateLineNums(this)"
+                      aria-label="Email body"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPLOAD TAB: dropzone -->
+      <div class="upload-pane" id="uploadPaneWrap" role="tabpanel" aria-labelledby="tabUpload">
+        <label class="dropzone" id="dropzone" tabindex="0"
+               ondragover="event.preventDefault();this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="handleFileDrop(event)">
+          <input type="file" class="dropzone-file-input" id="fileInput"
+                 accept=".html,.htm,.eml,.txt"
+                 onchange="handleFileSelect(this.files[0])">
+          <span class="dropzone-icon" aria-hidden="true">📄</span>
+          <div class="dropzone-text">Drop your .html, .eml, or .txt file here,<br>or click to browse</div>
+          <div class="dropzone-hint">.html · .htm · .eml · .txt · max 500 KB</div>
+        </label>
+        <div class="file-loaded" id="fileLoaded">
+          <span class="file-loaded-name" id="fileLoadedName"></span>
+          <button class="file-clear" onclick="clearFile()" aria-label="Remove uploaded file">×</button>
+        </div>
+        <div class="file-error" id="fileError" role="alert"></div>
+      </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>Company name</label>
+        <label for="demoCompany">Company name</label>
         <input type="text" id="demoCompany" placeholder="e.g. Acme SaaS">
       </div>
       <div class="form-group">
-        <label>Subscriber count</label>
+        <label for="demoSubscribers">Subscriber count</label>
         <input type="number" id="demoSubscribers" placeholder="e.g. 25000" min="100">
       </div>
     </div>
 
     <div style="margin-top:16px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;">
-      <input type="checkbox" id="terms-consent" style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--signal);" onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
-      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:rgba(244,242,237,0.7);line-height:1.6;cursor:pointer;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--signal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:#ff4d2e;font-weight:700;">*</span></label>
+      <input type="checkbox" id="terms-consent"
+             style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--teal);"
+             onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
+      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:var(--text-dim);line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
     </div>
-    <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
+    <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
 
     <div style="display:flex;align-items:center;gap:16px;margin-top:8px;">
-      <button class="btn btn-primary" id="runBtn" onclick="runDemo()" disabled style="opacity:0.5;cursor:not-allowed;">Run Free Assessment →</button>
-      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);">60 seconds · one-time only</span>
+      <button class="btn btn-primary" id="runBtn" onclick="runDemo()"
+              disabled style="opacity:0.5;cursor:not-allowed;">Run Free Assessment →</button>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">60 seconds · one-time only</span>
     </div>
 
-    <div id="inputError" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--noise);margin-top:12px;display:none;"></div>
+    <div id="inputError" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-top:12px;display:none;"></div>
   </div>
 
-  <!-- PANEL 2: PROCESSING -->
+  <!-- PANEL 2: SCANNING ───────────────────────────────── -->
   <div class="panel" id="panel-2">
     <div class="panel-label">// Running assessment...</div>
     <h2 class="panel-title">Diagnosing your<br><em>email architecture.</em></h2>
 
-    <div class="progress-wrap">
-      <div class="progress-header">
-        <span class="progress-label" id="progressLabel">Initialising...</span>
-        <span class="progress-pct" id="progressPct">0%</span>
+    <div class="scan-layout">
+      <!-- Left: editor display with scan beam -->
+      <div class="scan-editor-wrap">
+        <div class="scan-editor-header">
+          <div class="editor-dots" aria-hidden="true">
+            <span class="editor-dot dot-red"></span>
+            <span class="editor-dot dot-yellow"></span>
+            <span class="editor-dot dot-green"></span>
+          </div>
+          <span class="editor-fname" id="scanFname">email-body.txt</span>
+          <span class="scan-status-badge" id="scanStatusBadge">SCANNING</span>
+        </div>
+        <div class="scan-content-area" id="scanContentArea">
+          <div class="scan-lines-display">
+            <div class="scan-line-nums-col" id="scanLineNumsCol"></div>
+            <div class="scan-lines-col" id="scanLinesCol"></div>
+          </div>
+          <div class="scan-beam" id="scanBeam"></div>
+        </div>
       </div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
+
+      <!-- Right: readout -->
+      <div class="scan-readout">
+        <div class="scan-readout-label">Diagnostic Engine</div>
+        <div class="scan-counter" id="scanCounter">Initialising scan...</div>
+        <div class="scan-check-list" id="scanCheckList"></div>
       </div>
     </div>
 
-    <div class="status-log" id="statusLog"></div>
+    <!-- Error state (shown instead of scan on failure) -->
+    <div class="scan-error" id="scanError">
+      <div class="scan-error-msg" id="scanErrorMsg"></div>
+      <button class="btn btn-primary" style="font-size:12px;padding:10px 22px;" onclick="resetToPanel1()">Try again →</button>
+    </div>
+
+    <!-- Hidden backwards-compat elements (addLog / setProgress still call these) -->
+    <div style="display:none;" aria-hidden="true">
+      <div id="statusLog"></div>
+      <div id="progressLabel"></div>
+      <div id="progressPct"></div>
+      <div style="height:2px;"><div id="progressFill"></div></div>
+    </div>
   </div>
 
-  <!-- PANEL 3: RESULTS -->
+  <!-- PANEL 3: RESULTS ────────────────────────────────── -->
   <div class="panel" id="panel-3">
     <div class="panel-label">// Assessment complete</div>
     <h2 class="panel-title">Here's what we<br><em>found and fixed.</em></h2>
@@ -647,14 +710,18 @@
         <div class="score-num low" id="origScore">—</div>
         <div class="score-note">Before rebuild</div>
       </div>
+      <div class="score-sep-cell" aria-hidden="true">
+        <span class="score-sep-arrow">→</span>
+      </div>
       <div class="score-cell">
         <div class="score-cell-label">Rebuilt score</div>
         <div class="score-num high" id="newScore">—</div>
         <div class="score-note">After Strategic Flow</div>
       </div>
+      <div class="score-divider" aria-hidden="true"></div>
       <div class="score-cell">
         <div class="score-cell-label">Bugs found</div>
-        <div class="score-num" style="color:var(--noise)" id="bugsFound">—</div>
+        <div class="score-num" style="color:var(--bug-red)" id="bugsFound">—</div>
         <div class="score-note">Out of 7 structural checks</div>
       </div>
     </div>
@@ -696,58 +763,46 @@
     <!-- ARCHITECTURE SHOWCASE -->
     <div style="margin-top:48px;margin-bottom:48px;" id="paidRebuildSection">
       <div class="section-title">// WHAT THE PAID OUTPUT LOOKS LIKE</div>
-      <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:24px;max-width:620px;">The free audit shows where your email fails. Run the paid rebuild to see the fixed version, three A/B subject variants, and a line-by-line change log on your actual email.</p>
+      <p style="font-size:14px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;max-width:620px;">The free audit shows where your email fails. Run the paid rebuild to see the fixed version, three A/B subject variants, and a line-by-line change log on your actual email.</p>
 
-      <!-- Trigger button — shown after free audit completes -->
       <div id="rebuildTrigger" style="display:none;margin-bottom:32px;">
         <button class="btn btn-primary" id="rebuildBtn" onclick="runDemoRebuild()">Run the paid rebuild on this email</button>
-        <div id="rebuildErrMsg" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--noise);margin-top:10px;display:none;"></div>
+        <div id="rebuildErrMsg" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--bug-red);margin-top:10px;display:none;"></div>
       </div>
 
-      <!-- Loading state -->
-      <div id="rebuildLoading" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--white);margin-bottom:24px;padding:16px;background:#0a0a08;border:1px solid var(--border);">Rebuilding your email...</div>
+      <div id="rebuildLoading" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--text-dim);margin-bottom:24px;padding:16px;background:var(--panel);border:1px solid var(--border);">Rebuilding your email...</div>
 
-      <!-- Rebuild results -->
       <div id="rebuildResults" style="display:none;">
-
-        <!-- 01 YOUR EMAIL, REBUILT -->
-        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">01 — Your email, rebuilt</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:12px;">01 — Your email, rebuilt</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:28px;" id="rebuildBeforeAfter"></div>
 
-        <!-- 02 A/B SUBJECT VARIANTS -->
-        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">02 — A/B subject variants</div>
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px;margin-bottom:28px;" id="rebuildVariants"></div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:12px;">02 — A/B subject variants</div>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px;margin-bottom:28px;" id="rebuildVariants"></div>
 
-        <!-- 03 WHAT CHANGED AND WHY -->
-        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:12px;">03 — What changed and why</div>
-        <div style="background:#0a0a08;border:1px solid var(--border);margin-bottom:28px;" id="rebuildChanges"></div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:12px;">03 — What changed and why</div>
+        <div style="background:var(--panel);border:1px solid var(--border);margin-bottom:28px;" id="rebuildChanges"></div>
 
-        <!-- Download button -->
-        <button class="btn" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--white);margin-bottom:20px;" onclick="downloadRebuild()">Download this rebuild (HTML)</button>
-
-        <!-- Rebuild count -->
-        <div id="rebuildCountDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--white);margin-bottom:28px;display:none;"></div>
+        <button class="btn" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-primary);margin-bottom:20px;" onclick="downloadRebuild()">Download this rebuild (HTML)</button>
+        <div id="rebuildCountDisplay" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);margin-bottom:28px;display:none;"></div>
       </div>
 
-      <!-- Limit reached state -->
       <div id="rebuildLimitReached" style="display:none;margin-bottom:28px;">
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 24px;">
-          <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--white);line-height:1.7;margin:0 0 16px;">You have used all 3 rebuilds for this email. Architecture does this on every email, every month, without limits.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px 24px;">
+          <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text-primary);line-height:1.7;margin:0 0 16px;">You have used all 3 rebuilds for this email. Architecture does this on every email, every month, without limits.</p>
           <a href="https://strategicflow.tech/architecture.html" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-block;">See how Architecture works</a>
         </div>
       </div>
 
-      <!-- WHAT'S NEXT -->
-      <div style="margin-top:32px;padding:24px;background:#0a0a08;border:1px solid var(--border);" id="whatsNextSection">
-        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:20px;">// What's next</div>
+      <div style="margin-top:32px;padding:24px;background:var(--panel);border:1px solid var(--border);" id="whatsNextSection">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:20px;">// What's next</div>
         <div style="display:flex;flex-direction:column;gap:0;">
           <div style="padding-bottom:20px;">
-            <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:12px;">Need a deeper diagnosis on this exact email?</p>
-            <a href="https://strategicflow.tech/architecture.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);text-decoration:none;border:1px solid rgba(74,143,231,0.3);padding:10px 18px;letter-spacing:0.04em;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--signal)'" onmouseout="this.style.borderColor='rgba(74,143,231,0.3)'">→ Architecture Audit</a>
+            <p style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:12px;">Need a deeper diagnosis on this exact email?</p>
+            <a href="https://strategicflow.tech/architecture.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--teal);text-decoration:none;border:1px solid rgba(29,158,117,0.3);padding:10px 18px;letter-spacing:0.04em;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='rgba(29,158,117,0.3)'">→ Architecture Audit</a>
           </div>
           <div style="padding-top:20px;border-top:1px solid var(--border);">
-            <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:12px;">Need to check your full onboarding or lifecycle sequence instead of one email?</p>
-            <a href="https://strategicflow.tech/teardown-vs-lifecycle-audit.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--signal);text-decoration:none;border:1px solid rgba(74,143,231,0.3);padding:10px 18px;letter-spacing:0.04em;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--signal)'" onmouseout="this.style.borderColor='rgba(74,143,231,0.3)'">→ Lifecycle Audit</a>
+            <p style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:12px;">Need to check your full onboarding or lifecycle sequence instead of one email?</p>
+            <a href="https://strategicflow.tech/teardown-vs-lifecycle-audit.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:12px;color:var(--teal);text-decoration:none;border:1px solid rgba(29,158,117,0.3);padding:10px 18px;letter-spacing:0.04em;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='rgba(29,158,117,0.3)'">→ Lifecycle Audit</a>
           </div>
         </div>
       </div>
@@ -755,34 +810,34 @@
 
     <div id="plans-section" style="margin-top:48px;margin-bottom:48px;">
       <div class="section-title">// PICK THE GAP YOU WANT CLOSED</div>
-      <p style="font-size:14px;color:var(--white);line-height:1.7;margin-bottom:32px;max-width:600px;">The average email we audit scores 3.4 out of 10. The rebuilt version scores 9.0. Every plan below closes that gap at a different volume.</p>
+      <p style="font-size:14px;color:var(--text-dim);line-height:1.7;margin-bottom:32px;max-width:600px;">The average email we audit scores 3.4 out of 10. The rebuilt version scores 9.0. Every plan below closes that gap at a different volume.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
 
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 20px 24px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:8px;">Single Rebuild</div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--white);font-weight:700;margin-bottom:12px;">$49 <span style="font-size:11px;color:var(--white);font-weight:400;">one time</span></div>
-          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">One email, rebuilt and scored. The fastest way to see the method on your own material.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Single Rebuild</div>
+          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$49 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">one time</span></div>
+          <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">One email, rebuilt and scored. The fastest way to see the method on your own material.</p>
           <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="window.open('https://strategic-flow-pro.replit.app/packages','_blank')">Start with one email</button>
         </div>
 
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 20px 24px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:8px;">Lite</div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--white);font-weight:700;margin-bottom:12px;">$299 <span style="font-size:11px;color:var(--white);font-weight:400;">/mo</span></div>
-          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">4 rebuilds per month plus A/B subject variants and a content calendar. One rebuilt email typically recovers more revenue than the plan costs.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Lite</div>
+          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$299 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
+          <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">4 rebuilds per month plus A/B subject variants and a content calendar. One rebuilt email typically recovers more revenue than the plan costs.</p>
           <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="window.open('https://strategic-flow-pro.replit.app/packages','_blank')">See Lite</button>
         </div>
 
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 20px 24px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:8px;">Growth</div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--white);font-weight:700;margin-bottom:12px;">$499 <span style="font-size:11px;color:var(--white);font-weight:400;">/mo</span></div>
-          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">8 rebuilds per month plus onboarding sequence audit. For teams sending weekly.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Growth</div>
+          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$499 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
+          <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">8 rebuilds per month plus onboarding sequence audit. For teams sending weekly.</p>
           <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="window.open('https://strategic-flow-pro.replit.app/packages','_blank')">See Growth</button>
         </div>
 
-        <div style="background:#0a0a08;border:1px solid var(--border);padding:20px 20px 24px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:8px;">High-Impact</div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--white);font-weight:700;margin-bottom:12px;">$899 <span style="font-size:11px;color:var(--white);font-weight:400;">/mo</span></div>
-          <p style="font-size:13px;color:var(--white);line-height:1.6;margin-bottom:20px;">Everything in Growth at full volume, with priority turnaround. For marketing teams where email is a primary channel.</p>
+        <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">High-Impact</div>
+          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$899 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
+          <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">Everything in Growth at full volume, with priority turnaround. For marketing teams where email is a primary channel.</p>
           <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="window.open('https://strategic-flow-pro.replit.app/packages','_blank')">See High-Impact</button>
         </div>
 
@@ -791,38 +846,35 @@
 
     <div class="locked-section">
       <div class="locked-title">// ARCHITECTURE — WHEN EMAIL IS A SYSTEM, NOT A TASK</div>
-
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:24px;">
-        <div style="background:#0a0a08;padding:16px 20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--noise);text-transform:uppercase;margin-bottom:16px;">Pay as you go</div>
+        <div style="background:var(--panel);padding:16px 20px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--bug-red);text-transform:uppercase;margin-bottom:16px;">Pay as you go</div>
           <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">You paste manually each time</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">HTML output only</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">No strategy or tracking</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">No onboarding audit</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">No direct access</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">You paste manually each time</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">HTML output only</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">No strategy or tracking</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">No onboarding audit</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">No direct access</div>
           </div>
         </div>
-        <div style="background:rgba(74,143,231,0.06);padding:16px 20px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;">Architecture — $2,500/mo</div>
+        <div style="background:rgba(29,158,117,0.06);padding:16px 20px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--teal);text-transform:uppercase;margin-bottom:16px;">Architecture — $2,500/mo</div>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="font-size:12px;color:#2dd4bf;font-weight:700;line-height:1.6;">Includes Pro High-Impact ($899/mo value)</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Every email — unlimited rebuilds, no quota</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Paste any email — rebuilt HTML in 60 seconds</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Batch — 10 emails diagnosed at once, ranked by priority</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Content calendar — 4-week arc + follow-up sequences</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Competitor benchmark — you vs 3 competitors, same diagnostic</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">A/B tracker — log tests, record open rates, see patterns</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Monthly report — score trends + ROI for leadership</div>
-            <div style="font-size:12px;color:var(--white);line-height:1.6;">Monthly call with Alex + direct Slack access</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Every email — unlimited rebuilds, no quota</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Paste any email — rebuilt HTML in 60 seconds</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Batch — 10 emails diagnosed at once, ranked by priority</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Content calendar — 4-week arc + follow-up sequences</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Competitor benchmark — you vs 3 competitors, same diagnostic</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">A/B tracker — log tests, record open rates, see patterns</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Monthly report — score trends + ROI for leadership</div>
+            <div style="font-size:12px;color:var(--text-primary);line-height:1.6;">Monthly call with Alex + direct Slack access</div>
           </div>
         </div>
       </div>
-
-      <div style="font-size:12px;color:var(--white);line-height:1.7;margin-bottom:16px;">
-        Run your numbers first: <a href="https://strategicflow.tech/roi" target="_blank" style="color:var(--signal);text-decoration:none;">strategicflow.tech/roi</a> — if the ROI is not at least 3x the plan cost, Architecture is not the right plan for you.
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:16px;">
+        Run your numbers first: <a href="https://strategicflow.tech/roi" target="_blank" style="color:var(--teal);text-decoration:none;">strategicflow.tech/roi</a> — if the ROI is not at least 3x the plan cost, Architecture is not the right plan for you.
       </div>
-
     </div>
 
     <div class="cta-block">
@@ -847,7 +899,7 @@
           <div class="included-preview">
             <div class="preview-row">
               <span class="preview-label">Score</span>
-              <span class="preview-val">3/10 <span style="color:var(--white)">→</span> 8/10</span>
+              <span class="preview-val">3/10 <span style="color:var(--text-dim)">→</span> 8/10</span>
             </div>
             <div class="preview-row col">
               <span class="preview-note">Before</span>
@@ -960,7 +1012,6 @@
             </div>
           </div>
         </div>
-
 
         <div class="included-card">
           <div class="included-card-num tool-label-row">Tool 07<span class="tool-arch-badge">Architecture Only</span></div>
@@ -1151,7 +1202,7 @@
 
   </div>
 
-  <!-- PANEL 4: ALREADY USED -->
+  <!-- PANEL 4: ALREADY USED ───────────────────────────── -->
   <div class="panel" id="panel-4">
     <div class="panel-label">// Demo already used</div>
     <h2 class="panel-title">You've already run<br><em>the free demo.</em></h2>
@@ -1171,22 +1222,243 @@
 </main>
 
 <script>
+/* ── STATE ─────────────────────────────────────────────── */
 let _rebuildEmailText = '';
 let _rebuildData = null;
+let _scanInterval = null;
+let _scanCheckIdx = 0;
+let _scanLineIdx = 0;
+let _scanTotalLines = 0;
 
-function setProgress(pct, label) {
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressPct').textContent = pct + '%';
-  if (label) document.getElementById('progressLabel').textContent = label;
+const SCAN_CHECKS = [
+  'Filing Label Subject',
+  'Feature-First Bias',
+  'Guest Language CTA',
+  'Social Proof Placement',
+  'Visual Hierarchy',
+  'Consequence-After-Caveat',
+  'Hook Architecture'
+];
+
+/* Bug positions (line indices) and their labels */
+const BUG_LINE_MAP = { 1: 0, 3: 1, 6: 2, 9: 3 }; // lineIdx → checkIdx
+
+/* ── LINE NUMBERS ──────────────────────────────────────── */
+function updateLineNums(ta) {
+  const lines = ta.value.split('\n');
+  const nums = document.getElementById('lineNums');
+  if (!nums) return;
+  let html = '';
+  for (let i = 1; i <= Math.max(lines.length, 1); i++) {
+    html += `<span class="line-num">${i}</span>`;
+  }
+  nums.innerHTML = html;
 }
 
-function addLog(text, type = '') {
+/* ── TAB SWITCHER ──────────────────────────────────────── */
+function switchTab(tab) {
+  const tabPaste  = document.getElementById('tabPaste');
+  const tabUpload = document.getElementById('tabUpload');
+  const pasteWrap  = document.getElementById('pastePaneWrap');
+  const uploadWrap = document.getElementById('uploadPaneWrap');
+
+  if (tab === 'paste') {
+    tabPaste.classList.add('active');   tabPaste.setAttribute('aria-selected', 'true');
+    tabUpload.classList.remove('active'); tabUpload.setAttribute('aria-selected', 'false');
+    pasteWrap.classList.remove('hidden'); pasteWrap.style.display = '';
+    uploadWrap.classList.remove('active'); uploadWrap.style.display = 'none';
+  } else {
+    tabUpload.classList.add('active');  tabUpload.setAttribute('aria-selected', 'true');
+    tabPaste.classList.remove('active'); tabPaste.setAttribute('aria-selected', 'false');
+    uploadWrap.classList.add('active'); uploadWrap.style.display = '';
+    pasteWrap.style.display = 'none';
+  }
+}
+// Init: hide upload pane
+(function() {
+  const up = document.getElementById('uploadPaneWrap');
+  if (up) up.style.display = 'none';
+})();
+
+/* ── FILE UPLOAD ───────────────────────────────────────── */
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+}
+
+function handleFileSelect(file) {
+  if (!file) return;
+  const errEl = document.getElementById('fileError');
+  errEl.style.display = 'none';
+
+  const allowed = ['.html', '.htm', '.eml', '.txt'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!allowed.includes(ext)) {
+    errEl.textContent = 'Unsupported file type. Please upload a .html, .eml, or .txt file.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (file.size > 500 * 1024) {
+    errEl.textContent = 'This file is too large. Try a file under 500 KB.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Write content into the shared demoBody textarea
+    document.getElementById('demoBody').value = e.target.result;
+
+    // Show file loaded state
+    const kb = (file.size / 1024).toFixed(1);
+    document.getElementById('fileLoadedName').textContent = file.name + ' · ' + kb + ' KB';
+    document.getElementById('fileLoaded').classList.add('show');
+
+    // Update dropzone icon/text
+    const dz = document.getElementById('dropzone');
+    dz.style.borderStyle = 'solid';
+    dz.style.borderColor = 'rgba(29,158,117,0.3)';
+  };
+  reader.onerror = function() {
+    errEl.textContent = 'Could not read this file. Try copying and pasting the content instead.';
+    errEl.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+function clearFile() {
+  document.getElementById('demoBody').value = '';
+  document.getElementById('fileLoaded').classList.remove('show');
+  document.getElementById('fileLoadedName').textContent = '';
+  document.getElementById('fileError').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  const dz = document.getElementById('dropzone');
+  dz.style.borderStyle = 'dashed';
+  dz.style.borderColor = '';
+}
+
+/* ── SCAN ANIMATION ────────────────────────────────────── */
+function initScanEditor(subject, body) {
+  // Set filename in scan header
+  const fname = document.getElementById('scanFname');
+  if (fname) fname.textContent = subject ? subject.slice(0, 32) + (subject.length > 32 ? '…' : '') : 'email-body.txt';
+
+  // Strip HTML tags for display, split into lines
+  const plainText = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const rawLines  = body.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const lines     = rawLines.slice(0, 16);
+  while (lines.length < 8) lines.push('');
+
+  _scanTotalLines = lines.length;
+
+  // Build line nums col
+  const numsCol = document.getElementById('scanLineNumsCol');
+  if (numsCol) numsCol.innerHTML = lines.map((_, i) => `<div>${i + 1}</div>`).join('');
+
+  // Build lines col
+  const linesCol = document.getElementById('scanLinesCol');
+  if (linesCol) {
+    linesCol.innerHTML = lines.map((line, i) => {
+      const bugLabel = BUG_LINE_MAP.hasOwnProperty(i) ? SCAN_CHECKS[BUG_LINE_MAP[i]] : null;
+      return `<div class="scan-line" id="sl${i}">
+        <span class="scan-line-txt">${esc(line.slice(0, 70)) || '\u00a0'}</span>
+        ${bugLabel ? `<span class="scan-bug-tag" id="sbt${i}">${bugLabel.toUpperCase().slice(0,20)}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Build check list
+  const cl = document.getElementById('scanCheckList');
+  if (cl) {
+    cl.innerHTML = SCAN_CHECKS.map((c, i) =>
+      `<div class="scan-check-item" id="sck${i}"><span class="scan-check-dot"></span>${c}</div>`
+    ).join('');
+  }
+
+  // Reset beam
+  const beam = document.getElementById('scanBeam');
+  if (beam) beam.style.top = '0px';
+  _scanLineIdx = 0;
+  _scanCheckIdx = 0;
+}
+
+function runScanAnimation() {
+  const contentArea = document.getElementById('scanContentArea');
+  const areaHeight  = contentArea ? contentArea.offsetHeight : 230;
+  const lineH       = areaHeight / Math.max(_scanTotalLines, 8);
+
+  document.getElementById('scanCounter').textContent = 'Checking 1 of 7 structural points...';
+
+  _scanInterval = setInterval(function() {
+    const beam = document.getElementById('scanBeam');
+    if (!beam) return;
+
+    // Advance beam to next line
+    _scanLineIdx++;
+    if (_scanLineIdx > _scanTotalLines) {
+      // Loop: reset beam, keep bug tags visible
+      _scanLineIdx = 1;
+      document.querySelectorAll('.scan-line').forEach(l => {
+        l.classList.remove('passed', 'active-line');
+      });
+    }
+
+    // Position beam
+    const pct = ((_scanLineIdx - 0.5) / _scanTotalLines) * 100;
+    beam.style.top = pct + '%';
+
+    // Mark passed lines
+    for (let i = 0; i < _scanLineIdx - 1; i++) {
+      const el = document.getElementById('sl' + i);
+      if (el) { el.classList.add('passed'); el.classList.remove('active-line'); }
+    }
+    const activeEl = document.getElementById('sl' + (_scanLineIdx - 1));
+    if (activeEl) { activeEl.classList.add('active-line'); activeEl.classList.remove('passed'); }
+
+    // Reveal bug tag if this line has one
+    const bugTag = document.getElementById('sbt' + (_scanLineIdx - 1));
+    if (bugTag) setTimeout(() => bugTag.classList.add('show'), 180);
+
+    // Advance check counter
+    const newCheckIdx = Math.min(Math.floor((_scanLineIdx / _scanTotalLines) * 7), 6);
+    if (newCheckIdx !== _scanCheckIdx) {
+      // Mark previous done
+      const prevEl = document.getElementById('sck' + _scanCheckIdx);
+      if (prevEl) { prevEl.classList.remove('active'); prevEl.classList.add('done'); }
+      _scanCheckIdx = newCheckIdx;
+      const currEl = document.getElementById('sck' + _scanCheckIdx);
+      if (currEl) { currEl.classList.remove('done'); currEl.classList.add('active'); }
+      document.getElementById('scanCounter').textContent =
+        `Checking ${_scanCheckIdx + 1} of 7 structural points...`;
+    }
+  }, 480);
+}
+
+function stopScanAnimation() {
+  if (_scanInterval) { clearInterval(_scanInterval); _scanInterval = null; }
+}
+
+/* ── UI HELPERS ────────────────────────────────────────── */
+function setProgress(pct, label) {
+  // Update hidden compat elements — scan animation is the visible feedback
+  const fill  = document.getElementById('progressFill');
+  const pctEl = document.getElementById('progressPct');
+  const lblEl = document.getElementById('progressLabel');
+  if (fill)  fill.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (lblEl && label) lblEl.textContent = label;
+}
+
+function addLog(text, type) {
+  // Append to hidden statusLog — no visible effect in new UI
   const log = document.getElementById('statusLog');
+  if (!log) return;
   const line = document.createElement('div');
-  line.className = 'log-line ' + type;
+  line.className = 'log-line ' + (type || '');
   line.innerHTML = `<span class="log-dot"></span>${text}`;
   log.appendChild(line);
-  log.scrollTop = log.scrollHeight;
 }
 
 function showPanel(n) {
@@ -1202,35 +1474,44 @@ function showError(msg) {
 }
 
 function showAssessmentError(msg) {
-  // Re-enable the submit button so user isn't stuck
+  stopScanAnimation();
   document.getElementById('runBtn').disabled = false;
-  // Add friendly error message to the log
+
+  // Update scan badge to ERROR state
+  const badge = document.getElementById('scanStatusBadge');
+  if (badge) { badge.textContent = 'ERROR'; badge.style.color = 'var(--bug-red)'; badge.style.borderColor = 'rgba(229,72,77,0.25)'; badge.style.animation = 'none'; }
+
+  // Show the error block
+  const errEl = document.getElementById('scanError');
+  const msgEl = document.getElementById('scanErrorMsg');
+  if (msgEl) msgEl.textContent = msg;
+  if (errEl) errEl.classList.add('show');
+
+  // Also write to hidden statusLog for compat
   addLog(msg, 'error');
-  // Append a Try Again button below the log
-  const log = document.getElementById('statusLog');
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-primary';
-  btn.style.cssText = 'margin-top:16px;font-size:12px;padding:10px 22px;';
-  btn.textContent = 'Try again →';
-  btn.onclick = function() {
-    // Clear the log and go back to the input panel — all fields preserved
-    log.innerHTML = '';
-    document.getElementById('runBtn').disabled = false;
-    showPanel(1);
-  };
-  log.appendChild(btn);
 }
 
+function resetToPanel1() {
+  // Clear error state
+  const errEl = document.getElementById('scanError');
+  if (errEl) errEl.classList.remove('show');
+  const badge = document.getElementById('scanStatusBadge');
+  if (badge) { badge.textContent = 'SCANNING'; badge.style.color = ''; badge.style.borderColor = ''; badge.style.animation = ''; }
+  document.getElementById('statusLog').innerHTML = '';
+  showPanel(1);
+}
+
+/* ── MAIN DEMO FLOW ────────────────────────────────────── */
 async function runDemo() {
   const consentBox = document.getElementById('terms-consent');
   if (consentBox && !consentBox.checked) {
     document.getElementById('errConsent').style.display = 'block';
     return;
   }
-  const email = document.getElementById('demoEmail').value.trim();
-  const subject = document.getElementById('demoSubject').value.trim();
-  const body = document.getElementById('demoBody').value.trim();
-  const company = document.getElementById('demoCompany').value.trim() || 'Your Company';
+  const email      = document.getElementById('demoEmail').value.trim();
+  const subject    = document.getElementById('demoSubject').value.trim();
+  const body       = document.getElementById('demoBody').value.trim();
+  const company    = document.getElementById('demoCompany').value.trim() || 'Your Company';
   const subscribers = parseInt(document.getElementById('demoSubscribers').value) || 10000;
 
   if (!email || !email.includes('@')) return showError('Please enter a valid email address.');
@@ -1240,10 +1521,16 @@ async function runDemo() {
   document.getElementById('inputError').style.display = 'none';
   document.getElementById('runBtn').disabled = true;
 
+  // Init scan panel BEFORE switching to it
+  initScanEditor(subject, body);
+
   showPanel(2);
   setProgress(0, 'Initialising...');
   addLog('Assessment engine initialised');
   addLog('Email received: "' + subject.slice(0, 55) + (subject.length > 55 ? '...' : '') + '"');
+
+  // Start scan animation
+  runScanAnimation();
 
   try {
     setProgress(15, 'Checking access...');
@@ -1258,6 +1545,7 @@ async function runDemo() {
     const data = await res.json();
 
     if (data.alreadyUsed) {
+      stopScanAnimation();
       showPanel(4);
       return;
     }
@@ -1296,6 +1584,7 @@ async function runDemo() {
         if (d.status === 'complete') {
           clearInterval(poll);
           clearInterval(stepTimer);
+          stopScanAnimation();
           setProgress(100, 'Complete');
           addLog('Assessment complete', 'done');
           window.history.replaceState(null, '', '/demo.html?job=' + jobId);
@@ -1323,13 +1612,14 @@ async function runDemo() {
   }
 }
 
+/* ── RENDER RESULTS ────────────────────────────────────── */
 function renderResults(result, subscribers) {
-  const score = result.score || result.originalScore || 3;
+  const score   = result.score || result.originalScore || 3;
   const rebuilt = result.rebuiltScore || result.newScore || 9;
-  const bugs = result.bugs || [];
+  const bugs    = result.bugs || [];
 
   document.getElementById('origScore').textContent = score + '/10';
-  document.getElementById('newScore').textContent = rebuilt + '/10';
+  document.getElementById('newScore').textContent  = rebuilt + '/10';
   document.getElementById('bugsFound').textContent = bugs.length + '/7';
 
   const bugList = document.getElementById('bugList');
@@ -1341,10 +1631,10 @@ function renderResults(result, subscribers) {
         <div class="bug-desc">${esc(b.description || b.desc || '')}</div>
       </div>
     </div>
-  `).join('') : `<div class="bug-item"><div><div class="bug-desc" style="color:var(--signal)">No critical bugs detected.</div></div></div>`;
+  `).join('') : `<div class="bug-item"><div><div class="bug-desc" style="color:var(--teal)">No critical bugs detected.</div></div></div>`;
 
   const origSubject = result.originalSubject || document.getElementById('demoSubject').value;
-  const newSubject = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
+  const newSubject  = (result.abSubjects || [])[0]?.subject || result.rebuiltSubject || origSubject;
   document.getElementById('subjectRebuild').innerHTML = `
     <div class="rebuild-cell">
       <div class="rebuild-tag before">Before</div>
@@ -1363,11 +1653,11 @@ function renderResults(result, subscribers) {
       <span class="variant-text">${esc(typeof v === 'string' ? v : v.subject || v)}</span>
       <span class="variant-rate">${typeof v === 'object' && v.openRate ? v.openRate : '~' + (27 + i*2) + '%'}</span>
     </div>
-  `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--white);padding:16px;">Variants not available.</div>';
+  `).join('') : '<div style="font-family:\'DM Mono\',monospace;font-size:12px;color:var(--text-dim);padding:16px;">Variants not available.</div>';
 
-  const changes = result.whatChanged || [];
+  const changes  = result.whatChanged || [];
   const hookChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('hook')) || changes[2] || null;
-  const ctaChange = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta')) || changes[3] || null;
+  const ctaChange  = changes.find(c => c.fix && c.fix.toLowerCase().includes('cta'))  || changes[3] || null;
 
   document.getElementById('hookRebuild').innerHTML = hookChange ? `
     <div class="rebuild-cell">
@@ -1378,7 +1668,7 @@ function renderResults(result, subscribers) {
       <div class="rebuild-tag after">After</div>
       <div class="rebuild-text">${esc(hookChange.after || '—')}</div>
     </div>
-  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--white)">Hook rebuild not available.</div></div>';
+  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--text-dim)">Hook rebuild not available.</div></div>';
 
   document.getElementById('ctaRebuild').innerHTML = ctaChange ? `
     <div class="rebuild-cell">
@@ -1389,19 +1679,19 @@ function renderResults(result, subscribers) {
       <div class="rebuild-tag after">After</div>
       <div class="rebuild-text">${esc(ctaChange.after || '—')}</div>
     </div>
-  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--white)">CTA rebuild not available.</div></div>';
+  ` : '<div class="rebuild-cell" style="grid-column:1/-1"><div class="rebuild-text" style="color:var(--text-dim)">CTA rebuild not available.</div></div>';
 
-  const currentRate = result.currentOpenRate || 0.18;
-  const projectedRate = result.projectedOpenRate || 0.31;
-  const currentReaders = Math.round(subscribers * currentRate);
+  const currentRate    = result.currentOpenRate   || 0.18;
+  const projectedRate  = result.projectedOpenRate || 0.31;
+  const currentReaders  = Math.round(subscribers * currentRate);
   const projectedReaders = Math.round(subscribers * projectedRate);
   const delta = (projectedReaders - currentReaders) * 4;
 
-  document.getElementById('roiCurrent').textContent = Math.round(currentRate * 100) + '%';
-  document.getElementById('roiCurrentReaders').textContent = currentReaders.toLocaleString() + ' readers/email';
-  document.getElementById('roiProjected').textContent = Math.round(projectedRate * 100) + '%';
+  document.getElementById('roiCurrent').textContent         = Math.round(currentRate * 100) + '%';
+  document.getElementById('roiCurrentReaders').textContent  = currentReaders.toLocaleString() + ' readers/email';
+  document.getElementById('roiProjected').textContent       = Math.round(projectedRate * 100) + '%';
   document.getElementById('roiProjectedReaders').textContent = projectedReaders.toLocaleString() + ' readers/email';
-  document.getElementById('roiDelta').textContent = '+' + delta.toLocaleString();
+  document.getElementById('roiDelta').textContent   = '+' + delta.toLocaleString();
   document.getElementById('roiDeltaNote').textContent = 'Additional readers/month (4 emails)';
 
   // Capture email text for paid rebuild
@@ -1409,12 +1699,12 @@ function renderResults(result, subscribers) {
   const _body = (document.getElementById('demoBody').value || '').trim();
   _rebuildEmailText = (_subj + '\n\n' + _body).slice(0, 8000);
   _rebuildData = null;
-  document.getElementById('rebuildTrigger').style.display = 'block';
-  document.getElementById('rebuildResults').style.display = 'none';
+  document.getElementById('rebuildTrigger').style.display  = 'block';
+  document.getElementById('rebuildResults').style.display  = 'none';
   document.getElementById('rebuildLimitReached').style.display = 'none';
-  document.getElementById('rebuildLoading').style.display = 'none';
+  document.getElementById('rebuildLoading').style.display  = 'none';
   document.getElementById('rebuildCountDisplay').style.display = 'none';
-  document.getElementById('rebuildErrMsg').style.display = 'none';
+  document.getElementById('rebuildErrMsg').style.display   = 'none';
   const btn = document.getElementById('rebuildBtn');
   btn.disabled = false;
   btn.textContent = 'Run the paid rebuild on this email';
@@ -1426,14 +1716,14 @@ function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── DEMO REBUILD ─────────────────────────────────
+/* ── DEMO REBUILD ──────────────────────────────────────── */
 async function runDemoRebuild() {
   if (!_rebuildEmailText) return;
   const btn = document.getElementById('rebuildBtn');
   btn.disabled = true;
-  document.getElementById('rebuildLoading').style.display = 'block';
-  document.getElementById('rebuildResults').style.display = 'none';
-  document.getElementById('rebuildErrMsg').style.display = 'none';
+  document.getElementById('rebuildLoading').style.display  = 'block';
+  document.getElementById('rebuildResults').style.display  = 'none';
+  document.getElementById('rebuildErrMsg').style.display   = 'none';
 
   try {
     const r = await fetch('/api/demo-rebuild', {
@@ -1445,7 +1735,7 @@ async function runDemoRebuild() {
     document.getElementById('rebuildLoading').style.display = 'none';
 
     if (r.status === 429) {
-      document.getElementById('rebuildTrigger').style.display = 'none';
+      document.getElementById('rebuildTrigger').style.display     = 'none';
       document.getElementById('rebuildLimitReached').style.display = 'block';
       document.getElementById('paidRebuildSection').scrollIntoView({ behavior: 'smooth' });
       return;
@@ -1469,46 +1759,42 @@ async function runDemoRebuild() {
 }
 
 function renderRebuildResults(d) {
-  // 01 — Before / After
   const origPreview = _rebuildEmailText.slice(0, 400) + (_rebuildEmailText.length > 400 ? '...' : '');
   document.getElementById('rebuildBeforeAfter').innerHTML = `
-    <div style="background:#0a0a08;padding:20px;">
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--noise);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Before</div>
-      <div style="font-size:11px;color:var(--white);font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: ${esc(d.original_subject)}</div>
-      <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;white-space:pre-line;">${esc(origPreview)}</div>
+    <div style="background:var(--panel);padding:20px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--bug-red);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">Before</div>
+      <div style="font-size:11px;color:var(--text-primary);font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: ${esc(d.original_subject)}</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;white-space:pre-line;">${esc(origPreview)}</div>
     </div>
-    <div style="background:rgba(74,143,231,0.05);padding:20px;">
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">After — rebuilt</div>
+    <div style="background:rgba(29,158,117,0.05);padding:20px;">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:14px;">After — rebuilt</div>
       <div style="font-size:11px;color:#4ade80;font-weight:600;margin-bottom:8px;line-height:1.5;">Subject: ${esc(d.rebuilt_subject)}</div>
-      <div style="font-size:12px;color:var(--white);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:12px;color:var(--text-primary);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;">
         ${(d.rebuilt_body || []).map(p => `<p style="margin:0 0 8px;">${esc(p)}</p>`).join('')}
-        <p style="margin:8px 0 0;"><span style="background:var(--signal);color:#fff;padding:6px 12px;font-size:11px;font-weight:600;">${esc(d.rebuilt_cta || 'See the full rebuild')}</span></p>
+        <p style="margin:8px 0 0;"><span style="background:var(--teal);color:#fff;padding:6px 12px;font-size:11px;font-weight:600;">${esc(d.rebuilt_cta || 'See the full rebuild')}</span></p>
       </div>
     </div>`;
 
-  // 02 — Variants
   const variants = d.variants || [];
   document.getElementById('rebuildVariants').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;">` +
     variants.map((v, i) => `
       <div style="${i > 0 ? 'padding-top:14px;border-top:1px solid var(--border);' : ''}display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;">
-        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);min-width:32px;">${esc(v.label || String.fromCharCode(65 + i))}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);min-width:32px;">${esc(v.label || String.fromCharCode(65 + i))}</div>
         <div style="flex:1;">
-          <div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:4px;">${esc(v.subject)}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);">Pattern: ${esc(v.pattern)}</div>
+          <div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin-bottom:4px;">${esc(v.subject)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);">Pattern: ${esc(v.pattern)}</div>
         </div>
       </div>`).join('') + `</div>`;
 
-  // 03 — Changes
   const changes = d.changes || [];
   document.getElementById('rebuildChanges').innerHTML = changes.map((c, i) => `
     <div style="${i > 0 ? 'border-top:1px solid var(--border);' : ''}padding:16px 20px;">
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--signal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${esc(c.element)}</div>
-      <div style="background:rgba(255,77,46,0.08);border-left:2px solid var(--noise);padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--white);line-height:1.6;">${esc(c.before)}</div>
-      <div style="background:rgba(74,188,120,0.08);border-left:2px solid #4ade80;padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--white);line-height:1.6;">${esc(c.after)}</div>
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--white);line-height:1.6;">${esc(c.why)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--scan-cyan);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">${esc(c.element)}</div>
+      <div style="background:rgba(229,72,77,0.07);border-left:2px solid var(--bug-red);padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--text-primary);line-height:1.6;">${esc(c.before)}</div>
+      <div style="background:rgba(29,158,117,0.08);border-left:2px solid var(--teal);padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--text-primary);line-height:1.6;">${esc(c.after)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);line-height:1.6;">${esc(c.why)}</div>
     </div>`).join('');
 
-  // Rebuild count + button state
   const used = d.rebuild_count || 1;
   const remaining = 3 - used;
   const countEl = document.getElementById('rebuildCountDisplay');
@@ -1520,7 +1806,7 @@ function renderRebuildResults(d) {
 
   const btn = document.getElementById('rebuildBtn');
   if (remaining <= 0) {
-    document.getElementById('rebuildTrigger').style.display = 'none';
+    document.getElementById('rebuildTrigger').style.display     = 'none';
     document.getElementById('rebuildLimitReached').style.display = 'block';
   } else {
     btn.disabled = false;
@@ -1528,12 +1814,13 @@ function renderRebuildResults(d) {
   }
 }
 
+/* ── DOWNLOAD REBUILD ──────────────────────────────────── */
 function downloadRebuild() {
   if (!_rebuildData) return;
   const d = _rebuildData;
   const origPreview = _rebuildEmailText.slice(0, 600) + (_rebuildEmailText.length > 600 ? '...' : '');
 
-  const afterParas = (d.rebuilt_body || []).map(p => '<p>' + esc(p) + '</p>').join('');
+  const afterParas   = (d.rebuilt_body || []).map(p => '<p>' + esc(p) + '</p>').join('');
   const variantsHtml = (d.variants || []).map((v, i) => `
     <div class="var-row">
       <div class="var-lbl">${esc(v.label || String.fromCharCode(65 + i))}</div>
@@ -1557,58 +1844,39 @@ function downloadRebuild() {
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;}
-body{font-family:'Inter',Arial,sans-serif;background:#0a0a08;color:#f4f2ed;margin:0;padding:16px;}
+body{font-family:'Inter',Arial,sans-serif;background:#060a10;color:#EDEFF2;margin:0;padding:16px;}
 .wrap{max-width:720px;margin:0 auto;padding:16px;}
 p{margin:0 0 8px;line-height:1.7;font-size:15px;}
-h2{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#4A8FE7;margin:0 0 12px;}
+h2{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#1d9e75;margin:0 0 12px;}
 .section{margin-bottom:32px;}
-.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.1);}
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);}
 @media(max-width:700px){.ba-grid{grid-template-columns:1fr;}}
 .ba-cell{padding:20px;}
-.ba-before{background:#0a0a08;}
-.ba-after{background:rgba(74,143,231,0.05);}
+.ba-before{background:#0d141c;}
+.ba-after{background:rgba(29,158,117,0.05);}
 .ba-lbl{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;}
-.ba-lbl.before{color:#ff4d2e;}.ba-lbl.after{color:#4A8FE7;}
+.ba-lbl.before{color:#E5484D;}.ba-lbl.after{color:#1d9e75;}
 .ba-subj{font-size:13px;font-weight:600;margin-bottom:10px;line-height:1.5;}
 .ba-subj.after{color:#4ade80;}
-.ba-body{font-size:13px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;overflow-x:auto;white-space:pre-line;}
-.cta-btn{display:inline-block;background:#4A8FE7;color:#fff;padding:10px 24px;font-size:13px;font-weight:600;text-decoration:none;border-radius:2px;margin-top:8px;}
-@media(max-width:700px){.cta-btn{display:block;text-align:center;width:100%;}}
-.var-block{background:#111110;border:1px solid rgba(255,255,255,0.1);padding:20px;}
-.var-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);align-items:flex-start;}
+.ba-body{font-size:13px;line-height:1.7;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;overflow-x:auto;white-space:pre-line;}
+.cta-btn{display:inline-block;background:#1d9e75;color:#fff;padding:10px 24px;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px;}
+.var-block{background:#0d141c;border:1px solid rgba(255,255,255,0.08);padding:20px;}
+.var-row{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);align-items:flex-start;}
 .var-row:last-child{border-bottom:none;}
-.var-lbl{font-family:'DM Mono',monospace;font-size:10px;color:#4A8FE7;min-width:24px;flex-shrink:0;padding-top:2px;}
-.var-subj{font-size:14px;color:#f4f2ed;line-height:1.5;margin-bottom:4px;}
-.var-pat{font-family:'DM Mono',monospace;font-size:10px;color:#a8a39b;}
-.chg-block{background:#111110;border:1px solid rgba(255,255,255,0.1);}
-.chg-row{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.var-lbl{font-family:'DM Mono',monospace;font-size:10px;color:#1d9e75;min-width:24px;flex-shrink:0;padding-top:2px;}
+.var-subj{font-size:14px;color:#EDEFF2;line-height:1.5;margin-bottom:4px;}
+.var-pat{font-family:'DM Mono',monospace;font-size:10px;color:#7C8894;}
+.chg-block{background:#0d141c;border:1px solid rgba(255,255,255,0.08);}
+.chg-row{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);}
 .chg-row:last-child{border-bottom:none;}
-.chg-el{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#4A8FE7;margin-bottom:8px;}
-.chg-before{background:rgba(255,77,46,0.08);border-left:2px solid #ff4d2e;padding:8px 12px;font-size:12px;color:#f4f2ed;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
-.chg-after{background:rgba(74,188,120,0.08);border-left:2px solid #4ade80;padding:8px 12px;font-size:12px;color:#f4f2ed;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
-.chg-why{font-family:'DM Mono',monospace;font-size:10px;color:#a8a39b;line-height:1.6;}
-.arch-cta{border:1px solid #4A8FE7;padding:24px;margin-top:32px;background:rgba(74,143,231,0.04);}
+.chg-el{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#4EE1FF;margin-bottom:8px;}
+.chg-before{background:rgba(229,72,77,0.07);border-left:2px solid #E5484D;padding:8px 12px;font-size:12px;color:#EDEFF2;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
+.chg-after{background:rgba(29,158,117,0.08);border-left:2px solid #1d9e75;padding:8px 12px;font-size:12px;color:#EDEFF2;line-height:1.6;margin-bottom:6px;overflow-x:auto;}
+.chg-why{font-family:'DM Mono',monospace;font-size:10px;color:#7C8894;line-height:1.6;}
+.arch-cta{border:1px solid rgba(29,158,117,0.25);padding:24px;margin-top:32px;background:rgba(29,158,117,0.04);}
 .arch-cta p{font-size:14px;margin-bottom:16px;}
-.arch-btn{display:inline-block;background:#4A8FE7;color:#fff;padding:12px 28px;font-size:14px;font-weight:600;text-decoration:none;border-radius:2px;}
-@media(max-width:700px){.arch-btn{display:block;text-align:center;width:100%;}}
-footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);font-family:'DM Mono',monospace;font-size:11px;color:#a8a39b;text-align:center;}
-
-/* COOKIE CONSENT */
-#cookie-banner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:var(--bg3, #161614);border-top:1px solid var(--border, rgba(255,255,255,0.1));padding:18px 48px;display:none;}
-#cookie-banner.visible{display:flex;}
-.cookie-inner{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1100px;margin:0 auto;width:100%;flex-wrap:wrap;}
-.cookie-text{font-size:13px;color:var(--text2, #ddddd8);line-height:1.6;max-width:680px;}
-.cookie-text a{color:var(--green, #4A8FE7);text-decoration:underline;}
-.cookie-actions{display:flex;gap:10px;flex-shrink:0;}
-.cookie-btn{font-family:var(--mono, 'DM Mono', monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--border, rgba(255,255,255,0.1));background:transparent;color:var(--text2, #ddddd8);transition:all .2s;}
-.cookie-btn:hover{border-color:var(--green, #4A8FE7);color:var(--green, #4A8FE7);}
-.cookie-btn.accept{background:var(--green, #4A8FE7);color:#fff;border-color:var(--green, #4A8FE7);}
-.cookie-btn.accept:hover{background:var(--green-mid, #2D6BE4);}
-@media(max-width:640px){
-  #cookie-banner{padding:16px 18px;}
-  .cookie-inner{flex-direction:column;align-items:stretch;gap:14px;}
-  .cookie-actions{justify-content:flex-end;}
-}
+.arch-btn{display:inline-block;background:#1d9e75;color:#fff;padding:12px 28px;font-size:14px;font-weight:600;text-decoration:none;}
+footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.08);font-family:'DM Mono',monospace;font-size:11px;color:#7C8894;text-align:center;}
 </style>
 </head>
 <body>
@@ -1640,26 +1908,23 @@ footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.
     <p>This rebuild ran once, on one email. Architecture runs the full system on every email your company sends, every month.</p>
     <a href="https://strategicflow.tech/architecture.html" class="arch-btn">See how Architecture works</a>
   </div>
-  <footer>Rebuilt by Strategic Flow Architecture - strategicflow.tech</footer>
+  <footer>Rebuilt by Strategic Flow Architecture — strategicflow.tech</footer>
 </div>
 </body>
 </html>`;
 
   const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'strategic-flow-rebuild.html';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'strategic-flow-rebuild.html';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── LOAD FROM URL ?job=jobId ──────────────────────
+/* ── LOAD FROM URL ?job=jobId ──────────────────────────── */
 (async function loadFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const jobId = params.get('job');
+  const jobId  = params.get('job');
   if (!jobId) return;
 
   try {
@@ -1687,16 +1952,18 @@ footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.
   }
 })();
 </script>
-<footer style="margin-top:64px;padding:32px 24px;border-top:1px solid rgba(255,255,255,0.12);text-align:center;font-family:inherit;">
+
+<footer style="margin-top:64px;padding:32px 24px;border-top:1px solid var(--border);text-align:center;font-family:inherit;">
   <div style="margin-bottom:16px;">
-    <a href="https://strategicflow.tech" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">Strategic Flow</a>
-    <a href="https://strategicflow.tech/teardowns.html" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">57 Teardowns</a>
-    <a href="https://strategicflow.tech/glossary.html" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">Glossary</a>
-    <a href="https://strategicflow.tech/addons.html" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">Add-Ons</a>
-    <a href="https://strategicflowtech.gumroad.com/l/koczgh" style="color:rgba(255,255,255,0.7);text-decoration:none;margin:0 12px;font-size:13px;">$47 Pack</a>
+    <a href="https://strategicflow.tech" style="color:var(--text-dim);text-decoration:none;margin:0 12px;font-size:13px;">Strategic Flow</a>
+    <a href="https://strategicflow.tech/teardowns.html" style="color:var(--text-dim);text-decoration:none;margin:0 12px;font-size:13px;">57 Teardowns</a>
+    <a href="https://strategicflow.tech/glossary.html" style="color:var(--text-dim);text-decoration:none;margin:0 12px;font-size:13px;">Glossary</a>
+    <a href="https://strategicflow.tech/addons.html" style="color:var(--text-dim);text-decoration:none;margin:0 12px;font-size:13px;">Add-Ons</a>
+    <a href="https://strategicflowtech.gumroad.com/l/koczgh" style="color:var(--text-dim);text-decoration:none;margin:0 12px;font-size:13px;">$47 Pack</a>
   </div>
-  <div style="font-size:12px;color:rgba(255,255,255,0.4);">Strategic Flow © 2026 · Built by Alex Iliescu · <a href="https://strategicflow.tech" style="color:rgba(255,255,255,0.4);">strategicflow.tech</a> &nbsp;|&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:rgba(255,255,255,0.4);text-decoration:none;">Terms</a></div>
+  <div style="font-size:12px;color:rgba(255,255,255,0.25);">Strategic Flow © 2026 · Built by Alex Iliescu · <a href="https://strategicflow.tech" style="color:rgba(255,255,255,0.25);">strategicflow.tech</a> &nbsp;|&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:rgba(255,255,255,0.25);text-decoration:none;">Terms</a></div>
 </footer>
+
 <!-- COOKIE CONSENT BANNER -->
 <div id="cookie-banner">
   <div class="cookie-inner">
