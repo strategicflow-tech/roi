@@ -101,7 +101,7 @@
 
   label {
     display: block; font-family: 'DM Mono', monospace; font-size: 11px;
-    letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px;
+    letter-spacing: 0.1em; color: #9FAAB4; text-transform: uppercase; margin-bottom: 8px;
   }
 
   input[type="email"], input[type="text"], input[type="number"] {
@@ -114,6 +114,9 @@
     border-color: rgba(78,225,255,0.55);
     box-shadow: 0 0 0 1px rgba(78,225,255,0.10), 0 0 14px rgba(78,225,255,0.08);
   }
+  input[type="email"]::placeholder,
+  input[type="text"]::placeholder,
+  input[type="number"]::placeholder { color: #8C97A2; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
   /* ── BUTTONS ───────────────────────────────────────── */
@@ -185,7 +188,7 @@
     resize: vertical; min-height: 180px; line-height: 1.86;
     tab-size: 2;
   }
-  .editor-textarea::placeholder { color: rgba(124,136,148,0.45); }
+  .editor-textarea::placeholder { color: #8C97A2; }
 
   /* ── UPLOAD TAB ────────────────────────────────────── */
   .paste-pane { display: block; }
@@ -751,7 +754,7 @@
       <input type="checkbox" id="terms-consent"
              style="margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--teal);"
              onchange="var b=document.getElementById('runBtn');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed';document.getElementById('errConsent').style.display='none';" />
-      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:var(--text-dim);line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
+      <label for="terms-consent" style="flex:1;min-width:0;font-size:13px;color:#9FAAB4;line-height:1.6;cursor:pointer;font-family:'Figtree',sans-serif;text-transform:none;letter-spacing:0;">I agree to Strategic Flow's <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--teal);text-decoration:none;">Terms of Use</a> and consent to Strategic Flow processing the submitted email content for this assessment. <span style="color:var(--bug-red);font-weight:700;">*</span></label>
     </div>
     <div id="errConsent" style="display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--bug-red);margin-bottom:10px;">Please agree to the Terms of Use to continue.</div>
 
