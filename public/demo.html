@@ -1201,6 +1201,26 @@ function showError(msg) {
   el.style.display = 'block';
 }
 
+function showAssessmentError(msg) {
+  // Re-enable the submit button so user isn't stuck
+  document.getElementById('runBtn').disabled = false;
+  // Add friendly error message to the log
+  addLog(msg, 'error');
+  // Append a Try Again button below the log
+  const log = document.getElementById('statusLog');
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-primary';
+  btn.style.cssText = 'margin-top:16px;font-size:12px;padding:10px 22px;';
+  btn.textContent = 'Try again →';
+  btn.onclick = function() {
+    // Clear the log and go back to the input panel — all fields preserved
+    log.innerHTML = '';
+    document.getElementById('runBtn').disabled = false;
+    showPanel(1);
+  };
+  log.appendChild(btn);
+}
+
 async function runDemo() {
   const consentBox = document.getElementById('terms-consent');
   if (consentBox && !consentBox.checked) {
@@ -1284,21 +1304,21 @@ async function runDemo() {
         } else if (d.status === 'failed') {
           clearInterval(poll);
           clearInterval(stepTimer);
-          addLog('Error: ' + (d.error || 'Assessment failed'), 'error');
+          showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
         } else if (attempts > 90) {
           clearInterval(poll);
           clearInterval(stepTimer);
-          addLog('Error: Assessment timed out — please try again', 'error');
+          showAssessmentError('This one took too long to score. Try again — it usually completes in under 40 seconds.');
         }
       } catch (e) {
         clearInterval(poll);
         clearInterval(stepTimer);
-        addLog('Error: ' + e.message, 'error');
+        showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
       }
     }, 3000);
 
   } catch (err) {
-    addLog('Error: ' + err.message, 'error');
+    showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
     document.getElementById('runBtn').disabled = false;
   }
 }

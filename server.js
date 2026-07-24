@@ -1419,7 +1419,8 @@ async function claudeJSON(prompt, maxTokens = 2000, debugTag = null) {
       }, {
         timeout: 90000
       });
-      const raw = msg.content[0].text.trim();
+      const raw = msg.content.find(b => b.type === 'text')?.text?.trim();
+      if (!raw) throw new Error('claude_no_text_block — model returned only a thinking block or empty content array');
       console.log(`[claudeJSON] response length=${raw.length} stop_reason=${msg.stop_reason}`);
       if (debugTag) {
         console.error(`[${debugTag}] RAW_RESPONSE:`, raw.slice(0, 800));
