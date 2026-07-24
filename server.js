@@ -345,6 +345,7 @@ app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glo
 app.get('/scorecard', (req, res) => res.sendFile(path.join(__dirname, 'public/scorecard.html')));
 app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/assessment.html')));
 app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-email-architecture-study.html')));
+app.get('/saas-changelog-email-architecture', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-changelog-email-architecture.html')));
 
 
 async function callPerplexityVisibility(brand, domain, query) {
