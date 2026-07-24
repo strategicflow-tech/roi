@@ -7,7 +7,7 @@ packages = ["static-web-server"]
 
 [deployment]
 publicDir = "/"
-deploymentTarget = "vm"
+deploymentTarget = "autoscale"
 run = ["node", "server.js"]
 build = ["npm", "install"]
 
