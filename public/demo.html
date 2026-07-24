@@ -1941,7 +1941,7 @@ async function runDemo() {
         } else if (d.status === 'failed') {
           clearInterval(poll);
           clearInterval(stepTimer);
-          showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
+          showAssessmentError('Something went wrong scoring this content. Try again, or paste a shorter excerpt.');
         } else if (attempts > 90) {
           clearInterval(poll);
           clearInterval(stepTimer);
@@ -1950,12 +1950,12 @@ async function runDemo() {
       } catch (e) {
         clearInterval(poll);
         clearInterval(stepTimer);
-        showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
+        showAssessmentError('Something went wrong scoring this content. Try again, or paste a shorter excerpt.');
       }
     }, 3000);
 
   } catch (err) {
-    showAssessmentError('Something went wrong scoring this email. Try again, or paste a shorter excerpt.');
+    showAssessmentError('Something went wrong scoring this content. Try again, or paste a shorter excerpt.');
     document.getElementById('runBtn').disabled = false;
   }
 }

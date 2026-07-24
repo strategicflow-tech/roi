@@ -8664,7 +8664,7 @@ Return ONLY valid JSON:
       }
       // ── End prompt builder ───────────────────────────────────────────────────
 
-      const combined = await claudeJSON(combinedPrompt, 2500);
+      const combined = await claudeJSON(combinedPrompt, 4000);
       if (!combined) throw new Error('Assessment failed');
 
       const diagnostic = combined;
