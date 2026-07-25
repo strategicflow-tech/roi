@@ -9866,7 +9866,8 @@ setupDB().then(async () => {
         const isSessionPro = (capturedSession && capturedSession.isWhyPro === true) ||
           (capturedSession && BYPASS_EMAILS.has(capturedSession.userEmail)) ||
           (capturedSession && BYPASS_EMAILS.has(capturedSession.whyProEmail));
-        if (isSessionPro) {
+        const isAdminBypass = BYPASS_EMAILS.has(capturedSession?.userEmail) || BYPASS_EMAILS.has(capturedSession?.whyProEmail);
+        if (isSessionPro && !isAdminBypass) {
           const userEmail = capturedSession.whyProEmail || capturedSession.userEmail;
           if (userEmail) {
             const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
@@ -9977,7 +9978,8 @@ setupDB().then(async () => {
         const isSessionPro = (capturedSession && capturedSession.isWhyPro === true) ||
           (capturedSession && BYPASS_EMAILS.has(capturedSession.userEmail)) ||
           (capturedSession && BYPASS_EMAILS.has(capturedSession.whyProEmail));
-        if (isSessionPro) {
+        const isAdminBypass = BYPASS_EMAILS.has(capturedSession?.userEmail) || BYPASS_EMAILS.has(capturedSession?.whyProEmail);
+        if (isSessionPro && !isAdminBypass) {
           const userEmail = capturedSession.whyProEmail || capturedSession.userEmail;
           if (userEmail) {
             const excerpt = typeof rawContent === 'string' ? rawContent.slice(0, 200) : '';
