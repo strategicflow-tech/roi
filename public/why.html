@@ -545,7 +545,27 @@
     border-top-color: var(--red);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
+    margin: 0;
+  }
+
+  .loading-ring-wrap {
+    position: relative;
+    width: 48px;
+    height: 48px;
     margin: 0 auto 24px;
+  }
+
+  .load-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0;
+    color: var(--red);
+    pointer-events: none;
   }
 
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -633,11 +653,13 @@
   /* ===== SCANNING TAGS ===== */
   .scan-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
+    align-items: center;
     gap: 8px;
     margin-top: 24px;
-    min-height: 32px;
+    height: 36px;
+    overflow: hidden;
   }
   .scan-tag {
     font-family: 'Space Mono', monospace;
@@ -1311,7 +1333,10 @@
 
   <!-- LOADING -->
   <div id="loading">
-    <div class="loading-ring"></div>
+    <div class="loading-ring-wrap">
+      <div class="loading-ring"></div>
+      <div id="load-pct" class="load-pct">0%</div>
+    </div>
     <div class="loading-text">Analyzing friction...</div>
     <div class="loading-steps">
       <div class="loading-step" id="step-1">↳ Reading structure</div>
@@ -1778,15 +1803,21 @@ function startScanTags() {
   container.innerHTML = '';
   let idx = 0;
   scanTagInterval = setInterval(() => {
+    // Dim all existing tags
     container.querySelectorAll('.scan-tag').forEach(t => {
       t.classList.remove('visible');
       t.classList.add('dimmed');
     });
+    // Add new tag
     const tag = document.createElement('div');
     tag.className = 'scan-tag';
     tag.textContent = DFM_CHECKS[idx % DFM_CHECKS.length];
     container.appendChild(tag);
     requestAnimationFrame(() => requestAnimationFrame(() => tag.classList.add('visible')));
+    // Remove oldest if container exceeds 3 tags
+    while (container.children.length > 3) {
+      container.removeChild(container.firstChild);
+    }
     idx++;
   }, 840);
 }
@@ -1795,6 +1826,29 @@ function stopScanTags() {
   if (scanTagInterval) { clearInterval(scanTagInterval); scanTagInterval = null; }
   const container = document.getElementById('scan-tags');
   if (container) container.innerHTML = '';
+}
+
+// ===== ESTIMATED PROGRESS =====
+let progressPct = 0;
+let progressInterval = null;
+
+function startProgress() {
+  const el = document.getElementById('load-pct');
+  if (!el) return;
+  progressPct = 0;
+  el.textContent = '0%';
+  progressInterval = setInterval(() => {
+    // Decelerate: increment by 4% of remaining gap to 99, minimum 0.3
+    const remaining = 99 - progressPct;
+    progressPct = Math.min(99, progressPct + Math.max(0.3, remaining * 0.04));
+    el.textContent = Math.floor(progressPct) + '%';
+  }, 250);
+}
+
+function stopProgress() {
+  if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+  const el = document.getElementById('load-pct');
+  if (el) el.textContent = '0%';
 }
 
 // ===== STAT REVEAL =====
@@ -2194,12 +2248,14 @@ function showLoading() {
   const as = document.getElementById('assess-status');
   if (as) { as.textContent = '// RUNNING ASSESSMENT...'; as.className = 'assess-status running'; }
   startScanTags();
+  startProgress();
 }
 
 function hideLoading() {
   document.getElementById('loading').style.display = 'none';
   resetLoadingSteps();
   stopScanTags();
+  stopProgress();
 }
 
 function showLimitBlock() {
