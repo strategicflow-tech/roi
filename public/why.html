@@ -1642,6 +1642,19 @@ fetch('/api/why-status').then(r => r.json()).then(d => {
 }).catch(() => {});
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Credits purchase return detection
+  const _cp = new URLSearchParams(window.location.search);
+  if (_cp.get('credits') === 'success') {
+    history.replaceState(null, '', window.location.pathname);
+    const _bn = document.createElement('div');
+    _bn.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#141414;border:1px solid rgba(255,68,34,0.5);border-left:3px solid #FF4422;padding:12px 24px;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#FF4422;z-index:9999;white-space:nowrap;';
+    _bn.textContent = '20 credits added — try your rebuild again.';
+    document.body.appendChild(_bn);
+    setTimeout(() => _bn.remove(), 6000);
+  } else if (_cp.get('credits') === 'cancelled') {
+    history.replaceState(null, '', window.location.pathname);
+  }
+
   const why = document.getElementById('hero-why');
   const tagline = document.getElementById('hero-tagline');
   const scroll = document.getElementById('hero-scroll');
@@ -2403,7 +2416,7 @@ ${input}`;
         fixContent.innerHTML = `<div style="color:var(--red);font-family:'Space Mono',monospace;font-size:12px;padding:8px 0;letter-spacing:0.04em;">You've used all 10 rebuilds for today. Resets at midnight.</div>`;
       } else if (errCode === 'monthly_limit_reached') {
         fixSection.style.display = 'block';
-        fixContent.innerHTML = `<div style="color:var(--red);font-family:'Space Mono',monospace;font-size:12px;padding:8px 0;letter-spacing:0.04em;">You've reached this month's 200 rebuild limit.</div>`;
+        fixContent.innerHTML = `<div style="color:var(--red);font-family:'Space Mono',monospace;font-size:12px;padding:8px 0 4px;letter-spacing:0.04em;">You've reached this month's 200 rebuild limit.</div><button onclick="buyRebuildCredits()" style="margin-top:8px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,68,34,0.6);background:transparent;padding:6px 14px;cursor:pointer;">Buy 20 more for $9 →</button>`;
       } else {
         showLimitBlock();
       }
@@ -2457,6 +2470,20 @@ ${input}`;
     fixBtn.disabled = false;
     rebuildInFlight = false;
     fixContent.textContent = 'Rebuild failed: ' + err.message;
+  }
+}
+
+async function buyRebuildCredits() {
+  try {
+    const resp = await fetch('/api/why-credits-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) throw new Error('checkout_failed');
+    const { url } = await resp.json();
+    if (url) window.location.href = url;
+  } catch (err) {
+    console.error('[buyRebuildCredits]', err.message);
   }
 }
 

@@ -1008,6 +1008,8 @@ async function setupDB() {
       last_login_at           TIMESTAMPTZ
     )
   `).catch(e => console.error('[DB] pro_users:', e.message));
+  await pool.query(`ALTER TABLE pro_users ADD COLUMN IF NOT EXISTS rebuild_credits INTEGER NOT NULL DEFAULT 0`)
+    .catch(e => console.error('[DB] pro_users rebuild_credits col:', e.message));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS why_analyses (
       id                SERIAL PRIMARY KEY,
@@ -5477,6 +5479,31 @@ app.post('/api/why-request-magic-link', async (req, res) => {
   return res.json(generic);
 });
 
+// POST /api/why-credits-checkout — one-time $9 / 20 rebuild credits purchase
+app.post('/api/why-credits-checkout', async (req, res) => {
+  const isProUser = (req.session && req.session.isWhyPro === true) ||
+    (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
+    (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
+  if (!isProUser) return res.status(403).json({ error: 'Pro subscription required' });
+  const email = req.session.whyProEmail || req.session.userEmail;
+  const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{ price: process.env.WHY_CREDITS_PRICE_ID, quantity: 1 }],
+      customer_email: email || undefined,
+      metadata: { type: 'rebuild_credits' },
+      success_url: `${baseUrl}/why.html?credits=success`,
+      cancel_url:  `${baseUrl}/why.html?credits=cancelled`
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('[why-credits-checkout] error:', err.message);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
 // POST /api/why-stripe-webhook
 app.post('/api/why-stripe-webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -5495,26 +5522,36 @@ app.post('/api/why-stripe-webhook', async (req, res) => {
     if (event.type === 'checkout.session.completed') {
       const sess = event.data.object;
       const email = (sess.customer_details?.email || '').toLowerCase().trim();
-      const customerId = sess.customer;
-      const subscriptionId = sess.subscription;
       if (!email) {
         console.error('[why-webhook] no email in checkout session');
         return res.json({ received: true });
       }
-      const token = crypto.randomBytes(32).toString('hex');
-      const expires = new Date(Date.now() + 15 * 60 * 1000);
-      await pool.query(`
-        INSERT INTO pro_users (email, stripe_customer_id, stripe_subscription_id, status, magic_token, magic_token_expires_at)
-        VALUES ($1, $2, $3, 'active', $4, $5)
-        ON CONFLICT (email) DO UPDATE SET
-          stripe_customer_id      = EXCLUDED.stripe_customer_id,
-          stripe_subscription_id  = EXCLUDED.stripe_subscription_id,
-          status                  = 'active',
-          magic_token             = EXCLUDED.magic_token,
-          magic_token_expires_at  = EXCLUDED.magic_token_expires_at
-      `, [email, customerId, subscriptionId, token, expires]);
-      await sendWhyProMagicLink(email, token);
-      console.log('[why-webhook] checkout.session.completed — pro_user upserted for', email);
+      if (sess.mode === 'payment' && sess.metadata?.type === 'rebuild_credits') {
+        // One-time credit pack purchase — increment rebuild_credits by 20
+        await pool.query(
+          `UPDATE pro_users SET rebuild_credits = rebuild_credits + 20 WHERE email = $1`,
+          [email]
+        );
+        console.log('[why-webhook] rebuild_credits +20 for', email);
+      } else {
+        // Recurring subscription — upsert pro_users and send magic link
+        const customerId = sess.customer;
+        const subscriptionId = sess.subscription;
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 15 * 60 * 1000);
+        await pool.query(`
+          INSERT INTO pro_users (email, stripe_customer_id, stripe_subscription_id, status, magic_token, magic_token_expires_at)
+          VALUES ($1, $2, $3, 'active', $4, $5)
+          ON CONFLICT (email) DO UPDATE SET
+            stripe_customer_id      = EXCLUDED.stripe_customer_id,
+            stripe_subscription_id  = EXCLUDED.stripe_subscription_id,
+            status                  = 'active',
+            magic_token             = EXCLUDED.magic_token,
+            magic_token_expires_at  = EXCLUDED.magic_token_expires_at
+        `, [email, customerId, subscriptionId, token, expires]);
+        await sendWhyProMagicLink(email, token);
+        console.log('[why-webhook] checkout.session.completed — pro_user upserted for', email);
+      }
     } else if (event.type === 'customer.subscription.deleted') {
       const sub = event.data.object;
       await pool.query("UPDATE pro_users SET status = 'cancelled' WHERE stripe_subscription_id = $1", [sub.id]);
@@ -9931,8 +9968,16 @@ setupDB().then(async () => {
             return res.status(429).json({ error: 'daily_limit_reached', limit: 10, resets: 'midnight' });
           }
           if (monthlyCount >= 200) {
-            appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
-            return res.status(429).json({ error: 'monthly_limit_reached', limit: 200 });
+            // Try to consume a purchased credit before blocking
+            const creditUpdate = await pool.query(
+              `UPDATE pro_users SET rebuild_credits = rebuild_credits - 1 WHERE email = $1 AND rebuild_credits > 0 RETURNING rebuild_credits`,
+              [proEmail]
+            );
+            if (creditUpdate.rowCount === 0) {
+              appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
+              return res.status(429).json({ error: 'monthly_limit_reached', limit: 200, rebuild_credits: 0 });
+            }
+            // Credit consumed — allow the rebuild to proceed
           }
         }
       }
