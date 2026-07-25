@@ -1604,6 +1604,7 @@
 let contentType = 'Email';
 let contentTypeContext = '';
 let outputData = null;
+let rebuildInFlight = false;
 
 const CONTENT_TYPE_CONTEXTS = {
   'Onboarding email': 'Focus on activation friction and sequence gaps: Does the email define a concrete "first win" the reader can achieve? Is the next step specific and low-effort, or does it demand too much too soon? Are there missing moments of reassurance that reduce new-user anxiety? Does the email assume too much prior knowledge?',
@@ -2328,6 +2329,8 @@ function resetApp() {
 // ===== FIX THIS =====
 async function runFix() {
   if (!outputData) return;
+  if (rebuildInFlight) return;
+  rebuildInFlight = true;
 
   const input = document.getElementById('content-input').value.trim();
   const fixBtn = document.getElementById('fix-btn');
@@ -2387,12 +2390,23 @@ ${input}`;
     });
 
     if (response.status === 429) {
+      let errCode = 'limit_reached';
+      try { const d = await response.json(); errCode = d.error || errCode; } catch (_) {}
       clearInterval(fixStepInterval);
       resetFixSteps();
       fixLoading.style.display = 'none';
       fixBtn.textContent = 'Rebuild with WHY.';
       fixBtn.disabled = false;
-      showLimitBlock();
+      rebuildInFlight = false;
+      if (errCode === 'daily_limit_reached') {
+        fixSection.style.display = 'block';
+        fixContent.innerHTML = `<div style="color:var(--red);font-family:'Space Mono',monospace;font-size:12px;padding:8px 0;letter-spacing:0.04em;">You've used all 10 rebuilds for today. Resets at midnight.</div>`;
+      } else if (errCode === 'monthly_limit_reached') {
+        fixSection.style.display = 'block';
+        fixContent.innerHTML = `<div style="color:var(--red);font-family:'Space Mono',monospace;font-size:12px;padding:8px 0;letter-spacing:0.04em;">You've reached this month's 200 rebuild limit.</div>`;
+      } else {
+        showLimitBlock();
+      }
       return;
     }
 
@@ -2404,6 +2418,7 @@ ${input}`;
       fixLoading.style.display = 'none';
       fixBtn.textContent = 'Rebuild with WHY.';
       fixBtn.disabled = false;
+      rebuildInFlight = false;
       showLimitBlock();
       return;
     }
@@ -2419,6 +2434,7 @@ ${input}`;
         fixLoading.style.display = 'none';
         fixBtn.textContent = 'Rebuild with WHY.';
         fixBtn.disabled = false;
+        rebuildInFlight = false;
         revealFixContent(result.text || '');
         fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
@@ -2428,6 +2444,7 @@ ${input}`;
         fixLoading.style.display = 'none';
         fixBtn.textContent = 'Rebuild with WHY.';
         fixBtn.disabled = false;
+        rebuildInFlight = false;
         fixContent.textContent = 'Rebuild failed: ' + errMsg;
       }
     );
@@ -2438,6 +2455,7 @@ ${input}`;
     fixLoading.style.display = 'none';
     fixBtn.textContent = 'Rebuild with WHY.';
     fixBtn.disabled = false;
+    rebuildInFlight = false;
     fixContent.textContent = 'Rebuild failed: ' + err.message;
   }
 }

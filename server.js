@@ -9907,6 +9907,35 @@ setupDB().then(async () => {
       }
       whyUsage[ip] = used + 1;
     }
+    // Per-Pro-user daily / monthly rebuild cap (admins bypass)
+    if (isProUser) {
+      const isAdminBypass = BYPASS_EMAILS.has(req.session?.userEmail) || BYPASS_EMAILS.has(req.session?.whyProEmail);
+      if (!isAdminBypass) {
+        const proEmail = req.session.whyProEmail || req.session.userEmail;
+        if (proEmail) {
+          const [dailyRes, monthlyRes] = await Promise.all([
+            pool.query(
+              `SELECT COUNT(*) FROM why_analyses WHERE user_email = $1 AND action_type = 'rebuild' AND created_at >= CURRENT_DATE`,
+              [proEmail]
+            ),
+            pool.query(
+              `SELECT COUNT(*) FROM why_analyses WHERE user_email = $1 AND action_type = 'rebuild' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())`,
+              [proEmail]
+            )
+          ]);
+          const dailyCount  = parseInt(dailyRes.rows[0].count, 10);
+          const monthlyCount = parseInt(monthlyRes.rows[0].count, 10);
+          if (dailyCount >= 10) {
+            appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
+            return res.status(429).json({ error: 'daily_limit_reached', limit: 10, resets: 'midnight' });
+          }
+          if (monthlyCount >= 200) {
+            appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });
+            return res.status(429).json({ error: 'monthly_limit_reached', limit: 200 });
+          }
+        }
+      }
+    }
     if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
     // Phase 1: create job row, return id immediately
