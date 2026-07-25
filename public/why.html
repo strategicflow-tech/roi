@@ -604,6 +604,89 @@
     transform: translateY(0);
   }
 
+  /* ===== ASSESSMENT STATUS HEADER ===== */
+  .assess-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--red);
+    text-align: center;
+    padding: 12px 0 0;
+    display: none;
+  }
+  .assess-status.running {
+    display: block;
+    animation: assessPulse 2.8s ease-in-out infinite;
+  }
+  .assess-status.complete {
+    display: block;
+    animation: none;
+    opacity: 1;
+    padding-bottom: 16px;
+  }
+  @keyframes assessPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+  }
+
+  /* ===== SCANNING TAGS ===== */
+  .scan-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+    min-height: 32px;
+  }
+  .scan-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--red);
+    border: 1px solid rgba(255,68,34,0.5);
+    background: rgba(255,68,34,0.05);
+    padding: 4px 10px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .scan-tag.visible { opacity: 1; transform: translateY(0); }
+  .scan-tag.dimmed  { opacity: 0.28; }
+
+  /* ===== STAT REVEAL ===== */
+  .stat-reveal {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 24px;
+  }
+  .stat-card-diag {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+  }
+  .stat-card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 10px;
+  }
+  .stat-card-number {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--red);
+  }
+  .stat-card-number.green { color: var(--green); }
+  @media (max-width: 500px) {
+    .stat-reveal { flex-direction: column; }
+  }
+
   /* ===== OUTPUT ===== */
   #output {
     display: none;
@@ -1224,6 +1307,8 @@
     <div class="error-box" id="error-box"></div>
   </div>
 
+  <div class="assess-status" id="assess-status"></div>
+
   <!-- LOADING -->
   <div id="loading">
     <div class="loading-ring"></div>
@@ -1234,10 +1319,14 @@
       <div class="loading-step" id="step-3">↳ Predicting reader questions</div>
       <div class="loading-step" id="step-4">↳ Scoring and ranking</div>
     </div>
+    <div class="scan-tags" id="scan-tags"></div>
   </div>
 
   <!-- OUTPUT -->
   <div id="output">
+
+    <!-- Stat reveal -->
+    <div class="stat-reveal" id="stat-reveal" style="display:none;"></div>
 
     <!-- Score card -->
     <div class="score-card" id="score-card">
@@ -1671,6 +1760,71 @@ function resetLoadingSteps() {
   });
 }
 
+// ===== SCANNING TAGS =====
+const DFM_CHECKS = [
+  'Feature-First Bias',
+  'Guest Language CTA',
+  'Filing Label Subject',
+  'Consequence-After-Caveat',
+  'Missing Visual Hierarchy',
+  'Zero Social Proof',
+  'Unanswered Question Load',
+];
+let scanTagInterval = null;
+
+function startScanTags() {
+  const container = document.getElementById('scan-tags');
+  if (!container) return;
+  container.innerHTML = '';
+  let idx = 0;
+  scanTagInterval = setInterval(() => {
+    container.querySelectorAll('.scan-tag').forEach(t => {
+      t.classList.remove('visible');
+      t.classList.add('dimmed');
+    });
+    const tag = document.createElement('div');
+    tag.className = 'scan-tag';
+    tag.textContent = DFM_CHECKS[idx % DFM_CHECKS.length];
+    container.appendChild(tag);
+    requestAnimationFrame(() => requestAnimationFrame(() => tag.classList.add('visible')));
+    idx++;
+  }, 840);
+}
+
+function stopScanTags() {
+  if (scanTagInterval) { clearInterval(scanTagInterval); scanTagInterval = null; }
+  const container = document.getElementById('scan-tags');
+  if (container) container.innerHTML = '';
+}
+
+// ===== STAT REVEAL =====
+function showStatReveal(data) {
+  const score = data.friction_score;
+  const fpLen = data.friction_points.length;
+  const el    = document.getElementById('stat-reveal');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="stat-card-diag">
+      <div class="stat-card-label">Friction Score</div>
+      <div class="stat-card-number${score >= 6 ? '' : ' green'}" id="sr-score">0/10</div>
+    </div>
+    <div class="stat-card-diag">
+      <div class="stat-card-label">Friction Points Found</div>
+      <div class="stat-card-number" id="sr-fp">0/7</div>
+    </div>`;
+  el.style.display = 'flex';
+  const t0 = performance.now();
+  function tick(ts) {
+    const p = Math.min((ts - t0) / 720, 1);
+    const srScore = document.getElementById('sr-score');
+    const srFp    = document.getElementById('sr-fp');
+    if (srScore) srScore.textContent = Math.round(p * score) + '/10';
+    if (srFp)    srFp.textContent    = Math.round(p * fpLen) + '/7';
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 // ===== FIX REBUILD STEPS =====
 function animateFixSteps() {
   const steps = ['fix-step-1','fix-step-2','fix-step-3','fix-step-4'];
@@ -1899,6 +2053,17 @@ ${input}`;
 
 // ===== RENDER =====
 function renderOutput(data) {
+  // Assessment status: complete
+  const as = document.getElementById('assess-status');
+  if (as) { as.textContent = '// ASSESSMENT COMPLETE'; as.className = 'assess-status complete'; }
+
+  // Stat reveal block
+  showStatReveal(data);
+
+  // Dynamic section counts
+  document.getElementById('why-count').textContent = data.friction_points.length + ' friction points';
+  document.getElementById('q-count').textContent   = data.questions.length + ' predicted questions';
+
   // Score
   document.getElementById('score-num').textContent = data.friction_score;
   document.getElementById('score-verdict').textContent = data.verdict;
@@ -2026,11 +2191,15 @@ function showLoading() {
   document.getElementById('output').style.display = 'none';
   document.getElementById('output').classList.remove('visible');
   document.getElementById('loading').style.display = 'block';
+  const as = document.getElementById('assess-status');
+  if (as) { as.textContent = '// RUNNING ASSESSMENT...'; as.className = 'assess-status running'; }
+  startScanTags();
 }
 
 function hideLoading() {
   document.getElementById('loading').style.display = 'none';
   resetLoadingSteps();
+  stopScanTags();
 }
 
 function showLimitBlock() {
@@ -2090,6 +2259,12 @@ function resetApp() {
 
   // Reset friction bar
   document.getElementById('friction-bar').style.width = '0';
+
+  // Reset status header and stat reveal
+  const as = document.getElementById('assess-status');
+  if (as) { as.className = 'assess-status'; as.textContent = ''; }
+  const sr = document.getElementById('stat-reveal');
+  if (sr) { sr.style.display = 'none'; sr.innerHTML = ''; }
 
   document.getElementById('input-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
