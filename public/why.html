@@ -501,6 +501,34 @@
   .loading-step.active { opacity: 1; color: var(--red); }
   .loading-step.done { opacity: 0.5; color: var(--green); }
 
+  /* ===== FIX-CONTENT SCAN BEAM ===== */
+  .fix-beam {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--red);
+    box-shadow: 0 0 10px rgba(255,68,34,0.4),
+                0 -8px 20px rgba(255,68,34,0.12),
+                0  8px 20px rgba(255,68,34,0.12);
+    pointer-events: none;
+    top: 0;
+    z-index: 2;
+    transition: top 0.52s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+  }
+
+  /* ===== FIX-CONTENT PROGRESSIVE CHUNK REVEAL ===== */
+  .fix-chunk {
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    white-space: pre-wrap;
+  }
+  .fix-chunk.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   /* ===== OUTPUT ===== */
   #output {
     display: none;
@@ -1205,8 +1233,14 @@
         <div id="fix-loading" style="display:none; padding:32px; text-align:center;">
           <div class="loading-ring"></div>
           <div class="loading-text">Rebuilding...</div>
+          <div class="loading-steps">
+            <div class="loading-step" id="fix-step-1">↳ Rewriting structure</div>
+            <div class="loading-step" id="fix-step-2">↳ Resolving friction points</div>
+            <div class="loading-step" id="fix-step-3">↳ Answering predicted questions</div>
+            <div class="loading-step" id="fix-step-4">↳ Finalizing rebuild</div>
+          </div>
         </div>
-        <div id="fix-content" style="padding:24px; font-size:14px; color:#DDDDDD; line-height:1.8; white-space:pre-wrap; font-family:'Inter',sans-serif;"></div>
+        <div id="fix-content" style="position:relative; overflow:hidden; padding:24px; font-size:14px; color:#DDDDDD; line-height:1.8; font-family:'Inter',sans-serif;"></div>
       </div>
       <div style="padding:12px 16px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
         <button class="action-btn" onclick="copyFix()">Copy fixed version</button>
@@ -1552,6 +1586,100 @@ function resetLoadingSteps() {
     const el = document.getElementById(id);
     el.classList.remove('active', 'done');
   });
+}
+
+// ===== FIX REBUILD STEPS =====
+function animateFixSteps() {
+  const steps = ['fix-step-1','fix-step-2','fix-step-3','fix-step-4'];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i > 0) {
+      document.getElementById(steps[i - 1]).classList.remove('active');
+      document.getElementById(steps[i - 1]).classList.add('done');
+    }
+    if (i < steps.length) {
+      document.getElementById(steps[i]).classList.add('active');
+      i++;
+    } else {
+      clearInterval(interval);
+    }
+  }, 800);
+  return interval;
+}
+
+function resetFixSteps() {
+  ['fix-step-1','fix-step-2','fix-step-3','fix-step-4'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active', 'done');
+  });
+}
+
+// ===== FIX CONTENT PROGRESSIVE REVEAL =====
+function revealFixContent(text) {
+  const fixContent = document.getElementById('fix-content');
+  fixContent.innerHTML = '';
+
+  // Split into paragraph-level chunks; further split very long ones
+  const rawChunks = text.split(/\n\n+/).filter(c => c.trim());
+  const chunks = [];
+  rawChunks.forEach(chunk => {
+    const lines = chunk.split('\n');
+    if (lines.length <= 5) {
+      chunks.push(chunk);
+    } else {
+      for (let i = 0; i < lines.length; i += 4) {
+        chunks.push(lines.slice(i, i + 4).join('\n'));
+      }
+    }
+  });
+
+  if (chunks.length === 0) {
+    fixContent.textContent = text;
+    return;
+  }
+
+  // Insert scan beam
+  const beam = document.createElement('div');
+  beam.className = 'fix-beam';
+  fixContent.appendChild(beam);
+
+  let chunkIdx = 0;
+  const REVEAL_DELAY = 160; // ms between chunks
+
+  function revealNext() {
+    if (chunkIdx >= chunks.length) {
+      // Fade out beam after last chunk settles
+      setTimeout(() => {
+        beam.style.opacity = '0';
+        setTimeout(() => { if (beam.parentNode) beam.parentNode.removeChild(beam); }, 450);
+      }, 300);
+      return;
+    }
+
+    const chunkDiv = document.createElement('div');
+    chunkDiv.className = 'fix-chunk';
+    // Re-add double newline spacing between paragraphs via margin
+    chunkDiv.style.marginBottom = chunkIdx < chunks.length - 1 ? '1.4em' : '0';
+    chunkDiv.textContent = chunks[chunkIdx];
+    // Insert before beam so beam stays at the bottom
+    fixContent.insertBefore(chunkDiv, beam);
+
+    // Trigger CSS transition on next paint
+    requestAnimationFrame(() => requestAnimationFrame(() => chunkDiv.classList.add('visible')));
+
+    // Advance beam to just below the newly added chunk
+    setTimeout(() => {
+      let totalH = 24; // top padding of #fix-content
+      fixContent.querySelectorAll('.fix-chunk').forEach(d => { totalH += d.offsetHeight + parseFloat(d.style.marginBottom || 0); });
+      beam.style.top = totalH + 'px';
+    }, 60);
+
+    chunkIdx++;
+    setTimeout(revealNext, REVEAL_DELAY);
+  }
+
+  // Brief pause so beam renders at 0 before first chunk
+  setTimeout(revealNext, 80);
 }
 
 // ===== ASYNC JOB POLLING =====
@@ -1903,8 +2031,10 @@ async function runFix() {
       fixSection.style.transform = 'translateY(0)';
     }, 50);
   });
+  resetFixSteps();
   fixLoading.style.display = 'block';
-  fixContent.textContent = '';
+  fixContent.innerHTML = '';
+  const fixStepInterval = animateFixSteps();
 
   const frictionSummary = outputData.friction_points.map((p, i) =>
     `${i+1}. [${p.impact}] ${p.title}: ${p.description}`
@@ -1943,6 +2073,8 @@ ${input}`;
     });
 
     if (response.status === 429) {
+      clearInterval(fixStepInterval);
+      resetFixSteps();
       fixLoading.style.display = 'none';
       fixBtn.textContent = 'Rebuild with WHY.';
       fixBtn.disabled = false;
@@ -1953,6 +2085,8 @@ ${input}`;
     const data = await response.json();
 
     if (data.error === 'limit_reached') {
+      clearInterval(fixStepInterval);
+      resetFixSteps();
       fixLoading.style.display = 'none';
       fixBtn.textContent = 'Rebuild with WHY.';
       fixBtn.disabled = false;
@@ -1966,13 +2100,17 @@ ${input}`;
     pollWhyJob(
       data.id,
       (result) => {
+        clearInterval(fixStepInterval);
+        resetFixSteps();
         fixLoading.style.display = 'none';
         fixBtn.textContent = 'Rebuild with WHY.';
         fixBtn.disabled = false;
-        fixContent.textContent = result.text || '';
+        revealFixContent(result.text || '');
         fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
       (errMsg) => {
+        clearInterval(fixStepInterval);
+        resetFixSteps();
         fixLoading.style.display = 'none';
         fixBtn.textContent = 'Rebuild with WHY.';
         fixBtn.disabled = false;
@@ -1981,6 +2119,8 @@ ${input}`;
     );
 
   } catch (err) {
+    clearInterval(fixStepInterval);
+    resetFixSteps();
     fixLoading.style.display = 'none';
     fixBtn.textContent = 'Rebuild with WHY.';
     fixBtn.disabled = false;
