@@ -44,16 +44,22 @@
     overflow: hidden;
   }
 
-  /* Subtle grid background */
+  /* Subtle grid background — drifts diagonally like an active radar */
   #hero::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: -60px; /* oversized so drift doesn't expose edges */
     background-image:
       linear-gradient(rgba(255,68,34,0.03) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,68,34,0.03) 1px, transparent 1px);
     background-size: 60px 60px;
     pointer-events: none;
+    animation: gridDrift 50s linear infinite;
+  }
+
+  @keyframes gridDrift {
+    0%   { background-position: 0 0; }
+    100% { background-position: 60px 60px; }
   }
 
   /* Glow behind WHY */
@@ -84,6 +90,12 @@
   .hero-why .dot {
     color: var(--red);
     display: inline-block;
+    animation: dotPulse 3.5s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { text-shadow: 0 0 4px rgba(255,68,34,0.3); }
+    50%       { text-shadow: 0 0 18px rgba(255,68,34,0.75), 0 0 32px rgba(255,68,34,0.3); }
   }
 
   .hero-why .tm {
@@ -97,6 +109,35 @@
   }
 
   .hero-why.animate .tm { opacity: 1; }
+
+  /* ===== STATUS BADGE ===== */
+  .hero-status {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--red);
+    border: 1px solid rgba(255,68,34,0.35);
+    background: rgba(255,68,34,0.04);
+    padding: 4px 12px;
+    margin-top: 20px;
+    opacity: 0;
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.5s ease;
+    animation: none;
+  }
+
+  .hero-status.visible {
+    opacity: 1;
+    animation: statusPulse 3.8s ease-in-out infinite;
+    animation-delay: 0.5s;
+  }
+
+  @keyframes statusPulse {
+    0%, 100% { opacity: 0.55; }
+    50%       { opacity: 1; }
+  }
 
   .hero-byline {
     font-family: 'Space Mono', monospace;
@@ -387,11 +428,42 @@
     transition: all 0.15s;
   }
 
-  .type-btn:hover { border-color: var(--red); color: var(--white); }
-  .type-btn.active { background: var(--red); border-color: var(--red); color: var(--white); }
+  .type-btn:hover { border-color: var(--red); color: var(--white); box-shadow: 0 0 12px rgba(255,68,34,0.3); }
+  .type-btn.active { background: var(--red); border-color: var(--red); color: var(--white); box-shadow: 0 0 16px rgba(255,68,34,0.4); }
 
   .textarea-wrap {
     position: relative;
+  }
+
+  /* HUD corner-bracket accents */
+  .textarea-wrap::before,
+  .textarea-wrap::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Top-left + bottom-right corners */
+  .textarea-wrap::before {
+    inset: -1px;
+    background:
+      linear-gradient(var(--red), var(--red)) 0    0    / 14px 1px  no-repeat,
+      linear-gradient(var(--red), var(--red)) 0    0    / 1px  14px no-repeat,
+      linear-gradient(var(--red), var(--red)) 100% 100% / 14px 1px  no-repeat,
+      linear-gradient(var(--red), var(--red)) 100% 100% / 1px  14px no-repeat;
+    opacity: 0.45;
+  }
+
+  /* Top-right + bottom-left corners */
+  .textarea-wrap::after {
+    inset: -1px;
+    background:
+      linear-gradient(var(--red), var(--red)) 100% 0    / 14px 1px  no-repeat,
+      linear-gradient(var(--red), var(--red)) 100% 0    / 1px  14px no-repeat,
+      linear-gradient(var(--red), var(--red)) 0    100% / 14px 1px  no-repeat,
+      linear-gradient(var(--red), var(--red)) 0    100% / 1px  14px no-repeat;
+    opacity: 0.45;
   }
 
   #content-input {
@@ -410,7 +482,10 @@
     caret-color: var(--red);
   }
 
-  #content-input:focus { border-color: var(--red); }
+  #content-input:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(255,68,34,0.08), 0 0 20px rgba(255,68,34,0.15);
+  }
 
   #content-input::placeholder { color: var(--dim); }
 
@@ -445,7 +520,7 @@
     gap: 10px;
   }
 
-  #analyze-btn:hover { opacity: 0.9; }
+  #analyze-btn:hover { opacity: 0.9; box-shadow: 0 0 20px rgba(255,68,34,0.35); }
   #analyze-btn:active { transform: scale(0.98); }
   #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -1037,6 +1112,7 @@
 <!-- HERO -->
 <section id="hero">
   <div class="hero-why" id="hero-why">WHY<span class="dot">.</span><span class="tm">™</span></div>
+  <div class="hero-status" id="hero-status">// SYSTEM READY — AWAITING INPUT</div>
   <div class="hero-byline" id="hero-byline">Powered by the Decision Friction Model™</div>
   <p class="hero-tagline" id="hero-tagline">
     Paste <span>anything</span>. Find out <span>why it didn't work</span>.
@@ -1458,6 +1534,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const byline = document.getElementById('hero-byline');
 
   setTimeout(() => why.classList.add('animate'), 200);
+  setTimeout(() => { const s = document.getElementById('hero-status'); if (s) s.classList.add('visible'); }, 1100);
   setTimeout(() => { if (byline) byline.classList.add('visible'); }, 1400);
   setTimeout(() => tagline.classList.add('visible'), 1700);
   setTimeout(() => scroll.classList.add('visible'), 2200);
