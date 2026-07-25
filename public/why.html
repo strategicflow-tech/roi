@@ -1576,20 +1576,26 @@ window.addEventListener('DOMContentLoaded', () => {
             fixSection.style.display   = 'block';
             fixSection.style.opacity   = '1';
             fixSection.style.transform = 'translateY(0)';
+            resetFixSteps();
             fixLoading.style.display   = 'block';
-            fixContent.textContent     = '';
+            fixContent.innerHTML       = '';
             fixBtn.disabled            = true;
             fixBtn.textContent         = 'Resuming rebuild...';
+            const resumeFixInterval = animateFixSteps();
             pollWhyJob(
               job.id,
               (result) => {
+                clearInterval(resumeFixInterval);
+                resetFixSteps();
                 fixLoading.style.display = 'none';
                 fixBtn.textContent       = 'Rebuild with WHY.';
                 fixBtn.disabled          = false;
-                fixContent.textContent   = result.text || '';
+                revealFixContent(result.text || '');
                 fixSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
               },
               (errMsg) => {
+                clearInterval(resumeFixInterval);
+                resetFixSteps();
                 fixLoading.style.display = 'none';
                 fixBtn.textContent       = 'Rebuild with WHY.';
                 fixBtn.disabled          = false;
