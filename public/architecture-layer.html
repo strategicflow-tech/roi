@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Architecture Layer · Full Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080B12; --grid: rgba(150,180,220,0.08);
+    --ink:#E4EAF2; --muted:#8290A6; --line: rgba(150,180,220,0.18);
+    --signal:#FFB74D; --decision:#9B8BE8; --action:#3DDC97; --feedback:#FF6B57;
+    --accent:#FFB74D; --glow: rgba(255,183,77,0.3); --accent-soft: rgba(255,183,77,0.07);
+  }
+  body[data-zone="signal"]{--accent:var(--signal);   --glow:rgba(255,183,77,0.42);  --accent-soft:rgba(255,183,77,0.1);}
+  body[data-zone="decision"]{--accent:var(--decision);--glow:rgba(155,139,232,0.45); --accent-soft:rgba(155,139,232,0.11);}
+  body[data-zone="action"]{--accent:var(--action);    --glow:rgba(61,220,151,0.42); --accent-soft:rgba(61,220,151,0.11);}
+  body[data-zone="feedback"]{--accent:var(--feedback);--glow:rgba(255,107,87,0.42); --accent-soft:rgba(255,107,87,0.11);}
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;line-height:1.62;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background 500ms ease;}
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:-0.01em;line-height:1.14;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  em{font-style:normal;color:var(--accent);}
+  a{color:inherit;}
+
+  .grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:42px 42px;}
+  .glow-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(ellipse 70% 40% at 50% 0%, var(--accent-soft), transparent 60%);
+    transition:background 600ms ease;}
+  .scan{position:fixed;left:0;right:0;height:220px;z-index:0;pointer-events:none;
+    background:linear-gradient(to bottom, transparent, var(--accent-soft) 55%, transparent);
+    animation:scan 11s linear infinite;}
+  @keyframes scan{0%{top:-230px;}100%{top:106vh;}}
+
+  header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:15px 22px;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;
+    letter-spacing:0.14em;text-transform:uppercase;background:rgba(8,11,18,0.88);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:9px;}
+  header i{width:8px;height:8px;background:var(--accent);border-radius:1px;
+    box-shadow:0 0 10px var(--glow);animation:pulse 2.2s ease-in-out infinite;transition:background 400ms ease;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .zonepips{display:flex;gap:6px;}
+  .zonepips i{width:6px;height:6px;border-radius:1px;background:var(--line);box-shadow:none;animation:none;}
+  .zonepips i.on{box-shadow:0 0 8px currentColor;}
+  .zonepips i.z-signal.on{background:var(--signal);color:var(--signal);}
+  .zonepips i.z-decision.on{background:var(--decision);color:var(--decision);}
+  .zonepips i.z-action.on{background:var(--action);color:var(--action);}
+  .zonepips i.z-feedback.on{background:var(--feedback);color:var(--feedback);}
+
+  .progress{position:fixed;top:0;left:0;height:2px;z-index:30;background:var(--accent);
+    box-shadow:0 0 12px var(--glow);width:0%;transition:width 100ms linear, background 400ms ease;}
+
+  /* HUD TICKER */
+  .ticker-wrap{position:relative;z-index:2;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,0.015);overflow:hidden;padding:8px 0;margin:0 0 6px;}
+  .ticker{display:flex;gap:38px;white-space:nowrap;animation:tickmove 22s linear infinite;
+    font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--muted);}
+  .ticker span b{color:var(--signal);}
+  @keyframes tickmove{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+  .wrap{max-width:660px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+
+  /* HERO */
+  .hero{padding:44px 0 8px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;letter-spacing:0.16em;
+    text-transform:uppercase;color:var(--signal);margin-bottom:16px;}
+  h1{font-size:clamp(2rem,8.5vw,2.9rem);margin-bottom:16px;}
+  .lead{font-size:1.05rem;color:#C4CEDB;max-width:58ch;margin-bottom:8px;}
+
+  /* hero circuit */
+  .hero-circuit{margin:22px 0 6px;}
+  .hero-circuit svg{width:100%;height:auto;display:block;}
+  .trace{stroke:rgba(150,180,220,0.22);stroke-width:1.4;fill:none;}
+  .trace-active{stroke-dasharray:6 5000;stroke-dashoffset:5000;animation:dash 3.2s linear infinite;}
+  @keyframes dash{to{stroke-dashoffset:0;}}
+  .hnode{fill:#0E1420;stroke-width:2;}
+  .hlabel{font-family:'IBM Plex Mono',monospace;font-size:8px;fill:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+
+  .statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:20px 0 6px;}
+  .stat{border:1px solid var(--line);border-radius:2px;padding:11px 6px;text-align:center;background:rgba(255,255,255,0.02);}
+  .stat .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.25rem;color:var(--signal);}
+  .stat .l{font-family:'IBM Plex Mono',monospace;font-size:0.54rem;color:var(--muted);letter-spacing:0.04em;text-transform:uppercase;margin-top:3px;}
+
+  /* SECTION */
+  .zone{padding:52px 0;scroll-margin-top:60px;position:relative;}
+  .zone-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;
+    font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--accent);color:var(--accent);
+    border-radius:2px;padding:5px 11px;margin-bottom:18px;transition:color 400ms ease,border-color 400ms ease;}
+  .zone-eyebrow b{width:6px;height:6px;background:var(--accent);border-radius:1px;transition:background 400ms ease;}
+  .zone h2{font-size:clamp(1.5rem,6vw,2.1rem);margin-bottom:16px;}
+  .zone h3.sub{font-size:1.05rem;margin:26px 0 12px;color:var(--ink);}
+  .zone p.body{font-size:0.97rem;color:#B4C0D0;margin-bottom:14px;}
+
+  .fadein{opacity:0;transform:translateY(18px);transition:opacity 700ms ease, transform 700ms ease;}
+  .fadein.in{opacity:1;transform:translateY(0);}
+
+  .cause{border-left:2px solid var(--line);padding:12px 0 12px 16px;margin-bottom:14px;}
+  .cause .tag{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--accent);
+    letter-spacing:0.08em;text-transform:uppercase;transition:color 400ms ease;}
+  .cause p{font-size:0.94rem;color:#C4CEDB;margin-top:4px;}
+
+  .loopwrap{display:flex;flex-direction:column;gap:0;margin:26px 0;}
+  .loop-node{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:2px;
+    padding:13px 15px;margin-bottom:8px;background:rgba(255,255,255,0.02);}
+  .loop-node .d{width:9px;height:9px;border-radius:2px;flex:none;}
+  .loop-node .t b{display:block;font-family:'Space Grotesk',sans-serif;font-size:0.94rem;font-weight:600;}
+  .loop-node .t span{font-family:'IBM Plex Mono',monospace;font-size:0.76rem;color:var(--muted);}
+  .loop-arrow{text-align:center;color:var(--muted);font-size:0.9rem;margin:1px 0;font-family:'IBM Plex Mono',monospace;}
+
+  .compare{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0;}
+  .compare .c{border:1px solid var(--line);border-radius:2px;padding:14px;background:rgba(255,255,255,0.02);}
+  .compare .c .k{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;}
+  .compare .c.before .k{color:var(--feedback);}
+  .compare .c.after .k{color:var(--action);}
+  .compare .c p{font-size:0.93rem;color:#C4CEDB;}
+
+  .rule-box{border:1px solid var(--accent);border-radius:2px;padding:16px;background:var(--accent-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:0.85rem;color:var(--ink);margin:16px 0;
+    transition:border-color 400ms ease, background 400ms ease;}
+
+  .metric-callout{display:flex;align-items:center;gap:14px;border:1px solid var(--accent);border-radius:2px;
+    padding:14px 16px;margin:16px 0;background:var(--accent-soft);transition:border-color 400ms ease, background 400ms ease;}
+  .metric-callout .mk{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.5rem;color:var(--accent);flex:none;}
+  .metric-callout p{font-size:0.9rem;color:#C4CEDB;}
+
+  .card{border:1px solid var(--line);border-radius:2px;padding:16px;margin-bottom:12px;
+    background:rgba(255,255,255,0.02);cursor:pointer;}
+  .card .q{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.98rem;}
+  .card .a{display:none;margin-top:10px;font-size:0.92rem;color:#B4C0D0;border-top:1px solid var(--line);padding-top:10px;}
+  .card.open .a{display:block;}
+  .card .tap{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;color:var(--muted);margin-top:8px;}
+  .card.open .tap{display:none;}
+
+  .boundary{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0;}
+  .boundary .b{border:1px solid var(--line);border-radius:2px;padding:14px;background:rgba(255,255,255,0.02);}
+  .boundary .b .k{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;}
+  .boundary .safe .k{color:var(--action);}
+  .boundary .never .k{color:var(--feedback);}
+  .boundary p{font-size:0.93rem;color:#C4CEDB;}
+
+  /* ===== ANIMATED DIAGRAMS PER LAYER ===== */
+  .diagram{margin:26px 0;display:flex;justify-content:center;}
+  .diagram svg{width:100%;max-width:380px;height:auto;overflow:visible;}
+
+  /* signal radar */
+  .radar-ring{fill:none;stroke:var(--signal);stroke-width:1.4;opacity:0;transform-origin:center;
+    animation:radarpulse 3s ease-out infinite;}
+  .radar-ring.r2{animation-delay:1s;}
+  .radar-ring.r3{animation-delay:2s;}
+  @keyframes radarpulse{0%{opacity:0.7;transform:scale(0.3);}100%{opacity:0;transform:scale(1.6);}}
+  .radar-core{fill:var(--signal);filter:drop-shadow(0 0 8px var(--signal));}
+
+  /* decision tree lines drawing */
+  .dtree-line{stroke:var(--decision);stroke-width:1.6;fill:none;stroke-dasharray:200;stroke-dashoffset:200;
+    animation:drawline 2.4s ease forwards infinite;}
+  .dtree-line.l2{animation-delay:0.3s;}
+  .dtree-line.l3{animation-delay:0.6s;}
+  @keyframes drawline{0%{stroke-dashoffset:200;}40%{stroke-dashoffset:0;}90%{stroke-dashoffset:0;}100%{stroke-dashoffset:-200;}}
+  .dtree-node{fill:#0E1420;stroke:var(--decision);stroke-width:2;}
+
+  /* action dispatch */
+  .dispatch-dot{filter:drop-shadow(0 0 6px var(--action));}
+  .dispatch-line{stroke:rgba(61,220,151,0.25);stroke-width:1.4;fill:none;}
+
+  /* feedback gauge */
+  .gauge-bg{fill:none;stroke:rgba(255,107,87,0.15);stroke-width:8;}
+  .gauge-fg{fill:none;stroke:var(--feedback);stroke-width:8;stroke-linecap:round;
+    stroke-dasharray:340; stroke-dashoffset:340; transition:stroke-dashoffset 1.2s ease;}
+  .gauge-fg.in{stroke-dashoffset:88;}
+  .gauge-num{font-family:'Space Grotesk',sans-serif;font-weight:700;fill:var(--feedback);font-size:28px;}
+  .gauge-lbl{font-family:'IBM Plex Mono',monospace;fill:var(--muted);font-size:9px;text-transform:uppercase;}
+
+  .diagnostic-grid{display:flex;flex-direction:column;gap:10px;margin-top:6px;}
+
+  /* FINAL CTA */
+  .cta{padding:50px 0 60px;}
+  .ctabox{border:1px solid var(--accent);border-radius:3px;padding:30px 26px;
+    background:linear-gradient(180deg, var(--accent-soft), rgba(255,255,255,0.01));
+    box-shadow:0 0 60px var(--glow);text-align:center;transition:border-color 400ms ease, box-shadow 400ms ease;}
+  .ctabox .tag{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;letter-spacing:0.12em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:12px;}
+  .ctabox h3{font-size:1.5rem;margin-bottom:12px;}
+  .ctabox p{color:#C4CEDB;font-size:0.95rem;margin-bottom:22px;max-width:44ch;margin-left:auto;margin-right:auto;}
+  .btn-primary{display:block;width:100%;padding:16px;border-radius:2px;border:none;cursor:pointer;
+    background:var(--accent);color:#080B12;font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:1.02rem;
+    text-decoration:none;text-align:center;margin-bottom:10px;transition:transform 150ms ease, background 400ms ease;}
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-secondary{display:block;width:100%;padding:14px;border-radius:2px;border:1px solid var(--line);
+    color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:0.84rem;text-decoration:none;text-align:center;
+    background:rgba(255,255,255,0.02);}
+  .fine{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;color:var(--muted);margin-top:16px;}
+
+  footer{border-top:1px solid var(--line);padding:18px 24px 34px;font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 14px;position:relative;z-index:2;}
+
+  ::selection{background:var(--accent);color:#080B12;}
+</style>
+</head>
+<body data-zone="">
+<div class="grid-bg"></div>
+<div class="glow-bg"></div>
+<div class="scan"></div>
+<div class="progress" id="progress"></div>
+
+<header>
+  <div class="brand"><i></i><span>The Architecture Layer</span></div>
+  <div class="zonepips">
+    <i class="z-signal" data-z="signal"></i>
+    <i class="z-decision" data-z="decision"></i>
+    <i class="z-action" data-z="action"></i>
+    <i class="z-feedback" data-z="feedback"></i>
+  </div>
+</header>
+
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span>[<b>SIGNAL</b>] cohort_activation_drop &minus;14% · t+0s</span>
+    <span>[<b>DECISION</b>] rule_042 matched · confidence 0.91</span>
+    <span>[<b>ACTION</b>] alert routed → account_owner</span>
+    <span>[<b>FEEDBACK</b>] response_rate 34% · rule adjusted</span>
+    <span>[<b>SIGNAL</b>] champion_login_gap 9d · t+0s</span>
+    <span>[<b>DECISION</b>] rule_017 matched · confidence 0.88</span>
+    <span>[<b>ACTION</b>] sequence triggered → CS queue</span>
+    <span>[<b>FEEDBACK</b>] loop closed · cycle 1,204</span>
+    <span>[<b>SIGNAL</b>] cohort_activation_drop &minus;14% · t+0s</span>
+    <span>[<b>DECISION</b>] rule_042 matched · confidence 0.91</span>
+    <span>[<b>ACTION</b>] alert routed → account_owner</span>
+    <span>[<b>FEEDBACK</b>] response_rate 34% · rule adjusted</span>
+    <span>[<b>SIGNAL</b>] champion_login_gap 9d · t+0s</span>
+    <span>[<b>DECISION</b>] rule_017 matched · confidence 0.88</span>
+    <span>[<b>ACTION</b>] sequence triggered → CS queue</span>
+    <span>[<b>FEEDBACK</b>] loop closed · cycle 1,204</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">Full deep dive · for SaaS founders &amp; growth leads already running AI tools</div>
+    <h1>Four layers. One loop.<br><em>Build it once, it runs forever.</em></h1>
+    <p class="lead">The complete walkthrough of the system that turns raw product data into decisions that act on their own, built on the stack you already run. No new tools. No rebuild. Just the wiring most teams never put in.</p>
+    <p class="body" style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;color:var(--muted);">For teams already using AI and automation daily, where activation, churn, or onboarding data exists but nothing acts on it on its own. Not for teams still choosing their first tool.</p>
+
+    <div class="hero-circuit">
+      <svg viewBox="0 0 380 200">
+        <path class="trace" d="M 40 100 L 130 100"/>
+        <path class="trace" d="M 130 100 L 190 40"/>
+        <path class="trace" d="M 130 100 L 190 160"/>
+        <path class="trace" d="M 250 40 L 190 40"/>
+        <path class="trace" d="M 250 160 L 190 160"/>
+        <path class="trace" d="M 250 40 L 310 100"/>
+        <path class="trace" d="M 250 160 L 310 100"/>
+        <path class="trace" d="M 310 100 L 340 100"/>
+
+        <path class="trace trace-active" style="stroke:#FFB74D;animation-delay:0s;" d="M 40 100 L 130 100 L 190 40 L 250 40 L 310 100"/>
+        <path class="trace trace-active" style="stroke:#9B8BE8;animation-delay:0.8s;" d="M 130 100 L 190 160 L 250 160 L 310 100 L 340 100"/>
+
+        <circle class="hnode" cx="40" cy="100" r="14" stroke="#FFB74D"/>
+        <text class="hlabel" x="40" y="126" text-anchor="middle">SIGNAL</text>
+        <circle class="hnode" cx="190" cy="40" r="12" stroke="#9B8BE8"/>
+        <text class="hlabel" x="190" y="22" text-anchor="middle">DECISION</text>
+        <circle class="hnode" cx="190" cy="160" r="12" stroke="#9B8BE8"/>
+        <text class="hlabel" x="190" y="184" text-anchor="middle">DECISION</text>
+        <circle class="hnode" cx="250" cy="40" r="12" stroke="#3DDC97"/>
+        <text class="hlabel" x="250" y="22" text-anchor="middle">ACTION</text>
+        <circle class="hnode" cx="250" cy="160" r="12" stroke="#3DDC97"/>
+        <text class="hlabel" x="250" y="184" text-anchor="middle">ACTION</text>
+        <circle class="hnode" cx="340" cy="100" r="14" stroke="#FF6B57"/>
+        <text class="hlabel" x="340" y="126" text-anchor="middle">FEEDBACK</text>
+      </svg>
+    </div>
+
+    <div class="statrow">
+      <div class="stat"><div class="n mono">4</div><div class="l">Layers</div></div>
+      <div class="stat"><div class="n mono">12</div><div class="l">Rule templates</div></div>
+      <div class="stat"><div class="n mono">0</div><div class="l">New tools</div></div>
+      <div class="stat"><div class="n mono">1</div><div class="l">Loop, forever</div></div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="zone" data-zone="">
+    <h2 class="fadein" data-reveal>You have the dashboard.<br>You don't have the decision.</h2>
+    <p class="body fadein" data-reveal>Most SaaS teams already have activation data, churn signals, usage dips sitting in a dashboard somewhere. None of it acts. A dashboard tells you something changed. It never decides what happens next, and that gap is where growth quietly stalls.</p>
+    <p class="body fadein" data-reveal>Here's the part that's easy to miss: the gap doesn't look like a gap. It looks like a normal Tuesday. Someone opens the churn dashboard, sees three accounts trending down, makes a mental note, gets pulled into a meeting, and the note evaporates. Nobody did anything wrong. The system simply never asked anyone to act, so nobody did.</p>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">01 · Data sits</div>
+      <p>Someone reviews the numbers once a week. The fix, if it happens, happens by hand, days after the signal fired.</p>
+    </div>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">02 · The rule lives in a head, not a system</div>
+      <p>One person knows what "bad" looks like. When they're out, on leave, or just heads-down, the signal fires and nothing happens.</p>
+    </div>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">03 · Growth stalls with no visible cause</div>
+      <p>The tools are fine. The team is fine. The loop that turns a number into an action was never built, so every quarter starts back at zero instead of compounding.</p>
+    </div>
+    <div class="metric-callout fadein" data-reveal>
+      <div class="mk mono">3&times;</div>
+      <p>Teams that close the full loop report acting on a churn signal in hours instead of the industry-typical multi-day lag, because the decision no longer waits on a person noticing.</p>
+    </div>
+  </section>
+
+  <!-- LOOP OVERVIEW -->
+  <section class="zone" data-zone="">
+    <h2 class="fadein" data-reveal>The loop, end to end.</h2>
+    <p class="body fadein" data-reveal>Four layers, always in this order. Skip one and the loop breaks silently. It looks like it's working right up until the day it doesn't, and by then the failure is invisible because nothing ever alerted anyone that a step was missing.</p>
+    <div class="loopwrap fadein" data-reveal>
+      <div class="loop-node"><div class="d" style="background:#FFB74D;"></div><div class="t"><b>Signal</b><span>what changed, the moment it changes</span></div></div>
+      <div class="loop-arrow">↓</div>
+      <div class="loop-node"><div class="d" style="background:#9B8BE8;"></div><div class="t"><b>Decision</b><span>the rule that decides if it matters</span></div></div>
+      <div class="loop-arrow">↓</div>
+      <div class="loop-node"><div class="d" style="background:#3DDC97;"></div><div class="t"><b>Action</b><span>what happens without you in the room</span></div></div>
+      <div class="loop-arrow">↓</div>
+      <div class="loop-node"><div class="d" style="background:#FF6B57;"></div><div class="t"><b>Feedback</b><span>did it work, does the rule learn</span></div></div>
+      <div class="loop-arrow">↻ back to Signal</div>
+    </div>
+    <p class="body fadein" data-reveal>Most teams stop at two layers, usually Signal and a half-built Action, and wonder why the automation "doesn't feel smart." It isn't supposed to feel smart on its own. Decision is where the intelligence lives, and Feedback is what makes that intelligence compound instead of going stale.</p>
+  </section>
+
+  <!-- SIGNAL -->
+  <section class="zone" data-zone="signal">
+    <div class="zone-eyebrow fadein" data-reveal><b></b>Layer 01 · Signal</div>
+    <h2 class="fadein" data-reveal>What changed, the moment it changes.</h2>
+    <p class="body fadein" data-reveal>A signal is not a metric on a dashboard. It's an event: activation dropped for a cohort, a lead went cold, a champion stopped logging in. It fires the instant it happens, not the next time someone opens a report.</p>
+
+    <div class="diagram fadein" data-reveal>
+      <svg viewBox="0 0 200 200">
+        <circle class="radar-ring" cx="100" cy="100" r="30"/>
+        <circle class="radar-ring r2" cx="100" cy="100" r="30"/>
+        <circle class="radar-ring r3" cx="100" cy="100" r="30"/>
+        <circle class="radar-core" cx="100" cy="100" r="7"/>
+      </svg>
+    </div>
+
+    <p class="body fadein" data-reveal>Most stacks already collect this data. What's missing is the wiring that turns "the number changed" into "something just happened that needs a decision." That wiring is the whole difference between a metric and a signal.</p>
+    <h3 class="sub fadein" data-reveal>Where teams get this wrong</h3>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">Mistake · Signal buried in a dashboard</div>
+      <p>The drop is visible. Nobody is watching at the moment it happens, so the signal exists but never actually fires anywhere.</p>
+    </div>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">Mistake · Signal defined too broadly</div>
+      <p>"Engagement dropped" fires constantly and gets ignored within a week. A real signal is specific enough that when it fires, it's always worth a look.</p>
+    </div>
+    <div class="cause fadein" data-reveal>
+      <div class="tag mono">Mistake · Signal with no owner</div>
+      <p>It fires. Three people could act on it. Nobody does, because it's nobody's job specifically, and shared ownership behaves like no ownership.</p>
+    </div>
+    <div class="metric-callout fadein" data-reveal>
+      <div class="mk mono">&lt;5s</div>
+      <p>The target latency between an event happening in your product and a signal existing for it. Anything slower and you're back to relying on someone noticing.</p>
+    </div>
+  </section>
+
+  <!-- DECISION -->
+  <section class="zone" data-zone="decision">
+    <div class="zone-eyebrow fadein" data-reveal><b></b>Layer 02 · Decision</div>
+    <h2 class="fadein" data-reveal>The rule that decides if it matters.</h2>
+    <p class="body fadein" data-reveal>Not "look at the number and think about it." A codified rule: if this signal fires under these conditions, it means this, and it's worth acting on. Judgment, written down once, instead of re-made from scratch every time it's needed.</p>
+
+    <div class="diagram fadein" data-reveal>
+      <svg viewBox="0 0 260 160">
+        <path class="dtree-line" d="M 40 20 L 130 20"/>
+        <path class="dtree-line l2" d="M 130 20 L 130 80 L 60 80"/>
+        <path class="dtree-line l3" d="M 130 20 L 130 80 L 200 80"/>
+        <circle class="dtree-node" cx="40" cy="20" r="10"/>
+        <text class="hlabel" x="40" y="42" text-anchor="middle">SIGNAL</text>
+        <circle class="dtree-node" cx="60" cy="80" r="10"/>
+        <text class="hlabel" x="60" y="102" text-anchor="middle">IGNORE</text>
+        <circle class="dtree-node" cx="200" cy="80" r="10"/>
+        <text class="hlabel" x="200" y="102" text-anchor="middle">ROUTE</text>
+      </svg>
+    </div>
+
+    <p class="body fadein" data-reveal>This is the layer most teams skip entirely. They go straight from signal to a person's gut feeling, which means the decision changes depending on who's on shift that week, and nobody can explain afterward why one account got outreach and another didn't.</p>
+    <h3 class="sub fadein" data-reveal>Before and after</h3>
+    <div class="compare fadein" data-reveal>
+      <div class="c before"><div class="k">Before</div><p>"If usage looks low, someone should probably reach out."</p></div>
+      <div class="c after"><div class="k">After</div><p>"If a paying account has 0 logins in 7 days AND has used the product for 30+ days, flag as at-risk and route to the account owner within 1 hour."</p></div>
+    </div>
+    <div class="rule-box fadein" data-reveal>RULE TEMPLATE: IF [signal] fires AND [condition holds] → THEN [classification], route to [owner] within [time window].</div>
+    <p class="body fadein" data-reveal>Write three of these before you touch a single automation tool. The rule is the actual intellectual property here. The tool that executes it is replaceable; the rule usually isn't.</p>
+  </section>
+
+  <!-- ACTION -->
+  <section class="zone" data-zone="action">
+    <div class="zone-eyebrow fadein" data-reveal><b></b>Layer 03 · Action</div>
+    <h2 class="fadein" data-reveal>What happens without you in the room.</h2>
+    <p class="body fadein" data-reveal>A message sent. A ticket created. A sequence triggered. The decision layer says what should happen; the action layer makes it happen, the same way, every time, without a person clicking send.</p>
+
+    <div class="diagram fadein" data-reveal>
+      <svg viewBox="0 0 260 140">
+        <path class="dispatch-line" d="M 40 70 L 220 20"/>
+        <path class="dispatch-line" d="M 40 70 L 220 70"/>
+        <path class="dispatch-line" d="M 40 70 L 220 120"/>
+        <circle cx="40" cy="70" r="10" fill="#0E1420" stroke="#3DDC97" stroke-width="2"/>
+        <circle class="dispatch-dot" r="4" fill="#3DDC97"><animateMotion dur="2.6s" repeatCount="indefinite" path="M 40 70 L 220 20"/></circle>
+        <circle class="dispatch-dot" r="4" fill="#3DDC97"><animateMotion dur="2.6s" begin="0.5s" repeatCount="indefinite" path="M 40 70 L 220 70"/></circle>
+        <circle class="dispatch-dot" r="4" fill="#3DDC97"><animateMotion dur="2.6s" begin="1s" repeatCount="indefinite" path="M 40 70 L 220 120"/></circle>
+        <text class="hlabel" x="230" y="24" text-anchor="start">ALERT</text>
+        <text class="hlabel" x="230" y="74" text-anchor="start">TASK</text>
+        <text class="hlabel" x="230" y="124" text-anchor="start">SEQUENCE</text>
+      </svg>
+    </div>
+
+    <p class="body fadein" data-reveal>This is the layer everyone assumes they already have because they own automation tools. Owning the tool and having the action wired to a real decision rule from Layer 2 are two different things, and most "automation" is really just a scheduled task with no rule behind it at all.</p>
+    <h3 class="sub fadein" data-reveal>The boundary that matters most</h3>
+    <div class="boundary fadein" data-reveal>
+      <div class="b safe"><div class="k">Safe to automate</div><p>Sending the at-risk alert. Drafting the outreach. Creating the internal task. Reversible, low-stakes, easy to check.</p></div>
+      <div class="b never"><div class="k">Never automate blind</div><p>Pricing changes. Refunds. Anything a customer sees with no human check first. Irreversible, or expensive to undo.</p></div>
+    </div>
+    <p class="body fadein" data-reveal>A human sits between the action and its consequence, always, on anything in the second category. That's what makes this a system worth trusting, not a risk you're hoping doesn't misfire.</p>
+  </section>
+
+  <!-- FEEDBACK -->
+  <section class="zone" data-zone="feedback">
+    <div class="zone-eyebrow fadein" data-reveal><b></b>Layer 04 · Feedback</div>
+    <h2 class="fadein" data-reveal>Did it work. Does the rule learn.</h2>
+    <p class="body fadein" data-reveal>The loop closes here. Did the action change the outcome? If not, the decision rule was wrong, not the tool. Feedback is what turns a one-time fix into a system that gets sharper every cycle instead of quietly drifting out of date.</p>
+
+    <div class="diagram fadein" data-reveal>
+      <svg viewBox="0 0 200 200">
+        <circle class="gauge-bg" cx="100" cy="100" r="54"/>
+        <circle class="gauge-fg" id="gaugeFg" cx="100" cy="100" r="54" transform="rotate(-90 100 100)"/>
+        <text class="gauge-num" x="100" y="96" text-anchor="middle">74%</text>
+        <text class="gauge-lbl" x="100" y="116" text-anchor="middle">RULE ACCURACY</text>
+      </svg>
+    </div>
+
+    <p class="body fadein" data-reveal>Without this layer, you're running the same broken rule forever and calling every fix a one-off. With it, every cycle is a small experiment: did the account respond, did the ticket get resolved faster, did the sequence convert. The answer adjusts the rule for next time.</p>
+    <div class="rule-box fadein" data-reveal>CHECK EVERY CYCLE: did the flagged account respond within the window? If under 30% do, the rule's threshold is wrong, not the outreach copy.</div>
+    <p class="body fadein" data-reveal>This is the layer that compounds. A team that closes the loop for six months has a materially sharper set of rules than a team running the same static automation the whole time, even if they started from the exact same dashboard.</p>
+  </section>
+
+  <!-- DIAGNOSTIC -->
+  <section class="zone" data-zone="">
+    <div class="eyebrow mono fadein" data-reveal>Self-diagnostic · tap each one</div>
+    <h2 class="fadein" data-reveal>Which layer is missing in your stack?</h2>
+    <div class="diagnostic-grid fadein" data-reveal>
+      <div class="card">
+        <div class="q">"We have a dashboard that shows churn risk weekly."</div>
+        <div class="tap mono">Tap for answer</div>
+        <div class="a">You have Signal. You're missing Decision, Action, and Feedback. The number exists; nothing is wired to it.</div>
+      </div>
+      <div class="card">
+        <div class="q">"We know exactly what 'at-risk' means, but someone has to remember to check."</div>
+        <div class="tap mono">Tap for answer</div>
+        <div class="a">You have Signal and Decision. You're missing Action. The rule exists only in someone's memory, not in a system that fires on its own.</div>
+      </div>
+      <div class="card">
+        <div class="q">"We send an automated email when usage drops, and it hasn't changed in six months."</div>
+        <div class="tap mono">Tap for answer</div>
+        <div class="a">You have Signal, Decision, and Action. You're missing Feedback. The loop never closes, so the rule never gets sharper.</div>
+      </div>
+      <div class="card">
+        <div class="q">"We built all of this once, a year ago, and haven't touched it since."</div>
+        <div class="tap mono">Tap for answer</div>
+        <div class="a">You built the loop and then let Feedback go stale. A loop that isn't checked is a rule slowly drifting wrong while looking exactly as busy as it always did.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="cta">
+    <h2 class="fadein" data-reveal style="margin-bottom:14px;">Most teams are missing two of the four layers.<br>Now you know which two.</h2>
+    <p class="body fadein" data-reveal>The tools you already run can carry all four layers. What was missing was the wiring, not the budget. Here's where to see the same architecture thinking applied to something you can check in 90 seconds.</p>
+    <div class="ctabox fadein" data-reveal>
+      <div class="tag">See the diagnosis in action</div>
+      <h3>Run WHY. on your own last email.</h3>
+      <p>The same structural thinking behind this loop, applied to a single message. Paste one email, get the score, the named failure, and the rebuild, free.</p>
+      <a class="btn-primary" href="https://strategic-flow-audit.replit.app/why.html">Run the Free Diagnostic →</a>
+      <a class="btn-secondary" href="https://strategic-flow-audit.replit.app/demo.html">See it work first → watch the demo</a>
+      <div class="fine">strategicflow.tech · Alex Iliescu, Strategic Flow</div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <a href="https://strategicflow.tech" target="_blank" rel="noopener">strategicflow.tech</a>
+  <span>Made by Alex Iliescu</span>
+  <span>&copy; 2026 Strategic Flow. All rights reserved.</span>
+</footer>
+
+<script>
+  // scroll reveal
+  const revealEls=document.querySelectorAll('[data-reveal]');
+  const revealIo=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('in'); });
+  },{threshold:0.15});
+  revealEls.forEach(el=>revealIo.observe(el));
+
+  // gauge fill trigger
+  const gauge=document.getElementById('gaugeFg');
+  const gaugeIo=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting) gauge.classList.add('in'); });
+  },{threshold:0.4});
+  if(gauge) gaugeIo.observe(gauge);
+
+  // card tap
+  document.addEventListener('click',e=>{
+    const c=e.target.closest('.card');
+    if(c) c.classList.toggle('open');
+  });
+
+  // zone tracking - body data-zone + header pips + progress bar
+  const zones=Array.from(document.querySelectorAll('.zone'));
+  const body=document.body;
+  const pips=Array.from(document.querySelectorAll('.zonepips i'));
+  const zoneIo=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const z=e.target.dataset.zone;
+        if(z){
+          body.dataset.zone=z;
+          pips.forEach(p=>p.classList.toggle('on', p.dataset.z===z));
+        }
+      }
+    });
+  },{threshold:0.4, rootMargin:'-80px 0px -40% 0px'});
+  zones.forEach(z=>zoneIo.observe(z));
+
+  // progress bar
+  const progress=document.getElementById('progress');
+  window.addEventListener('scroll',()=>{
+    const h=document.documentElement;
+    const pct=(h.scrollTop)/(h.scrollHeight-h.clientHeight)*100;
+    progress.style.width=pct+'%';
+  });
+</script>
+
+</body>
+</html>

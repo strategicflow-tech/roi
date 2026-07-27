@@ -988,6 +988,10 @@ async function setupDB() {
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq4_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq5_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS seq6_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch_subscribed_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch1_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch2_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch3_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`
     CREATE TABLE IF NOT EXISTS demo_rebuilds (
       hash TEXT PRIMARY KEY,
@@ -6078,10 +6082,89 @@ async function processSequence() {
   }
 }
 
+// ─── ARCHITECTURE-LAYER EMAIL SEQUENCE ────────────────────────────────────────
+
+const ARCH_EMAILS = [
+  {
+    num: 1,
+    delayDays: 0,
+    col: 'arch1_sent',
+    subject: 'Your deep dive is ready',
+    html: () => seqWrap(`
+      <p>Here's the link you asked for.</p>
+      <p><a href="https://strategic-flow-audit.replit.app/architecture-layer.html" style="display:inline-block;background:#00d4c8;color:#0d1117;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;">READ THE DEEP DIVE →</a></p>
+      <p>Four layers. One loop. Built on the stack you already run.</p>
+      <p>Reply to this email if a question comes up while you're reading it. I read every reply myself.</p>
+      <p>Alex<br>Strategic Flow</p>
+    `)
+  },
+  {
+    num: 2,
+    delayDays: 2,
+    col: 'arch2_sent',
+    subject: 'The layer most teams skip',
+    html: () => seqWrap(`
+      <p>Quick one.</p>
+      <p>Out of the four layers in the deep dive, Decision is the one almost everyone skips. Signal and Action feel like "real work." Decision feels like just... writing something down.</p>
+      <p>That's exactly why it gets skipped, and exactly why the loop breaks there first.</p>
+      <p>If you tried mapping your own stack against the four layers, which one came up missing?</p>
+      <p>Alex<br>Strategic Flow</p>
+    `)
+  },
+  {
+    num: 3,
+    delayDays: 4,
+    col: 'arch3_sent',
+    subject: 'See the same thinking applied to one email',
+    html: () => seqWrap(`
+      <p>The deep dive was about systems. Here's the same structural thinking applied to something small enough to check in 90 seconds.</p>
+      <p><a href="https://strategic-flow-audit.replit.app/why.html" style="display:inline-block;background:#00d4c8;color:#0d1117;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;">RUN THE FREE DIAGNOSTIC →</a></p>
+      <p>Paste your last SaaS email in. Get the score, the named failure, and the rebuild. Free, no card.</p>
+      <p>Alex<br>Strategic Flow</p>
+    `)
+  }
+];
+
+async function sendArchEmail(emailAddr, archItem) {
+  await resend.emails.send({
+    from: SEQ_SENDER,
+    to: emailAddr,
+    subject: archItem.subject,
+    html: archItem.html()
+  });
+  await pool.query(`UPDATE subscribers SET ${archItem.col} = TRUE WHERE email = $1`, [emailAddr]);
+  console.log(`[arch-seq] email ${archItem.num} sent to ${emailAddr}`);
+}
+
+async function processArchSequence() {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM subscribers WHERE arch_subscribed_at IS NOT NULL`);
+    for (const sub of rows) {
+      const now = Date.now();
+      const archSubscribedAt = new Date(sub.arch_subscribed_at).getTime();
+      for (const archItem of ARCH_EMAILS) {
+        if (archItem.num === 1) continue; // Sent immediately on signup
+        if (sub[archItem.col]) continue;  // Already sent
+        const readyAt = archSubscribedAt + archItem.delayDays * 24 * 60 * 60 * 1000;
+        if (now >= readyAt) {
+          try {
+            await sendArchEmail(sub.email, archItem);
+          } catch (err) {
+            console.error(`[arch-seq] failed to send email ${archItem.num} to ${sub.email}:`, err.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[arch-seq] processArchSequence error:', err.message);
+  }
+}
+
 // Run every hour at minute 0
 cron.schedule('0 * * * *', () => {
   console.log('[seq] cron tick — processing sequence');
   processSequence();
+  processArchSequence();
 });
 
 // ─── LEAD MAGNET — /subscribe ─────────────────────────────────────────────────
@@ -6387,6 +6470,43 @@ app.post('/subscribe', async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// ─── ARCHITECTURE-LAYER SIGNUP ────────────────────────────────────────────────
+
+app.post('/architecture-signup', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  let alreadyInSequence = false;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO subscribers (email, source, arch_subscribed_at)
+       VALUES ($1, 'architecture-layer', NOW())
+       ON CONFLICT (email) DO UPDATE
+         SET arch_subscribed_at = COALESCE(subscribers.arch_subscribed_at, NOW())
+       RETURNING arch1_sent`,
+      [email]
+    );
+    alreadyInSequence = rows[0].arch1_sent === true;
+  } catch (err) {
+    console.error('[arch-signup] DB error:', err.message);
+    return res.status(500).json({ error: 'Could not save your email. Please try again.' });
+  }
+
+  if (alreadyInSequence) {
+    return res.json({ success: true });
+  }
+
+  try {
+    await sendArchEmail(email, ARCH_EMAILS[0]);
+  } catch (err) {
+    console.error('[arch-signup] Email 1 error:', err.message);
+  }
+
+  res.json({ success: true });
 });
 
 app.get('/test-sequence', async (req, res) => {
