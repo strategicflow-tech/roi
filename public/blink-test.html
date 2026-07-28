@@ -1041,6 +1041,9 @@ function reset() {
 
 // ── Core analysis runner (shared by button + gate unlock) ─
 async function runAnalysis(content) {
+  // Increment before the fetch so the counter is accurate even on errors
+  if (!isAdminBrowser()) incRunCount();
+
   $('state-input').classList.add('hidden');
   $('state-gate').classList.add('hidden');
   $('state-scanning').classList.remove('hidden');
@@ -1060,17 +1063,16 @@ async function runAnalysis(content) {
     clearInterval(stopStatus);
 
     if (resp.status === 429) {
+      // Server rate limit hit — treat as limit reached, always show the gate
       stopProgress();
       $('state-scanning').classList.add('hidden');
-      $('state-input').classList.remove('hidden');
-      $('limit-msg').classList.add('show');
+      showGate();
       return;
     }
 
     if (!resp.ok) throw new Error('api');
     const data = await resp.json();
 
-    incRunCount();
     await new Promise(r => setTimeout(r, 380));
     showResult(data);
 
