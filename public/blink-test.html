@@ -557,6 +557,106 @@ textarea:focus{
 .btn-retry.in{opacity:1;}
 .btn-retry:hover{color:var(--text);}
 
+/* ── GATE STATE ──────────────────────────────────────────── */
+#state-gate{text-align:center;}
+
+.gate-eyebrow{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.22em;
+  color:rgba(0,212,200,0.55);
+  margin-bottom:32px;
+  text-transform:uppercase;
+}
+
+.gate-heading{
+  font-size:clamp(22px,5vw,34px);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  color:#fff;
+  text-transform:uppercase;
+  line-height:1.1;
+  margin-bottom:10px;
+}
+.gate-heading .gate-hi{
+  color:var(--signal);
+  text-shadow:0 0 30px rgba(0,212,200,0.4);
+}
+
+.gate-sub{
+  font-size:12px;
+  color:rgba(200,210,255,0.52);
+  letter-spacing:0.03em;
+  line-height:1.7;
+  margin-bottom:36px;
+}
+
+.gate-form{
+  max-width:440px;
+  margin:0 auto;
+  text-align:left;
+}
+.gate-input-wrap{position:relative;}
+.gate-input-wrap::before,.gate-input-wrap::after{
+  content:'';position:absolute;
+  width:11px;height:11px;
+  border-color:var(--signal);border-style:solid;
+  opacity:0.45;pointer-events:none;z-index:2;
+}
+.gate-input-wrap::before{top:-1px;left:-1px;border-width:1px 0 0 1px;}
+.gate-input-wrap::after {top:-1px;right:-1px;border-width:1px 1px 0 0;}
+
+.gate-input{
+  width:100%;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:14px;
+  padding:14px 16px;
+  outline:none;
+  display:block;
+  letter-spacing:0.02em;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  -webkit-appearance:none;
+}
+.gate-input::placeholder{color:rgba(200,210,255,0.2);}
+.gate-input:focus{
+  border-color:rgba(0,212,200,0.45);
+  box-shadow:0 0 0 1px rgba(0,212,200,0.1),inset 0 0 20px rgba(0,212,200,0.02);
+}
+
+.gate-submit{
+  width:100%;
+  margin-top:10px;
+  padding:16px 24px;
+  background:rgba(0,212,200,0.07);
+  border:1px solid rgba(0,212,200,0.38);
+  color:var(--signal);
+  font-family:var(--mono);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:background 0.2s,box-shadow 0.2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.gate-submit:hover{
+  background:rgba(0,212,200,0.11);
+  box-shadow:0 0 24px rgba(0,212,200,0.14);
+}
+.gate-submit:disabled{opacity:0.35;cursor:not-allowed;}
+
+.gate-err{
+  margin-top:10px;
+  font-size:10px;
+  color:var(--ignored);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  min-height:16px;
+}
+
 /* ── FOOTER ──────────────────────────────────────────────── */
 footer{
   position:relative;
@@ -614,6 +714,20 @@ footer{
     <div class="limit-msg" id="limit-msg">LIMIT REACHED — TRY AGAIN LATER</div>
   </div>
 
+  <!-- ── STATE: GATE ── -->
+  <div id="state-gate" class="state hidden">
+    <div class="gate-eyebrow">ACCESS LIMIT REACHED</div>
+    <h2 class="gate-heading"><span class="gate-hi">3</span> FREE SCANS USED</h2>
+    <p class="gate-sub">Enter your email to keep running Blink Tests.<br>No password. No account. Just your email.</p>
+    <div class="gate-form">
+      <div class="gate-input-wrap">
+        <input type="email" id="gate-email" class="gate-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button class="gate-submit" id="gate-submit">⚡ UNLOCK UNLIMITED SCANS</button>
+      <div class="gate-err" id="gate-err"></div>
+    </div>
+  </div>
+
   <!-- ── STATE: SCANNING ── -->
   <div id="state-scanning" class="state hidden">
     <div class="scan-eyebrow">PROCESSING SIGNAL</div>
@@ -667,6 +781,49 @@ footer{
 const $  = id => document.getElementById(id);
 const ta = $('content-input');
 const iw = $('input-wrap');
+
+// ── Usage gate ────────────────────────────────────────────
+const GATE_COUNT_KEY    = 'blink_runs';
+const GATE_UNLOCKED_KEY = 'blink_unlocked';
+const FREE_LIMIT        = 3;
+
+function getRunCount()  { return parseInt(localStorage.getItem(GATE_COUNT_KEY)  || '0', 10); }
+function isUnlocked()   { return localStorage.getItem(GATE_UNLOCKED_KEY) === '1'; }
+function incRunCount()  { localStorage.setItem(GATE_COUNT_KEY, getRunCount() + 1); }
+
+function showGate(pendingContent) {
+  $('state-input').classList.add('hidden');
+  $('state-gate').classList.remove('hidden');
+  $('gate-email').focus();
+  $('gate-err').textContent = '';
+
+  $('gate-submit').onclick = async () => {
+    const email = $('gate-email').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      $('gate-err').textContent = 'ENTER A VALID EMAIL TO CONTINUE';
+      return;
+    }
+    $('gate-submit').disabled = true;
+    $('gate-err').textContent = '';
+    try {
+      const r = await fetch('/api/blink-gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!r.ok) throw new Error('server');
+      const gateData = await r.json();
+      localStorage.setItem(GATE_UNLOCKED_KEY, '1');
+      // Admin emails: mark browser permanently so run counter never triggers gate
+      if (gateData.admin) localStorage.setItem('blink_admin', '1');
+      $('state-gate').classList.add('hidden');
+      runAnalysis(pendingContent);
+    } catch {
+      $('gate-err').textContent = 'ERROR — PLEASE TRY AGAIN';
+      $('gate-submit').disabled = false;
+    }
+  };
+}
 
 // ── Focus brackets ────────────────────────────────────────
 ta.addEventListener('focus', () => iw.classList.add('focused'));
@@ -816,17 +973,10 @@ function reset() {
   ['pct-wrap','diag-box','reason-box','detail-box','cta-row','retry-btn'].forEach(id => { const el = $(id); el.classList.remove('in'); el.style.display=''; });
 }
 
-// ── Main handler ──────────────────────────────────────────
-$('analyze-btn').addEventListener('click', async () => {
-  const content = ta.value.trim();
-  if (!content || content.length < 8) {
-    ta.focus();
-    ta.style.borderColor = 'rgba(255,51,17,0.5)';
-    setTimeout(() => ta.style.borderColor = '', 900);
-    return;
-  }
-
+// ── Core analysis runner (shared by button + gate unlock) ─
+async function runAnalysis(content) {
   $('state-input').classList.add('hidden');
+  $('state-gate').classList.add('hidden');
   $('state-scanning').classList.remove('hidden');
   buildGrid();
   const stopFlicker  = flickerGrid();
@@ -854,7 +1004,7 @@ $('analyze-btn').addEventListener('click', async () => {
     if (!resp.ok) throw new Error('api');
     const data = await resp.json();
 
-    // brief dramatic pause
+    incRunCount();
     await new Promise(r => setTimeout(r, 380));
     showResult(data);
 
@@ -862,8 +1012,26 @@ $('analyze-btn').addEventListener('click', async () => {
     stopProgress();
     $('state-scanning').classList.add('hidden');
     $('state-input').classList.remove('hidden');
-    $('analyze-btn').disabled = false;
   }
+}
+
+// ── Main handler ──────────────────────────────────────────
+$('analyze-btn').addEventListener('click', () => {
+  const content = ta.value.trim();
+  if (!content || content.length < 8) {
+    ta.focus();
+    ta.style.borderColor = 'rgba(255,51,17,0.5)';
+    setTimeout(() => ta.style.borderColor = '', 900);
+    return;
+  }
+
+  // Show gate on 4th+ run if not yet unlocked
+  if (!isUnlocked() && getRunCount() >= FREE_LIMIT) {
+    showGate(content);
+    return;
+  }
+
+  runAnalysis(content);
 });
 
 $('retry-btn').addEventListener('click', reset);

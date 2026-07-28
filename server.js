@@ -999,6 +999,14 @@ async function setupDB() {
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch2_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS arch3_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS blink_leads (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] blink_leads:', e.message));
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS blink_leads_email_idx ON blink_leads (email)`).catch(()=>{});
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS demo_rebuilds (
       hash TEXT PRIMARY KEY,
       count INTEGER NOT NULL DEFAULT 0,
@@ -6479,6 +6487,25 @@ app.post('/subscribe', async (req, res) => {
 // ─── ARCHITECTURE-LAYER SIGNUP ────────────────────────────────────────────────
 
 // ─── BLINK TEST ───────────────────────────────────────────────────────────────
+
+// POST /api/blink-gate — store email from blink-test usage gate
+app.post('/api/blink-gate', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email.' });
+  }
+  const admin = BYPASS_EMAILS.has(email);
+  try {
+    await pool.query(
+      `INSERT INTO blink_leads (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`,
+      [email]
+    );
+    res.json({ ok: true, admin });
+  } catch (e) {
+    console.error('[blink-gate] error:', e.message);
+    res.status(500).json({ error: 'Could not save email.' });
+  }
+});
 
 const blinkRateLimit = new Map(); // ip → [timestamps]
 
