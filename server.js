@@ -6519,15 +6519,30 @@ app.post('/api/blink-test', async (req, res) => {
     }
   }
 
-  const prompt = `You are a conversion expert specializing in the 0.3-second blink test — whether content stops a scroll or gets ignored instantly in a feed or inbox.
+  const prompt = `You are a conversion expert specializing in the 0.3-second blink test — whether content stops a scroll or gets ignored in a feed or inbox.
 
-Analyze the content below and return ONLY a JSON object with exactly these four fields:
-- "verdict": either "STOPS THE SCROLL" or "GETS IGNORED" (nothing else)
-- "scroll_past_pct": integer 1-99, the percentage of people who would scroll past without engaging
-- "attention_lost_at": the exact 2-6 word phrase from the content where the reader's brain checks out
-- "reason": one plain-language sentence (max 15 words) naming the friction pattern — diagnostic, not preachy. Examples: "Announces the company instead of giving the reader a reason to care." / "Generic benefit claim with no specificity or tension." / "Opens with process, not outcome — reader can't picture the payoff."
+── CALIBRATION (mandatory) ──
+Use the full scoring range. Realistic distribution: ~25% of content stops the scroll; ~75% gets ignored, but scores spread across 45–85%. Only truly generic or corporate-speak content scores 88–97%. Strong hooks, specific numbers, curiosity gaps, bold value propositions, and compelling opening lines MUST score as "STOPS THE SCROLL". Do NOT cluster everything at 88–97% — that makes the tool useless.
 
-Rules: Be decisive and calibrated. Most content gets ignored — reserve "STOPS THE SCROLL" for genuinely compelling opening hooks. Quote an exact fragment from the content for attention_lost_at. Return only the JSON, nothing else.
+Score bands:
+- STOPS THE SCROLL: scroll_past_pct 5–44 (strong hook, specificity, tension, or clear payoff)
+- GETS IGNORED, borderline: 45–65 (weak but not terrible — vague, safe, no hook)
+- GETS IGNORED, clearly weak: 66–85 (generic, corporate-speak, no reason to click)
+- GETS IGNORED, very weak: 86–97 (opener is boilerplate, self-referential, or irrelevant)
+
+── BOILERPLATE FILTER (mandatory) ──
+When the input is fetched from a URL, the raw text may include page chrome. You MUST ignore completely and never quote from: cookie consent banners ("this site uses cookies", "accept cookies", "we use cookies"), navigation menu items, breadcrumbs, footer text, legal notices, privacy policy snippets, "skip to content", social share buttons, or any other UI furniture. Only ever quote from the actual headline, email subject line, subheadline, lede sentence, or primary value proposition of the real content.
+
+── OUTPUT ──
+Return ONLY a JSON object with exactly these four fields:
+- "verdict": "STOPS THE SCROLL" or "GETS IGNORED" (nothing else)
+- "scroll_past_pct": integer 1–99 using the calibrated bands above
+- "attention_lost_at": exact 2–6 word phrase from the REAL content (never boilerplate) where attention drops — or for STOPS THE SCROLL, the phrase that hooks attention most
+- "reason": one plain-language sentence (max 15 words) naming the friction pattern or strength — diagnostic, not preachy. Examples: "Announces the company instead of giving the reader a reason to care." / "Generic benefit claim — no specificity or tension." / "Opens with process, not outcome — reader can't picture the payoff." / "Specific number + clear outcome — reader immediately knows the payoff."
+- "issue_type": 3–6 word plain-language label for the pattern category (e.g. "Generic value proposition", "Corporate announcement tone", "No tension or payoff", "Missing reader benefit", "Vague benefit claim", "Strong curiosity gap", "Specific outcome hook")
+- "fix_hint": one sentence (max 13 words) on what fixing it involves — concrete and directional, not generic. Examples: "Lead with the outcome the reader gets, not the feature." / "Add a specific number or named result to create contrast." / "Swap company perspective for the reader's immediate, tangible benefit."
+
+Return only the JSON, nothing else.
 
 Content:
 """
@@ -6558,8 +6573,10 @@ ${content}
     res.json({
       verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : 'GETS IGNORED',
       pct:      Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50)),
-      lostAt:   String(result.attention_lost_at).slice(0, 120),
-      reason:   result.reason ? String(result.reason).slice(0, 200) : ''
+      lostAt:     String(result.attention_lost_at).slice(0, 120),
+      reason:     result.reason     ? String(result.reason).slice(0, 200)     : '',
+      issueType:  result.issue_type ? String(result.issue_type).slice(0, 80)  : '',
+      fixHint:    result.fix_hint   ? String(result.fix_hint).slice(0, 200)   : ''
     });
   } catch (err) {
     console.error('[blink-test] error:', err.message);

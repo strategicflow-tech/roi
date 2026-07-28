@@ -156,6 +156,33 @@ main{
   line-height:1.75;
 }
 
+.explainer{
+  margin:28px 0 32px;
+  padding:16px 18px;
+  border:1px solid rgba(0,212,200,0.1);
+  border-left:2px solid rgba(0,212,200,0.35);
+  background:rgba(0,212,200,0.025);
+  text-align:left;
+}
+.exp-key{
+  display:block;
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:0.2em;
+  color:rgba(0,212,200,0.5);
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.exp-body{
+  font-size:12px;
+  color:rgba(200,210,255,0.72);
+  letter-spacing:0.025em;
+  line-height:1.75;
+  margin-bottom:0;
+}
+.exp-body + .exp-body{margin-top:9px;}
+.exp-hi{color:var(--signal);}
+
 .panel-label{
   font-size:9px;
   font-weight:700;
@@ -418,7 +445,7 @@ textarea:focus{
 }
 
 .reason-box{
-  margin:-8px auto 30px;
+  margin:-8px auto 0;
   max-width:480px;
   padding:13px 20px;
   text-align:left;
@@ -440,6 +467,44 @@ textarea:focus{
   color:rgba(200,210,255,0.52);
   letter-spacing:0.02em;
   line-height:1.65;
+}
+
+.detail-box{
+  margin:14px auto 30px;
+  max-width:480px;
+  padding:14px 20px;
+  background:rgba(255,255,255,0.012);
+  border:1px solid rgba(255,255,255,0.06);
+  text-align:left;
+  opacity:0;
+  transition:opacity 0.5s;
+}
+.detail-box.in{opacity:1;}
+.detail-row{
+  display:flex;
+  gap:10px;
+  align-items:baseline;
+}
+.detail-row + .detail-row{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,0.05);
+}
+.detail-key{
+  flex-shrink:0;
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:0.18em;
+  color:rgba(200,210,255,0.28);
+  text-transform:uppercase;
+  padding-top:1px;
+  min-width:70px;
+}
+.detail-val{
+  font-size:12px;
+  color:rgba(200,210,255,0.6);
+  letter-spacing:0.02em;
+  line-height:1.6;
 }
 
 .cta-row{
@@ -526,6 +591,12 @@ footer{
       <p class="hero-sub">Paste copy or a URL. 3 seconds.<br>Stops the scroll — or gets ignored.</p>
     </div>
 
+    <div class="explainer">
+      <span class="exp-key">// HOW IT WORKS</span>
+      <p class="exp-body">Paste a subject line, headline, post, or URL. We return an instant verdict on whether your opening hook stops attention or loses it — testing hook strength, not grammar or design.</p>
+      <p class="exp-body">After the result: <span class="exp-hi">⚡ TRY IT FREE</span> runs a deeper free analysis in <span class="exp-hi">WHY.™</span> &mdash; or run the full paid audit via <span class="exp-hi">◈ FULL DIAGNOSTIC</span>.</p>
+    </div>
+
     <div style="margin-bottom:12px;">
       <div class="panel-label">// INPUT SIGNAL</div>
       <div class="input-wrap" id="input-wrap">
@@ -563,6 +634,16 @@ footer{
     <div class="reason-box" id="reason-box">
       <div class="reason-label">// FRICTION PATTERN</div>
       <div class="reason-text" id="reason-text"></div>
+    </div>
+    <div class="detail-box" id="detail-box">
+      <div class="detail-row">
+        <span class="detail-key">ISSUE</span>
+        <span class="detail-val" id="detail-issue"></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">FIX</span>
+        <span class="detail-val" id="detail-fix"></span>
+      </div>
     </div>
     <div class="cta-row" id="cta-row">
       <a href="/why.html" class="btn-cta btn-teal">⚡ TRY IT FREE</a>
@@ -615,7 +696,7 @@ function flickerGrid() {
     cells.forEach(c => c.classList.remove('lit'));
     const n = Math.floor(Math.random() * cells.length);
     cells[n].classList.add('lit');
-    if (++tick > 22) clearInterval(iv);
+    if (++tick > 36) clearInterval(iv);
   }, 130);
   return iv;
 }
@@ -640,6 +721,7 @@ const STATUSES = [
   'MEASURING ATTENTION DECAY...',
   'CALIBRATING FRICTION INDEX...',
   'SCORING SCROLL PROBABILITY...',
+  'PATTERN MATCHING...',
   'COMPILING VERDICT...'
 ];
 function cycleStatus() {
@@ -647,7 +729,7 @@ function cycleStatus() {
   const iv = setInterval(() => {
     $('scan-status').textContent = STATUSES[Math.min(i++, STATUSES.length - 1)];
     if (i >= STATUSES.length) clearInterval(iv);
-  }, 460);
+  }, 680);
   return iv;
 }
 
@@ -704,8 +786,19 @@ function showResult(data) {
     }
   }, delay + 560);
 
-  setTimeout(() => $('cta-row').classList.add('in'),   delay + 760);
-  setTimeout(() => $('retry-btn').classList.add('in'), delay + 960);
+  setTimeout(() => {
+    const db = $('detail-box');
+    if (data.issueType || data.fixHint) {
+      if (data.issueType) $('detail-issue').textContent = data.issueType;
+      if (data.fixHint)   $('detail-fix').textContent   = data.fixHint;
+      db.classList.add('in');
+    } else {
+      db.style.display = 'none';
+    }
+  }, delay + 780);
+
+  setTimeout(() => $('cta-row').classList.add('in'),   delay + 1020);
+  setTimeout(() => $('retry-btn').classList.add('in'), delay + 1220);
 }
 
 // ── Reset ─────────────────────────────────────────────────
@@ -716,7 +809,7 @@ function reset() {
   ta.value = '';
   $('scan-bar').style.width = '0%';
   $('pct-num').textContent = '0';
-  ['pct-wrap','diag-box','reason-box','cta-row','retry-btn'].forEach(id => { const el = $(id); el.classList.remove('in'); el.style.display=''; });
+  ['pct-wrap','diag-box','reason-box','detail-box','cta-row','retry-btn'].forEach(id => { const el = $(id); el.classList.remove('in'); el.style.display=''; });
 }
 
 // ── Main handler ──────────────────────────────────────────
@@ -733,7 +826,7 @@ $('analyze-btn').addEventListener('click', async () => {
   $('state-scanning').classList.remove('hidden');
   buildGrid();
   const stopFlicker  = flickerGrid();
-  const stopProgress = runProgress(2800);
+  const stopProgress = runProgress(4800);
   const stopStatus   = cycleStatus();
 
   try {
