@@ -6521,10 +6521,11 @@ app.post('/api/blink-test', async (req, res) => {
 
   const prompt = `You are a conversion expert specializing in the 0.3-second blink test — whether content stops a scroll or gets ignored instantly in a feed or inbox.
 
-Analyze the content below and return ONLY a JSON object with exactly these three fields:
+Analyze the content below and return ONLY a JSON object with exactly these four fields:
 - "verdict": either "STOPS THE SCROLL" or "GETS IGNORED" (nothing else)
 - "scroll_past_pct": integer 1-99, the percentage of people who would scroll past without engaging
 - "attention_lost_at": the exact 2-6 word phrase from the content where the reader's brain checks out
+- "reason": one plain-language sentence (max 15 words) naming the friction pattern — diagnostic, not preachy. Examples: "Announces the company instead of giving the reader a reason to care." / "Generic benefit claim with no specificity or tension." / "Opens with process, not outcome — reader can't picture the payoff."
 
 Rules: Be decisive and calibrated. Most content gets ignored — reserve "STOPS THE SCROLL" for genuinely compelling opening hooks. Quote an exact fragment from the content for attention_lost_at. Return only the JSON, nothing else.
 
@@ -6557,7 +6558,8 @@ ${content}
     res.json({
       verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : 'GETS IGNORED',
       pct:      Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50)),
-      lostAt:   String(result.attention_lost_at).slice(0, 120)
+      lostAt:   String(result.attention_lost_at).slice(0, 120),
+      reason:   result.reason ? String(result.reason).slice(0, 200) : ''
     });
   } catch (err) {
     console.error('[blink-test] error:', err.message);

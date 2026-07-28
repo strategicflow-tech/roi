@@ -43,7 +43,7 @@ body::before{
   content:'';
   position:fixed;
   inset:0;
-  background-image:radial-gradient(rgba(0,212,200,0.065) 1px, transparent 1px);
+  background-image:radial-gradient(rgba(0,212,200,0.14) 1px, transparent 1px);
   background-size:28px 28px;
   pointer-events:none;
   z-index:0;
@@ -417,6 +417,31 @@ textarea:focus{
   line-height:1.5;
 }
 
+.reason-box{
+  margin:-8px auto 30px;
+  max-width:480px;
+  padding:13px 20px;
+  text-align:left;
+  border-left:2px solid rgba(0,212,200,0.2);
+  opacity:0;
+  transition:opacity 0.5s;
+}
+.reason-box.in{opacity:1;}
+.reason-label{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:0.2em;
+  color:rgba(0,212,200,0.38);
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.reason-text{
+  font-size:12px;
+  color:rgba(200,210,255,0.52);
+  letter-spacing:0.02em;
+  line-height:1.65;
+}
+
 .cta-row{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -475,8 +500,8 @@ footer{
   align-items:center;
 }
 .footer-copy{font-size:9px;letter-spacing:0.12em;color:rgba(200,210,255,0.18);text-transform:uppercase;}
-.footer-link{font-size:9px;letter-spacing:0.12em;color:rgba(0,212,200,0.28);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
-.footer-link:hover{color:var(--signal);}
+.footer-link{font-size:9px;letter-spacing:0.12em;color:rgba(0,212,200,0.65);text-decoration:none;text-transform:uppercase;transition:color 0.2s;border-bottom:1px solid rgba(0,212,200,0.22);}
+.footer-link:hover{color:var(--signal);border-bottom-color:rgba(0,212,200,0.55);}
 
 @media(max-width:420px){
   .cta-row{grid-template-columns:1fr;}
@@ -534,6 +559,10 @@ footer{
     <div class="diag-box" id="diag-box">
       <div class="diag-label">// SIGNAL LOST AT</div>
       <div class="diag-text" id="diag-text"></div>
+    </div>
+    <div class="reason-box" id="reason-box">
+      <div class="reason-label">// FRICTION PATTERN</div>
+      <div class="reason-text" id="reason-text"></div>
     </div>
     <div class="cta-row" id="cta-row">
       <a href="/why.html" class="btn-cta btn-teal">⚡ TRY IT FREE</a>
@@ -665,8 +694,18 @@ function showResult(data) {
     $('diag-box').classList.add('in');
   }, delay + 380);
 
-  setTimeout(() => $('cta-row').classList.add('in'),   delay + 660);
-  setTimeout(() => $('retry-btn').classList.add('in'), delay + 860);
+  setTimeout(() => {
+    const rb = $('reason-box');
+    if (data.reason) {
+      $('reason-text').textContent = data.reason;
+      rb.classList.add('in');
+    } else {
+      rb.style.display = 'none';
+    }
+  }, delay + 560);
+
+  setTimeout(() => $('cta-row').classList.add('in'),   delay + 760);
+  setTimeout(() => $('retry-btn').classList.add('in'), delay + 960);
 }
 
 // ── Reset ─────────────────────────────────────────────────
@@ -677,7 +716,7 @@ function reset() {
   ta.value = '';
   $('scan-bar').style.width = '0%';
   $('pct-num').textContent = '0';
-  ['pct-wrap','diag-box','cta-row','retry-btn'].forEach(id => $( id).classList.remove('in'));
+  ['pct-wrap','diag-box','reason-box','cta-row','retry-btn'].forEach(id => { const el = $(id); el.classList.remove('in'); el.style.display=''; });
 }
 
 // ── Main handler ──────────────────────────────────────────
