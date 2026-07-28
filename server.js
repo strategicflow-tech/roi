@@ -6545,9 +6545,9 @@ Return ONLY a JSON object with exactly these four fields:
 - "verdict": "STOPS THE SCROLL", "MIXED SIGNAL", or "GETS IGNORED" — must match the score band above, nothing else
 - "scroll_past_pct": integer 1–99 using the calibrated bands above
 - "attention_lost_at": a complete, grammatically whole phrase or short sentence (5–15 words) from the REAL content (never boilerplate) — never truncate mid-word or mid-clause; for STOPS THE SCROLL, quote the phrase that hooks most strongly; for MIXED SIGNAL or GETS IGNORED, quote where attention drops
-- "reason": one plain-language sentence (max 15 words) naming the friction pattern or strength — diagnostic, not preachy. Examples: "Announces the company instead of giving the reader a reason to care." / "Generic benefit claim — no specificity or tension." / "Opens with process, not outcome — reader can't picture the payoff." / "Specific number + clear outcome — reader immediately knows the payoff."
-- "issue_type": 3–6 word plain-language label for the pattern category (e.g. "Generic value proposition", "Corporate announcement tone", "No tension or payoff", "Missing reader benefit", "Vague benefit claim", "Strong curiosity gap", "Specific outcome hook")
-- "fix_hint": one sentence (max 13 words) on what fixing it involves — concrete and directional, not generic. Examples: "Lead with the outcome the reader gets, not the feature." / "Add a specific number or named result to create contrast." / "Swap company perspective for the reader's immediate, tangible benefit."
+- "reason": one plain-language sentence (max 15 words) — TONE MUST MATCH THE SCORE BAND: positive/reinforcing for low pct (e.g. "Specific number plus named audience creates instant self-selection and curiosity."), diagnostic/cautionary for high pct (e.g. "Generic benefit claim — no specificity or tension."). Never praise content that scored high scroll-past; never criticise content that scored low scroll-past.
+- "issue_type": 3–6 word plain-language label — positive label for low pct (e.g. "Strong curiosity gap", "Specific outcome hook"), neutral/negative for high pct (e.g. "Generic value proposition", "Corporate announcement tone", "Vague benefit claim")
+- "fix_hint": one sentence (max 13 words) — for low pct: reinforce what is working (e.g. "Keep leading with the specific result to invite self-comparison."); for high pct: concrete directional fix (e.g. "Lead with the outcome the reader gets, not the feature.")
 
 Return only the JSON, nothing else.
 
@@ -6576,10 +6576,13 @@ ${content}
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('no_json');
     const result = JSON.parse(match[0]);
-    if (!result.verdict || !result.scroll_past_pct || !result.attention_lost_at) throw new Error('incomplete_json');
+    if (!result.scroll_past_pct || !result.attention_lost_at) throw new Error('incomplete_json');
+    // Derive verdict purely from pct — single source of truth, model's verdict string is ignored
+    const pct = Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50));
+    const verdict = pct <= 39 ? 'STOPS THE SCROLL' : pct <= 65 ? 'MIXED SIGNAL' : 'GETS IGNORED';
     res.json({
-      verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : result.verdict === 'MIXED SIGNAL' ? 'MIXED SIGNAL' : 'GETS IGNORED',
-      pct:      Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50)),
+      verdict,
+      pct,
       lostAt:     String(result.attention_lost_at).slice(0, 120),
       reason:     result.reason     ? String(result.reason).slice(0, 200)     : '',
       issueType:  result.issue_type ? String(result.issue_type).slice(0, 80)  : '',
