@@ -646,6 +646,9 @@ app.get('/api/teardown-count', async (req, res) => {
   res.json({ count: parseInt(process.env.TEARDOWN_COUNT, 10) || 0 });
 });
 
+// Redirect /why to canonical /why.html before static middleware intercepts the /why/ directory
+app.get('/why', (req, res) => res.redirect(301, '/why.html'));
+
 app.use(express.static('public'));
 
 // ── ROOT — always serve app (no auth wall for free users) ─────────────────────
@@ -5328,6 +5331,7 @@ app.get('/why/login', async (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, follow" />
 <title>WHY Pro — Sign In</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -5441,10 +5445,7 @@ app.get('/why/history', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'public', 'why', 'history.html'));
 });
 
-// GET /why — alias for why.html
-app.get('/why', (req, res) => {
-  res.sendFile(require('path').join(__dirname, 'public', 'why.html'));
-});
+// GET /why — handled above (301 to /why.html, registered before static middleware)
 
 // GET /api/why-status — returns Pro session state for frontend
 app.get('/api/why-status', (req, res) => {

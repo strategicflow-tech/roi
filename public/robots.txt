@@ -1,6 +1,52 @@
 User-agent: *
 Allow: /
 
+# Internal API endpoints — never meant to be crawled
+Disallow: /api/
+Disallow: /admin/
+Disallow: /debug/
+Disallow: /owner
+Disallow: /owner-auth
+Disallow: /auth/
+
+# Internal backend/tool routes
+Disallow: /generate
+Disallow: /generate/
+Disallow: /conversion-score
+Disallow: /check-email
+Disallow: /human-review
+Disallow: /cohesion-check
+Disallow: /parse-html
+Disallow: /brand-dna
+Disallow: /audience-segments
+Disallow: /activate
+Disallow: /ab-subjects
+Disallow: /apply-architecture
+Disallow: /submit-rebuild
+Disallow: /update-system-prompt
+Disallow: /test-sequence
+Disallow: /stripe/
+Disallow: /webhook/
+Disallow: /proxy-image
+Disallow: /health
+
+# Auth-gated tool pages (redirect/403 for unauthenticated crawlers)
+Disallow: /fatigue-detector
+Disallow: /architecture-dashboard
+Disallow: /audience-mirror
+Disallow: /dead-email-resurrector
+Disallow: /best-send-window
+Disallow: /sequence-gap-finder
+Disallow: /predict
+
+# Numeric/stub paths surfaced in Search Console
+Disallow: /7
+Disallow: /10
+
+# WHY Pro internal pages (login/auth flow — not canonical public content)
+Disallow: /why/login
+Disallow: /why/history
+
 User-agent: GPTBot
 Allow: /
 
