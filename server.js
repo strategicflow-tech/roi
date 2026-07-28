@@ -6507,6 +6507,14 @@ app.post('/api/blink-test', async (req, res) => {
       });
       const html = await urlResp.text();
       content = html
+        // Remove structural chrome wholesale before any text is extracted
+        .replace(/<header[\s\S]*?<\/header>/gi, '')
+        .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+        .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+        .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+        // Remove common nav/menu containers by id/class pattern
+        .replace(/<[^>]+(?:id|class)="[^"]*(?:nav|menu|header|navbar|topbar|site-header|masthead|cookie|banner|gdpr|consent)[^"]*"[^>]*>[\s\S]*?<\/\w+>/gi, '')
+        // Strip remaining scripts, styles, then all tags
         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
         .replace(/<[^>]+>/g, ' ')
