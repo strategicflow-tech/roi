@@ -1006,6 +1006,7 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] blink_leads:', e.message));
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS blink_leads_email_idx ON blink_leads (email)`).catch(()=>{});
+  await pool.query(`ALTER TABLE blink_leads ADD COLUMN IF NOT EXISTS why_credits_used INTEGER DEFAULT 0`).catch(()=>{});
   await pool.query(`
     CREATE TABLE IF NOT EXISTS demo_rebuilds (
       hash TEXT PRIMARY KEY,
@@ -10115,7 +10116,25 @@ setupDB().then(async () => {
     const isProUser = (req.session && req.session.isWhyPro === true) ||
       (req.session && BYPASS_EMAILS.has(req.session.userEmail)) ||
       (req.session && BYPASS_EMAILS.has(req.session.whyProEmail));
-    if (!isProUser && !WHY_WHITELIST.includes(ip)) {
+    // Blink Test credits — email-based WHY runs granted via the blink gate
+    const blinkEmail = (req.body.blinkEmail || '').toLowerCase().trim();
+    let blinkCreditUsed = false;
+    if (!isProUser && blinkEmail) {
+      if (BYPASS_EMAILS.has(blinkEmail)) {
+        blinkCreditUsed = true; // admin: unlimited
+      } else {
+        try {
+          const cr = await pool.query(
+            `UPDATE blink_leads SET why_credits_used = why_credits_used + 1
+             WHERE email = $1 AND why_credits_used < 3
+             RETURNING why_credits_used`,
+            [blinkEmail]
+          );
+          if (cr.rows.length > 0) blinkCreditUsed = true;
+        } catch (_) {}
+      }
+    }
+    if (!blinkCreditUsed && !isProUser && !WHY_WHITELIST.includes(ip)) {
       const used = whyUsage[ip] || 0;
       if (used >= 3) {
         appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'rate_limited' });

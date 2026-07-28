@@ -1614,6 +1614,12 @@ const CONTENT_TYPE_CONTEXTS = {
   'Ad copy': 'Focus on hook-offer mismatch and claim credibility: Does the hook match what the ad is actually selling? Are claims specific and provable, or vague and generic? Is there a reason to act now, or does the CTA feel optional? Is the audience specific enough to feel personally addressed? Does the copy describe a transformation or just a product feature?'
 };
 
+// ===== BLINK TEST CREDITS =====
+(function() {
+  const p = new URLSearchParams(window.location.search).get('blink_email');
+  if (p) sessionStorage.setItem('blink_email', p.toLowerCase().trim());
+})();
+
 // ===== HERO ANIMATION =====
 window.isWhyPro = false;
 
@@ -2069,7 +2075,7 @@ ${input}`;
     const response = await fetch('/api/why-analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, contentType, rawContent: input })
+      body: JSON.stringify({ prompt, contentType, rawContent: input, blinkEmail: sessionStorage.getItem('blink_email') || '' })
     });
 
     if (response.status === 429) {

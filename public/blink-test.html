@@ -657,6 +657,44 @@ textarea:focus{
   min-height:16px;
 }
 
+/* ── CONFIRM STATE ───────────────────────────────────────── */
+#state-confirm{text-align:center;}
+
+.confirm-icon{
+  font-size:28px;
+  margin-bottom:16px;
+}
+.confirm-heading{
+  font-size:clamp(22px,5vw,34px);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  color:#fff;
+  text-transform:uppercase;
+  line-height:1.1;
+  margin-bottom:10px;
+}
+.confirm-heading .confirm-hi{
+  color:var(--signal);
+  text-shadow:0 0 30px rgba(0,212,200,0.4);
+}
+.confirm-sub{
+  font-size:12px;
+  color:rgba(200,210,255,0.55);
+  letter-spacing:0.03em;
+  line-height:1.75;
+  margin-bottom:32px;
+  max-width:400px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.confirm-note{
+  margin-top:16px;
+  font-size:10px;
+  color:rgba(200,210,255,0.25);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+}
+
 /* ── FOOTER ──────────────────────────────────────────────── */
 footer{
   position:relative;
@@ -716,16 +754,26 @@ footer{
 
   <!-- ── STATE: GATE ── -->
   <div id="state-gate" class="state hidden">
-    <div class="gate-eyebrow">ACCESS LIMIT REACHED</div>
-    <h2 class="gate-heading"><span class="gate-hi">3</span> FREE SCANS USED</h2>
-    <p class="gate-sub">Enter your email to keep running Blink Tests.<br>No password. No account. Just your email.</p>
+    <div class="gate-eyebrow">BLINK TEST LIMIT REACHED</div>
+    <h2 class="gate-heading"><span class="gate-hi">3/3</span> SCANS USED</h2>
+    <p class="gate-sub">Your 3 free Blink Tests are done.<br>Enter your email and get 3 free diagnostic runs in <strong style="color:var(--signal)">WHY.™</strong> instead.</p>
     <div class="gate-form">
       <div class="gate-input-wrap">
         <input type="email" id="gate-email" class="gate-input" placeholder="you@example.com" autocomplete="email">
       </div>
-      <button class="gate-submit" id="gate-submit">⚡ UNLOCK UNLIMITED SCANS</button>
+      <button class="gate-submit" id="gate-submit">⚡ CLAIM 3 FREE WHY.™ RUNS</button>
       <div class="gate-err" id="gate-err"></div>
     </div>
+  </div>
+
+  <!-- ── STATE: CONFIRM ── -->
+  <div id="state-confirm" class="state hidden">
+    <div class="gate-eyebrow">SIGNAL CAPTURED</div>
+    <div class="confirm-icon">◈</div>
+    <h2 class="confirm-heading"><span class="confirm-hi">3</span> WHY.™ RUNS READY</h2>
+    <p class="confirm-sub" id="confirm-sub">Your 3 free diagnostic runs in WHY.™ are waiting, tied to your email. Click below to use them.</p>
+    <a href="/why.html" id="confirm-cta" class="btn-analyze" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;max-width:600px;margin:0 auto;">⚡ GO TO WHY.™</a>
+    <p class="confirm-note">Blink Test: 3/3 used · WHY.™: 3 free runs waiting</p>
   </div>
 
   <!-- ── STATE: SCANNING ── -->
@@ -783,15 +831,37 @@ const ta = $('content-input');
 const iw = $('input-wrap');
 
 // ── Usage gate ────────────────────────────────────────────
-const GATE_COUNT_KEY    = 'blink_runs';
-const GATE_UNLOCKED_KEY = 'blink_unlocked';
-const FREE_LIMIT        = 3;
+const GATE_COUNT_KEY = 'blink_runs';
+const FREE_LIMIT     = 3;
+const ADMIN_KEY      = 'blink_admin';
 
-function getRunCount()  { return parseInt(localStorage.getItem(GATE_COUNT_KEY)  || '0', 10); }
-function isUnlocked()   { return localStorage.getItem(GATE_UNLOCKED_KEY) === '1'; }
-function incRunCount()  { localStorage.setItem(GATE_COUNT_KEY, getRunCount() + 1); }
+function getRunCount() { return parseInt(localStorage.getItem(GATE_COUNT_KEY) || '0', 10); }
+function incRunCount() { localStorage.setItem(GATE_COUNT_KEY, getRunCount() + 1); }
+function isAdminBrowser() { return localStorage.getItem(ADMIN_KEY) === '1'; }
 
-function showGate(pendingContent) {
+function showConfirm(email, admin) {
+  $('state-gate').classList.add('hidden');
+  const sub = $('confirm-sub');
+  const cta = $('confirm-cta');
+  if (admin) {
+    // Admin: reset blink counter + grant unlimited; redirect with email
+    localStorage.setItem(ADMIN_KEY, '1');
+    localStorage.setItem(GATE_COUNT_KEY, '0');
+    $('state-confirm').querySelector('.confirm-heading').innerHTML =
+      '<span class="confirm-hi">∞</span> ADMIN BYPASS';
+    sub.textContent = 'Unlimited runs in both Blink Test and WHY.™ — no limits apply for this email.';
+    $('state-confirm').querySelector('.confirm-note').textContent =
+      'Admin account — all limits bypassed';
+    cta.textContent = '⚡ GO TO WHY.™';
+    cta.href = '/why.html?blink_email=' + encodeURIComponent(email);
+  } else {
+    sub.textContent = 'Your 3 free diagnostic runs in WHY.™ are tied to your email. Enter it when you arrive — they\'ll be waiting.';
+    cta.href = '/why.html?blink_email=' + encodeURIComponent(email);
+  }
+  $('state-confirm').classList.remove('hidden');
+}
+
+function showGate() {
   $('state-input').classList.add('hidden');
   $('state-gate').classList.remove('hidden');
   $('gate-email').focus();
@@ -813,11 +883,7 @@ function showGate(pendingContent) {
       });
       if (!r.ok) throw new Error('server');
       const gateData = await r.json();
-      localStorage.setItem(GATE_UNLOCKED_KEY, '1');
-      // Admin emails: mark browser permanently so run counter never triggers gate
-      if (gateData.admin) localStorage.setItem('blink_admin', '1');
-      $('state-gate').classList.add('hidden');
-      runAnalysis(pendingContent);
+      showConfirm(email, gateData.admin);
     } catch {
       $('gate-err').textContent = 'ERROR — PLEASE TRY AGAIN';
       $('gate-submit').disabled = false;
@@ -1025,9 +1091,9 @@ $('analyze-btn').addEventListener('click', () => {
     return;
   }
 
-  // Show gate on 4th+ run if not yet unlocked
-  if (!isUnlocked() && getRunCount() >= FREE_LIMIT) {
-    showGate(content);
+  // Hard cap at FREE_LIMIT unless this is a recognised admin browser
+  if (getRunCount() >= FREE_LIMIT && !isAdminBrowser()) {
+    showGate();
     return;
   }
 
