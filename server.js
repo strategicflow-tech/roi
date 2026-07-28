@@ -6524,20 +6524,19 @@ app.post('/api/blink-test', async (req, res) => {
 ── CALIBRATION (mandatory) ──
 Use the full scoring range. Realistic distribution: ~25% of content stops the scroll; ~75% gets ignored, but scores spread across 45–85%. Only truly generic or corporate-speak content scores 88–97%. Strong hooks, specific numbers, curiosity gaps, bold value propositions, and compelling opening lines MUST score as "STOPS THE SCROLL". Do NOT cluster everything at 88–97% — that makes the tool useless.
 
-Score bands:
-- STOPS THE SCROLL: scroll_past_pct 5–44 (strong hook, specificity, tension, or clear payoff)
-- GETS IGNORED, borderline: 45–65 (weak but not terrible — vague, safe, no hook)
-- GETS IGNORED, clearly weak: 66–85 (generic, corporate-speak, no reason to click)
-- GETS IGNORED, very weak: 86–97 (opener is boilerplate, self-referential, or irrelevant)
+Score bands and corresponding verdicts:
+- STOPS THE SCROLL: scroll_past_pct 5–39 (strong hook, specificity, tension, or clear payoff)
+- MIXED SIGNAL: scroll_past_pct 40–65 (borderline — some hook but vague, safe, or incomplete; close to a coin flip)
+- GETS IGNORED: scroll_past_pct 66–97 (clearly weak — generic, corporate-speak, no hook, boilerplate opener)
 
 ── BOILERPLATE FILTER (mandatory) ──
 When the input is fetched from a URL, the raw text may include page chrome. You MUST ignore completely and never quote from: cookie consent banners ("this site uses cookies", "accept cookies", "we use cookies"), navigation menu items, breadcrumbs, footer text, legal notices, privacy policy snippets, "skip to content", social share buttons, or any other UI furniture. Only ever quote from the actual headline, email subject line, subheadline, lede sentence, or primary value proposition of the real content.
 
 ── OUTPUT ──
 Return ONLY a JSON object with exactly these four fields:
-- "verdict": "STOPS THE SCROLL" or "GETS IGNORED" (nothing else)
+- "verdict": "STOPS THE SCROLL", "MIXED SIGNAL", or "GETS IGNORED" — must match the score band above, nothing else
 - "scroll_past_pct": integer 1–99 using the calibrated bands above
-- "attention_lost_at": exact 2–6 word phrase from the REAL content (never boilerplate) where attention drops — or for STOPS THE SCROLL, the phrase that hooks attention most
+- "attention_lost_at": a complete, grammatically whole phrase or short sentence (5–15 words) from the REAL content (never boilerplate) — never truncate mid-word or mid-clause; for STOPS THE SCROLL, quote the phrase that hooks most strongly; for MIXED SIGNAL or GETS IGNORED, quote where attention drops
 - "reason": one plain-language sentence (max 15 words) naming the friction pattern or strength — diagnostic, not preachy. Examples: "Announces the company instead of giving the reader a reason to care." / "Generic benefit claim — no specificity or tension." / "Opens with process, not outcome — reader can't picture the payoff." / "Specific number + clear outcome — reader immediately knows the payoff."
 - "issue_type": 3–6 word plain-language label for the pattern category (e.g. "Generic value proposition", "Corporate announcement tone", "No tension or payoff", "Missing reader benefit", "Vague benefit claim", "Strong curiosity gap", "Specific outcome hook")
 - "fix_hint": one sentence (max 13 words) on what fixing it involves — concrete and directional, not generic. Examples: "Lead with the outcome the reader gets, not the feature." / "Add a specific number or named result to create contrast." / "Swap company perspective for the reader's immediate, tangible benefit."
@@ -6571,7 +6570,7 @@ ${content}
     const result = JSON.parse(match[0]);
     if (!result.verdict || !result.scroll_past_pct || !result.attention_lost_at) throw new Error('incomplete_json');
     res.json({
-      verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : 'GETS IGNORED',
+      verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : result.verdict === 'MIXED SIGNAL' ? 'MIXED SIGNAL' : 'GETS IGNORED',
       pct:      Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50)),
       lostAt:     String(result.attention_lost_at).slice(0, 120),
       reason:     result.reason     ? String(result.reason).slice(0, 200)     : '',

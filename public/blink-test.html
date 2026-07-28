@@ -19,6 +19,7 @@
   --signal:#00d4c8;
   --stops:#00ff8c;
   --ignored:#ff3311;
+  --amber:#e8960a;
   --purple:#9d4eff;
   --text:#c8d0e8;
   --muted:rgba(200,210,255,0.38);
@@ -384,6 +385,10 @@ textarea:focus{
 .verdict-words.stops .verdict-word{
   color:var(--stops);
   text-shadow:0 0 50px rgba(0,255,140,0.45),0 0 100px rgba(0,255,140,0.2);
+}
+.verdict-words.mixed .verdict-word{
+  color:var(--amber);
+  text-shadow:0 0 50px rgba(232,150,10,0.45),0 0 100px rgba(232,150,10,0.2);
 }
 .verdict-words.ignored .verdict-word{
   color:var(--ignored);
@@ -751,10 +756,11 @@ function showResult(data) {
   $('scan-bar').style.width = '100%';
 
   const isStops = data.verdict === 'STOPS THE SCROLL';
+  const isMixed = data.verdict === 'MIXED SIGNAL';
   const words   = data.verdict.split(' ');
   const vw      = $('verdict-words');
   vw.innerHTML  = '';
-  vw.className  = 'verdict-words ' + (isStops ? 'stops' : 'ignored');
+  vw.className  = 'verdict-words ' + (isStops ? 'stops' : isMixed ? 'mixed' : 'ignored');
 
   words.forEach((w, i) => {
     const el = document.createElement('span');
