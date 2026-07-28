@@ -649,6 +649,9 @@ app.get('/api/teardown-count', async (req, res) => {
 // Redirect /why to canonical /why.html before static middleware intercepts the /why/ directory
 app.get('/why', (req, res) => res.redirect(301, '/why.html'));
 
+// Blink Test — serve before static middleware (no auth required)
+app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'blink-test.html')));
+
 app.use(express.static('public'));
 
 // ── ROOT — always serve app (no auth wall for free users) ─────────────────────
@@ -6474,6 +6477,93 @@ app.post('/subscribe', async (req, res) => {
 });
 
 // ─── ARCHITECTURE-LAYER SIGNUP ────────────────────────────────────────────────
+
+// ─── BLINK TEST ───────────────────────────────────────────────────────────────
+
+const blinkRateLimit = new Map(); // ip → [timestamps]
+
+app.post('/api/blink-test', async (req, res) => {
+  // Rate limit: 5 per hour per IP
+  const ip  = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  const recent = (blinkRateLimit.get(ip) || []).filter(t => now - t < hour);
+  if (recent.length >= 5) return res.status(429).json({ error: 'limit_reached' });
+  recent.push(now);
+  blinkRateLimit.set(ip, recent);
+
+  let { content } = req.body;
+  if (!content || typeof content !== 'string' || content.trim().length < 8) {
+    return res.status(400).json({ error: 'Content too short.' });
+  }
+  content = content.trim().slice(0, 3000);
+
+  // If URL, fetch and strip to text
+  if (/^https?:\/\//i.test(content)) {
+    try {
+      const urlResp = await fetch(content, {
+        signal: AbortSignal.timeout(5000),
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
+      });
+      const html = await urlResp.text();
+      content = html
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 2500);
+      if (content.length < 8) return res.status(400).json({ error: 'Could not extract text from URL.' });
+    } catch (e) {
+      return res.status(400).json({ error: 'Could not fetch URL. Paste the text directly.' });
+    }
+  }
+
+  const prompt = `You are a conversion expert specializing in the 0.3-second blink test — whether content stops a scroll or gets ignored instantly in a feed or inbox.
+
+Analyze the content below and return ONLY a JSON object with exactly these three fields:
+- "verdict": either "STOPS THE SCROLL" or "GETS IGNORED" (nothing else)
+- "scroll_past_pct": integer 1-99, the percentage of people who would scroll past without engaging
+- "attention_lost_at": the exact 2-6 word phrase from the content where the reader's brain checks out
+
+Rules: Be decisive and calibrated. Most content gets ignored — reserve "STOPS THE SCROLL" for genuinely compelling opening hooks. Quote an exact fragment from the content for attention_lost_at. Return only the JSON, nothing else.
+
+Content:
+"""
+${content}
+"""`;
+
+  try {
+    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      signal: AbortSignal.timeout(20000)
+    });
+    const data = await apiResp.json();
+    const text = (Array.isArray(data.content) ? data.content.find(b => b.type === 'text')?.text : '') || '';
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('no_json');
+    const result = JSON.parse(match[0]);
+    if (!result.verdict || !result.scroll_past_pct || !result.attention_lost_at) throw new Error('incomplete_json');
+    res.json({
+      verdict:  result.verdict === 'STOPS THE SCROLL' ? 'STOPS THE SCROLL' : 'GETS IGNORED',
+      pct:      Math.min(99, Math.max(1, parseInt(result.scroll_past_pct, 10) || 50)),
+      lostAt:   String(result.attention_lost_at).slice(0, 120)
+    });
+  } catch (err) {
+    console.error('[blink-test] error:', err.message);
+    res.status(500).json({ error: 'Analysis failed. Please try again.' });
+  }
+});
 
 app.post('/architecture-signup', async (req, res) => {
   const email = (req.body.email || '').toLowerCase().trim();

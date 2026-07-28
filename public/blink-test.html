@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="robots" content="index, follow">
+<meta name="description" content="Paste any copy or URL. Know in 3 seconds if it stops the scroll or gets ignored.">
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/blink-test">
+<title>Blink Test™ — Strategic Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#06080f;
+  --bg2:#0a0d18;
+  --signal:#00d4c8;
+  --stops:#00ff8c;
+  --ignored:#ff3311;
+  --purple:#9d4eff;
+  --text:#c8d0e8;
+  --muted:rgba(200,210,255,0.38);
+  --border:rgba(0,212,200,0.18);
+  --panel:rgba(0,212,200,0.04);
+  --mono:'IBM Plex Mono',monospace;
+}
+
+html{background:var(--bg);}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--mono);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+
+/* DOT GRID */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:radial-gradient(rgba(0,212,200,0.065) 1px, transparent 1px);
+  background-size:28px 28px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* SCAN LINE */
+body::after{
+  content:'';
+  position:fixed;
+  left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(0,212,200,0.5) 20%,rgba(0,212,200,0.85) 50%,rgba(0,212,200,0.5) 80%,transparent 100%);
+  animation:scanmove 7s linear infinite;
+  pointer-events:none;
+  z-index:1;
+}
+@keyframes scanmove{
+  0%  {top:-2px;opacity:0}
+  4%  {opacity:1}
+  96% {opacity:1}
+  100%{top:100vh;opacity:0}
+}
+
+/* ── HEADER ──────────────────────────────────────────────── */
+header{
+  position:relative;
+  z-index:10;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:20px 24px;
+  border-bottom:1px solid var(--border);
+}
+
+.logo{
+  font-size:10px;
+  font-weight:500;
+  letter-spacing:0.18em;
+  color:var(--muted);
+  text-transform:uppercase;
+}
+.logo .dot{color:var(--signal);}
+
+.header-badge{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.16em;
+  color:var(--signal);
+  border:1px solid rgba(0,212,200,0.4);
+  padding:4px 10px;
+  text-transform:uppercase;
+}
+
+/* ── MAIN ──────────────────────────────────────────────────── */
+main{
+  position:relative;
+  z-index:5;
+  min-height:calc(100vh - 104px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:40px 20px;
+}
+
+.state{width:100%;max-width:600px;}
+.hidden{display:none!important}
+
+/* ── INPUT STATE ─────────────────────────────────────────── */
+.input-hero{text-align:center;margin-bottom:40px;}
+
+.eyebrow{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.22em;
+  color:var(--signal);
+  text-transform:uppercase;
+  margin-bottom:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  opacity:0.8;
+}
+.eyebrow::before,.eyebrow::after{
+  content:'';
+  display:inline-block;
+  width:28px;height:1px;
+  background:var(--signal);
+  opacity:0.45;
+}
+
+.hero-title{
+  font-size:clamp(62px,17vw,128px);
+  font-weight:700;
+  letter-spacing:-0.04em;
+  line-height:0.88;
+  color:#fff;
+  text-transform:uppercase;
+  margin-bottom:18px;
+}
+.hero-title .glow{
+  color:var(--signal);
+  text-shadow:0 0 40px rgba(0,212,200,0.55),0 0 90px rgba(0,212,200,0.28);
+}
+
+.hero-sub{
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:0.04em;
+  line-height:1.75;
+}
+
+.panel-label{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.18em;
+  color:var(--signal);
+  opacity:0.65;
+  margin-bottom:8px;
+  text-transform:uppercase;
+}
+
+.input-wrap{position:relative;}
+
+/* HUD corners */
+.input-wrap::before,.input-wrap::after,
+.input-corners-b::before,.input-corners-b::after{
+  content:'';
+  position:absolute;
+  width:13px;height:13px;
+  border-color:var(--signal);
+  border-style:solid;
+  opacity:0.5;
+  pointer-events:none;
+  transition:opacity 0.25s;
+  z-index:2;
+}
+.input-wrap::before{top:-1px;left:-1px;border-width:1px 0 0 1px;}
+.input-wrap::after {top:-1px;right:-1px;border-width:1px 1px 0 0;}
+.input-corners-b::before{bottom:-1px;left:-1px;border-width:0 0 1px 1px;}
+.input-corners-b::after {bottom:-1px;right:-1px;border-width:0 1px 1px 0;}
+.input-wrap.focused::before,.input-wrap.focused::after,
+.input-wrap.focused .input-corners-b::before,
+.input-wrap.focused .input-corners-b::after{opacity:1;}
+
+textarea{
+  width:100%;
+  min-height:160px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.7;
+  padding:16px 18px;
+  resize:vertical;
+  outline:none;
+  display:block;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  -webkit-appearance:none;
+}
+textarea::placeholder{color:rgba(200,210,255,0.2);}
+textarea:focus{
+  border-color:rgba(0,212,200,0.45);
+  box-shadow:0 0 0 1px rgba(0,212,200,0.1),inset 0 0 28px rgba(0,212,200,0.025);
+}
+
+.btn-analyze{
+  width:100%;
+  margin-top:12px;
+  padding:18px 24px;
+  background:rgba(0,212,200,0.07);
+  border:1px solid rgba(0,212,200,0.38);
+  color:var(--signal);
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  transition:background 0.2s,box-shadow 0.2s,border-color 0.2s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-analyze::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(0,212,200,0.09),transparent);
+  transform:translateX(-100%);
+  transition:transform 0.5s;
+}
+.btn-analyze:hover{
+  background:rgba(0,212,200,0.11);
+  border-color:rgba(0,212,200,0.65);
+  box-shadow:0 0 28px rgba(0,212,200,0.14),inset 0 0 24px rgba(0,212,200,0.04);
+}
+.btn-analyze:hover::before{transform:translateX(100%);}
+.btn-analyze:active{transform:scale(0.99);}
+.btn-analyze:disabled{opacity:0.35;cursor:not-allowed;}
+
+.limit-msg{
+  margin-top:12px;
+  font-size:10px;
+  color:var(--ignored);
+  letter-spacing:0.1em;
+  text-align:center;
+  opacity:0;
+  transition:opacity 0.3s;
+  text-transform:uppercase;
+}
+.limit-msg.show{opacity:1;}
+
+/* ── SCANNING STATE ──────────────────────────────────────── */
+#state-scanning{text-align:center;}
+
+.scan-eyebrow{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.22em;
+  color:rgba(0,212,200,0.55);
+  margin-bottom:44px;
+  text-transform:uppercase;
+}
+
+.scan-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:2px;
+  margin:0 auto 44px;
+  max-width:380px;
+}
+.scan-cell{
+  background:var(--bg2);
+  border:1px solid rgba(0,212,200,0.08);
+  padding:9px 4px;
+  font-size:9px;
+  letter-spacing:0.08em;
+  color:rgba(0,212,200,0.28);
+  text-align:center;
+  transition:color 0.25s,border-color 0.25s,background 0.25s;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.scan-cell.lit{
+  color:var(--signal);
+  border-color:rgba(0,212,200,0.45);
+  background:rgba(0,212,200,0.055);
+  text-shadow:0 0 8px rgba(0,212,200,0.7);
+}
+
+.scan-bar-wrap{
+  height:2px;
+  background:rgba(0,212,200,0.09);
+  margin:0 auto 24px;
+  max-width:380px;
+  overflow:hidden;
+  position:relative;
+}
+.scan-bar{
+  position:absolute;
+  left:0;top:0;bottom:0;
+  background:linear-gradient(90deg,var(--signal),rgba(0,212,200,0.5));
+  width:0%;
+  transition:width 0.25s ease;
+  box-shadow:0 0 14px rgba(0,212,200,0.85);
+}
+
+.scan-status{
+  font-size:11px;
+  letter-spacing:0.16em;
+  color:var(--signal);
+  text-transform:uppercase;
+  min-height:20px;
+}
+
+/* ── RESULT STATE ────────────────────────────────────────── */
+#state-result{text-align:center;}
+
+.result-eyebrow{
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.22em;
+  color:var(--muted);
+  margin-bottom:24px;
+  text-transform:uppercase;
+  opacity:0.6;
+}
+
+.verdict-words{
+  line-height:0.88;
+  margin-bottom:4px;
+}
+.verdict-word{
+  display:block;
+  font-size:clamp(56px,16vw,132px);
+  font-weight:700;
+  letter-spacing:-0.04em;
+  text-transform:uppercase;
+  opacity:0;
+  transform:translateY(14px);
+  transition:opacity 0.38s,transform 0.38s;
+}
+.verdict-word.in{opacity:1;transform:translateY(0);}
+
+.verdict-words.stops .verdict-word{
+  color:var(--stops);
+  text-shadow:0 0 50px rgba(0,255,140,0.45),0 0 100px rgba(0,255,140,0.2);
+}
+.verdict-words.ignored .verdict-word{
+  color:var(--ignored);
+  text-shadow:0 0 50px rgba(255,51,17,0.45),0 0 100px rgba(255,51,17,0.2);
+}
+
+.pct-wrap{
+  margin:24px 0 4px;
+  opacity:0;
+  transition:opacity 0.4s;
+}
+.pct-wrap.in{opacity:1;}
+
+.pct-num{
+  font-size:clamp(44px,12vw,90px);
+  font-weight:700;
+  letter-spacing:-0.04em;
+  color:rgba(255,255,255,0.13);
+}
+.pct-label{
+  font-size:10px;
+  letter-spacing:0.14em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-top:2px;
+  opacity:0.7;
+}
+
+.diag-box{
+  margin:30px auto 36px;
+  max-width:480px;
+  padding:16px 20px;
+  background:rgba(255,255,255,0.018);
+  border:1px solid rgba(255,255,255,0.07);
+  position:relative;
+  opacity:0;
+  transition:opacity 0.5s;
+  text-align:left;
+}
+.diag-box.in{opacity:1;}
+.diag-box::before{content:'';position:absolute;top:-1px;left:-1px;width:10px;height:10px;border:1px solid rgba(0,212,200,0.35);border-right:0;border-bottom:0;}
+.diag-box::after {content:'';position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border:1px solid rgba(0,212,200,0.35);border-left:0;border-top:0;}
+
+.diag-label{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:0.2em;
+  color:rgba(0,212,200,0.5);
+  text-transform:uppercase;
+  margin-bottom:9px;
+}
+.diag-text{
+  font-size:15px;
+  font-weight:400;
+  font-style:italic;
+  color:rgba(255,255,255,0.68);
+  letter-spacing:0.01em;
+  line-height:1.5;
+}
+
+.cta-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:28px;
+  opacity:0;
+  transition:opacity 0.5s;
+}
+.cta-row.in{opacity:1;}
+
+.btn-cta{
+  display:block;
+  padding:16px 8px;
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  text-decoration:none;
+  text-align:center;
+  border:1px solid;
+  transition:background 0.2s,box-shadow 0.2s;
+  -webkit-tap-highlight-color:transparent;
+  line-height:1.45;
+}
+.btn-teal{color:var(--signal);border-color:rgba(0,212,200,0.45);background:rgba(0,212,200,0.055);}
+.btn-teal:hover{background:rgba(0,212,200,0.11);box-shadow:0 0 22px rgba(0,212,200,0.18),inset 0 0 18px rgba(0,212,200,0.04);}
+.btn-purple{color:var(--purple);border-color:rgba(157,78,255,0.45);background:rgba(157,78,255,0.055);}
+.btn-purple:hover{background:rgba(157,78,255,0.11);box-shadow:0 0 22px rgba(157,78,255,0.18),inset 0 0 18px rgba(157,78,255,0.04);}
+
+.btn-retry{
+  background:none;
+  border:none;
+  color:rgba(200,210,255,0.3);
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  cursor:pointer;
+  padding:8px;
+  -webkit-tap-highlight-color:transparent;
+  opacity:0;
+  transition:opacity 0.5s,color 0.2s;
+}
+.btn-retry.in{opacity:1;}
+.btn-retry:hover{color:var(--text);}
+
+/* ── FOOTER ──────────────────────────────────────────────── */
+footer{
+  position:relative;
+  z-index:5;
+  padding:14px 24px;
+  border-top:1px solid rgba(0,212,200,0.07);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.footer-copy{font-size:9px;letter-spacing:0.12em;color:rgba(200,210,255,0.18);text-transform:uppercase;}
+.footer-link{font-size:9px;letter-spacing:0.12em;color:rgba(0,212,200,0.28);text-decoration:none;text-transform:uppercase;transition:color 0.2s;}
+.footer-link:hover{color:var(--signal);}
+
+@media(max-width:420px){
+  .cta-row{grid-template-columns:1fr;}
+  .hero-title{font-size:clamp(52px,15vw,90px);}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">STRATEGIC<span class="dot">·</span>FLOW</div>
+  <div class="header-badge">BLINK TEST™</div>
+</header>
+
+<main>
+
+  <!-- ── STATE: INPUT ── -->
+  <div id="state-input" class="state">
+    <div class="input-hero">
+      <div class="eyebrow">SIGNAL ANALYSIS</div>
+      <h1 class="hero-title">BLINK<br><span class="glow">TEST</span></h1>
+      <p class="hero-sub">Paste copy or a URL. 3 seconds.<br>Stops the scroll — or gets ignored.</p>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div class="panel-label">// INPUT SIGNAL</div>
+      <div class="input-wrap" id="input-wrap">
+        <textarea id="content-input" placeholder="Paste email subject line, LinkedIn post, landing page copy, tweet, ad headline...&#10;&#10;Or paste a URL and we'll fetch it."></textarea>
+        <div class="input-corners-b"></div>
+      </div>
+    </div>
+
+    <button class="btn-analyze" id="analyze-btn">
+      <span>⚡</span> RUN BLINK TEST
+    </button>
+    <div class="limit-msg" id="limit-msg">LIMIT REACHED — TRY AGAIN LATER</div>
+  </div>
+
+  <!-- ── STATE: SCANNING ── -->
+  <div id="state-scanning" class="state hidden">
+    <div class="scan-eyebrow">PROCESSING SIGNAL</div>
+    <div class="scan-grid" id="scan-grid"></div>
+    <div class="scan-bar-wrap"><div class="scan-bar" id="scan-bar"></div></div>
+    <div class="scan-status" id="scan-status">INITIALIZING...</div>
+  </div>
+
+  <!-- ── STATE: RESULT ── -->
+  <div id="state-result" class="state hidden">
+    <div class="result-eyebrow">// BLINK TEST RESULT</div>
+    <div class="verdict-words" id="verdict-words"></div>
+    <div class="pct-wrap" id="pct-wrap">
+      <div class="pct-num"><span id="pct-num">0</span>%</div>
+      <div class="pct-label">would scroll past this</div>
+    </div>
+    <div class="diag-box" id="diag-box">
+      <div class="diag-label">// SIGNAL LOST AT</div>
+      <div class="diag-text" id="diag-text"></div>
+    </div>
+    <div class="cta-row" id="cta-row">
+      <a href="/why.html" class="btn-cta btn-teal">⚡ TRY IT FREE</a>
+      <a href="/why.html" class="btn-cta btn-purple">◈ FULL DIAGNOSTIC</a>
+    </div>
+    <button class="btn-retry" id="retry-btn">← TEST ANOTHER</button>
+  </div>
+
+</main>
+
+<footer>
+  <span class="footer-copy">Strategic Flow · Decision Friction Model</span>
+  <a href="https://strategicflow.tech" class="footer-link" target="_blank" rel="noopener">strategicflow.tech</a>
+</footer>
+
+<script>
+// ── DOM refs ──────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const ta = $('content-input');
+const iw = $('input-wrap');
+
+// ── Focus brackets ────────────────────────────────────────
+ta.addEventListener('focus', () => iw.classList.add('focused'));
+ta.addEventListener('blur',  () => iw.classList.remove('focused'));
+
+// ── Cmd/Ctrl+Enter to submit ──────────────────────────────
+ta.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('analyze-btn').click();
+});
+
+// ── Scan grid setup ───────────────────────────────────────
+const TOKENS = ['01101000','PARSING','10110101','SIGNAL','00111001','DECODE',
+                'CONTEXT','11001010','MEASURE','ENTROPY','01010110','WEIGHT'];
+
+function buildGrid() {
+  const g = $('scan-grid');
+  g.innerHTML = '';
+  TOKENS.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'scan-cell';
+    d.textContent = t;
+    g.appendChild(d);
+  });
+}
+
+function flickerGrid() {
+  const cells = $('scan-grid').querySelectorAll('.scan-cell');
+  let tick = 0;
+  const iv = setInterval(() => {
+    cells.forEach(c => c.classList.remove('lit'));
+    const n = Math.floor(Math.random() * cells.length);
+    cells[n].classList.add('lit');
+    if (++tick > 22) clearInterval(iv);
+  }, 130);
+  return iv;
+}
+
+// ── Progress bar ──────────────────────────────────────────
+function runProgress(ms) {
+  const start = Date.now();
+  let raf;
+  (function tick() {
+    const p = Math.min(1, (Date.now() - start) / ms);
+    const v = 91 * (1 - Math.pow(1 - p, 2.4));
+    $('scan-bar').style.width = v + '%';
+    if (p < 1) raf = requestAnimationFrame(tick);
+  })();
+  return () => cancelAnimationFrame(raf);
+}
+
+// ── Status cycling ────────────────────────────────────────
+const STATUSES = [
+  'INITIALIZING...',
+  'PARSING INPUT SIGNAL...',
+  'MEASURING ATTENTION DECAY...',
+  'CALIBRATING FRICTION INDEX...',
+  'SCORING SCROLL PROBABILITY...',
+  'COMPILING VERDICT...'
+];
+function cycleStatus() {
+  let i = 0;
+  const iv = setInterval(() => {
+    $('scan-status').textContent = STATUSES[Math.min(i++, STATUSES.length - 1)];
+    if (i >= STATUSES.length) clearInterval(iv);
+  }, 460);
+  return iv;
+}
+
+// ── Count-up ──────────────────────────────────────────────
+function countUp(target, ms) {
+  const t0 = Date.now();
+  (function tick() {
+    const p = Math.min(1, (Date.now() - t0) / ms);
+    const e = 1 - Math.pow(1 - p, 3);
+    $('pct-num').textContent = Math.round(e * target);
+    if (p < 1) requestAnimationFrame(tick);
+  })();
+}
+
+// ── Reveal result ─────────────────────────────────────────
+function showResult(data) {
+  $('state-scanning').classList.add('hidden');
+  $('state-result').classList.remove('hidden');
+  $('scan-bar').style.width = '100%';
+
+  const isStops = data.verdict === 'STOPS THE SCROLL';
+  const words   = data.verdict.split(' ');
+  const vw      = $('verdict-words');
+  vw.innerHTML  = '';
+  vw.className  = 'verdict-words ' + (isStops ? 'stops' : 'ignored');
+
+  words.forEach((w, i) => {
+    const el = document.createElement('span');
+    el.className = 'verdict-word';
+    el.textContent = w;
+    vw.appendChild(el);
+    setTimeout(() => el.classList.add('in'), 60 + i * 150);
+  });
+
+  const delay = words.length * 150 + 180;
+
+  setTimeout(() => {
+    $('pct-wrap').classList.add('in');
+    countUp(data.pct, 1100);
+  }, delay);
+
+  setTimeout(() => {
+    $('diag-text').textContent = '\u201c' + data.lostAt + '\u201d';
+    $('diag-box').classList.add('in');
+  }, delay + 380);
+
+  setTimeout(() => $('cta-row').classList.add('in'),   delay + 660);
+  setTimeout(() => $('retry-btn').classList.add('in'), delay + 860);
+}
+
+// ── Reset ─────────────────────────────────────────────────
+function reset() {
+  $('state-result').classList.add('hidden');
+  $('state-input').classList.remove('hidden');
+  $('limit-msg').classList.remove('show');
+  ta.value = '';
+  $('scan-bar').style.width = '0%';
+  $('pct-num').textContent = '0';
+  ['pct-wrap','diag-box','cta-row','retry-btn'].forEach(id => $( id).classList.remove('in'));
+}
+
+// ── Main handler ──────────────────────────────────────────
+$('analyze-btn').addEventListener('click', async () => {
+  const content = ta.value.trim();
+  if (!content || content.length < 8) {
+    ta.focus();
+    ta.style.borderColor = 'rgba(255,51,17,0.5)';
+    setTimeout(() => ta.style.borderColor = '', 900);
+    return;
+  }
+
+  $('state-input').classList.add('hidden');
+  $('state-scanning').classList.remove('hidden');
+  buildGrid();
+  const stopFlicker  = flickerGrid();
+  const stopProgress = runProgress(2800);
+  const stopStatus   = cycleStatus();
+
+  try {
+    const resp = await fetch('/api/blink-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content })
+    });
+
+    clearInterval(stopFlicker);
+    clearInterval(stopStatus);
+
+    if (resp.status === 429) {
+      stopProgress();
+      $('state-scanning').classList.add('hidden');
+      $('state-input').classList.remove('hidden');
+      $('limit-msg').classList.add('show');
+      return;
+    }
+
+    if (!resp.ok) throw new Error('api');
+    const data = await resp.json();
+
+    // brief dramatic pause
+    await new Promise(r => setTimeout(r, 380));
+    showResult(data);
+
+  } catch(err) {
+    stopProgress();
+    $('state-scanning').classList.add('hidden');
+    $('state-input').classList.remove('hidden');
+    $('analyze-btn').disabled = false;
+  }
+});
+
+$('retry-btn').addEventListener('click', reset);
+</script>
+</body>
+</html>
