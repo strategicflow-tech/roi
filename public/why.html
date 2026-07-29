@@ -407,29 +407,95 @@
 
   .input-wrap.visible { opacity: 1; transform: translateY(0); }
 
-  .input-type-row {
+  /* ── TYPE SELECTOR GRID ─────────────────────────────────── */
+  .type-grid {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .type-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .type-group-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,68,34,0.38);
+    padding-left: 1px;
+    user-select: none;
+  }
+
+  .type-group-row {
+    display: flex;
+    gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+  }
+
+  @keyframes type-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,68,34,0.9), 0 0 10px rgba(255,68,34,0.4); transform: scale(0.96); }
+    35%  { box-shadow: 0 0 0 7px rgba(255,68,34,0), 0 0 28px rgba(255,68,34,0.85); transform: scale(1.04); }
+    100% { box-shadow: 0 0 20px rgba(255,68,34,0.55), inset 0 0 10px rgba(255,68,34,0.07); transform: scale(1); }
   }
 
   .type-btn {
     font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
     padding: 7px 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: #999999;
+    background: transparent;
+    border: 1px solid rgba(255,68,34,0.2);
+    color: rgba(255,255,255,0.3);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: border-color 0.18s, color 0.18s, box-shadow 0.18s, background 0.18s, text-shadow 0.18s;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
-  .type-btn:hover { border-color: var(--red); color: var(--white); box-shadow: 0 0 12px rgba(255,68,34,0.3); }
-  .type-btn.active { background: var(--red); border-color: var(--red); color: var(--white); box-shadow: 0 0 16px rgba(255,68,34,0.4); }
+  /* scanline texture overlay */
+  .type-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,68,34,0.025) 2px,
+      rgba(255,68,34,0.025) 4px
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s;
+  }
+
+  .type-btn:hover {
+    border-color: rgba(255,68,34,0.65);
+    color: rgba(255,255,255,0.82);
+    box-shadow: 0 0 10px rgba(255,68,34,0.22), inset 0 0 8px rgba(255,68,34,0.04);
+  }
+  .type-btn:hover::before { opacity: 1; }
+
+  .type-btn.active {
+    background: rgba(255,68,34,0.07);
+    border-color: var(--red);
+    color: #FF4422;
+    box-shadow: 0 0 20px rgba(255,68,34,0.5), 0 0 6px rgba(255,68,34,0.28), inset 0 0 10px rgba(255,68,34,0.06);
+    text-shadow: 0 0 8px rgba(255,68,34,0.65);
+  }
+  .type-btn.active::before { opacity: 1; }
+
+  .type-btn.pulse {
+    animation: type-pulse 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
 
   .textarea-wrap {
     position: relative;
@@ -1292,23 +1358,43 @@
   </div>
 
   <div class="input-wrap" id="input-wrap">
-    <div class="input-type-row">
-      <button class="type-btn active" onclick="setType(this, 'Email')">Email</button>
-      <button class="type-btn" onclick="setType(this, 'Cold email')">Cold email</button>
-      <button class="type-btn" onclick="setType(this, 'Landing page')">Landing page</button>
-      <button class="type-btn" onclick="setType(this, 'Pricing page')">Pricing page</button>
-      <button class="type-btn" onclick="setType(this, 'Sales deck')">Sales deck</button>
-      <button class="type-btn" onclick="setType(this, 'Proposal')">Proposal</button>
-      <button class="type-btn" onclick="setType(this, 'Product update')">Product update</button>
-      <button class="type-btn" onclick="setType(this, 'Case study')">Case study</button>
-      <button class="type-btn" onclick="setType(this, 'LinkedIn post')">LinkedIn post</button>
-      <button class="type-btn" onclick="setType(this, 'Brief')">Brief</button>
-      <button class="type-btn" onclick="setType(this, 'Onboarding email')">Onboarding email</button>
-      <button class="type-btn" onclick="setType(this, 'Blog post')">Blog post</button>
-      <button class="type-btn" onclick="setType(this, 'Job posting')">Job posting</button>
-      <button class="type-btn" onclick="setType(this, 'Investor update')">Investor update</button>
-      <button class="type-btn" onclick="setType(this, 'Ad copy')">Ad copy</button>
-      <button class="type-btn" onclick="setType(this, 'Document')">Other</button>
+    <div class="type-grid">
+      <div class="type-group">
+        <div class="type-group-label">// Direct Response</div>
+        <div class="type-group-row">
+          <button class="type-btn active" onclick="setType(this, 'Email')">Email</button>
+          <button class="type-btn" onclick="setType(this, 'Cold email')">Cold email</button>
+          <button class="type-btn" onclick="setType(this, 'Landing page')">Landing page</button>
+        </div>
+      </div>
+      <div class="type-group">
+        <div class="type-group-label">// Sales · Business</div>
+        <div class="type-group-row">
+          <button class="type-btn" onclick="setType(this, 'Pricing page')">Pricing page</button>
+          <button class="type-btn" onclick="setType(this, 'Sales deck')">Sales deck</button>
+          <button class="type-btn" onclick="setType(this, 'Proposal')">Proposal</button>
+          <button class="type-btn" onclick="setType(this, 'Case study')">Case study</button>
+        </div>
+      </div>
+      <div class="type-group">
+        <div class="type-group-label">// Content · Marketing</div>
+        <div class="type-group-row">
+          <button class="type-btn" onclick="setType(this, 'Product update')">Product update</button>
+          <button class="type-btn" onclick="setType(this, 'LinkedIn post')">LinkedIn post</button>
+          <button class="type-btn" onclick="setType(this, 'Blog post')">Blog post</button>
+          <button class="type-btn" onclick="setType(this, 'Ad copy')">Ad copy</button>
+        </div>
+      </div>
+      <div class="type-group">
+        <div class="type-group-label">// Documents · Other</div>
+        <div class="type-group-row">
+          <button class="type-btn" onclick="setType(this, 'Brief')">Brief</button>
+          <button class="type-btn" onclick="setType(this, 'Onboarding email')">Onboarding email</button>
+          <button class="type-btn" onclick="setType(this, 'Job posting')">Job posting</button>
+          <button class="type-btn" onclick="setType(this, 'Investor update')">Investor update</button>
+          <button class="type-btn" onclick="setType(this, 'Document')">Other</button>
+        </div>
+      </div>
     </div>
 
     <div class="textarea-wrap">
@@ -1770,6 +1856,10 @@ function toggleFaq(btn) {
 function setType(btn, type) {
   document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  // glow pulse on press
+  btn.classList.remove('pulse');
+  void btn.offsetWidth; // force reflow to restart animation
+  btn.classList.add('pulse');
   contentType = type;
   contentTypeContext = CONTENT_TYPE_CONTEXTS[type] || '';
 }
