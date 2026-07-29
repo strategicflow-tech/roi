@@ -11739,6 +11739,40 @@ setupDB().then(async () => {
     }
   });
 
+  // ── GA4 ANALYTICS REPORT ─────────────────────────────────────────────────
+  // Internal endpoint — requires WHY_ADMIN_KEY header (same as other admin routes).
+  // GET /ga-report?path=/landing-architecture-layer.html&start=today&end=today
+  // GET /ga-report?start=7daysAgo&end=today          (site-wide top 20)
+  // GET /ga-report?top=20&start=7daysAgo&end=today   (explicit top N)
+  app.get('/ga-report', async (req, res) => {
+    const adminKey = req.headers['x-admin-key'] || req.query.key;
+    if (adminKey !== process.env.WHY_ADMIN_KEY && adminKey !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Unauthorized — pass X-Admin-Key header or ?key= param' });
+    }
+    try {
+      const { queryPageViews, topPages } = require('./ga4');
+      const pagePath  = req.query.path  || null;
+      const startDate = req.query.start || 'today';
+      const endDate   = req.query.end   || startDate;
+      const topN      = req.query.top   ? Number(req.query.top) : null;
+
+      if (pagePath) {
+        const result = await queryPageViews({ pagePath, startDate, endDate });
+        return res.json({ pagePath, dateRange: { startDate, endDate }, ...result });
+      } else {
+        const limit = topN || 20;
+        const rows  = await topPages({ startDate, endDate, limit });
+        return res.json({ dateRange: { startDate, endDate }, topPages: rows });
+      }
+    } catch (err) {
+      const missingSecret = err.message.includes('GA4_');
+      return res.status(missingSecret ? 503 : 500).json({
+        error: err.message,
+        hint: missingSecret ? 'Add GA4_SERVICE_ACCOUNT_KEY and GA4_PROPERTY_ID in Replit Secrets.' : undefined
+      });
+    }
+  });
+
   // ── DISTRIBB PUBLISH WEBHOOK ──────────────────────────────────────────────
   // Receives articles from Distribb and publishes to GitHub Pages.
   // Webhook URL: https://strategic-flow-audit.replit.app/distribb-publish
