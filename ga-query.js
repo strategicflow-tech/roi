@@ -11,8 +11,7 @@
 
 'use strict';
 
-require('dotenv').config(); // no-op if dotenv not installed; secrets come from env
-
+// Secrets are injected directly by Replit — no dotenv needed.
 const { queryPageViews, topPages } = require('./ga4');
 
 async function main() {
