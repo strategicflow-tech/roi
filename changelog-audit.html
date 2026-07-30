@@ -1122,7 +1122,7 @@ document.getElementById('runAuditBtn').onclick = function() {
     status.textContent = 'Done: ' + (a.company||'?') + ' ' + (a.original_score||'?') + '->' + (a.rebuilt_score||'?');
     document.getElementById('runAuditBtn').textContent = 'Run Audit';
     document.getElementById('runAuditBtn').disabled = false;
-    var ids = {'score-before':'Original: '+(a.original_score/10)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score/10)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast};
+    var ids = {'score-before':'Original: '+(a.original_score)+'/10','score-after':'Rebuilt: '+(a.rebuilt_score)+'/10','original-title':a.original_title,'rebuilt-title':a.rebuilt_title,'entry1-title':a.entry1_title,'entry1-before':a.entry1_before,'stat1-num':a.stat1_num,'stat1-label':a.stat1_label,'stat2-num':a.stat2_num,'stat2-label':a.stat2_label,'stat3-num':a.stat3_num,'stat3-label':a.stat3_label,'cta-before':a.cta_before,'cta-after':a.cta_after,'before-contrast':a.before_contrast};
     for(var id in ids){var el=document.getElementById(id);if(el&&ids[id])el.textContent=ids[id];}
     function toParas(t){return t?'<p>'+t.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')+'</p>':'';}
     var olEl = document.getElementById('original-lead');
@@ -1148,8 +1148,8 @@ document.getElementById('runAuditBtn').onclick = function() {
     }
     var sbBefore = document.getElementById('sb-score-before');
     var sbAfter = document.getElementById('sb-score-after');
-    if (sbBefore) sbBefore.textContent = (a.original_score / 10) + ' / 10';
-    if (sbAfter) sbAfter.textContent = (a.rebuilt_score / 10) + ' / 10';
+    if (sbBefore) sbBefore.textContent = (a.original_score) + ' / 10';
+    if (sbAfter) sbAfter.textContent = (a.rebuilt_score) + ' / 10';
     if (a.bugs && a.bugs.length) {
       var bugCards = document.querySelectorAll('.ann-card.bug');
       a.bugs.forEach(function(bug, i) {
