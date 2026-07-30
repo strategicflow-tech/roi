@@ -1380,7 +1380,15 @@
     <div class="textarea-wrap">
       <textarea
         id="content-input"
-        placeholder="Paste your content here — the full text, subject line, everything. The more context you give, the more precise the diagnosis."
+        placeholder="Paste the full content here — e.g.:
+
+Subject: New in v2.4 — export speed improved
+
+Hi team, we shipped background exports this week. Your reports no longer freeze the browser.
+
+[CTA: See what's new →]
+
+Or paste a cold email, landing page, proposal — anything with a reader who needs to decide. The more text, the more precise the diagnosis."
         oninput="updateCharCount()"
       ></textarea>
     </div>
@@ -1393,6 +1401,7 @@
     </div>
 
     <div class="error-box" id="error-box"></div>
+    <div style="font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.06em;text-align:center;margin-top:10px;font-family:'Space Mono',monospace;">NO CARD REQUIRED · NO SUBSCRIPTION · RESULT IN ~30 SECONDS</div>
   </div>
 
   <div class="assess-status" id="assess-status"></div>
@@ -1405,10 +1414,13 @@
     </div>
     <div class="loading-text">Analyzing friction...</div>
     <div class="loading-steps">
-      <div class="loading-step" id="step-1">↳ Reading structure</div>
-      <div class="loading-step" id="step-2">↳ Detecting friction points</div>
-      <div class="loading-step" id="step-3">↳ Predicting reader questions</div>
-      <div class="loading-step" id="step-4">↳ Scoring and ranking</div>
+      <div class="loading-step" id="step-1">↳ Feature-First Bias</div>
+      <div class="loading-step" id="step-2">↳ Guest Language CTA</div>
+      <div class="loading-step" id="step-3">↳ Filing Label Subject</div>
+      <div class="loading-step" id="step-4">↳ Consequence-After-Caveat</div>
+      <div class="loading-step" id="step-5">↳ Missing Visual Hierarchy</div>
+      <div class="loading-step" id="step-6">↳ Zero Social Proof</div>
+      <div class="loading-step" id="step-7">↳ Unanswered Question Load</div>
     </div>
     <div class="scan-tags" id="scan-tags"></div>
   </div>
@@ -1861,25 +1873,20 @@ function updateCharCount() {
 
 // ===== LOADING STEPS =====
 function animateLoadingSteps() {
-  const steps = ['step-1', 'step-2', 'step-3', 'step-4'];
+  const steps = ['step-1','step-2','step-3','step-4','step-5','step-6','step-7'];
   let i = 0;
   const interval = setInterval(() => {
-    if (i > 0) document.getElementById(steps[i - 1]).classList.remove('active');
-    if (i > 0) document.getElementById(steps[i - 1]).classList.add('done');
-    if (i < steps.length) {
-      document.getElementById(steps[i]).classList.add('active');
-      i++;
-    } else {
-      clearInterval(interval);
-    }
-  }, 800);
+    if (i > 0) { document.getElementById(steps[i - 1]).classList.remove('active'); document.getElementById(steps[i - 1]).classList.add('done'); }
+    if (i < steps.length) { document.getElementById(steps[i]).classList.add('active'); i++; }
+    else { clearInterval(interval); }
+  }, 500);
   return interval;
 }
 
 function resetLoadingSteps() {
-  ['step-1','step-2','step-3','step-4'].forEach(id => {
+  ['step-1','step-2','step-3','step-4','step-5','step-6','step-7'].forEach(id => {
     const el = document.getElementById(id);
-    el.classList.remove('active', 'done');
+    if (el) el.classList.remove('active', 'done');
   });
 }
 
