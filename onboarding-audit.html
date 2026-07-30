@@ -1172,8 +1172,7 @@ var at=document.querySelector('.article-title');if(at)at.style.visibility='hidde
 var bc=document.getElementById('bc-current');if(bc)bc.textContent='Onboarding Audit';
 document.querySelectorAll('.ann-title').forEach(function(el){el.textContent='';});
 document.querySelectorAll('.ann-body').forEach(function(el){el.textContent='';});
-document.querySelectorAll('.wc-b').forEach(function(el){el.textContent='';});
-document.querySelectorAll('.wc-a').forEach(function(el){el.textContent='';});
+// wc-b / wc-a: keep default placeholder content visible until API returns valid wc data;
 var fieldsToClear = ['original-title','rebuilt-title','original-lead','rebuilt-lead','entry1-title','entry1-before','entry1-after','stat1-num','stat1-label','stat2-num','stat2-label','stat3-num','stat3-label','cta-before','cta-after'];
 fieldsToClear.forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='';});
 var dg=document.getElementById('downloadGate');if(dg)dg.style.display='none';
