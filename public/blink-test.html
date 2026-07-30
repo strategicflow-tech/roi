@@ -104,7 +104,7 @@ main{
   z-index:5;
   min-height:calc(100vh - 104px);
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
   padding:40px 20px;
 }
@@ -354,7 +354,7 @@ textarea:focus{
 }
 
 /* ── RESULT STATE ────────────────────────────────────────── */
-#state-result{text-align:center;}
+#state-result{text-align:center;padding-top:28px;}
 
 .result-eyebrow{
   font-size:11px;
@@ -366,8 +366,9 @@ textarea:focus{
 }
 
 .verdict-words{
-  line-height:0.88;
+  line-height:1.05;
   margin-bottom:4px;
+  padding-top:14px; /* room for glow/shadow bleeding above first glyph */
 }
 .verdict-word{
   display:block;
@@ -378,6 +379,7 @@ textarea:focus{
   opacity:0;
   transform:translateY(14px);
   transition:opacity 0.38s,transform 0.38s;
+  overflow:visible;
 }
 .verdict-word.in{opacity:1;transform:translateY(0);}
 
