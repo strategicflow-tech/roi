@@ -393,6 +393,235 @@
 <script src="/translations.js"></script>
 <meta name="description" content="Audit your SaaS onboarding email sequence for activation gaps. Decision Friction Model diagnosis for Day 1-3-7 emails. Score 1-10, rebuilt copy same day.">
 <link rel="canonical" href="https://strategic-flow-audit.replit.app/onboarding-audit-page">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   SCI-FI DARK LAYER — injected on top of base styles
+   Brand neon: #1D9E75  Background: #070b0f
+═══════════════════════════════════════════════════ */
+:root{
+  --neon:#1D9E75;
+  --neon-dim:rgba(29,158,117,0.55);
+  --neon-faint:rgba(29,158,117,0.12);
+  --dark-bg:#070b0f;
+  --dark-surf:#0d1520;
+  --dark-card:#111d2a;
+  --dark-br:rgba(29,158,117,0.18);
+  --dark-br2:rgba(29,158,117,0.08);
+}
+
+/* ── global dark ── */
+html,body{background:var(--dark-bg)!important;color:rgba(255,255,255,.82)!important;}
+body{font-family:'Space Grotesk','Inter',-apple-system,sans-serif!important;}
+
+/* ── canvas bg ── */
+#sf-bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.scraper-bar,.sf-header,.client-nav,.page,footer{position:relative;z-index:1;}
+
+/* ── client nav → dark glass ── */
+.client-nav{
+  background:rgba(7,11,15,.92)!important;
+  border-bottom-color:var(--dark-br)!important;
+  backdrop-filter:blur(12px);
+}
+.client-logo{color:#fff!important;}
+.client-logo span{color:var(--neon)!important;}
+.nav-links{color:rgba(255,255,255,.5)!important;}
+.btn-ghost{background:transparent!important;border-color:var(--dark-br)!important;color:rgba(255,255,255,.65)!important;}
+.btn-primary{background:var(--neon)!important;box-shadow:0 0 16px var(--neon-dim)!important;}
+
+/* ── article title neon glow ── */
+.article-title{
+  color:#fff!important;
+  text-shadow:0 0 28px var(--neon-dim),0 0 56px rgba(29,158,117,.25)!important;
+  font-family:'Space Grotesk','Inter',sans-serif!important;
+}
+/* ── headings ── */
+.article-body h2{
+  color:#fff!important;
+  text-shadow:0 0 16px var(--neon-dim)!important;
+  font-family:'Space Grotesk','Inter',sans-serif!important;
+}
+.article-body h3{color:rgba(255,255,255,.9)!important;}
+.article-body{color:rgba(255,255,255,.72)!important;}
+.article-body p{color:rgba(255,255,255,.72)!important;}
+.article-body strong{color:#fff!important;}
+.article-body a{color:var(--neon)!important;}
+.article-body code{
+  background:rgba(29,158,117,.1)!important;
+  border-color:rgba(29,158,117,.25)!important;
+  color:var(--neon)!important;
+}
+
+/* ── stat cards ── */
+.stat-card{
+  background:var(--dark-card)!important;
+  border:1px solid var(--dark-br)!important;
+  box-shadow:0 0 20px rgba(29,158,117,.07)!important;
+}
+.stat-num{
+  text-shadow:0 0 18px var(--neon-dim)!important;
+}
+.stat-label{color:rgba(255,255,255,.45)!important;}
+
+/* ── changelog entry cards ── */
+.cl-entry{
+  background:var(--dark-card)!important;
+  border-color:var(--dark-br)!important;
+}
+.cl-entry-header{
+  background:rgba(29,158,117,.04)!important;
+  border-bottom-color:var(--dark-br2)!important;
+}
+.cl-entry-title{color:#fff!important;}
+.cl-entry-date{color:rgba(255,255,255,.35)!important;}
+
+/* ── brand quote ── */
+.brand-quote{
+  background:var(--dark-card)!important;
+  border-left-color:var(--neon)!important;
+  color:rgba(255,255,255,.65)!important;
+}
+.brand-quote cite{color:rgba(255,255,255,.35)!important;}
+
+/* ── CTA block ── */
+.cta-block{
+  background:var(--dark-card)!important;
+  border-color:var(--dark-br)!important;
+}
+.cta-block h3{
+  color:#fff!important;
+  text-shadow:0 0 14px var(--neon-dim)!important;
+}
+.cta-block p{color:rgba(255,255,255,.55)!important;}
+
+/* ── rebuilt CTA button — pulsing neon ── */
+.rebuilt-cta-btn{
+  background:var(--neon)!important;
+  box-shadow:0 0 20px var(--neon-dim),0 0 40px rgba(29,158,117,.22)!important;
+  animation:sfCtaPulse 2.4s ease-in-out infinite!important;
+}
+@keyframes sfCtaPulse{
+  0%,100%{box-shadow:0 0 20px var(--neon-dim),0 0 40px rgba(29,158,117,.22);}
+  50%{box-shadow:0 0 32px rgba(29,158,117,.85),0 0 64px rgba(29,158,117,.4);}
+}
+
+/* ── scraper buttons ── */
+.scraper-btn{
+  background:var(--neon)!important;
+  box-shadow:0 0 14px rgba(29,158,117,.4)!important;
+  transition:box-shadow .2s,opacity .15s!important;
+}
+.scraper-btn:hover{box-shadow:0 0 24px rgba(29,158,117,.75)!important;opacity:1!important;}
+
+/* ── sidebar score box ── */
+.score-box{background:var(--dark-card)!important;border-color:var(--dark-br)!important;}
+.score-box-title{
+  color:var(--neon)!important;
+  letter-spacing:.12em!important;
+  text-shadow:0 0 10px var(--neon-dim)!important;
+}
+.score-line{border-bottom-color:var(--dark-br2)!important;}
+.score-k{color:rgba(255,255,255,.45)!important;}
+.sbar{background:rgba(255,255,255,.08)!important;}
+
+/* ── annotation cards ── */
+.ann-header{
+  color:var(--neon)!important;
+  border-bottom-color:var(--dark-br)!important;
+  text-shadow:0 0 8px var(--neon-dim)!important;
+}
+.ann-card.bug{background:rgba(220,38,38,.08)!important;border-color:rgba(220,38,38,.2)!important;}
+.ann-card.fix{background:rgba(29,158,117,.08)!important;border-color:rgba(29,158,117,.18)!important;}
+.ann-title{color:#fff!important;}
+.ann-body{color:rgba(255,255,255,.58)!important;}
+
+/* ── rebuilt blocks ── */
+.rebuilt-title-block{
+  background:rgba(29,158,117,.06)!important;
+  border-color:rgba(29,158,117,.22)!important;
+  border-left-color:var(--neon)!important;
+  box-shadow:inset 0 0 20px rgba(29,158,117,.04)!important;
+}
+.rebuilt-title-text{color:#fff!important;}
+.rebuilt-tag{color:var(--neon)!important;}
+.rebuilt-para{background:rgba(29,158,117,.04)!important;border-left-color:var(--neon)!important;}
+.rebuilt-para p{color:rgba(255,255,255,.75)!important;}
+
+/* ── breadcrumb ── */
+.breadcrumb,.breadcrumb a{color:rgba(255,255,255,.35)!important;}
+.breadcrumb a:hover{color:var(--neon)!important;}
+.bc-sep{color:rgba(255,255,255,.2)!important;}
+
+/* ── meta ── */
+.meta-avatar{background:rgba(29,158,117,.15)!important;color:var(--neon)!important;}
+.meta-authors{color:rgba(255,255,255,.8)!important;}
+#meta-date{color:rgba(255,255,255,.38)!important;}
+
+/* ── hero ── */
+.hero{background:var(--dark-card)!important;border:1px solid var(--dark-br)!important;}
+.hero-placeholder{color:rgba(255,255,255,.25)!important;}
+
+/* ── divider ── */
+.divider{border-top-color:var(--dark-br)!important;}
+
+/* ── sf footer ── */
+.sf-footer{border-top-color:var(--dark-br)!important;color:rgba(255,255,255,.32)!important;}
+.sf-footer a{color:var(--neon)!important;}
+
+/* ── page background ── */
+.page{background:transparent!important;}
+
+/* ── scraper bar enhance ── */
+.scraper-bar{
+  border-bottom-color:var(--neon)!important;
+  box-shadow:0 4px 32px rgba(29,158,117,.1)!important;
+}
+
+/* ── progress bar neon ── */
+#progressBar{background:linear-gradient(90deg,var(--neon),rgba(29,158,117,.5))!important;}
+#progressPct{color:var(--neon)!important;}
+
+/* ═══ SCROLL REVEAL ═══ */
+.sf-reveal{
+  opacity:0;
+  transform:translateY(22px);
+  transition:opacity .65s ease,transform .65s ease;
+}
+.sf-reveal.sf-in{opacity:1;transform:translateY(0);}
+
+/* ═══ LOAD FADE-IN ═══ */
+@keyframes sfFadeUp{
+  from{opacity:0;transform:translateY(28px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.sf-load-1{animation:sfFadeUp .55s ease .05s both;}
+.sf-load-2{animation:sfFadeUp .55s ease .15s both;}
+.sf-load-3{animation:sfFadeUp .55s ease .28s both;}
+.sf-load-4{animation:sfFadeUp .55s ease .42s both;}
+
+/* ═══ FLOATING LABEL on wc-head ═══ */
+.wc{
+  border-color:var(--dark-br)!important;
+  background:rgba(4,8,12,.8)!important;
+  box-shadow:0 0 40px rgba(0,0,0,.5),inset 0 0 60px rgba(29,158,117,.02)!important;
+}
+.wc-head{
+  color:var(--neon)!important;
+  text-shadow:0 0 10px var(--neon-dim)!important;
+}
+
+/* ── page scanline top edge glow ── */
+body::before{
+  content:'';
+  position:fixed;top:0;left:0;right:0;
+  height:2px;
+  background:linear-gradient(90deg,transparent 0%,var(--neon) 30%,rgba(29,158,117,.8) 50%,var(--neon) 70%,transparent 100%);
+  z-index:9000;
+  box-shadow:0 0 12px var(--neon);
+  pointer-events:none;
+}
+</style>
 <meta property="og:title" content="Onboarding Email Sequence Audit — Strategic Flow">
 <meta property="og:description" content="Diagnose structural failures in your SaaS onboarding sequence. Feature-First Bias, Guest Language CTA, Filing Label Subject — identified and rebuilt.">
 <meta property="og:url" content="https://strategic-flow-audit.replit.app/onboarding-audit-page">
@@ -1229,6 +1458,85 @@ window.addEventListener('load', function() {
     langWarn.style.display = 'block';
   };
   initI18n('onboarding', 'lang-selector-container');
+</script>
+<script>
+/* ═══ SCI-FI BACKGROUND + ANIMATIONS ═══ */
+(function(){
+  /* — canvas — */
+  var cvs=document.createElement('canvas');
+  cvs.id='sf-bg-canvas';
+  document.body.insertBefore(cvs,document.body.firstChild);
+  var ctx=cvs.getContext('2d');
+  var W,H;
+  function resize(){W=cvs.width=window.innerWidth;H=cvs.height=window.innerHeight;}
+  resize();
+  window.addEventListener('resize',resize);
+
+  /* particles */
+  var pts=[];
+  for(var i=0;i<55;i++){
+    pts.push({
+      x:Math.random()*3000,y:Math.random()*3000,
+      r:Math.random()*1.4+0.4,
+      vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,
+      a:Math.random()*.35+.08
+    });
+  }
+
+  /* draw loop */
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    /* grid */
+    ctx.strokeStyle='rgba(29,158,117,0.055)';
+    ctx.lineWidth=.5;
+    var sp=64;
+    for(var x=0;x<W;x+=sp){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(var y=0;y<H;y+=sp){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    /* horizon glow */
+    var grad=ctx.createLinearGradient(0,H*.6,0,H);
+    grad.addColorStop(0,'rgba(29,158,117,0.00)');
+    grad.addColorStop(1,'rgba(29,158,117,0.04)');
+    ctx.fillStyle=grad;ctx.fillRect(0,H*.6,W,H*.4);
+    /* particles */
+    pts.forEach(function(p){
+      ctx.beginPath();ctx.arc(p.x%W,p.y%H,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(29,158,117,'+p.a+')';ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  /* — scroll reveal — */
+  function addReveal(){
+    document.querySelectorAll('.wc,.cl-entry,.stat-cards,.cta-block,.score-box,.ann-card,.brand-quote,.article-meta').forEach(function(el){
+      if(!el.classList.contains('sf-reveal')){el.classList.add('sf-reveal');}
+    });
+    var obs=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('sf-in');obs.unobserve(e.target);}});
+    },{threshold:0.08});
+    document.querySelectorAll('.sf-reveal').forEach(function(el){obs.observe(el);});
+  }
+
+  /* — load animations — */
+  function addLoad(){
+    var bar=document.querySelector('.scraper-bar');
+    if(bar){
+      var children=bar.children;
+      for(var i=0;i<Math.min(children.length,4);i++){
+        children[i].classList.add('sf-load-'+(i+1));
+      }
+    }
+    var hdr=document.querySelector('.sf-header-brand');
+    if(hdr)hdr.classList.add('sf-load-1');
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){addReveal();addLoad();});
+  } else {
+    addReveal();addLoad();
+  }
+})();
 </script>
 </body>
 </html>
