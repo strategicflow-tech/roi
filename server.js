@@ -6044,10 +6044,10 @@ const SEQ_EMAILS = [
     html: () => seqWrap(`
       <p>Over 55 teardowns, one pattern is consistent. SaaS emails that score below 5 share the same structural failures. Filing Label Subject. Feature-First Bias. Missing Hierarchy. Generic Urgency Theatre. These are not copy problems. They are architecture problems.</p>
       <p>Strategic Flow rebuilds the architecture behind your emails — not just the words.</p>
-      <p>This month we are taking on 5 clients at founder pricing. First month 50% off while we build your initial rebuild library.</p>
-      <p>Growth: $499 → $249/mo — High-Impact: $899 → $449/mo — Architecture retainer: $2,500 → $1,250/mo — Activation Intelligence: $1,500 → $750/mo</p>
-      <p>5 spots. First month only.</p>
-      <p>See what is included: <a href="https://strategicflow-tech.github.io/showcase/packages-promo.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/packages-promo.html</a></p>
+      <p>This month we are taking on 5 architecture rebuild clients.</p>
+      <p>Growth: $499/mo — High-Impact: $899/mo — Architecture retainer: $2,500/mo — Activation Intelligence: $1,500/mo</p>
+      <p>5 spots available.</p>
+      <p>See what is included: <a href="https://strategicflow-tech.github.io/showcase/strategic-flow-pricing.html" style="color:#00d4c8;">https://strategicflow-tech.github.io/showcase/strategic-flow-pricing.html</a></p>
       <p>Reply to this email to start this week.</p>
       <p>Alex / Strategic Flow / <a href="https://strategic-flow-audit.replit.app" style="color:#00d4c8;">strategic-flow-audit.replit.app</a></p>
     `)
