@@ -1050,9 +1050,9 @@ app.get('/admin/score', async (req, res) => {
 
 // ── Directory: price IDs (created once, hardcoded) ────────────────────────────
 const DIR_PRICES = {
-  weekly_feature: { price_id: 'price_1TzFHeDpTwoDeZJnoTKcAE5j', days: 14, label: 'Weekly Feature',   amount: 10 },
-  premium:        { price_id: 'price_1TzFHfDpTwoDeZJnpyIUeuyd', days: 30, label: 'Premium Listing',   amount: 15 },
-  daily_top:      { price_id: 'price_1TzFHfDpTwoDeZJnxo27vMQD', days: 1,  label: 'Daily Top Entry',   amount: 10 },
+  weekly_feature: { price_id: 'price_1TzK3ZDpTwoDeZJnUPgUplUe', days: 14, label: 'Weekly Feature',  amount: 19 },
+  premium:        { price_id: 'price_1TzK3ZDpTwoDeZJngzNRbNFx', days: 30, label: 'Premium Listing',  amount: 29 },
+  daily_top:      { price_id: 'price_1TzK3ZDpTwoDeZJnEVQvI4Cs', days: 1,  label: 'Daily Boost',      amount: 9  },
 };
 
 // ── Directory: expire stale featured placements ───────────────────────────────

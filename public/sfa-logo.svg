@@ -1,4 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0D9488"/>
-  <text x="32" y="44" font-family="monospace,Arial" font-size="26" font-weight="900" fill="#ffffff" text-anchor="middle">SF</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#0a1628"/>
+  <!-- Outer glow circle -->
+  <circle cx="200" cy="175" r="148" fill="none" stroke="#00e5ff" stroke-width="3" opacity="0.9"/>
+  <circle cx="200" cy="175" r="151" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.3"/>
+  <!-- Inner dark circle -->
+  <circle cx="200" cy="175" r="145" fill="#0d1f3c"/>
+  <!-- Sinusoidal wave path (cyan, main) -->
+  <path d="M72 175 C100 175 110 125 140 125 C170 125 180 225 210 225 C240 225 250 145 275 130 C285 124 292 120 300 118" fill="none" stroke="#00e5ff" stroke-width="8" stroke-linecap="round" opacity="0.95"/>
+  <!-- Second wave (gray, offset) -->
+  <path d="M82 180 C110 180 120 135 148 135 C176 135 186 228 216 228 C244 228 256 150 280 136 C288 131 295 127 304 125" fill="none" stroke="#9bb0c4" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <!-- Circuit dots on the wave end -->
+  <circle cx="300" cy="118" r="5" fill="#00e5ff"/>
+  <circle cx="320" cy="102" r="4" fill="#00e5ff" opacity="0.8"/>
+  <circle cx="338" cy="90" r="3" fill="#00e5ff" opacity="0.6"/>
+  <circle cx="314" cy="122" r="3.5" fill="#6ecfdf" opacity="0.7"/>
+  <circle cx="330" cy="114" r="2.5" fill="#6ecfdf" opacity="0.5"/>
+  <!-- Vertical circuit lines -->
+  <line x1="320" y1="102" x2="320" y2="122" stroke="#00e5ff" stroke-width="2" opacity="0.6"/>
+  <line x1="338" y1="90" x2="338" y2="115" stroke="#00e5ff" stroke-width="1.5" opacity="0.4"/>
+  <line x1="330" y1="114" x2="330" y2="130" stroke="#6ecfdf" stroke-width="1.5" opacity="0.4"/>
+  <!-- Horizontal tick marks -->
+  <line x1="310" y1="102" x2="320" y2="102" stroke="#00e5ff" stroke-width="2" opacity="0.6"/>
+  <line x1="328" y1="90" x2="338" y2="90" stroke="#00e5ff" stroke-width="1.5" opacity="0.4"/>
+  <!-- Text -->
+  <text x="200" y="272" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="400" fill="#ffffff" text-anchor="middle" letter-spacing="1">Strategic <tspan font-weight="700">Flow</tspan></text>
+  <text x="200" y="302" font-family="Arial, sans-serif" font-size="13" fill="#7a9ab5" text-anchor="middle" letter-spacing="0.5">Human Tone. Tech Depth. AI Speed.</text>
 </svg>

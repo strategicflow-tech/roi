@@ -90,7 +90,7 @@
         {
           "@type": "Question",
           "name": "How do I get my product featured at the top of ToolIndex?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Click the '⚡ Boost' button on any listing card to see paid placement options: Weekly Feature ($10 for 14 days in the Featured Spotlight), Premium Listing ($15 for 30 days with a purple badge and top-3 placement), or Daily Top ($10 for 24 hours as #1 in the grid)." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Click the '⚡ Boost' button on any listing card to see paid placement options: Daily Boost ($9 for 24 hours as #1 in the grid, instant activation), Weekly Feature ($19 for 14 days in the Featured Spotlight), or Premium Listing ($29 for 30 days with a purple badge and top-3 placement)." }
         }
       ]
     }
@@ -546,7 +546,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
   <details class="dir-faq-item">
     <summary class="dir-faq-q">How do I get my product featured at the top?</summary>
-    <p class="dir-faq-a">Click the <strong>⚡ Boost</strong> button on any listing card. Options: <strong>Weekly Feature</strong> ($10 — 14 days in the Featured Spotlight with a gold badge), <strong>Premium Listing</strong> ($15 — 30 days with a purple badge and top-3 placement), or <strong>Daily Top</strong> ($10 — 24 hours as #1 in the grid, activates instantly).</p>
+    <p class="dir-faq-a">Click the <strong>⚡ Boost</strong> button on any listing card. Options: <strong>Daily Boost</strong> ($9 — 24 hours as #1 in the grid, activates instantly, no review queue), <strong>Weekly Feature</strong> ($19 — 14 days in the Featured Spotlight with a gold badge), or <strong>Premium Listing</strong> ($29 — 30 days with a purple badge and top-3 placement).</p>
   </details>
 </section>
 
@@ -685,6 +685,25 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     <div class="tier-options" id="tierOptions">
 
+      <div class="tier-option" data-tier="daily_top" onclick="selectTier(this)">
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <div class="tier-name">🔥 Daily Boost</div>
+          <div class="tier-desc">24-hour burst — #1 position, instant activation, no review queue</div>
+          <ul class="tier-perks">
+            <li>Pinned to #1 in the main grid for the entire day</li>
+            <li>🔥 Daily Top badge — maximum visual contrast</li>
+            <li>First result in every category &amp; search for 24 hours</li>
+            <li>Instant — goes live as soon as payment clears</li>
+          </ul>
+        </div>
+        <div class="tier-price-wrap">
+          <span class="tier-price-orig">$18</span>
+          <span class="tier-price">$9</span>
+          <span class="tier-discount">50% OFF</span>
+        </div>
+      </div>
+
       <div class="tier-option selected" data-tier="weekly_feature" onclick="selectTier(this)">
         <div class="tier-radio"></div>
         <div class="tier-info">
@@ -698,8 +717,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           </ul>
         </div>
         <div class="tier-price-wrap">
-          <span class="tier-price-orig">$20</span>
-          <span class="tier-price">$10</span>
+          <span class="tier-price-orig">$38</span>
+          <span class="tier-price">$19</span>
           <span class="tier-discount">50% OFF</span>
         </div>
       </div>
@@ -717,27 +736,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           </ul>
         </div>
         <div class="tier-price-wrap">
-          <span class="tier-price-orig">$30</span>
-          <span class="tier-price">$15</span>
-          <span class="tier-discount">50% OFF</span>
-        </div>
-      </div>
-
-      <div class="tier-option" data-tier="daily_top" onclick="selectTier(this)">
-        <div class="tier-radio"></div>
-        <div class="tier-info">
-          <div class="tier-name">🔥 Daily Top Entry</div>
-          <div class="tier-desc">24-hour burst — #1 position, instant activation</div>
-          <ul class="tier-perks">
-            <li>Pinned to #1 in the main grid for the entire day</li>
-            <li>🔥 Daily Top badge — maximum visual contrast</li>
-            <li>First result in every category &amp; search for 24 hours</li>
-            <li>Instant — goes live as soon as payment clears</li>
-          </ul>
-        </div>
-        <div class="tier-price-wrap">
-          <span class="tier-price-orig">$20</span>
-          <span class="tier-price">$10</span>
+          <span class="tier-price-orig">$58</span>
+          <span class="tier-price">$29</span>
           <span class="tier-discount">50% OFF</span>
         </div>
       </div>
@@ -747,7 +747,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <div class="modal-email-label">Your email (receipt + confirmation)</div>
     <input type="email" class="modal-email-input" id="boostEmail" placeholder="you@company.com" />
 
-    <button class="modal-cta" id="boostCta" onclick="startCheckout()">Continue to payment →</button>
+    <button class="modal-cta" id="boostCta" onclick="startCheckout()">Continue to payment — $19 →</button>
     <div class="modal-note">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; No subscription</div>
   </div>
 </div>
@@ -887,7 +887,7 @@ function renderCard(l){
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
-        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Feature from $10</button>
+        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost from $9</button>
       </div>
     </div>
   </div>`;
@@ -1343,6 +1343,13 @@ async function claimSaveEdit() {
 let boostListingId = null;
 let selectedTier   = 'weekly_feature';
 
+const TIER_PRICES = { daily_top: '$9', weekly_feature: '$19', premium: '$29' };
+
+function updateCtaLabel(){
+  const btn = document.getElementById('boostCta');
+  if(btn && !btn.disabled) btn.textContent = `Continue to payment — ${TIER_PRICES[selectedTier]||''} →`;
+}
+
 function openBoostModal(id, name){
   boostListingId = id;
   document.getElementById('boostListingName').textContent = name;
@@ -1351,6 +1358,7 @@ function openBoostModal(id, name){
   document.querySelectorAll('.tier-option').forEach(o => o.classList.toggle('selected', o.dataset.tier==='weekly_feature'));
   document.getElementById('boostModal').classList.add('open');
   document.body.style.overflow='hidden';
+  updateCtaLabel();
 }
 
 function closeBoostModal(e){
@@ -1362,6 +1370,7 @@ function closeBoostModal(e){
 function selectTier(el){
   selectedTier = el.dataset.tier;
   document.querySelectorAll('.tier-option').forEach(o=>o.classList.toggle('selected',o===el));
+  updateCtaLabel();
 }
 
 async function startCheckout(){
@@ -1379,7 +1388,7 @@ async function startCheckout(){
     else throw new Error(d.error||'checkout_failed');
   }catch(err){
     alert('Could not start checkout: ' + err.message);
-    btn.disabled=false; btn.textContent='Continue to payment →';
+    btn.disabled=false; updateCtaLabel();
   }
 }
 
@@ -1390,7 +1399,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeBoostModal()
 (function(){
   const p = new URLSearchParams(location.search);
   if(p.get('boosted')==='1'){
-    const tierLabels = { weekly_feature:'Weekly Feature', premium:'Premium Listing', daily_top:'Daily Top Entry' };
+    const tierLabels = { weekly_feature:'Weekly Feature', premium:'Premium Listing', daily_top:'Daily Boost' };
     const tierLabel  = tierLabels[p.get('tier')]||'';
     const banner = document.createElement('div');
     banner.style.cssText='position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.3);';
