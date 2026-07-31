@@ -1302,26 +1302,24 @@ textarea{resize:vertical;line-height:1.7;}
 <!-- FOOTER -->
 <div class="footer">
   <p>Strategic Flow © 2026 &nbsp;|&nbsp; Built for the Future of Tech Communication &nbsp;|&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> &nbsp;|&nbsp; <a href="https://strategic-flow-audit.replit.app/guide.html" target="_blank">Platform Guide</a></p>
-  <div class="sf-ticker-wrap" aria-label="Listed on platforms" style="margin-top:14px;border-radius:0;">
+  <div class="sf-ticker-wrap" aria-label="Listed on platforms" style="margin-top:14px;border-radius:0;min-height:88px;">
     <span class="sf-ticker-lbl">Listed on</span>
     <div class="sf-ticker-vp">
-      <div class="sf-ticker-track" id="sfTickerListings" style="animation-duration:32s;"></div>
+      <div class="sf-ticker-track" id="sfTickerListings" style="animation-duration:45s;align-items:center;"></div>
     </div>
   </div>
   <script>
   (function(){
     var el=document.getElementById('sfTickerListings');if(!el)return;
-    var p=[
-      {n:'G2',u:'https://www.g2.com/products/strategic-flow/reviews'},
-      {n:'Capterra',u:'https://www.capterra.com/p/10050131/Strategic-Flow/'},
-      {n:'LaunchBuff',u:'https://launchbuff.com/products/strategic-flow-audit-app-lmtvry'},
-      {n:'Product Hunt',u:'https://www.producthunt.com/products/strategic-flow-audit-app'},
-      {n:'LaunchKiwi',u:'https://launchkiwi.com/p/strategic-flow-email-audit'},
-      {n:'LaunchNest',u:'https://launchnest.io/p/strategic-flow-audit-app'},
-      {n:'Fazier',u:'https://fazier.com'}
+    var badges=[
+      {href:'https://launchbuff.com/products/strategic-flow-audit-app-lmtvry',src:'https://launchbuff.com/badge-featured-dark.svg',alt:'Featured on LaunchBuff',h:64},
+      {href:'https://www.producthunt.com/products/strategic-flow-audit-app?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-strategic-flow',src:'https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1196214&theme=dark&t=1784027260630',alt:'Strategic Flow on Product Hunt',h:54},
+      {href:'https://launchkiwi.com/p/strategic-flow-email-audit',src:'https://launchkiwi.com/badge-dark.svg',alt:'Featured on LaunchKiwi',h:54},
+      {href:'https://launchnest.io/p/strategic-flow-audit-app',src:'https://launchnest.io/badge/strategic-flow-audit-app.svg',alt:'Strategic Flow on LaunchNest',h:54},
+      {href:'https://fazier.com',src:'https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light',alt:'Launched on Fazier',h:54}
     ];
-    var all=p.concat(p).concat(p).concat(p);
-    el.innerHTML=all.map(function(x){return'<a class="sf-pill" href="'+x.u+'" target="_blank" rel="noopener" style="cursor:pointer;"><span class="sf-pill-dot"></span>'+x.n+'</a>';}).join('');
+    var all=badges.concat(badges).concat(badges);
+    el.innerHTML=all.map(function(b){return'<a href="'+b.href+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;flex-shrink:0;margin:0 16px;"><img src="'+b.src+'" alt="'+b.alt+'" height="'+b.h+'" style="max-height:'+b.h+'px;width:auto;display:block;" loading="lazy" /></a>';}).join('');
   })();
   </script>
   <script>
