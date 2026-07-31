@@ -347,6 +347,132 @@ app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glo
 // ─── DIRECTORY ────────────────────────────────────────────────────────────────
 app.get('/directory', (req, res) => res.sendFile(path.join(__dirname, 'public/directory.html')));
 
+// ── Helper: generate a stable slug for a listing ─────────────────────────────
+function toListingSlug(name, id) {
+  const base = (name || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+  return `${base}-${id}`;
+}
+
+// ── GET /directory/:slug — individual product page with unique meta tags ──────
+// URL format: /directory/product-name-42  (ID appended for uniqueness)
+app.get('/directory/:slug', async (req, res) => {
+  const slug = req.params.slug;
+
+  // Extract the numeric ID from the end of the slug
+  const idMatch = slug.match(/-(\d+)$/);
+  if (!idMatch) return res.redirect('/directory');
+  const id = parseInt(idMatch[1]);
+  if (isNaN(id)) return res.redirect('/directory');
+
+  try {
+    const r = await pool.query(
+      `SELECT id, name, url, category, description,
+              COALESCE(owner_image_url, image_url) AS image_url,
+              vote_count, featured_tier
+       FROM directory_listings WHERE id=$1 AND status='active'`,
+      [id]
+    );
+    if (!r.rows.length) return res.redirect('/directory');
+    const l = r.rows[0];
+
+    // Canonical redirect if slug doesn't match (preserves link equity)
+    const canonical = toListingSlug(l.name, l.id);
+    if (slug !== canonical) return res.redirect(301, `/directory/${canonical}`);
+
+    const BASE = 'https://strategic-flow-audit.replit.app';
+    const canonicalUrl = `${BASE}/directory/${canonical}`;
+    const rawImg = l.image_url || '';
+    const absImg = rawImg.startsWith('http') ? rawImg : (rawImg ? `${BASE}${rawImg}` : '');
+    const metaDesc = (l.description || `${l.name} is listed on ToolIndex — the free SaaS directory with a DR 86 dofollow backlink.`)
+      .slice(0, 160).replace(/"/g, '&quot;');
+    const title = `${l.name} — ToolIndex`;
+    const hostname = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return l.url; } })();
+
+    const ld = {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: l.name,
+      url: l.url,
+      applicationCategory: l.category || 'SoftwareApplication',
+      description: (l.description || '').slice(0, 500) || undefined,
+    };
+    if (l.vote_count > 0) {
+      ld.aggregateRating = { '@type': 'AggregateRating', ratingValue: '5', reviewCount: l.vote_count };
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${title}</title>
+<meta name="description" content="${metaDesc}"/>
+<link rel="canonical" href="${canonicalUrl}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="${canonicalUrl}"/>
+<meta property="og:title" content="${title}"/>
+<meta property="og:description" content="${metaDesc}"/>
+${absImg ? `<meta property="og:image" content="${absImg}"/>` : ''}
+<meta name="twitter:card" content="${absImg ? 'summary_large_image' : 'summary'}"/>
+<meta name="twitter:title" content="${title}"/>
+<meta name="twitter:description" content="${metaDesc}"/>
+${absImg ? `<meta name="twitter:image" content="${absImg}"/>` : ''}
+<script type="application/ld+json">${JSON.stringify(ld)}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#00d4c8;--bg:#0a1628;--card:#0f2035;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--teal);text-decoration:none}
+a:hover{text-decoration:underline}
+nav{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--border);z-index:10}
+.nav-logo{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700}
+.nav-back{font-size:13px;color:var(--muted)}
+main{margin-top:80px;padding:24px;max-width:600px;margin-left:auto;margin-right:auto;padding-bottom:64px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px}
+.logo-img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#1a2d47;margin-bottom:20px;display:block}
+.cat{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.prod-name{font-size:26px;font-weight:800;color:#fff;margin-bottom:14px;line-height:1.2}
+.prod-desc{font-size:14px;color:var(--sub);line-height:1.65;margin-bottom:20px}
+.votes{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:24px}
+.btns{display:flex;gap:12px;flex-wrap:wrap}
+.btn-p{display:inline-flex;align-items:center;gap:6px;padding:12px 22px;background:var(--teal);color:#0a1628;border-radius:8px;font-weight:700;font-size:14px;white-space:nowrap}
+.btn-s{display:inline-flex;align-items:center;gap:6px;padding:12px 18px;border:1px solid var(--border);color:var(--sub);border-radius:8px;font-size:14px;white-space:nowrap}
+.dir-link{margin-top:24px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<nav>
+  <span class="nav-logo">● ToolIndex</span>
+  <a href="/directory" class="nav-back">← Back to directory</a>
+</nav>
+<main>
+  <div class="card">
+    ${absImg ? `<img class="logo-img" src="${absImg}" alt="${l.name} logo" onerror="this.style.display='none'"/>` : ''}
+    <div class="cat">${l.category || 'General SaaS'}</div>
+    <div class="prod-name">${l.name}</div>
+    <div class="prod-desc">${l.description || `${l.name} is listed on ToolIndex.`}</div>
+    ${l.vote_count > 0 ? `<div class="votes">▲ ${Number(l.vote_count).toLocaleString()} upvotes on ToolIndex</div>` : ''}
+    <div class="btns">
+      <a href="${l.url}" class="btn-p" target="_blank" rel="noopener">Visit ${hostname} →</a>
+      <a href="/directory" class="btn-s">Browse all tools</a>
+    </div>
+    <div class="dir-link" style="margin-top:24px">
+      Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink
+    </div>
+  </div>
+</main>
+</body>
+</html>`);
+  } catch (err) {
+    console.error('[dir-page]', err.message);
+    res.redirect('/directory');
+  }
+});
+
 app.get('/api/directory/listings', async (req, res) => {
   try {
     const { category } = req.query;
@@ -548,49 +674,15 @@ app.get('/admin/aggregate', async (req, res) => {
   });
 });
 
-// ── Admin: set owner's apps as permanently promoted ───────────────────────────
+// ── Admin: set-owner-promoted — DISABLED for neutrality ──────────────────────
+// First-party listings (WHY Audit, SFA) must compete on the same paid placement
+// system as any other listing. This endpoint is intentionally disabled so no
+// server-side code path can grant them a free permanent premium slot.
 app.get('/admin/set-owner-promoted', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
-  try {
-    // WHY Audit — ID 199
-    await pool.query(`
-      UPDATE directory_listings SET
-        name         = 'WHY Audit™',
-        url          = 'https://strategic-flow-audit.replit.app/why.html',
-        category     = 'Analytics',
-        description  = 'Psychographic research tool. Uncover the real beliefs, fears, and buying motivators of your target audience — then build messaging that actually converts.',
-        featured_tier  = 'premium',
-        featured_until = '2099-12-31 23:59:59+00',
-        is_auto_imported = FALSE,
-        status = 'active'
-      WHERE id = 199
-    `);
-    // Strategic Flow Audit — ID 203
-    await pool.query(`
-      UPDATE directory_listings SET
-        name         = 'Strategic Flow Audit',
-        url          = 'https://strategic-flow-audit.replit.app',
-        category     = 'Marketing',
-        description  = 'AI-powered email & digital friction audit. Paste any email or landing page and get a full teardown: friction points, copy flaws, and rewrite suggestions in seconds.',
-        featured_tier  = 'premium',
-        featured_until = '2099-12-31 23:59:59+00',
-        is_auto_imported = FALSE,
-        status = 'active'
-      WHERE id = 203
-    `);
-    // Fetch fresh logos for both
-    setImmediate(async () => {
-      for (const [id, url] of [[199,'https://strategic-flow-audit.replit.app/why.html'],[203,'https://strategic-flow-audit.replit.app']]) {
-        const logo = await fetchProductLogo(url).catch(()=>null);
-        if (logo) await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logo, id]).catch(()=>{});
-        console.log(`[owner-promoted] id=${id} logo=${logo||'none'}`);
-        await new Promise(r=>setTimeout(r,3000));
-      }
-    });
-    res.json({ ok: true, message: 'Both owner apps set as permanently featured premium.' });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  return res.status(410).json({
+    error: 'endpoint_removed',
+    message: 'First-party listings must purchase placements through the same Stripe flow as any other listing. Use /api/directory/checkout to boost a listing at the standard rate.'
+  });
 });
 
 // ── Admin: clear bad og/screenshot logos from DB ──────────────────────────────
@@ -1492,6 +1584,28 @@ app.get('/api/directory/badge/:id/:variant.svg', async (req, res) => {
 });
 
 app.get('/badge-kit', (req, res) => res.sendFile(path.join(__dirname, 'public/badge-kit.html')));
+
+// ── GET /api/directory/click-counts ──────────────────────────────────────────
+// Returns real 30-day outbound click counts per listing. Only includes listings
+// with at least 1 click — zeros are omitted so callers can gate display on presence.
+app.get('/api/directory/click-counts', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT listing_id, COUNT(*)::int AS cnt
+      FROM dir_listing_clicks
+      WHERE clicked_at >= NOW() - INTERVAL '30 days'
+      GROUP BY listing_id
+      HAVING COUNT(*) > 0
+    `);
+    const total  = r.rows.reduce((sum, row) => sum + row.cnt, 0);
+    const counts = {};
+    r.rows.forEach(row => { counts[row.listing_id] = row.cnt; });
+    res.json({ total_30d: total, counts });
+  } catch(err) {
+    console.error('[dir-click-counts]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
 
 // ── POST /api/directory/track/view/:id ────────────────────────────────────────
 app.post('/api/directory/track/view/:id', async (req, res) => {
@@ -2612,6 +2726,16 @@ async function setupDB() {
       [s.name, s.url, s.category, s.desc, s.score]
     ).catch(() => {});
   }
+
+  // ── Fairness enforcement: clear any permanently-hardcoded featured placements ─
+  // featured_until = year 2099 was an artificial permanent slot, not a paid
+  // placement. First-party listings must compete via the paid Stripe flow only.
+  await pool.query(`
+    UPDATE directory_listings
+    SET featured_tier = NULL, featured_until = NULL
+    WHERE id IN (199, 203)
+      AND featured_until > '2030-01-01'
+  `).catch(e => console.error('[DB] fairness-cleanup:', e.message));
 
   console.log('[DB] All tables ready');
 }
@@ -12424,6 +12548,10 @@ setupDB().then(async () => {
     <loc>${base}/sitemap-ai-visibility-index.xml</loc>
     <lastmod>${now}</lastmod>
   </sitemap>
+  <sitemap>
+    <loc>${base}/sitemap-directory.xml</loc>
+    <lastmod>${now}</lastmod>
+  </sitemap>
 </sitemapindex>`);
   });
 
@@ -12460,6 +12588,29 @@ setupDB().then(async () => {
     ).join('\n');
     res.setHeader('Content-Type', 'application/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+  });
+
+  // ── GET /sitemap-directory.xml — one URL per active listing ─────────────────
+  app.get('/sitemap-directory.xml', async (req, res) => {
+    try {
+      const r = await pool.query(
+        `SELECT id, name, vote_count FROM directory_listings
+         WHERE status='active' ORDER BY vote_count DESC NULLS LAST LIMIT 5000`
+      );
+      const base = 'https://strategic-flow-audit.replit.app';
+      const now  = new Date().toISOString().slice(0, 10);
+      const urls = r.rows.map(l => {
+        const slug = toListingSlug(l.name, l.id);
+        // Higher-voted listings get slightly higher priority
+        const pri = l.vote_count >= 10 ? '0.7' : '0.5';
+        return `  <url><loc>${base}/directory/${slug}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${pri}</priority></url>`;
+      }).join('\n');
+      res.setHeader('Content-Type', 'application/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+    } catch (err) {
+      console.error('[sitemap-directory]', err.message);
+      res.status(500).send('Error generating sitemap');
+    }
   });
 
   app.get('/sitemap-index.xml', async (req, res) => {

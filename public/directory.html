@@ -80,7 +80,7 @@
         {
           "@type": "Question",
           "name": "How does the leaderboard and upvoting work?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Any visitor can upvote a product once per day. The leaderboard shows the top 10 products by votes in the current period. Claimed owners receive weekly rank updates by email. Products with more votes appear higher in the directory." }
+          "acceptedAnswer": { "@type": "Answer", "text": "Any visitor can upvote each product once — one upvote per listing per device, permanently. The leaderboard shows the top 10 products by votes in the current period. Claimed owners receive weekly rank updates by email. Products with more votes appear higher in the directory." }
         },
         {
           "@type": "Question",
@@ -264,6 +264,12 @@ a:hover{text-decoration:underline;}
 /* BOOST BUTTON */
 .dir-boost-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--gold);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:4px 10px;cursor:pointer;transition:all .2s;letter-spacing:.05em;font-weight:600;}
 .dir-boost-btn:hover{background:rgba(245,158,11,0.14);border-color:var(--gold);}
+
+/* CLICK STAT ON CARD */
+.dir-click-stat{font-size:10px;font-family:var(--mono);color:var(--muted);white-space:nowrap;letter-spacing:.02em;}
+
+/* VOTE RULE NOTE */
+.dir-lb-vote-rule{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.04em;margin-top:4px;}
 
 /* CLAIM */
 .dir-claim-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:none;padding:0;cursor:pointer;transition:color .2s;letter-spacing:.03em;text-decoration:underline;text-decoration-style:dotted;}
@@ -521,7 +527,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="#submit">Submit</a>
     <a href="#leaderboard">Leaderboard</a>
     <a href="#pricing" class="dir-nav-pricing">⚡ Pricing</a>
-    <a href="#submit" class="dir-nav-cta">Submit your product →</a>
+    <a href="#submit" class="dir-nav-cta">Get your free backlink →</a>
   </div>
   <button class="dir-hamburger" id="dirHamburger" aria-label="Open menu" onclick="toggleNavPanel()">
     <span></span><span></span><span></span>
@@ -549,7 +555,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
   <div class="dir-nav-panel-section">
     <div class="dir-nav-panel-section-label">Submit</div>
-    <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Submit your product (free) <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Get your free backlink <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Claim your listing <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#pricing" class="dir-nav-panel-link" onclick="closeNavPanel()">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
   </div>
@@ -616,7 +622,10 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 <!-- LEADERBOARD -->
 <div class="dir-leaderboard-section" id="leaderboard">
   <div class="dir-lb-header">
-    <span class="dir-lb-title">Leaderboard</span>
+    <div>
+      <span class="dir-lb-title">Leaderboard</span>
+      <div class="dir-lb-vote-rule">One upvote per listing, per device — votes don't reset</div>
+    </div>
     <div class="dir-lb-tabs">
       <button class="dir-lb-tab active" data-period="daily">Daily</button>
       <button class="dir-lb-tab" data-period="weekly">Weekly</button>
@@ -763,7 +772,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
   <details class="dir-faq-item">
     <summary class="dir-faq-q">How does upvoting and the leaderboard work?</summary>
-    <p class="dir-faq-a">Any visitor can upvote a product once per day — no account needed. The leaderboard shows the top 10 products by votes in the current period. Products with more votes appear higher in the default sort order. Claimed owners receive weekly leaderboard rank updates by email.</p>
+    <p class="dir-faq-a">Any visitor can upvote each product once — one upvote per listing per device, permanently (votes don't reset daily). No account needed. The leaderboard shows the top 10 products by votes in the current period. Products with more votes appear higher in the default sort order. Claimed owners receive weekly leaderboard rank updates by email.</p>
   </details>
 
   <details class="dir-faq-item">
@@ -831,7 +840,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         </ul>
       </div>
       <div class="dir-form-msg" id="dirFormMsg"></div>
-      <button type="submit" class="dir-submit-btn" id="dirSubmitBtn">Submit your product free →</button>
+      <button type="submit" class="dir-submit-btn" id="dirSubmitBtn">Get your free backlink →</button>
     </form>
   </div>
 </section>
@@ -1082,6 +1091,40 @@ const DIR_SESSION_ID = (()=>{
   return s;
 })();
 
+// ── Click counts (real 30-day outbound clicks per listing) ────────────────────
+let clickCounts    = {};   // { listingId: count } — only populated where count > 0
+let totalClicks30d = 0;
+
+function fmtNum(n){
+  if(n >= 1000000) return (n/1000000).toFixed(1).replace('.0','') + 'M';
+  if(n >= 1000)    return (n/1000).toFixed(1).replace('.0','')    + 'k';
+  return String(n);
+}
+
+async function loadClickCounts(){
+  try{
+    const r = await fetch('/api/directory/click-counts');
+    const d = await r.json();
+    clickCounts    = d.counts    || {};
+    totalClicks30d = d.total_30d || 0;
+    // Show aggregate stat in hero only when real data exists
+    if(totalClicks30d > 0) _showHeroClickStat(totalClicks30d);
+    // Re-render cards if listings already loaded so click stats appear
+    if(allListings.length > 0) renderVisible();
+  }catch{}
+}
+
+function _showHeroClickStat(total){
+  if(document.getElementById('statClicksEl')) return; // already shown
+  const statsEl = document.querySelector('.dir-stats');
+  if(!statsEl) return;
+  const div = document.createElement('div');
+  div.className = 'dir-stat';
+  div.id = 'statClicksEl';
+  div.innerHTML = `<div class="dir-stat-num">${fmtNum(total)}</div><div class="dir-stat-label">Clicks sent · 30d</div>`;
+  statsEl.appendChild(div);
+}
+
 // ── Click and view tracking ───────────────────────────────────────────────────
 const _trackedViews = new Set(); // avoid re-recording same listing in same session
 
@@ -1194,6 +1237,7 @@ function renderCard(l){
           <span class="vote-count" id="vc-${l.id}">${votes}</span>
         </button>
       </div>
+      ${(()=>{ const c = clickCounts[l.id]; return c > 0 ? `<span class="dir-click-stat">${fmtNum(c)} clicks sent · 30d</span>` : ''; })()}
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${sourceTag}
         ${l.is_claimed
@@ -1537,7 +1581,7 @@ async function submitListing(e){
     msg.className='dir-form-msg error';
     msg.textContent='Something went wrong. Please try again.';
   }finally{
-    btn.disabled=false; btn.textContent='Submit your product free →';
+    btn.disabled=false; btn.textContent='Get your free backlink →';
     msg.style.display='block';
   }
 }
@@ -1901,6 +1945,7 @@ function sendReport(){
 loadListings();
 loadFeatured();
 loadLeaderboard('daily');
+loadClickCounts();
 </script>
 </body>
 </html>
