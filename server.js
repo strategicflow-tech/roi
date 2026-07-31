@@ -1202,6 +1202,40 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            WHERE dl.status='active'
            GROUP BY dl.id
            ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+    } else if (period === 'trending') {
+      // Biggest vote velocity in the last 24 hours (must have at least 1 vote in window)
+      q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.featured_tier, dl.vote_count,
+                  COUNT(dv.id)::int AS period_votes
+           FROM directory_listings dl
+           JOIN dir_votes dv ON dv.listing_id = dl.id
+             AND dv.voted_at >= NOW() - INTERVAL '24 hours'
+           WHERE dl.status='active'
+           GROUP BY dl.id
+           HAVING COUNT(dv.id) > 0
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+    } else if (period === 'new') {
+      // Most recently submitted active listings
+      q = `SELECT id, name, url, category, description,
+                  friction_score, score_pending, image_url, source, source_url,
+                  featured_tier, vote_count, 0 AS period_votes,
+                  submitted_at
+           FROM directory_listings
+           WHERE status='active'
+           ORDER BY submitted_at DESC LIMIT 25`;
+    } else if (period === 'clicked') {
+      // Highest outbound click count (real tracking data only)
+      q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.featured_tier, dl.vote_count,
+                  COUNT(dc.id)::int AS period_votes
+           FROM directory_listings dl
+           JOIN dir_listing_clicks dc ON dc.listing_id = dl.id
+           WHERE dl.status='active'
+           GROUP BY dl.id
+           HAVING COUNT(dc.id) > 0
+           ORDER BY period_votes DESC LIMIT 25`;
     } else {
       q = `SELECT id, name, url, category, description,
                   friction_score, score_pending, image_url, source, source_url,
@@ -1458,6 +1492,108 @@ app.get('/api/directory/badge/:id/:variant.svg', async (req, res) => {
 });
 
 app.get('/badge-kit', (req, res) => res.sendFile(path.join(__dirname, 'public/badge-kit.html')));
+
+// ── POST /api/directory/track/view/:id ────────────────────────────────────────
+app.post('/api/directory/track/view/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const session_id = (req.body && req.body.session_id) ? String(req.body.session_id).slice(0, 64) : null;
+  try {
+    await pool.query(
+      `INSERT INTO dir_listing_views (listing_id, session_id) VALUES ($1, $2)`,
+      [id, session_id]
+    );
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-track/view]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── POST /api/directory/track/click/:id ───────────────────────────────────────
+app.post('/api/directory/track/click/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'invalid_id' });
+  const session_id = (req.body && req.body.session_id) ? String(req.body.session_id).slice(0, 64) : null;
+  try {
+    await pool.query(
+      `INSERT INTO dir_listing_clicks (listing_id, session_id) VALUES ($1, $2)`,
+      [id, session_id]
+    );
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-track/click]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /api/directory/analytics/:id ─────────────────────────────────────────
+// Authenticated by edit_token + email (same as claim/edit). Returns real stats only.
+app.get('/api/directory/analytics/:id', async (req, res) => {
+  const id    = parseInt(req.params.id, 10);
+  const email = (req.query.email || '').toLowerCase().trim();
+  const token = (req.query.token || '').trim();
+  if (!id || !email || !token) return res.status(400).json({ error: 'id, email, token required' });
+
+  try {
+    // Verify claim ownership
+    const claim = await pool.query(
+      `SELECT 1 FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
+      [id, email, token]
+    );
+    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+
+    const [views30, clicks30, listing, rankAll, rankCat] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS cnt FROM dir_listing_views
+         WHERE listing_id=$1 AND viewed_at >= NOW() - INTERVAL '30 days'`, [id]
+      ),
+      pool.query(
+        `SELECT COUNT(*)::int AS cnt FROM dir_listing_clicks
+         WHERE listing_id=$1 AND clicked_at >= NOW() - INTERVAL '30 days'`, [id]
+      ),
+      pool.query(
+        `SELECT vote_count, category FROM directory_listings WHERE id=$1`, [id]
+      ),
+      // Overall rank among all active listings by vote_count
+      pool.query(
+        `SELECT COUNT(*)::int + 1 AS rank FROM directory_listings
+         WHERE status='active' AND vote_count > (SELECT vote_count FROM directory_listings WHERE id=$1)`,
+        [id]
+      ),
+      // Category rank
+      pool.query(
+        `SELECT COUNT(*)::int + 1 AS rank FROM directory_listings dl
+         WHERE dl.status='active'
+           AND dl.category = (SELECT category FROM directory_listings WHERE id=$1)
+           AND dl.vote_count > (SELECT vote_count FROM directory_listings WHERE id=$1)`,
+        [id]
+      )
+    ]);
+
+    const v = views30.rows[0].cnt;
+    const c = clicks30.rows[0].cnt;
+    const votes     = listing.rows[0]?.vote_count || 0;
+    const category  = listing.rows[0]?.category  || 'General';
+    const ctr       = v > 0 ? ((c / v) * 100).toFixed(1) : null;
+    const overallRank  = rankAll.rows[0].rank;
+    const categoryRank = rankCat.rows[0].rank;
+
+    res.json({
+      listing_id:     id,
+      views_30d:      v,
+      clicks_30d:     c,
+      ctr_pct:        ctr,          // null if no views yet
+      upvotes:        votes,
+      overall_rank:   overallRank,
+      category_rank:  categoryRank,
+      category
+    });
+  } catch(err) {
+    console.error('[dir-analytics]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
 
 app.get('/scorecard', (req, res) => res.sendFile(path.join(__dirname, 'public/scorecard.html')));
 app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/assessment.html')));
@@ -2424,6 +2560,30 @@ async function setupDB() {
       UNIQUE(listing_id, owner_email)
     )
   `).catch(e => console.error('[DB] dir_claims:', e.message));
+
+  // ── Listing analytics tables ──────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_listing_views (
+      id         SERIAL PRIMARY KEY,
+      listing_id INTEGER NOT NULL,
+      session_id TEXT,
+      viewed_at  TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] dir_listing_views:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_listing_clicks (
+      id         SERIAL PRIMARY KEY,
+      listing_id INTEGER NOT NULL,
+      session_id TEXT,
+      clicked_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] dir_listing_clicks:', e.message));
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlv_listing ON dir_listing_views(listing_id)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlv_viewed  ON dir_listing_views(viewed_at)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlc_listing ON dir_listing_clicks(listing_id)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlc_clicked ON dir_listing_clicks(clicked_at)`).catch(()=>{});
 
   // Seed with real products
   const _dirSeed = [
