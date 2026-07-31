@@ -86,6 +86,27 @@ h1 span{color:var(--teal)}
 .footer-note{margin-top:48px;font-size:12px;color:var(--muted);text-align:center;line-height:1.7}
 .footer-note a{color:var(--muted)}
 .footer-note a:hover{color:var(--teal)}
+/* Manage section (Task #37) */
+.manage-section{margin-top:64px;border-top:1px solid var(--border);padding-top:40px}
+.manage-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.manage-sub{font-size:14px;color:var(--muted);margin-bottom:24px}
+.manage-step{display:none}
+.manage-step.active{display:block}
+.manage-row{display:flex;gap:10px;flex-wrap:wrap}
+.manage-row .field{flex:1;min-width:200px}
+.manage-msg{font-size:13px;margin-top:10px;display:none}
+.manage-msg.ok{color:#10b981;display:block}
+.manage-msg.err{color:#ef4444;display:block}
+.manage-save-btn{margin-top:16px;padding:11px 24px;background:var(--teal);color:#0a1628;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:var(--mono);cursor:pointer;transition:opacity .2s}
+.manage-save-btn:hover{opacity:.88}
+.manage-save-btn:disabled{opacity:.4;cursor:not-allowed}
+.manage-send-btn{padding:10px 20px;background:transparent;border:1px solid var(--teal);color:var(--teal);border-radius:8px;font-size:13px;font-weight:600;font-family:var(--mono);cursor:pointer;transition:all .2s;white-space:nowrap}
+.manage-send-btn:hover{background:var(--teal-dim)}
+.manage-send-btn:disabled{opacity:.4;cursor:not-allowed}
+.manage-verified-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:4px 12px;margin-bottom:20px}
+/* Slot warning (Task #38) */
+.slot-warn{font-size:11px;font-family:var(--mono);color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:6px;padding:6px 14px;margin-top:8px;display:none}
+.slot-warn.show{display:inline-block}
 </style>
 </head>
 <body>
@@ -117,6 +138,7 @@ h1 span{color:var(--teal)}
     <span class="slot-dot" id="slotDot"></span>
     <span id="slotText">Loading…</span>
   </div>
+  <div class="slot-warn" id="slotWarn"></div>
 
   <!-- BENEFITS -->
   <div class="benefits">
@@ -195,6 +217,65 @@ h1 span{color:var(--teal)}
     </div>
   </div>
 
+  <!-- MANAGE MY SPONSORSHIP (Task #37) -->
+  <div class="manage-section">
+    <div class="manage-title">Manage my sponsorship</div>
+    <div class="manage-sub">Already a sponsor? Update your logo, tagline, or website URL — no need to repurchase.</div>
+
+    <!-- Step 1: email + send OTP -->
+    <div class="manage-step active" id="mStep1">
+      <div class="manage-row">
+        <div class="field" style="flex:2">
+          <label>Payer email</label>
+          <input type="email" id="mEmail" placeholder="you@acme.com"/>
+        </div>
+        <div class="field" style="flex:0;align-self:flex-end">
+          <button class="manage-send-btn" id="mSendBtn" onclick="manageSendOtp()">Send code →</button>
+        </div>
+      </div>
+      <div class="manage-msg" id="mStep1Msg"></div>
+    </div>
+
+    <!-- Step 2: OTP verify -->
+    <div class="manage-step" id="mStep2">
+      <p style="font-size:14px;color:var(--sub);margin-bottom:16px">Enter the 6-digit code sent to your email:</p>
+      <div class="manage-row">
+        <div class="field">
+          <label>Verification code</label>
+          <input type="text" id="mOtp" placeholder="123456" maxlength="6" style="letter-spacing:6px;font-size:20px;font-family:var(--mono);text-align:center"/>
+        </div>
+        <div class="field" style="flex:0;align-self:flex-end">
+          <button class="manage-send-btn" id="mVerifyBtn" onclick="manageVerify()">Verify →</button>
+        </div>
+      </div>
+      <div class="manage-msg" id="mStep2Msg"></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">
+        <a href="#" onclick="document.getElementById('mStep1').classList.add('active');document.getElementById('mStep2').classList.remove('active');return false">← Use a different email</a>
+      </p>
+    </div>
+
+    <!-- Step 3: edit fields -->
+    <div class="manage-step" id="mStep3">
+      <div class="manage-verified-tag">✓ Verified — editing <span id="mSponsorName" style="font-weight:700;margin-left:4px"></span></div>
+      <div class="form-grid" style="margin-bottom:0">
+        <div class="field">
+          <label>Website URL</label>
+          <input type="url" id="mUrl" placeholder="https://acme.com"/>
+        </div>
+        <div class="field">
+          <label>Logo URL <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+          <input type="url" id="mLogo" placeholder="https://acme.com/logo.png"/>
+        </div>
+        <div class="field full">
+          <label>Tagline <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+          <input type="text" id="mTagline" placeholder="The fastest way to…" maxlength="140"/>
+        </div>
+      </div>
+      <button class="manage-save-btn" id="mSaveBtn" onclick="manageSave()">Save changes →</button>
+      <div class="manage-msg" id="mStep3Msg"></div>
+    </div>
+  </div>
+
   <div class="footer-note">
     Questions? Email <a href="mailto:alex@strategicflow.tech">alex@strategicflow.tech</a> ·
     <a href="/directory">ToolIndex directory</a> ·
@@ -261,11 +342,21 @@ function esc(s) {
 if (SSR_SLOTS !== null) renderSlotCounter(SSR_SLOTS);
 renderSponsors(SSR_SPONSORS);
 
-// ── Also refresh live from API (handles any slot changes since SSR) ────────────
-fetch('/api/sponsor/active').then(function(r){return r.json();}).then(function(d){
-  renderSlotCounter(d.slots_available);
-  renderSponsors(d.sponsors);
-}).catch(function(){});
+// ── Refresh from API + poll every 30s (Task #38) ──────────────────────────────
+function refreshSlots() {
+  fetch('/api/sponsor/active').then(function(r){return r.json();}).then(function(d){
+    renderSlotCounter(d.slots_available);
+    renderSponsors(d.sponsors);
+    // Show urgency warning when only 1 slot left
+    var warn = document.getElementById('slotWarn');
+    if (warn) {
+      if (d.slots_available === 1) { warn.textContent = '⚡ Only 1 slot left — act fast.'; warn.classList.add('show'); }
+      else warn.classList.remove('show');
+    }
+  }).catch(function(){});
+}
+refreshSlots();
+setInterval(refreshSlots, 30000);
 
 // ── Success banner ─────────────────────────────────────────────────────────────
 (function(){
@@ -317,6 +408,101 @@ async function startCheckout(tier, btn) {
     btn.disabled = false;
     btn.textContent = 'Buy ' + (tier==='1mo'?'1 Month':tier==='3mo'?'3 Months':'12 Months') + ' →';
   }
+}
+
+// ── Manage: sponsor self-serve (Task #37) ─────────────────────────────────────
+var _manageId    = null;
+var _manageEmail = null;
+
+function manageSendOtp() {
+  var email = document.getElementById('mEmail').value.trim();
+  var btn   = document.getElementById('mSendBtn');
+  var msg   = document.getElementById('mStep1Msg');
+  msg.className = 'manage-msg';
+  if (!email.includes('@')) { msg.textContent = 'Enter a valid email.'; msg.className='manage-msg err'; return; }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/api/sponsor/manage/send-otp', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email })
+  }).then(function(r){return r.json();}).then(function(d){
+    if (d.ok) {
+      _manageEmail = email;
+      document.getElementById('mStep1').classList.remove('active');
+      document.getElementById('mStep2').classList.add('active');
+    } else if (d.error === 'no_active_sponsor_for_email') {
+      msg.textContent = 'No active sponsorship found for that email.';
+      msg.className = 'manage-msg err';
+      btn.disabled = false; btn.textContent = 'Send code →';
+    } else {
+      throw new Error(d.error);
+    }
+  }).catch(function(e){
+    msg.textContent = 'Error sending code — try again.';
+    msg.className = 'manage-msg err';
+    btn.disabled = false; btn.textContent = 'Send code →';
+  });
+}
+
+function manageVerify() {
+  var otp  = document.getElementById('mOtp').value.trim();
+  var btn  = document.getElementById('mVerifyBtn');
+  var msg  = document.getElementById('mStep2Msg');
+  msg.className = 'manage-msg';
+  if (otp.length !== 6) { msg.textContent = 'Enter the 6-digit code.'; msg.className='manage-msg err'; return; }
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  fetch('/api/sponsor/manage/verify', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email: _manageEmail, otp })
+  }).then(function(r){return r.json();}).then(function(d){
+    if (d.ok) {
+      _manageId = d.id;
+      document.getElementById('mSponsorName').textContent = d.sponsor_name;
+      document.getElementById('mUrl').value     = d.sponsor_url     || '';
+      document.getElementById('mLogo').value    = d.sponsor_logo    || '';
+      document.getElementById('mTagline').value = d.sponsor_tagline || '';
+      document.getElementById('mStep2').classList.remove('active');
+      document.getElementById('mStep3').classList.add('active');
+    } else if (d.error === 'wrong_code') {
+      msg.textContent = 'Incorrect code — try again.'; msg.className='manage-msg err';
+      btn.disabled = false; btn.textContent = 'Verify →';
+    } else if (d.error === 'code_expired') {
+      msg.textContent = 'Code expired — go back and request a new one.'; msg.className='manage-msg err';
+      btn.disabled = false; btn.textContent = 'Verify →';
+    } else { throw new Error(d.error); }
+  }).catch(function(){
+    msg.textContent = 'Error verifying — try again.'; msg.className='manage-msg err';
+    btn.disabled = false; btn.textContent = 'Verify →';
+  });
+}
+
+async function manageSave() {
+  var btn = document.getElementById('mSaveBtn');
+  var msg = document.getElementById('mStep3Msg');
+  var url = document.getElementById('mUrl').value.trim();
+  msg.className = 'manage-msg';
+  if (!url || !/^https?:\/\//i.test(url)) {
+    msg.textContent = 'Enter a valid URL starting with https://.'; msg.className='manage-msg err'; return;
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var r = await fetch('/api/sponsor/manage/update', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        id: _manageId, email: _manageEmail,
+        sponsor_url:     url,
+        sponsor_logo:    document.getElementById('mLogo').value.trim(),
+        sponsor_tagline: document.getElementById('mTagline').value.trim(),
+      })
+    });
+    var d = await r.json();
+    if (d.ok) {
+      msg.textContent = '✓ Changes saved — visible in the sidebar within seconds.'; msg.className='manage-msg ok';
+      refreshSlots();
+    } else { throw new Error(d.error); }
+  } catch(e) {
+    msg.textContent = 'Error saving — try again or contact alex@strategicflow.tech.'; msg.className='manage-msg err';
+  }
+  btn.disabled = false; btn.textContent = 'Save changes →';
 }
 </script>
 </body>

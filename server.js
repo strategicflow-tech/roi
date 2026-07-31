@@ -1684,6 +1684,7 @@ async function handleSponsorPayment(session) {
   const email   = (session.customer_details?.email || session.customer_email || '').toLowerCase();
   const days    = SPONSOR_TIERS[sponsor_tier].days;
   const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const tierLabel = SPONSOR_TIERS[sponsor_tier].label;
   try {
     await pool.query(
       `INSERT INTO dir_sponsors
@@ -1696,20 +1697,196 @@ async function handleSponsorPayment(session) {
     );
     console.log(`[sponsor] "${sponsor_name}" (${sponsor_tier}) active until ${expires.toISOString()}`);
   } catch(e) { console.error('[sponsor] DB insert error:', e.message); }
+
+  // ── Admin notification (Task #39) ────────────────────────────────────────
+  resend.emails.send({
+    from:    SENDER,
+    to:      'alex@strategicflow.tech',
+    subject: `New ToolIndex sponsor: ${sponsor_name} (${tierLabel})`,
+    html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+      <h2 style="color:#00d4c8;">New Sponsor 🎉</h2>
+      <p><strong>${sponsor_name}</strong> just bought a <strong>${tierLabel}</strong> sponsorship.</p>
+      <ul style="padding-left:20px;line-height:2;">
+        <li>URL: <a href="${sponsor_url}">${sponsor_url}</a></li>
+        ${sponsor_tagline ? `<li>Tagline: ${sponsor_tagline}</li>` : ''}
+        <li>Payer: ${email || '—'}</li>
+        <li>Expires: ${expires.toDateString()}</li>
+      </ul>
+    </div>`
+  }).catch(() => {});
+
+  // ── Welcome email to sponsor (Task #39) ──────────────────────────────────
+  if (email) {
+    resend.emails.send({
+      from:    SENDER,
+      to:      email,
+      subject: `Your ToolIndex sponsorship is live — ${sponsor_name}`,
+      html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+        <h2 style="color:#00d4c8;">You're live on ToolIndex! 🎯</h2>
+        <p>Your brand <strong>${sponsor_name}</strong> is now showing in the sidebar across every ToolIndex listing page.</p>
+        <p><strong>Expires:</strong> ${expires.toDateString()}</p>
+        <p>To update your logo, tagline, or website at any time — no need to repurchase — visit the sponsor page and click <em>Manage my sponsorship</em>:</p>
+        <p><a href="https://strategic-flow-audit.replit.app/sponsor" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:10px 22px;border-radius:6px;font-weight:700;text-decoration:none;">Manage sponsorship →</a></p>
+        <p style="color:#888;font-size:12px;">Questions? Reply to this email.</p>
+      </div>`
+    }).catch(() => {});
+  }
 }
 
-// ── Sponsorship: expire stale sponsor placements ──────────────────────────────
+// ── Sponsorship: expire stale sponsor placements + send expiry emails ─────────
 async function expireSponsors() {
   try {
     const r = await pool.query(
       `UPDATE dir_sponsors SET is_active=FALSE
        WHERE is_active=TRUE AND expires_at < NOW()
-       RETURNING id, sponsor_name`
+       RETURNING id, sponsor_name, payer_email, tier`
     );
-    if (r.rows.length > 0)
-      console.log(`[sponsor] expired ${r.rows.length}: ${r.rows.map(r=>r.sponsor_name).join(', ')}`);
+    if (r.rows.length > 0) {
+      console.log(`[sponsor] expired ${r.rows.length}: ${r.rows.map(s=>s.sponsor_name).join(', ')}`);
+      for (const s of r.rows) {
+        if (!s.payer_email) continue;
+        resend.emails.send({
+          from:    SENDER,
+          to:      s.payer_email,
+          subject: `Your ToolIndex sponsorship has ended — ${s.sponsor_name}`,
+          html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+            <h2 style="color:#00d4c8;">Your sponsorship has ended</h2>
+            <p>Your ToolIndex sidebar slot for <strong>${s.sponsor_name}</strong> expired today.</p>
+            <p>A new slot may be available — renew to get back in front of founders browsing 566+ SaaS tools:</p>
+            <p><a href="https://strategic-flow-audit.replit.app/sponsor" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:10px 22px;border-radius:6px;font-weight:700;text-decoration:none;">Renew sponsorship →</a></p>
+            <p style="color:#888;font-size:12px;">Thanks for sponsoring ToolIndex.</p>
+          </div>`
+        }).catch(() => {});
+      }
+    }
   } catch(e) { console.error('[sponsor] expiry error:', e.message); }
 }
+
+// ── Sponsorship: 7-day renewal reminders (Task #39) ────────────────────────────
+async function checkSponsorRenewals() {
+  try {
+    const r = await pool.query(
+      `SELECT id, sponsor_name, payer_email, expires_at
+       FROM dir_sponsors
+       WHERE is_active=TRUE
+         AND expires_at > NOW()
+         AND expires_at <= NOW() + INTERVAL '7 days'
+         AND (renewal_reminder_sent IS NULL OR renewal_reminder_sent = FALSE)
+         AND payer_email IS NOT NULL AND payer_email != ''`
+    );
+    for (const s of r.rows) {
+      const daysLeft = Math.max(1, Math.ceil((new Date(s.expires_at) - Date.now()) / 86400000));
+      await resend.emails.send({
+        from:    SENDER,
+        to:      s.payer_email,
+        subject: `Your ToolIndex sponsorship expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — ${s.sponsor_name}`,
+        html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+          <h2 style="color:#00d4c8;">Sponsorship expiring soon</h2>
+          <p>Your ToolIndex sidebar slot for <strong>${s.sponsor_name}</strong> expires on <strong>${new Date(s.expires_at).toDateString()}</strong> — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} from now.</p>
+          <p>Renew now to stay visible across every ToolIndex listing page:</p>
+          <p><a href="https://strategic-flow-audit.replit.app/sponsor" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:10px 22px;border-radius:6px;font-weight:700;text-decoration:none;">Renew sponsorship →</a></p>
+          <p style="color:#888;font-size:12px;">If you don't renew, your slot will open up after expiry.</p>
+        </div>`
+      }).catch(() => {});
+      await pool.query(`UPDATE dir_sponsors SET renewal_reminder_sent=TRUE WHERE id=$1`, [s.id]);
+      console.log(`[sponsor] renewal reminder → ${s.payer_email} (${s.sponsor_name}, ${daysLeft}d left)`);
+    }
+  } catch(e) { console.error('[sponsor] renewal check error:', e.message); }
+}
+
+// ── Sponsor self-serve management routes (Task #37) ────────────────────────────
+
+// POST /api/sponsor/manage/send-otp
+app.post('/api/sponsor/manage/send-otp', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email?.includes('@')) return res.status(400).json({ error: 'email_required' });
+  try {
+    const r = await pool.query(
+      `SELECT id, sponsor_name FROM dir_sponsors
+       WHERE payer_email=$1 AND is_active=TRUE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [email.toLowerCase()]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'no_active_sponsor_for_email' });
+    const otp     = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    await pool.query(
+      `UPDATE dir_sponsors SET manage_otp=$1, manage_otp_expires_at=$2 WHERE id=$3`,
+      [otp, expires, r.rows[0].id]
+    );
+    await resend.emails.send({
+      from:    SENDER,
+      to:      email,
+      subject: `ToolIndex sponsor management code`,
+      html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+        <h2 style="color:#00d4c8;">Sponsor Management</h2>
+        <p>Your 6-digit code for managing <strong>${r.rows[0].sponsor_name}</strong>:</p>
+        <div style="font-size:36px;font-weight:800;letter-spacing:8px;background:#f0f9ff;padding:20px;border-radius:8px;text-align:center;color:#0a1628;margin:20px 0;">${otp}</div>
+        <p>Enter this on the sponsor page. Expires in 15 minutes.</p>
+        <p style="color:#888;font-size:12px;">Didn't request this? Ignore this email.</p>
+      </div>`
+    });
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[sponsor/manage/otp]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// POST /api/sponsor/manage/verify
+app.post('/api/sponsor/manage/verify', async (req, res) => {
+  const { email, otp } = req.body || {};
+  if (!email || !otp) return res.status(400).json({ error: 'email and otp required' });
+  try {
+    const r = await pool.query(
+      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline,
+              tier, expires_at, manage_otp, manage_otp_expires_at
+       FROM dir_sponsors WHERE payer_email=$1 AND is_active=TRUE AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [email.toLowerCase()]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'no_active_sponsor' });
+    const s = r.rows[0];
+    if (s.manage_otp !== otp) return res.status(422).json({ error: 'wrong_code' });
+    if (!s.manage_otp_expires_at || new Date(s.manage_otp_expires_at) < new Date())
+      return res.status(422).json({ error: 'code_expired' });
+    await pool.query(
+      `UPDATE dir_sponsors SET manage_otp=NULL, manage_otp_expires_at=NULL WHERE id=$1`,
+      [s.id]
+    );
+    res.json({
+      ok: true, id: s.id,
+      sponsor_name: s.sponsor_name, sponsor_url: s.sponsor_url || '',
+      sponsor_logo: s.sponsor_logo || '', sponsor_tagline: s.sponsor_tagline || '',
+      tier: s.tier, expires_at: s.expires_at,
+    });
+  } catch(err) {
+    console.error('[sponsor/manage/verify]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// PUT /api/sponsor/manage/update
+app.put('/api/sponsor/manage/update', async (req, res) => {
+  const { id, email, sponsor_url, sponsor_logo, sponsor_tagline } = req.body || {};
+  if (!id || !email) return res.status(400).json({ error: 'id and email required' });
+  try {
+    const r = await pool.query(
+      `UPDATE dir_sponsors
+         SET sponsor_url=$1, sponsor_logo=$2, sponsor_tagline=$3
+       WHERE id=$4 AND payer_email=$5 AND is_active=TRUE AND expires_at > NOW()
+       RETURNING id, sponsor_name`,
+      [(sponsor_url||'').slice(0,300), (sponsor_logo||'').slice(0,300)||null,
+       (sponsor_tagline||'').slice(0,140), id, email.toLowerCase()]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'sponsor_not_found' });
+    console.log(`[sponsor/manage] ${r.rows[0].sponsor_name} updated details`);
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[sponsor/manage/update]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
 
 // ── GET /api/sponsor/active ────────────────────────────────────────────────────
 app.get('/api/sponsor/active', async (req, res) => {
@@ -3274,6 +3451,10 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] dir_sponsors:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_sponsors_active ON dir_sponsors(is_active, expires_at)`).catch(()=>{});
+  // Sponsor management + renewal columns (safe to run on existing table)
+  await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS manage_otp TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS manage_otp_expires_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS renewal_reminder_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_claims (
@@ -14320,6 +14501,9 @@ ${content}
   // Run once at startup too
   expireFeaturedListings().catch(()=>{});
   expireSponsors().catch(()=>{});
+
+  // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
+  cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));
 
   // ── Weekly directory aggregation (Sunday 03:00) ────────────────────────────
   cron.schedule('0 3 * * 0', async () => {
