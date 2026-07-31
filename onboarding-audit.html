@@ -1127,12 +1127,12 @@ The more copy you paste, the more precise the diagnosis."
       <div class="sbar"><div class="sfill" id="bar-before" style="width:20%;background:var(--bug);"></div></div>
       <div class="score-line" style="margin-top:8px;"><span class="score-k">Rebuilt</span><span class="score-v g" id="sb-score-after">9 / 10</span></div>
       <div class="sbar"><div class="sfill" id="bar-after" style="width:90%;background:var(--fix);"></div></div>
-      <div class="score-line" style="margin-top:8px;"><span class="score-k">Bugs found</span><span class="score-v a">7 / 7</span></div>
+      <div class="score-line" style="margin-top:8px;"><span class="score-k">Bugs found</span><span class="score-v a" id="sb-bugs-found">— / 7</span></div>
     </div>
 
     <!-- BEFORE annotations -->
     <div class="before-ann before-only">
-      <div class="ann-header">Bugs Found — 7/7</div>
+      <div class="ann-header" id="ann-bugs-header">Bugs Found — —/7</div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">1</span>Bug #1</div><div class="ann-title">Welcome Screen Without Consequence</div><div class="ann-body">Announces product or team. User doesn't know what they can do in the next 2 minutes.</div></div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">2</span>Bug #2</div><div class="ann-title">Useless Progress Indicator</div><div class="ann-body">Shows "Step 2 of 5" without naming the reward at the end. User doesn't know why it's worth completing.</div></div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">3</span>Bug #3</div><div class="ann-title">Generic CTA</div><div class="ann-body">"Continue" and "Next" everywhere. No action names the specific outcome the user is moving toward.</div></div>
@@ -1313,29 +1313,49 @@ window.addEventListener('load', function() {
       .then(function(audit) {
         if (audit.error) throw new Error(audit.error);
 
+        var realBugsFound = (typeof audit.bugs_found === 'number') ? audit.bugs_found : (audit.bugs ? audit.bugs.length : 7);
         if (progressBar) progressBar.style.width = '100%';
-        if (progressPct) progressPct.textContent = '7 / 7';
-        if (progressLabel) progressLabel.textContent = 'All checks done';
+        if (progressPct) progressPct.textContent = realBugsFound + ' / 7';
+        if (progressLabel) progressLabel.textContent = realBugsFound === 0 ? 'No structural failures found' : realBugsFound + ' issue' + (realBugsFound === 1 ? '' : 's') + ' identified';
 
-        // Build per-check scorecard from real audit.bugs
+        // Build per-check scorecard from wc array (7 items, one per checkpoint)
         var scorecard = document.getElementById('checkScorecard');
-        if (scorecard && audit.bugs && audit.bugs.length) {
-          var SF_CHECKS_ONBOARDING = [
-            'Welcome Screen','Progress Indicator','CTA Language',
-            'Empty State','Tooltip Copy','Time to First Value','Microcopy'
-          ];
-          scorecard.innerHTML = audit.bugs.map(function(bug, i) {
-            var label = SF_CHECKS_ONBOARDING[i] || ('Check ' + (i+1));
-            var pass = bug.title && bug.title.toLowerCase().indexOf('none') === -1 &&
-                       bug.body && bug.body.length > 10;
-            return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);">' +
-              '<span style="font-size:13px;flex-shrink:0;line-height:1.4;">' + (pass ? '✗' : '✓') + '</span>' +
-              '<div><div style="font-size:11px;font-weight:700;color:' + (pass ? '#FF6B6B' : '#00FFD0') + ';letter-spacing:.04em;">' + label + '</div>' +
-              '<div style="font-size:10px;color:rgba(255,255,255,.45);line-height:1.3;">' + (pass ? bug.title : 'No issues found') + '</div>' +
-              '</div></div>';
-          }).join('');
+        var SF_CHECKS_ONBOARDING = [
+          'Welcome Screen','Progress Indicator','CTA Language',
+          'Empty State','Tooltip Copy','Time to First Value','Microcopy'
+        ];
+        if (scorecard) {
+          var wcData = (audit.wc && audit.wc.length === 7) ? audit.wc : null;
+          if (wcData) {
+            // Use wc array: passing checkpoints are marked "Already Passes"
+            scorecard.innerHTML = wcData.map(function(item, i) {
+              var label = SF_CHECKS_ONBOARDING[i] || ('Check ' + (i+1));
+              var isPassing = item.fix && item.fix.toLowerCase().indexOf('already passes') !== -1;
+              return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);">' +
+                '<span style="font-size:13px;flex-shrink:0;line-height:1.4;">' + (isPassing ? '✓' : '✗') + '</span>' +
+                '<div><div style="font-size:11px;font-weight:700;color:' + (isPassing ? '#00FFD0' : '#FF6B6B') + ';letter-spacing:.04em;">' + label + '</div>' +
+                '<div style="font-size:10px;color:rgba(255,255,255,.45);line-height:1.3;">' + (isPassing ? 'No structural issue found' : (item.fix || '')) + '</div>' +
+                '</div></div>';
+            }).join('');
+          } else if (audit.bugs && audit.bugs.length) {
+            // Fallback: use bugs array
+            scorecard.innerHTML = audit.bugs.map(function(bug, i) {
+              var label = SF_CHECKS_ONBOARDING[i] || ('Check ' + (i+1));
+              return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);">' +
+                '<span style="font-size:13px;flex-shrink:0;line-height:1.4;">✗</span>' +
+                '<div><div style="font-size:11px;font-weight:700;color:#FF6B6B;letter-spacing:.04em;">' + label + '</div>' +
+                '<div style="font-size:10px;color:rgba(255,255,255,.45);line-height:1.3;">' + (bug.title || '') + '</div>' +
+                '</div></div>';
+            }).join('');
+          }
           scorecard.style.display = 'block';
         }
+
+        // Update bugs-found counters dynamically
+        var sbBugsFound = document.getElementById('sb-bugs-found');
+        if (sbBugsFound) sbBugsFound.textContent = realBugsFound + ' / 7';
+        var annBugsHeader = document.getElementById('ann-bugs-header');
+        if (annBugsHeader) annBugsHeader.textContent = 'Bugs Found — ' + realBugsFound + '/7';
 
         setTimeout(function() {
           if (progressWrap) progressWrap.style.display = 'none';
@@ -1348,7 +1368,7 @@ window.addEventListener('load', function() {
 
         var ids = {
           'score-before': 'Original: ' + (audit.original_score || 2) + '/10',
-          'score-after': 'Rebuilt: ' + (audit.rebuilt_score || 9) + '/10',
+          'score-after': 'Rebuilt: ' + (audit.rebuilt_score || 7) + '/10',
           'original-title': audit.original_title,
           'rebuilt-title': audit.rebuilt_title,
           'entry1-title': audit.entry1_title,
@@ -1376,36 +1396,52 @@ window.addEventListener('load', function() {
         var sbBefore = document.getElementById('sb-score-before');
         var sbAfter = document.getElementById('sb-score-after');
         if (sbBefore) sbBefore.textContent = (audit.original_score || 2) + ' / 10';
-        if (sbAfter) sbAfter.textContent = (audit.rebuilt_score || 9) + ' / 10';
+        if (sbAfter) sbAfter.textContent = (audit.rebuilt_score || 7) + ' / 10';
 
         var barBefore = document.getElementById('bar-before');
         var barAfter = document.getElementById('bar-after');
         if (barBefore) barBefore.style.width = ((audit.original_score || 2) * 10) + '%';
-        if (barAfter) barAfter.style.width = ((audit.rebuilt_score || 9) * 10) + '%';
+        if (barAfter) barAfter.style.width = ((audit.rebuilt_score || 7) * 10) + '%';
 
+        // Update bug annotation cards — hide extras when fewer than 7 bugs found
+        var bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
         if (audit.bugs && audit.bugs.length) {
-          var bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
           audit.bugs.forEach(function(bug, i) {
             if (bugCards[i]) {
               var t = bugCards[i].querySelector('.ann-title');
               var b = bugCards[i].querySelector('.ann-body');
               if (t) t.textContent = bug.title;
               if (b) b.textContent = bug.body;
+              bugCards[i].style.display = '';
             }
           });
         }
+        // Hide surplus bug cards beyond actual bugs found
+        for (var bci = realBugsFound; bci < bugCards.length; bci++) {
+          bugCards[bci].style.display = 'none';
+        }
 
+        // Update fix annotation cards — hide extras when fewer than 7 fixes
+        var fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
         if (audit.fixes && audit.fixes.length) {
-          var fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
           audit.fixes.forEach(function(fix, i) {
             if (fixCards[i]) {
               var t = fixCards[i].querySelector('.ann-title');
               var b = fixCards[i].querySelector('.ann-body');
               if (t) t.textContent = fix.title;
               if (b) b.textContent = fix.body;
+              fixCards[i].style.display = '';
             }
           });
         }
+        // Hide surplus fix cards
+        for (var fci = (audit.fixes ? audit.fixes.length : realBugsFound); fci < fixCards.length; fci++) {
+          fixCards[fci].style.display = 'none';
+        }
+
+        // Update fixes header count
+        var annFixesHeader = document.querySelector('.after-ann .ann-header');
+        if (annFixesHeader) annFixesHeader.textContent = 'Fixes Applied — ' + (audit.fixes ? audit.fixes.length : realBugsFound) + '/7';
 
         if (audit.wc && audit.wc.length) {
           var wcRows = document.querySelectorAll('.wc-row');

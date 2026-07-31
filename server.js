@@ -4648,7 +4648,7 @@ Return ONLY valid JSON:
 
       const result = {
         score: diagnostic.score,
-        rebuiltScore: rebuild.rebuiltScore || 9,
+        rebuiltScore: rebuild.rebuiltScore || 7,
         bugs: diagnostic.bugs || [],
         currentOpenRate: diagnostic.currentOpenRate || 0.18,
         projectedOpenRate: rebuild.projectedOpenRate || 0.30,
@@ -4687,7 +4687,7 @@ Return ONLY valid JSON:
             body ? body.slice(0, 5000) : null,
             rebuild.abSubjects?.[0]?.subject || null,
             rebuild.rebuiltBody ? rebuild.rebuiltBody.slice(0, 10000) : null,
-            JSON.stringify({ score: diagnostic.score, rebuiltScore: rebuild.rebuiltScore || 9 }),
+            JSON.stringify({ score: diagnostic.score, rebuiltScore: rebuild.rebuiltScore || 7 }),
             rebuild.abSubjects ? JSON.stringify(rebuild.abSubjects) : null,
             calendar?.follow_ups ? JSON.stringify(calendar.follow_ups) : null
           ]);
@@ -8936,7 +8936,7 @@ Company: ${company || 'Unknown'}
 Subject: ${subject}
 Body: ${body.slice(0, 1000)}
 
-Do BOTH diagnostic and rebuild in one response. Check ALL 7 structural bugs:
+Do BOTH diagnostic and rebuild in one response. Check each of the 7 structural bugs independently and honestly:
 1. Filing label subject — subject announces the product, not the reader's problem
 2. Caveat opener — email opens with disclaimer/rollout notice before value
 3. Feature-first language — describes architecture not reader outcome
@@ -8945,14 +8945,16 @@ Do BOTH diagnostic and rebuild in one response. Check ALL 7 structural bugs:
 6. Weak or missing CTA — no ownership language ("Learn more" vs "Fix my X")
 7. Buried contrast — before/after comparison hidden in fine print or absent
 
+HONEST SCORING: Only include bugs that genuinely fail for THIS specific email. If only 3 bugs are present, return 3 — never pad to 7. score calibration: 1–2 = all 7 fail, 3–4 = 5–6 fail, 5–6 = 3–4 fail, 7–8 = 1–2 fail, 9–10 = 0 fail. rebuiltScore should reflect actual quality of the rebuild, not always 9.
+
 Return ONLY valid JSON:
 {
   "score": <number 1-10>,
   "bugs": [
-    { "name": "<bug name>", "description": "<specific problem in THIS email, one sentence>" }
+    { "name": "<bug name — only include bugs that genuinely fail for this specific email>", "description": "<specific problem in THIS email, one sentence>" }
   ],
   "currentOpenRate": <decimal e.g. 0.18>,
-  "rebuiltScore": <number 7-10>,
+  "rebuiltScore": <number 1-10, honest evaluation of rebuilt version quality — not hardcoded>,
   "projectedOpenRate": <decimal e.g. 0.29>,
   "abSubjects": [
     { "subject": "<variant 1 — curiosity gap>", "openRate": "<e.g. 29%>" },
@@ -8978,7 +8980,7 @@ Return ONLY valid JSON:
       try {
         const companyName = company || 'Unknown';
         const origScore   = diagnostic.score;
-        const rebScore    = rebuild.rebuiltScore || 9;
+        const rebScore    = rebuild.rebuiltScore || 7;
         console.log('[api/demo] calling Resend from=' + SENDER + ' to=consultantcalatorii@gmail.com');
         const resendResult = await resend.emails.send({
           from: 'Strategic Flow <onboarding@resend.dev>',
@@ -9004,7 +9006,7 @@ Return ONLY valid JSON:
 
       const result = {
         score:         combined.score,
-        rebuiltScore:  combined.rebuiltScore || 9,
+        rebuiltScore:  combined.rebuiltScore || 7,
         bugs:          combined.bugs || [],
         whatChanged:   combined.whatChanged || [],
         originalSubject: subject,
@@ -9516,6 +9518,16 @@ function getLangInstruction(lang) {
 // This endpoint is intentionally outside PROTECTED_PATHS — no session required.
 const CHANGELOG_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Changelog Audit engine. Analyze SaaS changelog pages and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
 
+HONEST SCORING RULES — follow precisely, no exceptions:
+- Evaluate the input against each of the 7 checkpoints independently and honestly.
+- A checkpoint PASSES if the content genuinely addresses it well. Do not manufacture failures to reach a count of 7.
+- bugs_found: the actual count of checkpoints that genuinely fail (may be anywhere from 0 to 7).
+- bugs array: include ONLY checkpoints that genuinely fail. If only 3 fail, return 3 bugs — not 7. Never pad.
+- fixes array: one fix per failing checkpoint, 1-to-1 match with bugs array.
+- original_score uses the full 1–10 range:
+  · 1–2: all 7 checkpoints fail  · 3–4: 5–6 fail  · 5–6: 3–4 fail  · 7–8: 1–2 fail  · 9–10: 0 fail
+- rebuilt_score: genuine evaluation of rebuilt version, same 1–10 scale. Never hardcode 9.
+
 JSON schema:
 {
   "company": "string",
@@ -9552,15 +9564,15 @@ JSON schema:
   "fixes": [{"number": 1, "title": "string", "body": "string"}]
 }
 
-IMPORTANT: wc array must always contain exactly 7 objects, one for each of the 7 bugs diagnosed. Each object must have all three fields populated with non-empty strings:
-- fix: the name of the structural fix applied (e.g. 'Consequence-first title')
-- before: a short quote or paraphrase of the original problematic text
-- after: the rebuilt version of that same element
-Never return empty strings for any wc field. If the original content does not have a clear before/after for a specific bug, synthesize a representative example based on the content provided.
+IMPORTANT: wc array must always contain exactly 7 objects — one per checkpoint in fixed order:
+1. Filing Label Title  2. No Lead Consequence  3. Feature-First Language  4. Flat Hierarchy  5. Zero Numbers  6. Dead-End CTA  7. Buried Before/After
+- For FAILING checkpoints: fix = the fix name; before = the specific problematic copy; after = the rebuilt version.
+- For PASSING checkpoints: fix = "Checkpoint [N] — Already Passes"; before = quote the specific copy that passes; after = "No structural change needed — this element already meets the standard."
+Never return empty strings for any wc field.
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
-The 7 bugs: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.
+The 7 checkpoints: 1. Filing Label Title 2. No Lead Consequence 3. Feature-First Language 4. Flat Hierarchy 5. Zero Numbers 6. Dead-End CTA 7. Buried Before/After.
 
 CONTENT DENSITY RULES — never return single-sentence values for any of these fields:
 - rebuilt_lead: minimum 3 sentences. Sentence 1 names the reader's operational change. Sentence 2 names the specific consequence they gain. Sentence 3 closes with the new behavior state or a social proof anchor.
@@ -9791,15 +9803,28 @@ const ONBOARDING_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow Onboarding Au
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples below are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
-JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body).
+JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of exactly 7 objects with fix/before/after — one per checkpoint in order), bugs (array of ONLY the failing checkpoints — may be 0 to 7), fixes (array of ONLY the failing checkpoints, matching bugs 1-to-1).
 
-IMPORTANT: wc array must always contain exactly 7 objects, one for each of the 7 bugs diagnosed. Each object must have all three fields populated with non-empty strings:
-- fix: the name of the structural fix applied (e.g. 'Consequence-first title')
-- before: a short quote or paraphrase of the original problematic text
-- after: the rebuilt version of that same element
-Never return empty strings for any wc field. If the original content does not have a clear before/after for a specific bug, synthesize a representative example based on the content provided.
+HONEST SCORING RULES — follow precisely, no exceptions:
+- Evaluate the input against each of the 7 checkpoints independently and honestly.
+- A checkpoint PASSES if the content genuinely addresses it well. Do not manufacture failures to reach a count of 7.
+- bugs_found: the actual count of checkpoints that genuinely fail (may be anywhere from 0 to 7).
+- bugs array: include ONLY checkpoints that genuinely fail. If only 2 fail, return 2 bugs — not 7. Never pad.
+- fixes array: one fix per failing checkpoint, 1-to-1 match with bugs array.
+- original_score uses the full 1–10 range based on actual failures found:
+  · 1–2: all 7 checkpoints fail, severe structural problems throughout
+  · 3–4: 5–6 checkpoints fail
+  · 5–6: 3–4 checkpoints fail
+  · 7–8: 1–2 checkpoints fail, mostly well-structured
+  · 9–10: 0 checkpoints fail, consequence-first architecture throughout
+- rebuilt_score: what the rebuilt version genuinely merits using the same 1–10 calibration. A strong input that scores 7 originally should rebuild to 8 or 9 — not automatically 9. A very strong input that scores 8 may only need minor fixes and rebuild to 9. Never hardcode 9 as the rebuilt score.
 
-Scores 1-10. Diagnose these 7 bugs: 1.Welcome Without Consequence 2.Useless Progress Indicator 3.Generic CTA 4.Empty State Without Direction 5.Feature Not Outcome 6.Too Many Steps Before Value 7.Invisible Microcopy.`;
+wc array (ALWAYS exactly 7 objects — one per checkpoint, in this fixed order):
+1. Welcome Without Consequence  2. Useless Progress Indicator  3. Generic CTA
+4. Empty State Without Direction  5. Feature Not Outcome  6. Too Many Steps Before Value  7. Invisible Microcopy
+- For FAILING checkpoints: fix = the fix name; before = the specific problematic copy from the input; after = the rebuilt version.
+- For PASSING checkpoints: fix = "Checkpoint [N] — Already Passes"; before = quote the specific copy that passes this check; after = "No structural change needed — this element already meets the standard."
+- Never return empty strings for any wc field.`;
 
 app.get('/onboarding-audit-page', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:");
@@ -9885,13 +9910,19 @@ app.post('/onboarding-audit', async (req, res) => {
 // ─── LINKEDIN AUDIT ENDPOINT ──────────────────────────────────────────────────
 const LINKEDIN_AUDIT_SYSTEM_PROMPT = `You are the Strategic Flow LinkedIn Post Audit engine. Analyze SaaS LinkedIn posts and apply the Strategic Flow Method: 7 structural bug diagnostics and full rebuild. Return ONLY valid JSON, no markdown, no backticks, no preamble.
 
-Use the same JSON schema as /changelog-audit. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of 7 objects with fix/before/after), bugs (array of 7 with number/title/body), fixes (array of 7 with number/title/body). Scores 1-10.
+Use the same JSON schema as /changelog-audit. JSON fields: company, original_score, rebuilt_score, bugs_found, original_title, rebuilt_title, original_lead, rebuilt_lead, entry1_title, entry1_before, entry1_after, stat1_num, stat1_label, stat2_num, stat2_label, stat3_num, stat3_label, cta_before, cta_after, before_contrast, after_contrast, wc (array of exactly 7 objects with fix/before/after — one per checkpoint in order), bugs (array of ONLY the failing checkpoints — may be 0 to 7), fixes (array of ONLY failing checkpoints, matching bugs 1-to-1). Scores 1-10.
 
-IMPORTANT: wc array must always contain exactly 7 objects, one for each of the 7 bugs diagnosed. Each object must have all three fields populated with non-empty strings:
-- fix: the name of the structural fix applied (e.g. 'Consequence-first title')
-- before: a short quote or paraphrase of the original problematic text
-- after: the rebuilt version of that same element
-Never return empty strings for any wc field. If the original content does not have a clear before/after for a specific bug, synthesize a representative example based on the content provided.
+HONEST SCORING RULES — follow precisely, no exceptions:
+- Evaluate the input against each of the 7 checkpoints independently and honestly.
+- A checkpoint PASSES if the content genuinely addresses it. Do not manufacture failures to reach a count of 7.
+- bugs_found: actual count of genuinely failing checkpoints (0–7). bugs/fixes arrays: only failing checkpoints.
+- original_score: 1–2 = all 7 fail; 3–4 = 5–6 fail; 5–6 = 3–4 fail; 7–8 = 1–2 fail; 9–10 = 0 fail.
+- rebuilt_score: genuine evaluation of the rebuilt version on the same 1–10 scale. Never hardcode 9.
+
+wc array (ALWAYS exactly 7 objects — one per checkpoint in fixed order):
+- For FAILING checkpoints: fix = the fix name; before = specific problematic copy; after = rebuilt version.
+- For PASSING checkpoints: fix = "Checkpoint [N] — Already Passes"; before = quote the passing copy; after = "No structural change needed — this element already meets the standard."
+Never return empty strings for any wc field.
 
 CRITICAL LANGUAGE RULE: You will receive a language instruction at the start of this prompt. Every single string value in your JSON output must be written in that language — including titles, hooks, CTAs, bug titles, bug descriptions, fix descriptions, rebuilt content, before/after fields, and all wc/bugs/fixes array items. The structural examples above are templates only. Do not reproduce their English wording. Translate everything into the specified language.
 
