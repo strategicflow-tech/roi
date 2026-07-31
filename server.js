@@ -371,10 +371,15 @@ function ssrCard(l, clickMap) {
   const fallStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
   const imgStyle  = 'position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);';
   const initSpan  = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:#fff;">${initials}</span>`;
-  // Use Google Favicon → initials. Skip image_url (mostly og:images stored from scraping).
   const gfav = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
   let avatar;
-  if (gfav) {
+  if (l.image_url) {
+    const hideImg   = "this.style.display='none';";
+    const swap      = gfav ? `this.onload=null;this.onerror=function(){${hideImg}};this.src='${gfav}';` : hideImg;
+    const onload    = `if(this.naturalWidth>this.naturalHeight*1.6){${swap}}`;
+    const onerror   = gfav ? `this.onerror=function(){${hideImg}};this.src='${gfav}';` : hideImg;
+    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${heDir(l.image_url)}" alt="" loading="lazy" onload="${onload}" onerror="${onerror}"/></div>`;
+  } else if (gfav) {
     avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${gfav}" alt="" loading="lazy" onerror="this.style.display='none';"/></div>`;
   } else {
     avatar = `<div style="${fallStyle}">${initSpan}</div>`;

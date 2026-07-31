@@ -1202,11 +1202,18 @@ function googleFavFor(siteUrl){
 function avatarFor(name, category, imageUrl, siteUrl){
   const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
   const [bg,col] = CAT_COLORS[category]||CAT_COLORS['General'];
-  // Use Google Favicon (clean icon) → initials. Skip stored image_url (mostly og:images).
   const gfav = googleFavFor(siteUrl);
+  const fbDiv = `<div class="dir-avatar" style="background:${bg};color:${col};display:none;">${initials}</div>`;
+  const showFb = `this.style.display='none';this.nextElementSibling.style.display='flex';`;
+  if(imageUrl){
+    // onload: if landscape ratio (og:image ~2:1+), swap to favicon; else keep real logo
+    const swap    = gfav ? `this.onload=null;this.onerror=function(){${showFb}};this.src='${gfav}';` : showFb;
+    const onload  = `if(this.naturalWidth>this.naturalHeight*1.6){${swap}}`;
+    const onerror = gfav ? `this.onerror=function(){${showFb}};this.src='${gfav}';` : showFb;
+    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onload="${onload}" onerror="${onerror}"/>${fbDiv}`;
+  }
   if(gfav){
-    return `<img class="dir-thumb" src="${gfav}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"/>`
-         + `<div class="dir-avatar" style="background:${bg};color:${col};display:none;">${initials}</div>`;
+    return `<img class="dir-thumb" src="${gfav}" alt="${escHtml(name)}" loading="lazy" onerror="${showFb}"/>${fbDiv}`;
   }
   return `<div class="dir-avatar" style="background:${bg};color:${col};">${initials}</div>`;
 }
@@ -1217,10 +1224,16 @@ function lbThumbFor(name, category, imageUrl, siteUrl){
   const fallbackStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
   const initSpan = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:${col};">${initials}</span>`;
   const imgStyle = `position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);`;
-  // Use Google Favicon (clean icon) → initials. Skip stored image_url (mostly og:images).
   const gfav = googleFavFor(siteUrl);
+  const hideImg = `this.style.display='none';`;
+  if(imageUrl){
+    const swap    = gfav ? `this.onload=null;this.onerror=function(){${hideImg}};this.src='${gfav}';` : hideImg;
+    const onload  = `if(this.naturalWidth>this.naturalHeight*1.6){${swap}}`;
+    const onerror = gfav ? `this.onerror=function(){${hideImg}};this.src='${gfav}';` : hideImg;
+    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${escHtml(imageUrl)}" alt="" loading="lazy" onload="${onload}" onerror="${onerror}"/></div>`;
+  }
   if(gfav){
-    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${gfav}" alt="" loading="lazy" onerror="this.style.display='none';"/></div>`;
+    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${gfav}" alt="" loading="lazy" onerror="${hideImg}"/></div>`;
   }
   return `<div style="${fallbackStyle}">${initSpan}</div>`;
 }
@@ -1356,11 +1369,16 @@ function renderPromotedCard(l){
   const domain=(()=>{try{return new URL(l.url).hostname.replace(/^www\./,'');}catch{return l.url;}})();
   const initials=l.name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
   const fbDiv = `<div class="dir-promoted-logo-fb" style="display:none;">${initials}</div>`;
-  // Use Google Favicon → initials. Skip stored image_url (mostly og:images).
   const gfav = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+  const showFbPro = `this.style.display='none';this.nextElementSibling.style.display='flex';`;
   let logo;
-  if(gfav){
-    logo = `<img class="dir-promoted-logo" src="${gfav}" alt="${escHtml(l.name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"/>${fbDiv}`;
+  if(l.image_url){
+    const swap    = gfav ? `this.onload=null;this.onerror=function(){${showFbPro}};this.src='${gfav}';` : showFbPro;
+    const onload  = `if(this.naturalWidth>this.naturalHeight*1.6){${swap}}`;
+    const onerror = gfav ? `this.onerror=function(){${showFbPro}};this.src='${gfav}';` : showFbPro;
+    logo = `<img class="dir-promoted-logo" src="${escHtml(l.image_url)}" alt="${escHtml(l.name)}" loading="lazy" onload="${onload}" onerror="${onerror}"/>${fbDiv}`;
+  } else if(gfav){
+    logo = `<img class="dir-promoted-logo" src="${gfav}" alt="${escHtml(l.name)}" loading="lazy" onerror="${showFbPro}"/>${fbDiv}`;
   } else {
     logo = `<div class="dir-promoted-logo-fb">${initials}</div>`;
   }
