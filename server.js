@@ -359,7 +359,7 @@ app.get('/api/directory/listings', async (req, res) => {
              FROM directory_listings WHERE status='active'`;
     const params = [];
     if (category && category !== 'All') { q += ' AND category=$1'; params.push(category); }
-    q += ' ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC, vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 500';
+    q += ' ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC, vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 1000';
     const r = await pool.query(q, params);
     res.json({ listings: r.rows });
   } catch (err) {
@@ -11833,6 +11833,7 @@ setupDB().then(async () => {
       { loc: `${base}/glossary`,                                priority: '0.6', changefreq: 'monthly' },
       { loc: `${base}/scorecard`,                               priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/assessment`,                              priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/directory`,                               priority: '0.9', changefreq: 'daily'   },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
