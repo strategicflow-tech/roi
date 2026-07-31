@@ -383,10 +383,69 @@ a:hover{text-decoration:underline;}
 details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-faq-a{font-size:14px;color:var(--muted);line-height:1.7;padding-top:12px;max-width:740px;}
 
+/* ── HAMBURGER BUTTON ─────────────────────────────────────────────────────── */
+.dir-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;background:transparent;border:none;cursor:pointer;padding:8px;border-radius:8px;transition:background .2s;}
+.dir-hamburger:hover{background:rgba(255,255,255,.06);}
+.dir-hamburger span{display:block;width:22px;height:2px;background:var(--muted);border-radius:2px;transition:all .3s;}
+.dir-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.dir-hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
+.dir-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+/* ── SLIDE-OUT PANEL ──────────────────────────────────────────────────────── */
+.dir-nav-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;opacity:0;pointer-events:none;transition:opacity .3s;}
+.dir-nav-panel-overlay.open{opacity:1;pointer-events:all;}
+.dir-nav-panel{position:fixed;top:0;right:0;bottom:0;width:min(320px,90vw);background:#0b1d33;border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;}
+.dir-nav-panel.open{transform:translateX(0);}
+.dir-nav-panel-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 16px;border-bottom:1px solid var(--border);}
+.dir-nav-panel-logo{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);}
+.dir-nav-panel-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px;transition:color .2s;}
+.dir-nav-panel-close:hover{color:#fff;}
+.dir-nav-panel-section{padding:20px 22px 6px;}
+.dir-nav-panel-section-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;opacity:.7;}
+.dir-nav-panel-link{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.04);color:#c8d4e0;font-size:14px;font-weight:500;text-decoration:none;transition:color .2s;gap:8px;}
+.dir-nav-panel-link:hover{color:#fff;text-decoration:none;}
+.dir-nav-panel-link:last-child{border-bottom:none;}
+.dir-nav-panel-arrow{font-size:12px;color:var(--muted);flex-shrink:0;}
+.dir-nav-panel-foot{margin-top:auto;padding:20px 22px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+
+/* ── EXPANDED FOOTER ──────────────────────────────────────────────────────── */
+.dir-footer{padding:56px 40px 40px;border-top:1px solid var(--border);}
+.dir-footer-inner{max-width:960px;margin:0 auto;}
+.dir-footer-cols{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px;}
+.dir-footer-col-title{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:16px;font-weight:700;}
+.dir-footer-col-links{display:flex;flex-direction:column;gap:10px;}
+.dir-footer-col-link{font-size:13px;color:var(--muted);text-decoration:none;transition:color .2s;line-height:1.4;}
+.dir-footer-col-link:hover{color:#fff;text-decoration:none;}
+.dir-footer-brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);margin-bottom:14px;}
+.dir-footer-brand-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);}
+.dir-footer-tagline{font-size:13px;color:var(--muted);line-height:1.6;max-width:240px;margin-bottom:16px;}
+.dir-footer-contact{font-size:13px;color:var(--muted);}
+.dir-footer-contact a{color:var(--teal);text-decoration:none;}
+.dir-footer-contact a:hover{text-decoration:underline;}
+.dir-footer-copy{font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.dir-footer-copy a{color:var(--muted);text-decoration:none;}
+.dir-footer-copy a:hover{color:#fff;}
+
+/* ── REPORT MODAL ─────────────────────────────────────────────────────────── */
+.dir-report-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;}
+.dir-report-modal.open{display:flex;}
+.dir-report-box{background:#0f1f35;border:1px solid var(--border);border-radius:14px;padding:30px 28px;width:100%;max-width:440px;position:relative;}
+.dir-report-close{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;}
+.dir-report-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:6px;}
+.dir-report-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;}
+.dir-report-label{font-size:12px;font-weight:600;color:#a0b0c0;margin-bottom:6px;display:block;}
+.dir-report-input,.dir-report-select,.dir-report-textarea{width:100%;background:#0a1628;border:1px solid var(--border);border-radius:8px;color:#e2e8f0;font-size:13px;padding:10px 13px;margin-bottom:14px;font-family:var(--font);outline:none;transition:border-color .2s;}
+.dir-report-input:focus,.dir-report-select:focus,.dir-report-textarea:focus{border-color:var(--teal);}
+.dir-report-select{appearance:none;cursor:pointer;}
+.dir-report-textarea{resize:vertical;min-height:80px;}
+.dir-report-send{width:100%;background:var(--teal);color:#041214;font-weight:700;font-size:14px;border:none;border-radius:8px;padding:12px;cursor:pointer;transition:opacity .2s;}
+.dir-report-send:hover{opacity:.88;}
+
 /* RESPONSIVE */
 @media(max-width:768px){
   .dir-nav{padding:14px 20px;}
   .dir-nav-links{display:none;}
+  .dir-hamburger{display:flex;}
   .dir-hero{padding:40px 20px 32px;}
   .dir-promo{margin:0 20px 28px;padding:16px 20px;}
   .dir-filters{padding:0 20px 20px;}
@@ -395,12 +454,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   .dir-load-more-wrap,.dir-faq{padding-left:20px;padding-right:20px;}
   .dir-form-row{grid-template-columns:1fr;}
   .dir-submit-section{padding:40px 20px;}
-  .dir-footer{padding:28px 20px;}
+  .dir-footer{padding:40px 20px 32px;}
+  .dir-footer-cols{grid-template-columns:1fr 1fr;gap:28px;}
   .dir-promoted-wrap,.dir-featured-section,.dir-leaderboard-section{padding-left:20px;padding-right:20px;}
   .dir-promoted-grid{grid-template-columns:1fr;}
   .dir-promoted-card{flex-direction:column;gap:14px;}
   .dir-promoted-logo,.dir-promoted-logo-fb{width:48px;height:48px;}
   .modal-box{padding:24px 20px;}
+}
+@media(max-width:480px){
+  .dir-footer-cols{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -418,7 +481,55 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">Strategic Flow ↗</a>
     <a href="#submit" class="dir-nav-cta">Submit your product →</a>
   </div>
+  <button class="dir-hamburger" id="dirHamburger" aria-label="Open menu" onclick="toggleNavPanel()">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- SLIDE-OUT PANEL OVERLAY -->
+<div class="dir-nav-panel-overlay" id="dirNavOverlay" onclick="closeNavPanel()"></div>
+
+<!-- SLIDE-OUT PANEL -->
+<div class="dir-nav-panel" id="dirNavPanel">
+  <div class="dir-nav-panel-head">
+    <span class="dir-nav-panel-logo">● ToolIndex</span>
+    <button class="dir-nav-panel-close" onclick="closeNavPanel()">×</button>
+  </div>
+
+  <div class="dir-nav-panel-section">
+    <div class="dir-nav-panel-section-label">Browse</div>
+    <a href="/directory" class="dir-nav-panel-link" onclick="closeNavPanel()">All products <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#leaderboard" class="dir-nav-panel-link" onclick="closeNavPanel()">Leaderboard — Daily <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#leaderboard" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(()=>document.querySelector('[data-period=weekly]')?.click(),200)">Leaderboard — Weekly <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#leaderboard" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(()=>document.querySelector('[data-period=alltime]')?.click(),200)">Leaderboard — All-time <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#filters" class="dir-nav-panel-link" onclick="closeNavPanel()">Categories <span class="dir-nav-panel-arrow">→</span></a>
+  </div>
+
+  <div class="dir-nav-panel-section">
+    <div class="dir-nav-panel-section-label">Submit</div>
+    <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Submit your product (free) <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Claim your listing <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(()=>{const c=document.querySelector('.dir-boost-btn');if(c)c.click();},300)">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
+  </div>
+
+  <div class="dir-nav-panel-section">
+    <div class="dir-nav-panel-section-label">Strategic Flow Tools</div>
+    <a href="/why.html" class="dir-nav-panel-link">WHY Audit™ <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="/blink-test" class="dir-nav-panel-link">Blink Test <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="/ai-visibility" class="dir-nav-panel-link">AI Visibility Check <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="/#email-audit" class="dir-nav-panel-link">Email Audit <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="https://strategicflow.tech" target="_blank" rel="noopener" class="dir-nav-panel-link">strategicflow.tech ↗ <span class="dir-nav-panel-arrow"></span></a>
+  </div>
+
+  <div class="dir-nav-panel-section">
+    <div class="dir-nav-panel-section-label">Info</div>
+    <a href="mailto:alex@strategicflow.tech" class="dir-nav-panel-link">Contact <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(openReportModal,200)">Report a listing <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" class="dir-nav-panel-link">Terms <span class="dir-nav-panel-arrow">→</span></a>
+  </div>
+
+  <div class="dir-nav-panel-foot">ToolIndex © 2026 · Built by <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--teal);text-decoration:none;">Strategic Flow</a></div>
+</div>
 
 <!-- HERO -->
 <section class="dir-hero">
@@ -617,12 +728,88 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 <!-- FOOTER -->
 <footer class="dir-footer">
   <div class="dir-footer-inner">
+    <div class="dir-footer-cols">
+
+      <!-- Brand column -->
+      <div>
+        <div class="dir-footer-brand"><span class="dir-footer-brand-dot"></span> ToolIndex</div>
+        <p class="dir-footer-tagline">500+ SaaS tools and products. Free to list. Every submission gets a permanent dofollow backlink from DR 86.</p>
+        <div class="dir-footer-contact">
+          Contact: <a href="mailto:alex@strategicflow.tech">alex@strategicflow.tech</a>
+        </div>
+      </div>
+
+      <!-- Directory column -->
+      <div>
+        <div class="dir-footer-col-title">Directory</div>
+        <div class="dir-footer-col-links">
+          <a href="/directory" class="dir-footer-col-link">All products</a>
+          <a href="#leaderboard" class="dir-footer-col-link">Leaderboard</a>
+          <a href="#submit" class="dir-footer-col-link">Submit your product</a>
+          <a href="#submit" class="dir-footer-col-link">Claim your listing</a>
+          <a href="#" class="dir-footer-col-link" onclick="openBoostModal(null,'your product');return false;">Featured placements</a>
+        </div>
+      </div>
+
+      <!-- Tools column -->
+      <div>
+        <div class="dir-footer-col-title">Strategic Flow</div>
+        <div class="dir-footer-col-links">
+          <a href="/why.html" class="dir-footer-col-link">WHY Audit™</a>
+          <a href="/blink-test" class="dir-footer-col-link">Blink Test</a>
+          <a href="/ai-visibility" class="dir-footer-col-link">AI Visibility Check</a>
+          <a href="/#email-audit" class="dir-footer-col-link">Email Audit</a>
+          <a href="https://strategicflow.tech" target="_blank" rel="noopener" class="dir-footer-col-link">strategicflow.tech ↗</a>
+        </div>
+      </div>
+
+      <!-- Info column -->
+      <div>
+        <div class="dir-footer-col-title">Info</div>
+        <div class="dir-footer-col-links">
+          <a href="mailto:alex@strategicflow.tech" class="dir-footer-col-link">Contact us</a>
+          <a href="#" class="dir-footer-col-link" onclick="openReportModal();return false;">Report a listing</a>
+          <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" class="dir-footer-col-link">Terms of service</a>
+        </div>
+      </div>
+
+    </div>
+
     <div class="dir-footer-copy">
-      <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--muted);">Terms</a></span>
-      <span style="font-family:var(--mono);font-size:11px;">Powered by <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">Strategic Flow</a> · DR 86</span>
+      <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a></span>
+      <span style="font-family:var(--mono);font-size:11px;">Powered by <a href="https://strategicflow.tech" target="_blank" rel="noopener">Strategic Flow</a> · DR 86</span>
     </div>
   </div>
 </footer>
+
+<!-- REPORT A LISTING MODAL -->
+<div class="dir-report-modal" id="reportModal" onclick="if(event.target===this)closeReportModal()">
+  <div class="dir-report-box">
+    <button class="dir-report-close" onclick="closeReportModal()">×</button>
+    <div class="dir-report-title">Report a listing</div>
+    <div class="dir-report-sub">Spam, incorrect info, or want your own product removed? Let us know — we review every report within 48 hours.</div>
+
+    <label class="dir-report-label">Reason</label>
+    <select class="dir-report-select" id="reportReason">
+      <option value="spam">Spam or irrelevant content</option>
+      <option value="incorrect">Incorrect information</option>
+      <option value="removal">Remove my own product</option>
+      <option value="duplicate">Duplicate listing</option>
+      <option value="other">Other</option>
+    </select>
+
+    <label class="dir-report-label">Product name or URL</label>
+    <input type="text" class="dir-report-input" id="reportProduct" placeholder="e.g. Acme App or https://acme.com" />
+
+    <label class="dir-report-label">Details (optional)</label>
+    <textarea class="dir-report-textarea" id="reportDetails" placeholder="Any additional context…"></textarea>
+
+    <label class="dir-report-label">Your email (so we can follow up)</label>
+    <input type="email" class="dir-report-input" id="reportEmail" placeholder="you@example.com" />
+
+    <button class="dir-report-send" onclick="sendReport()">Send report →</button>
+  </div>
+</div>
 
 <!-- CLAIM MODAL -->
 <div class="modal-overlay" id="claimModal" onclick="closeClaimModal(event)">
@@ -1392,8 +1579,50 @@ async function startCheckout(){
   }
 }
 
-// Close modal on Escape
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeBoostModal(); });
+// Close modals on Escape
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeBoostModal(); closeNavPanel(); closeReportModal(); }
+});
+
+// ── Hamburger / slide-out panel ───────────────────────────────────────────────
+function openNavPanel(){
+  document.getElementById('dirNavPanel').classList.add('open');
+  document.getElementById('dirNavOverlay').classList.add('open');
+  document.getElementById('dirHamburger').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeNavPanel(){
+  document.getElementById('dirNavPanel').classList.remove('open');
+  document.getElementById('dirNavOverlay').classList.remove('open');
+  document.getElementById('dirHamburger').classList.remove('open');
+  document.body.style.overflow='';
+}
+function toggleNavPanel(){
+  document.getElementById('dirNavPanel').classList.contains('open') ? closeNavPanel() : openNavPanel();
+}
+
+// ── Report a listing modal ─────────────────────────────────────────────────────
+function openReportModal(){
+  document.getElementById('reportModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeReportModal(){
+  document.getElementById('reportModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+function sendReport(){
+  const reason  = document.getElementById('reportReason').value;
+  const product = document.getElementById('reportProduct').value.trim();
+  const details = document.getElementById('reportDetails').value.trim();
+  const email   = document.getElementById('reportEmail').value.trim();
+  if(!product){ document.getElementById('reportProduct').focus(); return; }
+  const subject = encodeURIComponent(`ToolIndex listing report: ${reason}`);
+  const body    = encodeURIComponent(
+    `Reason: ${reason}\nProduct: ${product}\nDetails: ${details||'—'}\nReporter email: ${email||'—'}`
+  );
+  window.location.href = `mailto:alex@strategicflow.tech?subject=${subject}&body=${body}`;
+  setTimeout(closeReportModal, 800);
+}
 
 // ── Success redirect banner ───────────────────────────────────────────────────
 (function(){
