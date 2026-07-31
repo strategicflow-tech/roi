@@ -381,28 +381,30 @@ async function fetchProductLogo(url) {
   };
   try {
     const base = new URL(url).origin;
+    const domain = new URL(url).hostname.replace(/^www\./, '');
     const res  = await timedFetch(url).catch(() => null);
     const html = res && res.ok ? await res.text().catch(() => '') : '';
     if (html) {
-      // 1. og:image
-      const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']{8,}?)["']/i)?.[1]
-               || html.match(/<meta[^>]*content=["']([^"']{8,}?)["'][^>]*property=["']og:image["']/i)?.[1];
-      if (og) return (og.startsWith('http') ? og : new URL(og, url).href).slice(0, 500);
-
-      // 2. apple-touch-icon
+      // 1. apple-touch-icon — actual logo, high resolution
       const apple = html.match(/<link[^>]*rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i)?.[1];
       if (apple) return (apple.startsWith('http') ? apple : new URL(apple, url).href).slice(0, 500);
 
-      // 3. <link rel="icon"> with image extension
+      // 2. <link rel="icon"> with real image extension (not .ico for quality)
+      const pngIcon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(png|svg|webp)[^"']*)["']/i)?.[1];
+      if (pngIcon) return (pngIcon.startsWith('http') ? pngIcon : new URL(pngIcon, url).href).slice(0, 500);
+
+      // 3. <link rel="icon"> including .ico
       const icon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(png|svg|webp|jpg|ico)[^"']*)["']/i)?.[1];
       if (icon) return (icon.startsWith('http') ? icon : new URL(icon, url).href).slice(0, 500);
     }
-    // 4. Fallback: /favicon.ico
+    // 4. /favicon.ico
     const favRes = await timedFetch(`${base}/favicon.ico`, 5000).catch(() => null);
     if (favRes && favRes.ok) {
       const ct = favRes.headers.get('content-type') || '';
       if (ct.startsWith('image') || ct.includes('icon')) return `${base}/favicon.ico`;
     }
+    // 5. Clearbit logo API as guaranteed fallback — returns real company logo
+    if (domain) return `https://logo.clearbit.com/${domain}`;
   } catch(e) {
     console.log('[logo] fetch failed for', url, ':', e.message);
   }
@@ -495,6 +497,37 @@ app.get('/admin/set-owner-promoted', async (req, res) => {
       }
     });
     res.json({ ok: true, message: 'Both owner apps set as permanently featured premium.' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Admin: clear bad og/screenshot logos from DB ──────────────────────────────
+// GET /admin/clear-bad-logos?key=… — nulls image_url for og/opengraph/wp-content/relative URLs
+app.get('/admin/clear-bad-logos', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    // Patterns that indicate a social-sharing screenshot rather than an actual logo
+    const r = await pool.query(`
+      UPDATE directory_listings
+      SET image_url = NULL
+      WHERE status = 'active'
+        AND owner_image_url IS NULL
+        AND (
+          image_url ILIKE '%/og%'
+          OR image_url ILIKE '%-og.%'
+          OR image_url ILIKE '%-og-%'
+          OR image_url ILIKE '%og-image%'
+          OR image_url ILIKE '%opengraph%'
+          OR image_url ILIKE '%wp-content%'
+          OR image_url ILIKE '%hero-image%'
+          OR image_url ILIKE '%hero.png%'
+          OR image_url ILIKE '%hero.jpg%'
+          OR (image_url IS NOT NULL AND image_url NOT ILIKE 'http%')
+        )
+      RETURNING id
+    `);
+    res.json({ ok: true, cleared: r.rowCount, ids: r.rows.map(r=>r.id) });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }

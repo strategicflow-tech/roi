@@ -621,23 +621,62 @@ function saveVoted(id){ votedIds.add(id); localStorage.setItem('dir_voted', JSON
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Avatar / thumbnail ────────────────────────────────────────────────────────
-function avatarFor(name, category, imageUrl){
+function logoSrcFor(siteUrl){
+  // Returns clearbit URL for the domain, or null if URL is unparseable
+  try {
+    const domain = new URL(siteUrl).hostname.replace(/^www\./,'');
+    if(!domain) return null;
+    return `https://logo.clearbit.com/${domain}`;
+  } catch(e){ return null; }
+}
+function googleFavFor(siteUrl){
+  try {
+    const domain = new URL(siteUrl).hostname.replace(/^www\./,'');
+    if(!domain) return null;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch(e){ return null; }
+}
+
+function avatarFor(name, category, imageUrl, siteUrl){
   const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
   const [bg,col] = CAT_COLORS[category]||CAT_COLORS['General'];
+  const avatarFb = `<div class="dir-avatar" style="background:${bg};color:${col};display:none;">${initials}</div>`;
+
+  const clearbit = logoSrcFor(siteUrl);
+  const gfav     = googleFavFor(siteUrl);
+
+  if(clearbit){
+    // Clearbit → Google Favicon → initials
+    const oe2 = gfav
+      ? `this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};this.src='${gfav}'`
+      : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
+    return `<img class="dir-thumb" src="${clearbit}" alt="${escHtml(name)}" loading="lazy" onerror="${oe2}"/>${avatarFb}`;
+  }
+  // No domain — fall back to stored image_url or initials
   if(imageUrl){
-    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="dir-avatar" style="background:${bg};color:${col};display:none;">${initials}</div>`;
+    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>${avatarFb}`;
   }
   return `<div class="dir-avatar" style="background:${bg};color:${col};">${initials}</div>`;
 }
 
-function lbThumbFor(name, category, imageUrl){
+function lbThumbFor(name, category, imageUrl, siteUrl){
   const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
   const [bg,col] = CAT_COLORS[category]||CAT_COLORS['General'];
-  // Wrap in a sized container so the fallback initials show through when the img fails
   const fallbackStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
   const initSpan = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:${col};">${initials}</span>`;
+  const imgStyle = `position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);`;
+
+  const clearbit = logoSrcFor(siteUrl);
+  const gfav     = googleFavFor(siteUrl);
+
+  if(clearbit){
+    const oe2 = gfav
+      ? `this.onerror=function(){this.style.display='none';};this.src='${gfav}'`
+      : `this.style.display='none'`;
+    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${clearbit}" alt="" loading="lazy" onerror="${oe2}"/></div>`;
+  }
   if(imageUrl){
-    return `<div style="${fallbackStyle}">${initSpan}<img style="position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);" src="${escHtml(imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'" /></div>`;
+    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${escHtml(imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'"/></div>`;
   }
   return `<div style="${fallbackStyle}">${initSpan}</div>`;
 }
@@ -658,7 +697,7 @@ function renderCard(l){
   return `<div class="dir-card${isFeat?' is-featured':''}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
     <div class="dir-card-top">
       <div class="dir-card-left">
-        ${avatarFor(l.name, l.category||'General', l.image_url||null)}
+        ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
         <div style="min-width:0;">
           <div class="dir-card-name">${escHtml(l.name)}</div>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
@@ -728,7 +767,7 @@ async function loadLeaderboard(period){
       const domain = (()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
       return `<div class="dir-lb-row">
         <span class="dir-lb-rank ${rankCls}">#${i+1}</span>
-        ${lbThumbFor(l.name, l.category||'General', l.image_url)}
+        ${lbThumbFor(l.name, l.category||'General', l.image_url, l.url||'')}
         <div class="dir-lb-info">
           <div class="dir-lb-name">${escHtml(l.name)}</div>
           <div class="dir-lb-cat">${escHtml(l.category||'General')} · ${escHtml(domain)}</div>
@@ -762,11 +801,27 @@ const PROMOTED_PERKS = {
 };
 
 function renderPromotedCard(l){
-  const domain=(()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return l.url;}})();
+  const domain=(()=>{try{return new URL(l.url).hostname.replace(/^www\./,'');}catch{return l.url;}})();
   const initials=l.name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
-  const logo = l.image_url
-    ? `<img class="dir-promoted-logo" src="${escHtml(l.image_url)}" alt="${escHtml(l.name)}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'" /><div class="dir-promoted-logo-fb" style="display:none;">${initials}</div>`
-    : `<div class="dir-promoted-logo-fb">${initials}</div>`;
+  const fbDiv = `<div class="dir-promoted-logo-fb" style="display:none;">${initials}</div>`;
+  // Priority: owner image_url (Supabase upload) → clearbit → google favicon → initials
+  const clearbit = domain ? `https://logo.clearbit.com/${domain}` : null;
+  const gfav     = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+  let logo;
+  if(l.image_url){
+    // Owner-uploaded image; clearbit as onerror backup
+    const oe2 = clearbit
+      ? `this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};this.src='${clearbit}'`
+      : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
+    logo = `<img class="dir-promoted-logo" src="${escHtml(l.image_url)}" alt="${escHtml(l.name)}" loading="lazy" onerror="${oe2}"/>${fbDiv}`;
+  } else if(clearbit){
+    const oe2 = gfav
+      ? `this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};this.src='${gfav}'`
+      : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
+    logo = `<img class="dir-promoted-logo" src="${clearbit}" alt="${escHtml(l.name)}" loading="lazy" onerror="${oe2}"/>${fbDiv}`;
+  } else {
+    logo = `<div class="dir-promoted-logo-fb">${initials}</div>`;
+  }
   const perks = (PROMOTED_PERKS[l.id]||[]).map(p=>`<li>${escHtml(p)}</li>`).join('');
   return `<div class="dir-promoted-card">
     ${logo}
