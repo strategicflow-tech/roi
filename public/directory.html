@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Directory — Strategic Flow | SaaS & Tool Listings with Friction Scores</title>
+<meta name="description" content="A general SaaS and tool directory where every listing shows a live Decision Friction Score — computed automatically against the product's landing page. Submit your product for a free dofollow backlink." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a1628;--bg2:#0f2035;--bg3:#122440;--surface:#0f2035;
+  --border:#1a3050;--border2:rgba(0,212,200,0.18);
+  --teal:#00d4c8;--teal-dim:rgba(0,212,200,0.10);--teal-glow:rgba(0,212,200,0.22);
+  --gold:#f59e0b;--red:#e8455a;--purple:#a78bfa;
+  --text:#ffffff;--muted:#7a9ab8;
+  --font:'Inter',sans-serif;--mono:'DM Mono',monospace;
+  --score-low:#22c55e;--score-low-bg:rgba(34,197,94,0.10);
+  --score-mid:#f59e0b;--score-mid-bg:rgba(245,158,11,0.10);
+  --score-high:#e8455a;--score-high-bg:rgba(232,69,90,0.10);
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* NAV */
+.dir-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,0.96);backdrop-filter:blur(12px);z-index:100;}
+.dir-nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);text-decoration:none;}
+.dir-nav-logo-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.dir-nav-links{display:flex;align-items:center;gap:20px;}
+.dir-nav-links a{font-size:12px;color:var(--muted);transition:color .2s;font-family:var(--mono);}
+.dir-nav-links a:hover{color:var(--teal);text-decoration:none;}
+.dir-nav-cta{background:var(--teal);color:#041214 !important;font-weight:700;padding:8px 18px;border-radius:8px;font-size:12px;transition:opacity .2s;}
+.dir-nav-cta:hover{opacity:.88;text-decoration:none !important;}
+
+/* HERO */
+.dir-hero{padding:64px 40px 48px;max-width:860px;margin:0 auto;text-align:center;}
+.dir-hero-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);border:1px solid var(--border2);padding:5px 14px;border-radius:20px;margin-bottom:24px;}
+.dir-hero h1{font-size:clamp(28px,5vw,48px);font-weight:800;line-height:1.15;letter-spacing:-.02em;margin-bottom:16px;}
+.dir-hero h1 em{font-style:normal;color:var(--teal);}
+.dir-hero-sub{font-size:16px;color:var(--muted);max-width:560px;margin:0 auto 32px;}
+.dir-stats{display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap;}
+.dir-stat{text-align:center;}
+.dir-stat-num{font-size:24px;font-weight:800;color:var(--teal);}
+.dir-stat-label{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+
+/* FEATURED SPOTLIGHT */
+.dir-featured-section{padding:0 40px 32px;}
+.dir-featured-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.dir-featured-title{font-size:11px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);}
+.dir-featured-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite;}
+.dir-featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.dir-featured-card{background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(245,158,11,0.03));border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.dir-featured-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
+.dir-featured-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:10px;font-weight:600;}
+.badge-weekly_feature{background:rgba(245,158,11,0.15);color:var(--gold);border:1px solid rgba(245,158,11,0.3);}
+.badge-premium{background:rgba(167,139,250,0.15);color:var(--purple);border:1px solid rgba(167,139,250,0.3);}
+.badge-daily_top{background:rgba(0,212,200,0.15);color:var(--teal);border:1px solid rgba(0,212,200,0.3);}
+.dir-featured-name{font-size:15px;font-weight:700;}
+.dir-featured-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
+.dir-featured-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dir-featured-link{font-size:11px;font-weight:600;font-family:var(--mono);color:var(--gold);transition:opacity .2s;}
+.dir-featured-link:hover{opacity:.8;text-decoration:none;}
+.dir-featured-votes{display:flex;align-items:center;gap:4px;font-size:11px;font-family:var(--mono);color:var(--muted);}
+
+/* LEADERBOARD */
+.dir-leaderboard-section{padding:0 40px 36px;}
+.dir-lb-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.dir-lb-title{font-size:11px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.dir-lb-tabs{display:flex;gap:4px;}
+.dir-lb-tab{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .2s;letter-spacing:.05em;}
+.dir-lb-tab:hover,.dir-lb-tab.active{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);}
+.dir-lb-list{display:flex;flex-direction:column;gap:6px;}
+.dir-lb-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;transition:border-color .2s;}
+.dir-lb-row:hover{border-color:var(--border2);}
+.dir-lb-rank{font-size:12px;font-family:var(--mono);color:var(--muted);min-width:22px;text-align:right;}
+.dir-lb-rank.top1{color:var(--gold);}
+.dir-lb-rank.top2{color:#94a3b8;}
+.dir-lb-rank.top3{color:#cd7c2d;}
+.dir-lb-thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:var(--bg3);flex-shrink:0;}
+.dir-lb-avatar{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
+.dir-lb-info{flex:1;min-width:0;}
+.dir-lb-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-lb-cat{font-size:10px;color:var(--muted);font-family:var(--mono);}
+.dir-lb-votes{display:flex;align-items:center;gap:5px;font-size:12px;font-family:var(--mono);color:var(--teal);font-weight:600;flex-shrink:0;}
+.dir-lb-empty{font-size:12px;color:var(--muted);font-family:var(--mono);padding:20px;text-align:center;background:var(--bg2);border:1px solid var(--border);border-radius:8px;}
+
+/* PROMO BANNER */
+.dir-promo{background:linear-gradient(135deg,rgba(0,212,200,0.08),rgba(0,212,200,0.03));border:1px solid var(--border2);border-radius:12px;padding:20px 28px;margin:0 40px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.dir-promo-left{display:flex;align-items:center;gap:14px;}
+.dir-promo-icon{width:40px;height:40px;border-radius:10px;background:var(--teal-dim);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.dir-promo-text strong{font-size:14px;font-weight:700;color:#fff;}
+.dir-promo-text p{font-size:12px;color:var(--muted);margin-top:2px;}
+.dir-promo-text p a{color:var(--teal);}
+.dir-promo-badge{background:var(--teal);color:#041214;font-size:11px;font-weight:800;font-family:var(--mono);padding:4px 10px;border-radius:20px;letter-spacing:.06em;white-space:nowrap;}
+
+/* SCORE LEGEND */
+.dir-score-explain{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin:0 40px 40px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.dir-score-explain-title{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+.dir-score-scale{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.scale-item{display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);}
+.scale-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* FILTERS */
+.dir-filters{padding:0 40px 28px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dir-filter-label{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-right:4px;}
+.dir-filter-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-family:var(--mono);cursor:pointer;transition:all .2s;}
+.dir-filter-btn:hover,.dir-filter-btn.active{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);}
+
+/* SEARCH */
+.dir-search-wrap{padding:0 40px 20px;}
+.dir-search{width:100%;max-width:400px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .2s;}
+.dir-search:focus{border-color:var(--teal);}
+.dir-search::placeholder{color:var(--muted);}
+
+/* GRID */
+.dir-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;padding:0 40px 60px;}
+.dir-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s,transform .2s;}
+.dir-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.dir-card.is-featured{border-color:rgba(245,158,11,0.3);background:linear-gradient(135deg,rgba(245,158,11,0.05),var(--bg2));}
+.dir-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.dir-card-left{display:flex;align-items:center;gap:10px;min-width:0;}
+.dir-avatar{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:var(--mono);flex-shrink:0;letter-spacing:-.02em;}
+.dir-thumb{width:38px;height:38px;border-radius:10px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;background:var(--bg3);}
+.dir-card-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dir-cat-tag{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+.dir-score-badge{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.dir-score-val{font-size:18px;font-weight:800;line-height:1;}
+.dir-score-lbl{font-size:9px;font-family:var(--mono);letter-spacing:.10em;text-transform:uppercase;}
+.score-low .dir-score-val{color:var(--score-low);}
+.score-low .dir-score-lbl{color:rgba(34,197,94,.6);}
+.score-mid .dir-score-val{color:var(--score-mid);}
+.score-mid .dir-score-lbl{color:rgba(245,158,11,.6);}
+.score-high .dir-score-val{color:var(--score-high);}
+.score-high .dir-score-lbl{color:rgba(232,69,90,.6);}
+.score-pending .dir-score-val{color:var(--muted);font-size:11px;font-weight:500;}
+.score-pending .dir-score-lbl{color:var(--muted);opacity:.6;}
+.dir-desc{font-size:13px;color:var(--muted);line-height:1.55;flex:1;}
+.dir-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.dir-card-actions{display:flex;align-items:center;gap:8px;}
+.dir-visit{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--teal);font-family:var(--mono);transition:opacity .2s;}
+.dir-visit:hover{opacity:.8;text-decoration:none;}
+.dir-source-tag{font-size:10px;font-family:var(--mono);color:var(--muted);opacity:.7;letter-spacing:.04em;transition:opacity .2s;}
+.dir-source-tag:hover{opacity:1;color:var(--teal);text-decoration:none;}
+
+/* VOTE BUTTON */
+.dir-vote-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.dir-vote-btn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);}
+.dir-vote-btn.voted{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:default;}
+.dir-vote-btn .vote-arrow{font-size:12px;transition:transform .2s;}
+.dir-vote-btn:hover .vote-arrow{transform:translateY(-2px);}
+
+/* BOOST BUTTON */
+.dir-boost-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;transition:all .2s;letter-spacing:.05em;}
+.dir-boost-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* CLAIM */
+.dir-claim-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:none;padding:0;cursor:pointer;transition:color .2s;letter-spacing:.03em;text-decoration:underline;text-decoration-style:dotted;}
+.dir-claim-btn:hover{color:var(--teal);}
+.dir-claimed-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:#22c55e;letter-spacing:.04em;}
+
+/* CLAIM MODAL steps */
+.claim-step{display:none;flex-direction:column;gap:14px;}
+.claim-step.active{display:flex;}
+.claim-hint{font-size:11px;color:var(--muted);padding:8px 12px;background:var(--bg3);border-radius:6px;border-left:2px solid var(--teal);}
+.claim-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .2s;}
+.claim-input:focus{border-color:var(--teal);}
+.claim-input::placeholder{color:var(--muted);}
+.claim-btn{background:var(--teal);color:#041214;border:none;border-radius:8px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s;width:100%;}
+.claim-btn:hover{opacity:.88;}
+.claim-btn:disabled{opacity:.5;cursor:not-allowed;}
+.claim-err{font-size:12px;color:#e8455a;display:none;}
+.claim-success{text-align:center;padding:8px 0;}
+.claim-success-icon{font-size:36px;margin-bottom:8px;}
+.claim-edit-section{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:14px;}
+.claim-edit-label{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.claim-edit-area{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;font-family:var(--font);resize:vertical;min-height:70px;outline:none;transition:border-color .2s;line-height:1.5;}
+.claim-edit-area:focus{border-color:var(--teal);}
+.claim-edit-area::placeholder{color:var(--muted);}
+.claim-save-btn{background:var(--bg3);color:var(--teal);border:1px solid var(--teal);border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;width:100%;}
+.claim-save-btn:hover{background:var(--teal-dim);}
+.claim-save-msg{font-size:11px;color:#22c55e;display:none;text-align:center;}
+
+/* EMPTY / LOADING */
+.dir-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;grid-column:1/-1;}
+.dir-loading{text-align:center;padding:60px 20px;color:var(--muted);font-family:var(--mono);font-size:12px;grid-column:1/-1;letter-spacing:.08em;}
+
+/* BOOST MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,12,25,0.88);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:480px;width:100%;position:relative;animation:modalIn .2s ease;}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.modal-close{position:absolute;top:16px;right:16px;background:transparent;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;transition:color .2s;}
+.modal-close:hover{color:#fff;}
+.modal-tag{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.modal-title{font-size:20px;font-weight:800;margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.modal-listing-name{font-weight:600;color:#fff;}
+.tier-options{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.tier-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;}
+.tier-option:hover,.tier-option.selected{border-color:var(--teal);background:var(--teal-dim);}
+.tier-option input[type=radio]{display:none;}
+.tier-radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;transition:all .2s;position:relative;}
+.tier-option.selected .tier-radio{border-color:var(--teal);background:var(--teal);}
+.tier-info{flex:1;}
+.tier-name{font-size:13px;font-weight:700;}
+.tier-desc{font-size:11px;color:var(--muted);margin-top:1px;}
+.tier-price-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;}
+.tier-price-orig{font-size:11px;font-family:var(--mono);color:var(--muted);text-decoration:line-through;opacity:.7;}
+.tier-price{font-size:15px;font-weight:800;color:var(--teal);font-family:var(--mono);}
+.tier-discount{font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.08em;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:1px 5px;white-space:nowrap;}
+.modal-email-label{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.modal-email-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:13px;outline:none;transition:border-color .2s;margin-bottom:16px;}
+.modal-email-input:focus{border-color:var(--teal);}
+.modal-email-input::placeholder{color:var(--muted);}
+.modal-cta{width:100%;background:var(--teal);color:#041214;border:none;border-radius:10px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s;}
+.modal-cta:hover{opacity:.88;}
+.modal-cta:disabled{opacity:.5;cursor:not-allowed;}
+.modal-note{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;}
+
+/* SUBMIT SECTION */
+.dir-submit-section{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:60px 40px;}
+.dir-submit-inner{max-width:600px;margin:0 auto;}
+.dir-submit-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:12px;}
+.dir-submit-inner h2{font-size:26px;font-weight:800;margin-bottom:8px;letter-spacing:-.01em;}
+.dir-submit-inner p{font-size:14px;color:var(--muted);margin-bottom:28px;}
+.dir-form{display:flex;flex-direction:column;gap:16px;}
+.dir-form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.dir-field label{display:block;font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.dir-field input,.dir-field select,.dir-field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s;}
+.dir-field input:focus,.dir-field select:focus,.dir-field textarea:focus{border-color:var(--teal);}
+.dir-field input::placeholder,.dir-field textarea::placeholder{color:var(--muted);}
+.dir-field select{cursor:pointer;}
+.dir-field select option{background:var(--bg3);}
+.dir-field textarea{resize:vertical;min-height:80px;line-height:1.5;}
+.dir-submit-perks ul{list-style:none;display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:4px;}
+.dir-submit-perks li{font-size:12px;color:var(--muted);}
+.dir-submit-perks li::before{content:'✓ ';color:var(--teal);}
+.dir-submit-btn{background:var(--teal);color:#041214;border:none;border-radius:10px;padding:14px 28px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s;width:100%;}
+.dir-submit-btn:hover{opacity:.88;}
+.dir-submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+.dir-form-msg{font-size:13px;padding:12px 16px;border-radius:8px;display:none;}
+.dir-form-msg.success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#22c55e;display:block;}
+.dir-form-msg.error{background:rgba(232,69,90,.1);border:1px solid rgba(232,69,90,.25);color:#e8455a;display:block;}
+
+/* FOOTER */
+.dir-footer{padding:40px;border-top:1px solid var(--border);}
+.dir-footer-inner{max-width:900px;margin:0 auto;}
+.dir-footer-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.dir-footer-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:28px;}
+.dir-footer-link{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--muted);font-size:13px;transition:all .2s;}
+.dir-footer-link:hover{border-color:var(--border2);color:#fff;text-decoration:none;}
+.dir-footer-link-icon{font-size:16px;}
+.dir-footer-link-name{font-weight:600;color:#fff;}
+.dir-footer-link-desc{font-size:11px;color:var(--muted);}
+.dir-footer-copy{font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .dir-nav{padding:14px 20px;}
+  .dir-nav-links{display:none;}
+  .dir-hero{padding:40px 20px 32px;}
+  .dir-promo{margin:0 20px 28px;padding:16px 20px;}
+  .dir-filters{padding:0 20px 20px;}
+  .dir-search-wrap{padding:0 20px 16px;}
+  .dir-grid{grid-template-columns:1fr;gap:12px;padding:0 20px 48px;}
+  .dir-score-explain{margin:0 20px 28px;}
+  .dir-form-row{grid-template-columns:1fr;}
+  .dir-submit-section{padding:40px 20px;}
+  .dir-footer{padding:28px 20px;}
+  .dir-featured-section,.dir-leaderboard-section{padding-left:20px;padding-right:20px;}
+  .modal-box{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="dir-nav">
+  <a href="/" class="dir-nav-logo">
+    <span class="dir-nav-logo-dot"></span>
+    Strategic Flow
+  </a>
+  <div class="dir-nav-links">
+    <a href="/">Audit Tool</a>
+    <a href="/why.html">WHY.</a>
+    <a href="/blink-test">Blink Test</a>
+    <a href="/ai-visibility">AI Visibility</a>
+    <a href="#submit" class="dir-nav-cta">Submit your product →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="dir-hero">
+  <div class="dir-hero-tag">
+    <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 2s infinite;"></span>
+    General Product Directory · Powered by the Decision Friction Model
+  </div>
+  <h1>Every listing shows a <em>live Friction Score</em></h1>
+  <p class="dir-hero-sub">The only SaaS and tool directory where each listing is automatically scored on landing-page clarity by the Decision Friction Model — so you know what you're clicking through to.</p>
+  <div class="dir-stats">
+    <div class="dir-stat">
+      <div class="dir-stat-num" id="statCount">265</div>
+      <div class="dir-stat-label">Products listed</div>
+    </div>
+    <div class="dir-stat">
+      <div class="dir-stat-num">1–10</div>
+      <div class="dir-stat-label">Friction scale</div>
+    </div>
+    <div class="dir-stat">
+      <div class="dir-stat-num">Free</div>
+      <div class="dir-stat-label">Dofollow backlink</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED SPOTLIGHT (populated if any featured listings exist) -->
+<div class="dir-featured-section" id="featuredSection" style="display:none;">
+  <div class="dir-featured-header">
+    <span class="dir-featured-dot"></span>
+    <span class="dir-featured-title">Featured Spotlight</span>
+  </div>
+  <div class="dir-featured-grid" id="featuredGrid"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="dir-leaderboard-section">
+  <div class="dir-lb-header">
+    <span class="dir-lb-title">Leaderboard</span>
+    <div class="dir-lb-tabs">
+      <button class="dir-lb-tab active" data-period="daily">Daily</button>
+      <button class="dir-lb-tab" data-period="weekly">Weekly</button>
+      <button class="dir-lb-tab" data-period="all">All-time</button>
+    </div>
+  </div>
+  <div class="dir-lb-list" id="lbList">
+    <div class="dir-lb-empty">Loading leaderboard…</div>
+  </div>
+</div>
+
+<!-- PROMO BANNER -->
+<div class="dir-promo">
+  <div class="dir-promo-left">
+    <div class="dir-promo-icon">⚡</div>
+    <div class="dir-promo-text">
+      <strong>Powered by Strategic Flow — Get 20% off your Diagnostic Audit</strong>
+      <p>Submit your product here and get the full Decision Friction Audit at <strong style="color:#fff;">$39 instead of $49</strong>. <a href="/">Run the free audit first →</a></p>
+    </div>
+  </div>
+  <div class="dir-promo-badge">$49 → $39</div>
+</div>
+
+<!-- SCORE LEGEND -->
+<div class="dir-score-explain">
+  <span class="dir-score-explain-title">Friction Score</span>
+  <div class="dir-score-scale">
+    <div class="scale-item"><span class="scale-dot" style="background:var(--score-low);"></span><span style="color:var(--score-low);">1–3</span> <span style="color:var(--muted);">Low — clear value prop</span></div>
+    <div class="scale-item"><span class="scale-dot" style="background:var(--score-mid);"></span><span style="color:var(--score-mid);">4–6</span> <span style="color:var(--muted);">Medium — some confusion</span></div>
+    <div class="scale-item"><span class="scale-dot" style="background:var(--score-high);"></span><span style="color:var(--score-high);">7–10</span> <span style="color:var(--muted);">High — unclear or complex</span></div>
+  </div>
+  <span style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:auto;">auto-computed by DFM engine</span>
+</div>
+
+<!-- FILTERS + SEARCH -->
+<div class="dir-search-wrap">
+  <input class="dir-search" type="text" id="dirSearch" placeholder="Search products…" autocomplete="off" />
+</div>
+<div class="dir-filters">
+  <span class="dir-filter-label">Filter:</span>
+  <button class="dir-filter-btn active" data-cat="All">All</button>
+  <button class="dir-filter-btn" data-cat="AI Tools">AI Tools</button>
+  <button class="dir-filter-btn" data-cat="Productivity">Productivity</button>
+  <button class="dir-filter-btn" data-cat="Marketing">Marketing</button>
+  <button class="dir-filter-btn" data-cat="Social Media">Social Media</button>
+  <button class="dir-filter-btn" data-cat="Developer Tools">Developer Tools</button>
+  <button class="dir-filter-btn" data-cat="Finance">Finance</button>
+  <button class="dir-filter-btn" data-cat="Directories">Directories</button>
+  <button class="dir-filter-btn" data-cat="Design">Design</button>
+  <button class="dir-filter-btn" data-cat="Analytics">Analytics</button>
+</div>
+
+<!-- LISTINGS GRID -->
+<div class="dir-grid" id="dirGrid">
+  <div class="dir-loading" id="dirLoading">Loading listings…</div>
+</div>
+
+<!-- SUBMIT SECTION -->
+<section class="dir-submit-section" id="submit">
+  <div class="dir-submit-inner">
+    <div class="dir-submit-label">Submit your product</div>
+    <h2>Get a free dofollow backlink + your Friction Score</h2>
+    <p>Submit any SaaS tool, app, or product. We'll automatically run the Decision Friction Model against your landing page and display a live score on your listing. No review queue — goes live immediately.</p>
+    <form class="dir-form" id="dirForm" onsubmit="submitListing(event)">
+      <div class="dir-form-row">
+        <div class="dir-field">
+          <label>Product name *</label>
+          <input type="text" id="fName" placeholder="e.g. Acme Analytics" required maxlength="80" />
+        </div>
+        <div class="dir-field">
+          <label>Website URL *</label>
+          <input type="url" id="fUrl" placeholder="https://yourproduct.com" required />
+        </div>
+      </div>
+      <div class="dir-form-row">
+        <div class="dir-field">
+          <label>Category</label>
+          <select id="fCategory">
+            <option value="General">General</option>
+            <option value="AI Tools">AI Tools</option>
+            <option value="Productivity">Productivity</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Social Media">Social Media</option>
+            <option value="Developer Tools">Developer Tools</option>
+            <option value="Finance">Finance</option>
+            <option value="Directories">Directories</option>
+            <option value="Design">Design</option>
+            <option value="Analytics">Analytics</option>
+            <option value="No-Code">No-Code</option>
+            <option value="Sales">Sales</option>
+            <option value="HR & Recruiting">HR &amp; Recruiting</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="dir-field">
+          <label>Your email (optional — notified when score is ready)</label>
+          <input type="email" id="fEmail" placeholder="you@company.com" />
+        </div>
+      </div>
+      <div class="dir-field">
+        <label>Short description (1–2 sentences) *</label>
+        <textarea id="fDesc" placeholder="Factual one-line summary of what the product does." required maxlength="300"></textarea>
+      </div>
+      <div class="dir-submit-perks">
+        <ul>
+          <li>Dofollow backlink from DR 86 domain</li>
+          <li>Live Friction Score computed automatically</li>
+          <li>Goes live immediately</li>
+          <li>20% off Strategic Flow audit ($39 instead of $49)</li>
+        </ul>
+      </div>
+      <div class="dir-form-msg" id="dirFormMsg"></div>
+      <button type="submit" class="dir-submit-btn" id="dirSubmitBtn">Submit product + get Friction Score →</button>
+    </form>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="dir-footer">
+  <div class="dir-footer-inner">
+    <div class="dir-footer-label">More free tools from Strategic Flow</div>
+    <div class="dir-footer-links">
+      <a href="/why.html" class="dir-footer-link">
+        <span class="dir-footer-link-icon">🔍</span>
+        <div>
+          <div class="dir-footer-link-name">WHY.</div>
+          <div class="dir-footer-link-desc">Decision Friction Diagnostic</div>
+        </div>
+      </a>
+      <a href="/blink-test" class="dir-footer-link">
+        <span class="dir-footer-link-icon">👁️</span>
+        <div>
+          <div class="dir-footer-link-name">Blink Test</div>
+          <div class="dir-footer-link-desc">3-second clarity check</div>
+        </div>
+      </a>
+      <a href="/ai-visibility" class="dir-footer-link">
+        <span class="dir-footer-link-icon">🤖</span>
+        <div>
+          <div class="dir-footer-link-name">AI Visibility</div>
+          <div class="dir-footer-link-desc">Check AI citation coverage</div>
+        </div>
+      </a>
+      <a href="https://strategicflow.tech" target="_blank" rel="noopener" class="dir-footer-link">
+        <span class="dir-footer-link-icon">🌐</span>
+        <div>
+          <div class="dir-footer-link-name">strategicflow.tech</div>
+          <div class="dir-footer-link-desc">Main homepage</div>
+        </div>
+      </a>
+      <a href="/" class="dir-footer-link">
+        <span class="dir-footer-link-icon">📧</span>
+        <div>
+          <div class="dir-footer-link-name">Email Audit</div>
+          <div class="dir-footer-link-desc">Free SaaS email teardown</div>
+        </div>
+      </a>
+    </div>
+    <div class="dir-footer-copy">
+      <span>Strategic Flow © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--muted);">Terms</a></span>
+      <span style="font-family:var(--mono);font-size:11px;">DR 86 · Powered by Decision Friction Model</span>
+    </div>
+  </div>
+</footer>
+
+<!-- CLAIM MODAL -->
+<div class="modal-overlay" id="claimModal" onclick="closeClaimModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeClaimModal()">&times;</button>
+    <div class="modal-tag">🔑 Claim this listing</div>
+    <div class="modal-title" id="claimProductName">Your product</div>
+    <div class="modal-sub">Verify you own this listing by entering your <span id="claimDomain" style="color:var(--teal);font-family:var(--mono);"></span> email address. We'll send a one-time code.</div>
+
+    <!-- Step 1: email -->
+    <div class="claim-step active" id="claimStep1">
+      <div class="claim-hint">📧 Use an email address at your product's domain — e.g. <span id="claimEmailHint" style="color:var(--teal);font-family:var(--mono);"></span></div>
+      <input class="claim-input" type="email" id="claimEmail" placeholder="you@yourdomain.com" />
+      <div class="claim-err" id="claimErr1"></div>
+      <button class="claim-btn" id="claimSendBtn" onclick="claimSendOTP()">Send verification code →</button>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div class="claim-step" id="claimStep2">
+      <div class="claim-hint">✉️ Check your inbox — a 6-digit code was sent to <span id="claimEmailSent" style="color:var(--teal);font-family:var(--mono);"></span></div>
+      <input class="claim-input" type="text" id="claimOTP" placeholder="123456" maxlength="6" inputmode="numeric" style="font-size:22px;letter-spacing:6px;text-align:center;" />
+      <div class="claim-err" id="claimErr2"></div>
+      <button class="claim-btn" id="claimVerifyBtn" onclick="claimVerifyOTP()">Verify and claim →</button>
+      <button style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;" onclick="claimBack()">← Different email</button>
+    </div>
+
+    <!-- Step 3: success + edit -->
+    <div class="claim-step" id="claimStep3">
+      <div class="claim-success">
+        <div class="claim-success-icon">✅</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Listing claimed!</div>
+        <div style="font-size:13px;color:var(--muted);">You'll be notified when your listing gets its first vote. Optionally update your description and screenshot below.</div>
+      </div>
+      <div style="margin-bottom:4px;">
+        <a id="claimBadgeLink" href="/badge-kit" target="_blank"
+           style="display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:center;padding:11px;background:rgba(0,212,200,0.10);border:1px solid rgba(0,212,200,0.35);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);text-decoration:none;transition:background .2s;">
+          ⚡ Get your badge → paste it anywhere
+        </a>
+      </div>
+      <div class="claim-edit-section">
+        <div class="claim-edit-label">Update your description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <textarea class="claim-edit-area" id="claimDesc" placeholder="One or two honest sentences about what your product does." maxlength="400"></textarea>
+        <div class="claim-edit-label">Screenshot / logo URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional — paste a direct image URL)</span></div>
+        <input class="claim-input" type="url" id="claimImageUrl" placeholder="https://yoursite.com/screenshot.png" />
+        <div class="claim-err" id="claimErr3"></div>
+        <button class="claim-save-btn" id="claimSaveBtn" onclick="claimSaveEdit()">Save changes →</button>
+        <div class="claim-save-msg" id="claimSaveMsg">✓ Saved! Changes will appear after the next page load.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOST MODAL -->
+<div class="modal-overlay" id="boostModal" onclick="closeBoostModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeBoostModal()">&times;</button>
+    <div class="modal-tag">⚡ Boost this listing</div>
+    <div class="modal-title">Feature <span class="modal-listing-name" id="boostListingName">your product</span></div>
+    <div class="modal-sub">Choose a placement tier. Payment via Stripe — secure, one-time charge.</div>
+
+    <div class="tier-options" id="tierOptions">
+      <div class="tier-option selected" data-tier="weekly_feature" onclick="selectTier(this)">
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <div class="tier-name">Weekly Feature</div>
+          <div class="tier-desc">Featured spotlight section for 14 days</div>
+        </div>
+        <div class="tier-price-wrap">
+          <span class="tier-price-orig">$20</span>
+          <span class="tier-price">$10</span>
+          <span class="tier-discount">50% OFF</span>
+        </div>
+      </div>
+      <div class="tier-option" data-tier="premium" onclick="selectTier(this)">
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <div class="tier-name">Premium Listing</div>
+          <div class="tier-desc">Premium badge + priority placement for 30 days</div>
+        </div>
+        <div class="tier-price-wrap">
+          <span class="tier-price-orig">$30</span>
+          <span class="tier-price">$15</span>
+          <span class="tier-discount">50% OFF</span>
+        </div>
+      </div>
+      <div class="tier-option" data-tier="daily_top" onclick="selectTier(this)">
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <div class="tier-name">Daily Top Entry</div>
+          <div class="tier-desc">Skip the queue — today's top placement, instant</div>
+        </div>
+        <div class="tier-price-wrap">
+          <span class="tier-price-orig">$20</span>
+          <span class="tier-price">$10</span>
+          <span class="tier-discount">50% OFF</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-email-label">Your email (receipt + confirmation)</div>
+    <input type="email" class="modal-email-input" id="boostEmail" placeholder="you@company.com" />
+
+    <button class="modal-cta" id="boostCta" onclick="startCheckout()">Continue to payment →</button>
+    <div class="modal-note">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; No subscription</div>
+  </div>
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const CAT_COLORS = {
+  'AI Tools':       ['rgba(0,212,200,0.15)','#00d4c8'],
+  'Productivity':   ['rgba(167,139,250,0.15)','#a78bfa'],
+  'Developer Tools':['rgba(59,130,246,0.15)','#3b82f6'],
+  'Finance':        ['rgba(34,197,94,0.15)','#22c55e'],
+  'Marketing':      ['rgba(245,158,11,0.15)','#f59e0b'],
+  'Social Media':   ['rgba(236,72,153,0.15)','#ec4899'],
+  'Directories':    ['rgba(148,163,184,0.15)','#94a3b8'],
+  'Education':      ['rgba(251,191,36,0.15)','#fbbf24'],
+  'Analytics':      ['rgba(16,185,129,0.15)','#10b981'],
+  'No-Code':        ['rgba(99,102,241,0.15)','#6366f1'],
+  'Design':         ['rgba(244,63,94,0.15)','#f43f5e'],
+  'Sales':          ['rgba(234,179,8,0.15)','#eab308'],
+  'HR & Recruiting':['rgba(20,184,166,0.15)','#14b8a6'],
+  'General':        ['rgba(100,116,139,0.15)','#64748b'],
+  'Other':          ['rgba(100,116,139,0.15)','#64748b'],
+};
+
+const BADGE_LABELS = { weekly_feature:'⭐ Weekly Feature', premium:'💎 Premium', daily_top:'🔥 Daily Top' };
+
+// Per-session vote tracking (server enforces uniqueness; this just updates UI optimistically)
+const votedIds = new Set(JSON.parse(localStorage.getItem('dir_voted')||'[]'));
+function saveVoted(id){ votedIds.add(id); localStorage.setItem('dir_voted', JSON.stringify([...votedIds])); }
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Avatar / thumbnail ────────────────────────────────────────────────────────
+function avatarFor(name, category, imageUrl){
+  const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
+  const [bg,col] = CAT_COLORS[category]||CAT_COLORS['General'];
+  if(imageUrl){
+    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="dir-avatar" style="background:${bg};color:${col};display:none;">${initials}</div>`;
+  }
+  return `<div class="dir-avatar" style="background:${bg};color:${col};">${initials}</div>`;
+}
+
+function lbThumbFor(name, category, imageUrl){
+  const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
+  const [bg,col] = CAT_COLORS[category]||CAT_COLORS['General'];
+  // Wrap in a sized container so the fallback initials show through when the img fails
+  const fallbackStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
+  const initSpan = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:${col};">${initials}</span>`;
+  if(imageUrl){
+    return `<div style="${fallbackStyle}">${initSpan}<img style="position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);" src="${escHtml(imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'" /></div>`;
+  }
+  return `<div style="${fallbackStyle}">${initSpan}</div>`;
+}
+
+// ── Score helpers ─────────────────────────────────────────────────────────────
+function scoreClass(s,p){ if(p||s==null) return 'score-pending'; if(s<=3) return 'score-low'; if(s<=6) return 'score-mid'; return 'score-high'; }
+function scoreLbl(s,p){ if(p||s==null) return['Computing…','auto-scoring']; if(s<=3) return[`${s}/10`,'Low friction']; if(s<=6) return[`${s}/10`,'Med friction']; return[`${s}/10`,'High friction']; }
+
+// ── Card rendering ────────────────────────────────────────────────────────────
+function renderCard(l){
+  const cls   = scoreClass(l.friction_score, l.score_pending);
+  const [val,lbl] = scoreLbl(l.friction_score, l.score_pending);
+  const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
+  const votes  = l.vote_count||0;
+  const voted  = votedIds.has(l.id);
+  const isFeat = !!l.featured_tier;
+
+  let sourceTag = '';
+  if(l.source && l.source_url) sourceTag = `<a href="${escHtml(l.source_url)}" class="dir-source-tag" target="_blank" rel="noopener">via ${escHtml(l.source)}</a>`;
+  else if(l.source) sourceTag = `<span class="dir-source-tag">via ${escHtml(l.source)}</span>`;
+
+  let featBadge = isFeat ? `<span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>` : '';
+
+  return `<div class="dir-card${isFeat?' is-featured':''}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
+    <div class="dir-card-top">
+      <div class="dir-card-left">
+        ${avatarFor(l.name, l.category||'General', l.image_url||null)}
+        <div style="min-width:0;">
+          <div class="dir-card-name">${escHtml(l.name)}</div>
+          <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
+          ${featBadge}
+        </div>
+      </div>
+      <div class="dir-score-badge ${cls}">
+        <div class="dir-score-val">${val}</div>
+        <div class="dir-score-lbl">${lbl}</div>
+      </div>
+    </div>
+    <p class="dir-desc">${escHtml(l.description||'')}</p>
+    <div class="dir-card-footer">
+      <div class="dir-card-actions">
+        <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener">Visit ${escHtml(domain)} →</a>
+        <button class="dir-vote-btn${voted?' voted':''}" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" ${voted?'disabled':''} title="${voted?'Already upvoted':'Upvote this product'}">
+          <span class="vote-arrow">▲</span>
+          <span class="vote-count" id="vc-${l.id}">${votes}</span>
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        ${sourceTag}
+        ${l.is_claimed
+          ? `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a>`
+          : l.is_auto_imported
+            ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
+            : ''}
+        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Voting ────────────────────────────────────────────────────────────────────
+async function castVote(id, btn){
+  if(votedIds.has(id)) return;
+  btn.disabled = true;
+  btn.classList.add('voted');
+  const countEl = document.getElementById('vc-'+id);
+  const prev = parseInt(countEl.textContent)||0;
+  countEl.textContent = prev+1; // optimistic
+  try{
+    const r = await fetch(`/api/directory/vote/${id}`,{method:'POST'});
+    const d = await r.json();
+    if(d.ok){ saveVoted(id); countEl.textContent = d.vote_count; }
+    else if(d.error==='already_voted'){ saveVoted(id); countEl.textContent = d.vote_count; }
+    else{ countEl.textContent = prev; btn.disabled = false; btn.classList.remove('voted'); }
+  }catch{
+    countEl.textContent = prev; btn.disabled = false; btn.classList.remove('voted');
+  }
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+let lbPeriod = 'daily';
+
+async function loadLeaderboard(period){
+  lbPeriod = period||'daily';
+  const el = document.getElementById('lbList');
+  el.innerHTML = '<div class="dir-lb-empty">Loading…</div>';
+  try{
+    const r = await fetch(`/api/directory/leaderboard?period=${lbPeriod}`);
+    const d = await r.json();
+    const items = (d.listings||[]).filter(l => (l.period_votes||0) > 0 || lbPeriod==='all');
+    if(items.length===0){
+      el.innerHTML = '<div class="dir-lb-empty">No votes yet — be the first to upvote a listing!</div>';
+      return;
+    }
+    el.innerHTML = items.slice(0,10).map((l,i)=>{
+      const rankCls = i===0?'top1':i===1?'top2':i===2?'top3':'';
+      const pvotes = l.period_votes||l.vote_count||0;
+      const domain = (()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
+      return `<div class="dir-lb-row">
+        <span class="dir-lb-rank ${rankCls}">#${i+1}</span>
+        ${lbThumbFor(l.name, l.category||'General', l.image_url)}
+        <div class="dir-lb-info">
+          <div class="dir-lb-name">${escHtml(l.name)}</div>
+          <div class="dir-lb-cat">${escHtml(l.category||'General')} · ${escHtml(domain)}</div>
+        </div>
+        <div class="dir-lb-votes">▲ ${pvotes}</div>
+      </div>`;
+    }).join('');
+  }catch{
+    el.innerHTML = '<div class="dir-lb-empty">Could not load leaderboard.</div>';
+  }
+}
+
+document.querySelectorAll('.dir-lb-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.dir-lb-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    loadLeaderboard(btn.dataset.period);
+  });
+});
+
+// ── Featured spotlight ────────────────────────────────────────────────────────
+async function loadFeatured(){
+  try{
+    const r = await fetch('/api/directory/featured');
+    const d = await r.json();
+    const items = d.listings||[];
+    const sec = document.getElementById('featuredSection');
+    if(items.length===0){ sec.style.display='none'; return; }
+    sec.style.display='block';
+    const grid = document.getElementById('featuredGrid');
+    grid.innerHTML = items.map(l=>{
+      const domain=(()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
+      const badgeLabel = BADGE_LABELS[l.featured_tier]||l.featured_tier;
+      const until = l.featured_until ? new Date(l.featured_until).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+      return `<div class="dir-featured-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(badgeLabel)}</span>
+          ${until?`<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">until ${until}</span>`:''}
+        </div>
+        <div class="dir-featured-name">${escHtml(l.name)}</div>
+        <div class="dir-featured-desc">${escHtml((l.description||'').slice(0,120))}</div>
+        <div class="dir-featured-footer">
+          <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener">Visit ${escHtml(domain)} →</a>
+          <div class="dir-featured-votes">▲ ${l.vote_count||0}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch{ document.getElementById('featuredSection').style.display='none'; }
+}
+
+// ── Main listing grid ─────────────────────────────────────────────────────────
+let allListings = [];
+let activeCategory = 'All';
+let searchQuery = '';
+
+function applyFilters(){
+  let items = allListings;
+  if(activeCategory !== 'All') items = items.filter(l => l.category === activeCategory);
+  if(searchQuery){
+    const q = searchQuery.toLowerCase();
+    items = items.filter(l =>
+      (l.name||'').toLowerCase().includes(q)||
+      (l.description||'').toLowerCase().includes(q)||
+      (l.category||'').toLowerCase().includes(q)
+    );
+  }
+  const grid = document.getElementById('dirGrid');
+  if(items.length===0){
+    grid.innerHTML = '<div class="dir-empty">No products found for this filter.</div>';
+  }else{
+    grid.innerHTML = items.map(renderCard).join('');
+  }
+  document.getElementById('statCount').textContent = allListings.length;
+}
+
+async function loadListings(){
+  try{
+    const r = await fetch('/api/directory/listings');
+    const d = await r.json();
+    allListings = d.listings||[];
+    applyFilters();
+  }catch{
+    document.getElementById('dirGrid').innerHTML='<div class="dir-empty">Could not load listings. Please refresh.</div>';
+  }
+}
+
+document.querySelectorAll('.dir-filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.dir-filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCategory = btn.dataset.cat;
+    applyFilters();
+  });
+});
+
+document.getElementById('dirSearch').addEventListener('input', e=>{
+  searchQuery = e.target.value;
+  applyFilters();
+});
+
+// ── Submit form ───────────────────────────────────────────────────────────────
+async function submitListing(e){
+  e.preventDefault();
+  const btn = document.getElementById('dirSubmitBtn');
+  const msg = document.getElementById('dirFormMsg');
+  btn.disabled=true; btn.textContent='Submitting…';
+  msg.className='dir-form-msg'; msg.style.display='none';
+  try{
+    const r = await fetch('/api/directory/submit',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name:     document.getElementById('fName').value,
+        url:      document.getElementById('fUrl').value,
+        category: document.getElementById('fCategory').value,
+        description: document.getElementById('fDesc').value,
+        email:    document.getElementById('fEmail').value,
+      })
+    });
+    const d = await r.json();
+    if(r.ok && d.success){
+      msg.className='dir-form-msg success';
+      msg.textContent='✓ Listed! Your Friction Score is being computed in the background (~30s). Refresh to see your listing.';
+      document.getElementById('dirForm').reset();
+      setTimeout(loadListings, 3000);
+    }else if(d.error==='already_listed'){
+      msg.className='dir-form-msg error';
+      msg.textContent='This product URL is already in the directory.';
+    }else throw new Error(d.error||'unknown');
+  }catch(err){
+    msg.className='dir-form-msg error';
+    msg.textContent='Something went wrong. Please try again.';
+  }finally{
+    btn.disabled=false; btn.textContent='Submit product + get Friction Score →';
+    msg.style.display='block';
+  }
+}
+
+// ── Claim modal ───────────────────────────────────────────────────────────────
+let claimListingId  = null;
+let claimEditToken  = null;
+let claimOwnerEmail = null;
+
+function openClaimModal(id, name, domain) {
+  claimListingId  = id;
+  claimEditToken  = null;
+  claimOwnerEmail = null;
+  document.getElementById('claimProductName').textContent = name;
+  document.getElementById('claimDomain').textContent      = domain;
+  document.getElementById('claimEmailHint').textContent   = 'you@' + domain;
+  document.getElementById('claimEmail').value = '';
+  document.getElementById('claimOTP').value   = '';
+  document.getElementById('claimDesc').value      = '';
+  document.getElementById('claimImageUrl').value  = '';
+  ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.display = 'none'; el.textContent = '';
+  });
+  ['claimStep1','claimStep2','claimStep3'].forEach(s => document.getElementById(s).classList.remove('active'));
+  document.getElementById('claimStep1').classList.add('active');
+  document.getElementById('claimModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeClaimModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('claimModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function claimBack() {
+  document.getElementById('claimStep2').classList.remove('active');
+  document.getElementById('claimStep1').classList.add('active');
+}
+
+async function claimSendOTP() {
+  const email = document.getElementById('claimEmail').value.trim();
+  const errEl = document.getElementById('claimErr1');
+  errEl.style.display = 'none';
+  if (!email || !email.includes('@')) { errEl.textContent = 'Enter a valid email address.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('claimSendBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try {
+    const r = await fetch('/api/directory/claim/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      claimOwnerEmail = email;
+      document.getElementById('claimEmailSent').textContent = email;
+      document.getElementById('claimStep1').classList.remove('active');
+      document.getElementById('claimStep2').classList.add('active');
+    } else if (d.error === 'domain_mismatch') {
+      errEl.textContent = d.hint || 'Email must match the product domain.';
+      errEl.style.display = 'block';
+    } else if (d.error === 'already_claimed') {
+      errEl.textContent = 'This listing has already been claimed.';
+      errEl.style.display = 'block';
+    } else {
+      errEl.textContent = 'Something went wrong. Try again.';
+      errEl.style.display = 'block';
+    }
+  } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = 'Send verification code →';
+}
+
+async function claimVerifyOTP() {
+  const otp   = document.getElementById('claimOTP').value.trim();
+  const errEl = document.getElementById('claimErr2');
+  errEl.style.display = 'none';
+  if (!otp || otp.length !== 6) { errEl.textContent = 'Enter the 6-digit code from your email.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('claimVerifyBtn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+
+  try {
+    const r = await fetch('/api/directory/claim/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, otp })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      claimEditToken = d.edit_token;
+      // Persist in sessionStorage so edits survive a modal reopen this session
+      sessionStorage.setItem(`claim_${claimListingId}`, JSON.stringify({ email: claimOwnerEmail, token: d.edit_token }));
+      document.getElementById('claimStep2').classList.remove('active');
+      document.getElementById('claimStep3').classList.add('active');
+      // Mark card as claimed without reload
+      const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
+      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified owner</span>';
+    } else {
+      const msgs = { wrong_code: 'Incorrect code.', code_expired: 'Code expired — click back and resend.', already_verified: 'Already verified!' };
+      errEl.textContent = msgs[d.error] || 'Verification failed. Try again.';
+      errEl.style.display = 'block';
+    }
+  } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = 'Verify and claim →';
+}
+
+async function claimSaveEdit() {
+  const description = document.getElementById('claimDesc').value.trim();
+  const image_url   = document.getElementById('claimImageUrl').value.trim();
+  const errEl       = document.getElementById('claimErr3');
+  const msg         = document.getElementById('claimSaveMsg');
+  errEl.style.display = 'none'; msg.style.display = 'none';
+
+  if (!description && !image_url) {
+    errEl.textContent = 'Enter a description or image URL to save.';
+    errEl.style.display = 'block'; return;
+  }
+
+  const btn = document.getElementById('claimSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  try {
+    const r = await fetch('/api/directory/claim/edit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, description, image_url })
+    });
+    const d = await r.json();
+    if (d.ok) { msg.style.display = 'block'; }
+    else { errEl.textContent = 'Save failed: ' + (d.error||'unknown'); errEl.style.display = 'block'; }
+  } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = 'Save changes →';
+}
+
+// Restore claim context from sessionStorage (so returning owners can re-edit)
+(function restoreClaimSessions(){
+  // No-op on page load — modal only opens via button click
+})();
+
+// ── Boost modal ───────────────────────────────────────────────────────────────
+let boostListingId = null;
+let selectedTier   = 'weekly_feature';
+
+function openBoostModal(id, name){
+  boostListingId = id;
+  document.getElementById('boostListingName').textContent = name;
+  document.getElementById('boostEmail').value = '';
+  selectedTier = 'weekly_feature';
+  document.querySelectorAll('.tier-option').forEach(o => o.classList.toggle('selected', o.dataset.tier==='weekly_feature'));
+  document.getElementById('boostModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeBoostModal(e){
+  if(e && e.target !== e.currentTarget) return;
+  document.getElementById('boostModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function selectTier(el){
+  selectedTier = el.dataset.tier;
+  document.querySelectorAll('.tier-option').forEach(o=>o.classList.toggle('selected',o===el));
+}
+
+async function startCheckout(){
+  const email = document.getElementById('boostEmail').value.trim();
+  if(!email || !email.includes('@')){ document.getElementById('boostEmail').focus(); return; }
+  const btn = document.getElementById('boostCta');
+  btn.disabled=true; btn.textContent='Redirecting to Stripe…';
+  try{
+    const r = await fetch('/api/directory/checkout',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ listing_id: boostListingId, tier: selectedTier, email })
+    });
+    const d = await r.json();
+    if(d.url) window.location.href = d.url;
+    else throw new Error(d.error||'checkout_failed');
+  }catch(err){
+    alert('Could not start checkout: ' + err.message);
+    btn.disabled=false; btn.textContent='Continue to payment →';
+  }
+}
+
+// Close modal on Escape
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeBoostModal(); });
+
+// ── Success redirect banner ───────────────────────────────────────────────────
+(function(){
+  const p = new URLSearchParams(location.search);
+  if(p.get('boosted')==='1'){
+    const tierLabels = { weekly_feature:'Weekly Feature', premium:'Premium Listing', daily_top:'Daily Top Entry' };
+    const tierLabel  = tierLabels[p.get('tier')]||'';
+    const banner = document.createElement('div');
+    banner.style.cssText='position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;font-size:13px;font-weight:600;padding:10px 22px;border-radius:8px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.3);';
+    banner.textContent = `✓ Payment confirmed${tierLabel?' — '+tierLabel+' applied':''}! Your listing is now featured.`;
+    document.body.appendChild(banner);
+    setTimeout(()=>banner.remove(), 6000);
+    // Clean URL
+    history.replaceState({}, '', '/directory');
+  }
+})();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadListings();
+loadFeatured();
+loadLeaderboard('daily');
+</script>
+</body>
+</html>

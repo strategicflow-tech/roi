@@ -20,6 +20,7 @@ const {
   getContentCalendarPrompt
 } = require('./system-prompt.js');
 const { extractBrandDNA } = require('./brand-dna.js');
+const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
 
 const app    = express();
@@ -342,6 +343,481 @@ app.get('/ai-visibility', (req, res) => {
 });
 
 app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glossary.html')));
+
+// ─── DIRECTORY ────────────────────────────────────────────────────────────────
+app.get('/directory', (req, res) => res.sendFile(path.join(__dirname, 'public/directory.html')));
+
+app.get('/api/directory/listings', async (req, res) => {
+  try {
+    const { category } = req.query;
+    let q = `SELECT id, name, url, category, friction_score, score_pending,
+                    is_seeded, is_auto_imported, source, source_url, submitted_at,
+                    vote_count, featured_tier, featured_until,
+                    (claimed_by IS NOT NULL) AS is_claimed,
+                    COALESCE(owner_description, description) AS description,
+                    COALESCE(owner_image_url, image_url)     AS image_url
+             FROM directory_listings WHERE status='active'`;
+    const params = [];
+    if (category && category !== 'All') { q += ' AND category=$1'; params.push(category); }
+    q += ' ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC, vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 500';
+    const r = await pool.query(q, params);
+    res.json({ listings: r.rows });
+  } catch (err) {
+    console.error('[directory] listings error:', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+app.post('/api/directory/submit', async (req, res) => {
+  const { name, url, category, description, email } = req.body || {};
+  if (!name || !url) return res.status(400).json({ error: 'name and url required' });
+  let cleanUrl = url.trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = 'https://' + cleanUrl;
+  try {
+    const r = await pool.query(
+      `INSERT INTO directory_listings (name, url, category, description, submitter_email, score_pending, status)
+       VALUES ($1,$2,$3,$4,$5,TRUE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
+      [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), email||null]
+    );
+    if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
+    const id = r.rows[0].id;
+    computeDirectoryFrictionScore(id, cleanUrl).catch(() => {});
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[directory] submit error:', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+// ── Admin: trigger directory aggregation manually ──────────────────────────────
+app.get('/admin/aggregate', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.json({ ok: true, message: 'Aggregation started in background — check server logs for progress.' });
+  // Run after response is sent
+  setImmediate(async () => {
+    try {
+      const stats = await runAggregation(pool);
+      // Score up to 10 new listings immediately
+      const toScore = stats.newIds.slice(0, 10);
+      for (const id of toScore) {
+        const r = await pool.query('SELECT url FROM directory_listings WHERE id=$1', [id]).catch(()=>null);
+        if (r?.rows[0]?.url) computeDirectoryFrictionScore(id, r.rows[0].url).catch(()=>{});
+        await new Promise(resolve => setTimeout(resolve, 2000)); // space out API calls
+      }
+    } catch(e) { console.error('[admin/aggregate]', e.message); }
+  });
+});
+
+// ── Directory: price IDs (created once, hardcoded) ────────────────────────────
+const DIR_PRICES = {
+  weekly_feature: { price_id: 'price_1TzFHeDpTwoDeZJnoTKcAE5j', days: 14, label: 'Weekly Feature',   amount: 10 },
+  premium:        { price_id: 'price_1TzFHfDpTwoDeZJnpyIUeuyd', days: 30, label: 'Premium Listing',   amount: 15 },
+  daily_top:      { price_id: 'price_1TzFHfDpTwoDeZJnxo27vMQD', days: 1,  label: 'Daily Top Entry',   amount: 10 },
+};
+
+// ── Directory: expire stale featured placements ───────────────────────────────
+async function expireFeaturedListings() {
+  try {
+    const expired = await pool.query(
+      `UPDATE dir_featured SET is_active=FALSE
+       WHERE is_active=TRUE AND expires_at < NOW()
+       RETURNING listing_id`
+    );
+    for (const row of expired.rows) {
+      // Clear featured_tier on the listing only if no other active placement remains
+      const still = await pool.query(
+        `SELECT id FROM dir_featured WHERE listing_id=$1 AND is_active=TRUE LIMIT 1`,
+        [row.listing_id]
+      );
+      if (still.rows.length === 0) {
+        await pool.query(
+          `UPDATE directory_listings SET featured_tier=NULL, featured_until=NULL WHERE id=$1`,
+          [row.listing_id]
+        );
+      }
+    }
+    if (expired.rows.length > 0) console.log(`[dir-featured] expired ${expired.rows.length} placements`);
+  } catch(e) { console.error('[dir-featured] expiry error:', e.message); }
+}
+
+// ── Directory: handle post-payment placement ──────────────────────────────────
+async function handleDirectoryPayment(session) {
+  const { listing_id, tier } = session.metadata || {};
+  if (!listing_id || !tier || !DIR_PRICES[tier]) return;
+  const email   = (session.customer_details?.email || session.customer_email || '').toLowerCase();
+  const days    = DIR_PRICES[tier].days;
+  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const lid     = parseInt(listing_id, 10);
+  await pool.query(
+    `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
+     VALUES ($1,$2,$3,$4,$5) ON CONFLICT (stripe_session_id) DO NOTHING`,
+    [lid, tier, session.id, email, expires]
+  );
+  await pool.query(
+    `UPDATE directory_listings SET featured_tier=$1, featured_until=$2 WHERE id=$3`,
+    [tier, expires, lid]
+  );
+  console.log(`[dir-payment] ${tier} applied to listing ${lid} until ${expires.toISOString()}`);
+}
+
+// ── POST /api/directory/checkout ──────────────────────────────────────────────
+app.post('/api/directory/checkout', async (req, res) => {
+  const { listing_id, tier, email } = req.body || {};
+  if (!listing_id || !DIR_PRICES[tier]) return res.status(400).json({ error: 'invalid_params' });
+  const listingRow = await pool.query('SELECT id, name FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
+  if (!listingRow?.rows?.length) return res.status(404).json({ error: 'listing_not_found' });
+
+  try {
+    const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    const sess = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{ price: DIR_PRICES[tier].price_id, quantity: 1 }],
+      success_url: `${base}/directory?boosted=1&tier=${tier}&lid=${listing_id}`,
+      cancel_url:  `${base}/directory`,
+      customer_email: email?.includes('@') ? email.toLowerCase() : undefined,
+      metadata: { source: 'directory', listing_id: String(listing_id), tier, listing_name: listingRow.rows[0].name.slice(0,80) },
+    });
+    res.json({ url: sess.url });
+  } catch(err) {
+    console.error('[dir-checkout]', err.message);
+    res.status(500).json({ error: 'checkout_failed' });
+  }
+});
+
+// ── POST /api/directory/vote/:id ──────────────────────────────────────────────
+app.post('/api/directory/vote/:id', async (req, res) => {
+  const lid = parseInt(req.params.id, 10);
+  if (!lid) return res.status(400).json({ error: 'bad_id' });
+
+  // Fingerprint: SHA256(IP | first-30-chars-UA | listing_id)
+  const ip  = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  const ua  = (req.headers['user-agent'] || '').slice(0, 30);
+  const hash = crypto.createHash('sha256').update(`${ip}|${ua}|${lid}`).digest('hex');
+
+  try {
+    // Check listing exists
+    const listing = await pool.query('SELECT id, vote_count FROM directory_listings WHERE id=$1 AND status=\'active\'', [lid]);
+    if (!listing.rows.length) return res.status(404).json({ error: 'not_found' });
+
+    // Insert vote (unique constraint prevents duplicates)
+    const r = await pool.query(
+      `INSERT INTO dir_votes (listing_id, voter_hash) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`,
+      [lid, hash]
+    );
+    if (r.rows.length === 0) return res.status(409).json({ error: 'already_voted', vote_count: listing.rows[0].vote_count });
+
+    // Increment vote_count atomically; also fetch claimed_by for first-vote notification
+    const updated = await pool.query(
+      `UPDATE directory_listings SET vote_count = vote_count + 1 WHERE id=$1
+       RETURNING vote_count, claimed_by, name`,
+      [lid]
+    );
+    const newCount   = updated.rows[0].vote_count;
+    const claimedBy  = updated.rows[0].claimed_by;
+    const listingName = updated.rows[0].name;
+    res.json({ ok: true, vote_count: newCount });
+
+    // Send one-time first-vote notification to verified owner
+    if (newCount === 1 && claimedBy) {
+      resend.emails.send({
+        from: SENDER,
+        to:   claimedBy,
+        subject: `Your listing "${listingName}" just got its first vote 🎉`,
+        html: `<p>Good news — someone upvoted your listing <strong>${listingName}</strong> on the Strategic Flow directory.</p>
+               <p><a href="https://strategic-flow-audit.replit.app/directory">View the directory →</a></p>
+               <p style="color:#888;font-size:12px;">You're receiving this because you claimed this listing.</p>`
+      }).catch(() => {});
+    }
+  } catch(err) {
+    console.error('[dir-vote]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /api/directory/leaderboard?period=daily|weekly|all ───────────────────
+app.get('/api/directory/leaderboard', async (req, res) => {
+  const period = req.query.period || 'all';
+  try {
+    let q;
+    if (period === 'daily') {
+      q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.featured_tier, dl.vote_count,
+                  COUNT(dv.id)::int AS period_votes
+           FROM directory_listings dl
+           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
+             AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+           WHERE dl.status='active'
+           GROUP BY dl.id
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+    } else if (period === 'weekly') {
+      q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.featured_tier, dl.vote_count,
+                  COUNT(dv.id)::int AS period_votes
+           FROM directory_listings dl
+           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
+             AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
+           WHERE dl.status='active'
+           GROUP BY dl.id
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+    } else {
+      q = `SELECT id, name, url, category, description,
+                  friction_score, score_pending, image_url, source, source_url,
+                  featured_tier, vote_count, vote_count AS period_votes
+           FROM directory_listings
+           WHERE status='active'
+           ORDER BY vote_count DESC LIMIT 25`;
+    }
+    const r = await pool.query(q);
+    res.json({ period, listings: r.rows });
+  } catch(err) {
+    console.error('[dir-leaderboard]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /api/directory/featured ───────────────────────────────────────────────
+app.get('/api/directory/featured', async (req, res) => {
+  try {
+    await expireFeaturedListings(); // lazy expiry
+    const r = await pool.query(
+      `SELECT dl.id, dl.name, dl.url, dl.category, dl.description, dl.friction_score,
+              dl.score_pending, dl.image_url, dl.source, dl.source_url, dl.vote_count,
+              dl.featured_tier, dl.featured_until
+       FROM directory_listings dl
+       WHERE dl.status='active' AND dl.featured_tier IS NOT NULL AND dl.featured_until > NOW()
+       ORDER BY dl.featured_tier='premium' DESC, dl.featured_until ASC`
+    );
+    res.json({ listings: r.rows });
+  } catch(err) {
+    console.error('[dir-featured]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── Directory: claim helpers ──────────────────────────────────────────────────
+function emailMatchesDomain(email, productUrl) {
+  try {
+    const emailDomain = (email.split('@')[1] || '').toLowerCase().replace(/^www\./, '');
+    const urlHost     = new URL(productUrl).hostname.toLowerCase().replace(/^www\./, '');
+    return emailDomain === urlHost ||
+           emailDomain.endsWith('.' + urlHost) ||
+           urlHost.endsWith('.' + emailDomain);
+  } catch { return false; }
+}
+
+// ── POST /api/directory/claim/start ──────────────────────────────────────────
+app.post('/api/directory/claim/start', async (req, res) => {
+  const { listing_id, email } = req.body || {};
+  if (!listing_id || !email || !email.includes('@'))
+    return res.status(400).json({ error: 'listing_id and valid email required' });
+
+  try {
+    const row = await pool.query(
+      `SELECT id, name, url, claimed_by FROM directory_listings WHERE id=$1 AND status='active'`,
+      [listing_id]
+    );
+    if (!row.rows.length) return res.status(404).json({ error: 'listing_not_found' });
+    const listing = row.rows[0];
+
+    if (listing.claimed_by)
+      return res.status(409).json({ error: 'already_claimed' });
+
+    if (!emailMatchesDomain(email, listing.url))
+      return res.status(422).json({
+        error: 'domain_mismatch',
+        hint: `Email must match the domain of ${new URL(listing.url).hostname}`
+      });
+
+    const otp     = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      `INSERT INTO dir_claims (listing_id, owner_email, otp, otp_expires_at)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (listing_id, owner_email)
+       DO UPDATE SET otp=$3, otp_expires_at=$4, is_verified=FALSE, verified_at=NULL`,
+      [listing_id, email.toLowerCase(), otp, expires]
+    );
+
+    await resend.emails.send({
+      from:    SENDER,
+      to:      email,
+      subject: `Verify you own "${listing.name}" on Strategic Flow Directory`,
+      html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+        <h2 style="color:#00d4c8;">Claim your listing</h2>
+        <p>Your verification code for <strong>${listing.name}</strong> is:</p>
+        <div style="font-size:36px;font-weight:800;letter-spacing:8px;background:#f0f9ff;padding:20px;border-radius:8px;text-align:center;color:#0a1628;margin:20px 0;">${otp}</div>
+        <p>Enter this code on the Strategic Flow directory to verify ownership. It expires in 15 minutes.</p>
+        <p>Once verified, you'll be able to edit your description, add a screenshot, and receive vote notifications.</p>
+        <p style="color:#888;font-size:12px;">If you didn't request this, ignore this email.</p>
+      </div>`
+    });
+
+    console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}`);
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-claim/start]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── POST /api/directory/claim/verify ─────────────────────────────────────────
+app.post('/api/directory/claim/verify', async (req, res) => {
+  const { listing_id, email, otp } = req.body || {};
+  if (!listing_id || !email || !otp)
+    return res.status(400).json({ error: 'listing_id, email, otp required' });
+
+  try {
+    const claim = await pool.query(
+      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2`,
+      [listing_id, email.toLowerCase()]
+    );
+    if (!claim.rows.length) return res.status(404).json({ error: 'no_claim_started' });
+    const c = claim.rows[0];
+
+    if (c.is_verified)         return res.status(409).json({ error: 'already_verified' });
+    if (c.otp !== otp)         return res.status(422).json({ error: 'wrong_code' });
+    if (new Date(c.otp_expires_at) < new Date()) return res.status(422).json({ error: 'code_expired' });
+
+    const editToken = crypto.randomBytes(24).toString('hex');
+    await pool.query(
+      `UPDATE dir_claims SET is_verified=TRUE, verified_at=NOW(), edit_token=$1
+       WHERE listing_id=$2 AND owner_email=$3`,
+      [editToken, listing_id, email.toLowerCase()]
+    );
+    await pool.query(
+      `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW() WHERE id=$2`,
+      [email.toLowerCase(), listing_id]
+    );
+
+    const listing = await pool.query('SELECT name FROM directory_listings WHERE id=$1', [listing_id]);
+    const name    = listing.rows[0]?.name || 'your product';
+
+    // Welcome email
+    resend.emails.send({
+      from:    SENDER,
+      to:      email,
+      subject: `You've claimed "${name}" on Strategic Flow Directory ✓`,
+      html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
+        <h2 style="color:#00d4c8;">Listing claimed!</h2>
+        <p>You're now the verified owner of <strong>${name}</strong> on the Strategic Flow directory.</p>
+        <p>You can now update your description and screenshot directly on your listing card. You'll also receive an email when your listing gets its first vote.</p>
+        <p><a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">View your listing →</a></p>
+      </div>`
+    }).catch(() => {});
+
+    console.log(`[dir-claim] verified: ${email} owns listing ${listing_id}`);
+    res.json({ ok: true, edit_token: editToken });
+  } catch(err) {
+    console.error('[dir-claim/verify]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── POST /api/directory/claim/edit ────────────────────────────────────────────
+app.post('/api/directory/claim/edit', async (req, res) => {
+  const { listing_id, email, edit_token, description, image_url } = req.body || {};
+  if (!listing_id || !email || !edit_token)
+    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+
+  try {
+    const claim = await pool.query(
+      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
+      [listing_id, email.toLowerCase(), edit_token]
+    );
+    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+
+    const updates = [];
+    const params  = [];
+    if (description && description.trim()) {
+      params.push(description.trim().slice(0, 400));
+      updates.push(`owner_description=$${params.length}`);
+    }
+    if (image_url && image_url.startsWith('http')) {
+      params.push(image_url.trim().slice(0, 500));
+      updates.push(`owner_image_url=$${params.length}`);
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+
+    params.push(listing_id);
+    await pool.query(
+      `UPDATE directory_listings SET ${updates.join(',')} WHERE id=$${params.length}`,
+      params
+    );
+
+    console.log(`[dir-claim/edit] listing ${listing_id} updated by owner`);
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-claim/edit]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── Directory badges ──────────────────────────────────────────────────────────
+const DIR_BADGE = {
+  dark: (title = 'Listed on Strategic Flow') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
+  <title>${title}</title>
+  <defs>
+    <linearGradient id="sfbgd" x1="0" y1="0" x2="200" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f2035"/>
+      <stop offset="100%" stop-color="#0a1628"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="44" rx="22" fill="#00d4c8" fill-opacity="0.07"/>
+  <rect x="1" y="1" width="198" height="42" rx="21" fill="url(#sfbgd)"/>
+  <rect x="1" y="1" width="198" height="42" rx="21" fill="none" stroke="#00d4c8" stroke-width="1.2" stroke-opacity="0.45"/>
+  <rect x="8" y="1.6" width="80" height="0.8" rx="0.4" fill="#00d4c8" fill-opacity="0.18"/>
+  <circle cx="20" cy="22" r="7" fill="none" stroke="#00d4c8" stroke-width="1">
+    <animate attributeName="r" values="5;9;5" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-opacity" values="0.6;0;0.6" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="20" cy="22" r="4" fill="#00d4c8"/>
+  <line x1="34" y1="12" x2="34" y2="32" stroke="#00d4c8" stroke-width="0.8" stroke-opacity="0.25"/>
+  <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7.5" font-weight="400" fill="#7a9ab8" letter-spacing="1.8">LISTED ON</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="500" fill="#ffffff" letter-spacing="0.2">Strategic Flow</text>
+</svg>`,
+  light: (title = 'Listed on Strategic Flow') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
+  <title>${title}</title>
+  <rect width="200" height="44" rx="22" fill="#f8fafc"/>
+  <rect x="0.5" y="0.5" width="199" height="43" rx="21.5" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+  <rect x="0.5" y="0.5" width="199" height="43" rx="21.5" fill="none" stroke="#00b4aa" stroke-width="1.2" stroke-opacity="0.4"/>
+  <rect x="7" y="1.6" width="72" height="0.8" rx="0.4" fill="#00b4aa" fill-opacity="0.25"/>
+  <circle cx="20" cy="22" r="7" fill="none" stroke="#00b4aa" stroke-width="1">
+    <animate attributeName="r" values="5;9;5" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="stroke-opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="20" cy="22" r="4" fill="#00b4aa"/>
+  <line x1="34" y1="12" x2="34" y2="32" stroke="#00b4aa" stroke-width="0.8" stroke-opacity="0.28"/>
+  <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7.5" font-weight="400" fill="#94a3b8" letter-spacing="1.8">LISTED ON</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="600" fill="#0a1628" letter-spacing="0.2">Strategic Flow</text>
+</svg>`,
+};
+
+app.get('/api/directory/badge/:variant.svg', (req, res) => {
+  const variant = req.params.variant === 'light' ? 'light' : 'dark';
+  const title   = (req.query.name ? `${req.query.name} — Listed on Strategic Flow` : 'Listed on Strategic Flow').replace(/[<>&"]/g, '');
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(DIR_BADGE[variant](title));
+});
+
+// Per-listing badge (same SVG but looks up the product name)
+app.get('/api/directory/badge/:id/:variant.svg', async (req, res) => {
+  const variant = req.params.variant === 'light' ? 'light' : 'dark';
+  let title = 'Listed on Strategic Flow';
+  try {
+    const r = await pool.query('SELECT name FROM directory_listings WHERE id=$1', [parseInt(req.params.id, 10)]);
+    if (r.rows[0]?.name) title = `${r.rows[0].name} — Listed on Strategic Flow`;
+  } catch {}
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(DIR_BADGE[variant](title.replace(/[<>&"]/g, '')));
+});
+
+app.get('/badge-kit', (req, res) => res.sendFile(path.join(__dirname, 'public/badge-kit.html')));
+
 app.get('/scorecard', (req, res) => res.sendFile(path.join(__dirname, 'public/scorecard.html')));
 app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/assessment.html')));
 app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-email-architecture-study.html')));
@@ -1228,7 +1704,163 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] magic_tokens:', e.message));
 
+  // ── Product Directory ──────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_listings (
+      id            SERIAL PRIMARY KEY,
+      name          TEXT NOT NULL,
+      url           TEXT NOT NULL UNIQUE,
+      category      TEXT DEFAULT 'General',
+      description   TEXT,
+      friction_score INTEGER,
+      score_pending BOOLEAN DEFAULT FALSE,
+      submitter_email TEXT,
+      status        TEXT DEFAULT 'active',
+      is_seeded     BOOLEAN DEFAULT FALSE,
+      submitted_at  TIMESTAMPTZ DEFAULT NOW(),
+      scored_at     TIMESTAMPTZ
+    )
+  `).catch(e => console.error('[DB] directory_listings:', e.message));
+
+  // Add new aggregation columns (idempotent — safe to run on existing DB)
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS source          TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS source_url      TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS image_url       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS source_id       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS is_auto_imported BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS vote_count     INTEGER DEFAULT 0`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS featured_tier  TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS claimed_by        TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS claimed_at        TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_description TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url   TEXT`).catch(()=>{});
+
+  // ── Voting + featured placements tables ──────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_votes (
+      id         SERIAL PRIMARY KEY,
+      listing_id INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      voter_hash TEXT    NOT NULL,
+      voted_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(listing_id, voter_hash)
+    )
+  `).catch(e => console.error('[DB] dir_votes:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_featured (
+      id                SERIAL PRIMARY KEY,
+      listing_id        INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      tier              TEXT    NOT NULL,
+      stripe_session_id TEXT    UNIQUE,
+      payer_email       TEXT,
+      starts_at         TIMESTAMPTZ DEFAULT NOW(),
+      expires_at        TIMESTAMPTZ NOT NULL,
+      is_active         BOOLEAN DEFAULT TRUE
+    )
+  `).catch(e => console.error('[DB] dir_featured:', e.message));
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_listing ON dir_votes(listing_id)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_voted_at ON dir_votes(voted_at)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS dir_featured_active ON dir_featured(is_active, expires_at)`).catch(()=>{});
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_claims (
+      id              SERIAL PRIMARY KEY,
+      listing_id      INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      owner_email     TEXT    NOT NULL,
+      otp             TEXT    NOT NULL,
+      otp_expires_at  TIMESTAMPTZ NOT NULL,
+      edit_token      TEXT,
+      verified_at     TIMESTAMPTZ,
+      is_verified     BOOLEAN DEFAULT FALSE,
+      created_at      TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(listing_id, owner_email)
+    )
+  `).catch(e => console.error('[DB] dir_claims:', e.message));
+
+  // Seed with real products
+  const _dirSeed = [
+    { name:'SiliForm',          url:'https://siliform.com',           category:'AI Tools',        score:4, desc:'Conversational AI form builder that presents one question at a time and adapts follow-up questions based on prior answers.' },
+    { name:'Wispr Flow',        url:'https://wispr.flow',             category:'Productivity',    score:3, desc:'Voice dictation tool that transcribes speech into text across any app, with tone-matching and voice command support.' },
+    { name:'Resumost',          url:'https://resumost.com',           category:'AI Tools',        score:5, desc:'AI-powered tool that tailors resumes and cover letters to match specific job postings, improving application relevance.' },
+    { name:'Any2URL',           url:'https://any2url.com',            category:'Developer Tools', score:6, desc:'Converts images into shareable, persistently hosted URLs with a single upload step.' },
+    { name:'SubSaver',          url:'https://subsaver.app',           category:'Finance',         score:4, desc:'Compares official versus shared subscription pricing across 27+ services to help users identify savings on recurring costs.' },
+    { name:'4todo',             url:'https://4todo.app',              category:'Productivity',    score:3, desc:'Priority-focused task app built on the Eisenhower Matrix to help users decide what to act on, schedule, delegate, or drop.' },
+    { name:'Needle',            url:'https://needle.so',              category:'Marketing',       score:5, desc:'Market research tool for finding target customers and generating actionable insights from structured conversations.' },
+    { name:'EcomToolAI',        url:'https://ecomtoolai.com',         category:'Directories',     score:6, desc:'Curated AI tool directory built specifically for e-commerce product and growth teams.' },
+    { name:'Distro',            url:'https://distro.ai',              category:'Marketing',       score:4, desc:'AI distribution platform for B2B teams that publishes content and surfaces active buyer conversations across social channels.' },
+    { name:'SocialKit',         url:'https://socialkit.so',           category:'Social Media',    score:5, desc:'Social media scheduling dashboard that publishes to 11 platforms simultaneously from a single interface.' },
+    { name:'ASO Agency',        url:'https://aso.agency',             category:'Marketing',       score:5, desc:'App store optimization agency focused on improving organic rankings and install volume for iOS and Android apps.' },
+    { name:'Shipybara',         url:'https://shipybara.com',          category:'Directories',     score:7, desc:'Platform to discover and upvote newly launched tech products, focused on indie and early-stage tools.' },
+    { name:'ProductLaunchify',  url:'https://productlaunchify.com',   category:'Directories',     score:6, desc:'Community launch platform where indie makers showcase new products and collect early-stage feedback.' },
+    { name:'Launchy',           url:'https://launchy.so',             category:'Directories',     score:5, desc:'Weekly curated directory of new product launches for indie hackers and early-stage SaaS founders.' },
+    { name:'MEDIAPRONET',       url:'https://mediapronet.com',        category:'Directories',     score:7, desc:'Startup discovery platform aggregating newly launched SaaS tools, apps, and side projects.' },
+    { name:'TechTitans.Cloud',  url:'https://techtitans.cloud',       category:'Education',       score:6, desc:'All-in-one digital ecosystem offering online learning and career development resources for tech professionals.' },
+    { name:'Autovirality',      url:'https://autovirality.com',       category:'Social Media',    score:5, desc:'Generates and auto-publishes short-form video content across TikTok, Instagram Reels, YouTube Shorts, and LinkedIn.' }
+  ];
+  for (const s of _dirSeed) {
+    await pool.query(
+      `INSERT INTO directory_listings (name, url, category, description, friction_score, is_seeded, status)
+       VALUES ($1,$2,$3,$4,$5,TRUE,'active') ON CONFLICT (url) DO NOTHING`,
+      [s.name, s.url, s.category, s.desc, s.score]
+    ).catch(() => {});
+  }
+
   console.log('[DB] All tables ready');
+}
+
+// ─── DIRECTORY FRICTION SCORING ──────────────────────────────────────────────
+async function computeDirectoryFrictionScore(id, url) {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 12000);
+    const resp = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow-DFM/1.0 +https://strategic-flow-audit.replit.app/directory)' }
+    }).catch(() => null);
+    clearTimeout(tid);
+    if (!resp || !resp.ok) {
+      await pool.query('UPDATE directory_listings SET score_pending=FALSE WHERE id=$1', [id]);
+      return;
+    }
+    const html = await resp.text().catch(() => '');
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 3000);
+    if (!text || text.length < 30) {
+      await pool.query('UPDATE directory_listings SET score_pending=FALSE WHERE id=$1', [id]);
+      return;
+    }
+    const result = await claudeJSON(
+      `Score this landing page on the Decision Friction Model. Respond ONLY with JSON.
+Friction score 1–10: 1=crystal-clear zero friction; 10=confusing high friction.
+Evaluate: headline clarity, value-prop specificity, social proof, CTA clarity, cognitive load.
+
+Page text:
+${text}
+
+JSON only: {"friction_score":<integer 1-10>,"verdict":"<one sentence max 100 chars>"}`,
+      400, 'dir-score'
+    );
+    if (result && typeof result.friction_score === 'number') {
+      const score = Math.min(10, Math.max(1, Math.round(result.friction_score)));
+      await pool.query(
+        'UPDATE directory_listings SET friction_score=$1, score_pending=FALSE, scored_at=NOW() WHERE id=$2',
+        [score, id]
+      );
+      console.log(`[directory] scored id=${id} score=${score}/10`);
+    } else {
+      await pool.query('UPDATE directory_listings SET score_pending=FALSE WHERE id=$1', [id]);
+    }
+  } catch (err) {
+    console.error(`[directory] score error id=${id}:`, err.message);
+    await pool.query('UPDATE directory_listings SET score_pending=FALSE WHERE id=$1', [id]).catch(() => {});
+  }
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -5723,6 +6355,13 @@ app.post('/webhook/stripe', async (req, res) => {
   res.json({ received: true });
 
   try {
+    // ── 0. Directory paid placements — checked first ───────────────────────
+    if (event.type === 'checkout.session.completed' &&
+        event.data.object.metadata?.source === 'directory') {
+      await handleDirectoryPayment(event.data.object);
+      return;
+    }
+
     // ── 1. checkout.session.completed ──────────────────────────────────────
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -12092,6 +12731,37 @@ ${content}
   const server = app.listen(PORT, '0.0.0.0', () => console.log(`[server] Strategic Flow ready on :${PORT} — model: ${MODEL}`));
   server.timeout = 180000;
   server.keepAliveTimeout = 180000;
+
+  // ── Hourly: expire featured directory placements ───────────────────────
+  cron.schedule('0 * * * *', () => expireFeaturedListings().catch(()=>{}));
+  // Run once at startup too
+  expireFeaturedListings().catch(()=>{});
+
+  // ── Weekly directory aggregation (Sunday 03:00) ────────────────────────────
+  cron.schedule('0 3 * * 0', async () => {
+    console.log('[cron] Weekly directory aggregation starting…');
+    try {
+      const stats = await runAggregation(pool);
+      console.log(`[cron] Aggregation done. New: ${stats.new}, Sources:`, stats.sources);
+    } catch(e) { console.error('[cron] Aggregation error:', e.message); }
+  });
+
+  // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
+  cron.schedule('0 4 * * *', async () => {
+    console.log('[cron] Daily batch friction scoring…');
+    try {
+      const r = await pool.query(
+        `SELECT id, url FROM directory_listings
+         WHERE score_pending = TRUE AND status='active' AND scored_at IS NULL
+         ORDER BY submitted_at ASC LIMIT 20`
+      );
+      for (const row of r.rows) {
+        await computeDirectoryFrictionScore(row.id, row.url).catch(()=>{});
+        await new Promise(res => setTimeout(res, 3000)); // 3s between API calls
+      }
+      console.log(`[cron] Scored ${r.rows.length} listings.`);
+    } catch(e) { console.error('[cron] Batch scorer error:', e.message); }
+  });
 
   // Keep-alive ping every 4 minutes
   if (process.env.APP_URL) {

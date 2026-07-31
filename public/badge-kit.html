@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Badge Kit — Strategic Flow Directory</title>
+<meta name="description" content="Embed the Strategic Flow 'Listed on' badge on your website, README, or product page." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a1628;--bg2:#0f2035;--bg3:#122440;
+  --border:#1a3050;--border2:rgba(0,212,200,0.18);
+  --teal:#00d4c8;--teal-dim:rgba(0,212,200,0.10);
+  --text:#ffffff;--muted:#7a9ab8;
+  --font:'Inter',sans-serif;--mono:'DM Mono',monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-back{font-size:12px;font-family:var(--mono);color:var(--muted);transition:color .2s;}
+.nav-back:hover{color:var(--teal);}
+
+.page{max-width:820px;margin:0 auto;padding:56px 40px 80px;}
+
+.hero-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);border:1px solid var(--border2);padding:5px 14px;border-radius:20px;margin-bottom:24px;}
+h1{font-size:clamp(24px,4vw,36px);font-weight:800;letter-spacing:-.02em;margin-bottom:10px;line-height:1.2;}
+.sub{font-size:15px;color:var(--muted);max-width:520px;margin-bottom:48px;}
+
+/* PREVIEW SECTION */
+.preview-section{margin-bottom:48px;}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.badges-row{display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap;margin-bottom:12px;}
+.badge-preview-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}
+.badge-variant-label{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;}
+.badge-preview-dark{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:center;}
+.badge-preview-light{background:#f0f4f8;border:1px solid #d1d9e0;border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:center;}
+.badge-preview-card img{display:block;}
+
+/* EMBED SECTION */
+.embed-section{margin-bottom:40px;}
+.embed-tabs{display:flex;gap:4px;margin-bottom:16px;}
+.embed-tab{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .2s;}
+.embed-tab:hover,.embed-tab.active{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);}
+
+.embed-block{display:none;}
+.embed-block.active{display:block;}
+
+.code-wrap{position:relative;background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.code-wrap pre{padding:16px 20px;font-family:var(--mono);font-size:12px;color:#e2e8f0;white-space:pre-wrap;word-break:break-all;line-height:1.6;overflow-x:auto;margin-right:80px;}
+.copy-btn{position:absolute;top:10px;right:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;font-family:var(--mono);color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.copy-btn:hover{border-color:var(--teal);color:var(--teal);}
+.copy-btn.copied{border-color:#22c55e;color:#22c55e;}
+
+.variant-toggle{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.variant-toggle span{font-size:11px;font-family:var(--mono);color:var(--muted);}
+.vtoggle-btn{padding:4px 12px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .2s;}
+.vtoggle-btn.active{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);}
+
+/* PNG DOWNLOAD */
+.dl-section{margin-bottom:48px;}
+.dl-row{display:flex;gap:12px;flex-wrap:wrap;}
+.dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;transition:all .2s;}
+.dl-btn:hover{border-color:var(--teal);color:var(--teal);}
+.dl-note{font-size:11px;color:var(--muted);margin-top:10px;}
+
+/* USAGE TIPS */
+.tips-section{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px 28px;}
+.tips-title{font-size:13px;font-weight:700;margin-bottom:14px;}
+.tips-list{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.tips-list li{font-size:13px;color:var(--muted);display:flex;align-items:flex-start;gap:8px;}
+.tips-list li::before{content:'→';color:var(--teal);flex-shrink:0;margin-top:1px;}
+
+@media(max-width:600px){
+  .nav{padding:14px 20px;}
+  .page{padding:36px 20px 60px;}
+  .badges-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">
+    <span class="nav-dot"></span>
+    Strategic Flow
+  </div>
+  <a href="/directory" class="nav-back">← Back to Directory</a>
+</nav>
+
+<div class="page">
+  <div class="hero-tag">
+    <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;"></span>
+    Badge Kit
+  </div>
+  <h1>Your "Listed on Strategic Flow" badge</h1>
+  <p class="sub">Show the badge on your website, README, or product page. Completely optional — no installation required to stay listed or vote-eligible.</p>
+
+  <!-- LIVE PREVIEW -->
+  <div class="preview-section">
+    <div class="section-label">Live preview</div>
+    <div class="badges-row">
+      <div class="badge-preview-card">
+        <div class="badge-variant-label">Dark <span style="opacity:.5;">(for dark backgrounds)</span></div>
+        <div class="badge-preview-dark">
+          <img id="prevDark" src="/api/directory/badge/dark.svg" alt="Listed on Strategic Flow" width="200" height="44" />
+        </div>
+      </div>
+      <div class="badge-preview-card">
+        <div class="badge-variant-label">Light <span style="opacity:.5;">(for light backgrounds)</span></div>
+        <div class="badge-preview-light">
+          <img id="prevLight" src="/api/directory/badge/light.svg" alt="Listed on Strategic Flow" width="200" height="44" />
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);font-family:var(--mono);">● pulsing dot is live — the badge animates when embedded</p>
+  </div>
+
+  <!-- EMBED CODES -->
+  <div class="embed-section">
+    <div class="section-label">Embed code</div>
+    <div class="embed-tabs">
+      <button class="embed-tab active" data-tab="html-dark">HTML · Dark</button>
+      <button class="embed-tab" data-tab="html-light">HTML · Light</button>
+      <button class="embed-tab" data-tab="md-dark">Markdown · Dark</button>
+      <button class="embed-tab" data-tab="md-light">Markdown · Light</button>
+    </div>
+
+    <div class="embed-block active" id="tab-html-dark">
+      <div class="code-wrap">
+        <pre id="code-html-dark"></pre>
+        <button class="copy-btn" onclick="copyCode('code-html-dark', this)">Copy</button>
+      </div>
+    </div>
+    <div class="embed-block" id="tab-html-light">
+      <div class="code-wrap">
+        <pre id="code-html-light"></pre>
+        <button class="copy-btn" onclick="copyCode('code-html-light', this)">Copy</button>
+      </div>
+    </div>
+    <div class="embed-block" id="tab-md-dark">
+      <div class="code-wrap">
+        <pre id="code-md-dark"></pre>
+        <button class="copy-btn" onclick="copyCode('code-md-dark', this)">Copy</button>
+      </div>
+    </div>
+    <div class="embed-block" id="tab-md-light">
+      <div class="code-wrap">
+        <pre id="code-md-light"></pre>
+        <button class="copy-btn" onclick="copyCode('code-md-light', this)">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PNG DOWNLOAD -->
+  <div class="dl-section">
+    <div class="section-label">Download PNG <span style="font-size:10px;opacity:.6;">(2× retina, 400×88px)</span></div>
+    <div class="dl-row">
+      <button class="dl-btn" onclick="downloadPNG('dark')">↓ Dark badge PNG</button>
+      <button class="dl-btn" onclick="downloadPNG('light')">↓ Light badge PNG</button>
+    </div>
+    <p class="dl-note">PNGs are generated client-side from the SVG at 2× resolution. SVG is recommended for websites; PNG works in contexts that don't support SVG (e.g. some email footers).</p>
+  </div>
+
+  <!-- TIPS -->
+  <div class="tips-section">
+    <div class="tips-title">Where makers put the badge</div>
+    <ul class="tips-list">
+      <li>Footer of your product's landing page alongside other "featured on" badges</li>
+      <li>GitHub README — use the Markdown snippet, it renders with the animation</li>
+      <li>Your personal site's "built things" or portfolio section</li>
+      <li>Notion pages, product docs, or your maker profile</li>
+      <li>Email signature (use the PNG variant for broadest compatibility)</li>
+    </ul>
+  </div>
+
+  <canvas id="pngCanvas" style="display:none;" width="400" height="88"></canvas>
+</div>
+
+<script>
+(function(){
+  // Read listing ID from ?id=
+  const params  = new URLSearchParams(location.search);
+  const listingId = params.get('id') || '';
+  const BASE    = 'https://strategic-flow-audit.replit.app';
+
+  // Relative URLs for live preview (works on any host)
+  const darkRelUrl  = listingId
+    ? `/api/directory/badge/${listingId}/dark.svg`
+    : `/api/directory/badge/dark.svg`;
+  const lightRelUrl = listingId
+    ? `/api/directory/badge/${listingId}/light.svg`
+    : `/api/directory/badge/light.svg`;
+
+  // Absolute URLs for embed codes (copied to external sites)
+  const darkUrl  = listingId
+    ? `${BASE}/api/directory/badge/${listingId}/dark.svg`
+    : `${BASE}/api/directory/badge/dark.svg`;
+  const lightUrl = listingId
+    ? `${BASE}/api/directory/badge/${listingId}/light.svg`
+    : `${BASE}/api/directory/badge/light.svg`;
+
+  // Destination link
+  const destUrl = `${BASE}/directory`;
+
+  // Update live previews using relative URLs
+  document.getElementById('prevDark').src  = darkRelUrl;
+  document.getElementById('prevLight').src = lightRelUrl;
+
+  // Build embed codes
+  function htmlEmbed(imgUrl, variant) {
+    return `<a href="${destUrl}" target="_blank" rel="noopener">\n  <img\n    src="${imgUrl}"\n    alt="Listed on Strategic Flow"\n    width="200"\n    height="44"\n  />\n</a>`;
+  }
+  function mdEmbed(imgUrl) {
+    return `[![Listed on Strategic Flow](${imgUrl})](${destUrl})`;
+  }
+
+  document.getElementById('code-html-dark').textContent  = htmlEmbed(darkUrl,  'dark');
+  document.getElementById('code-html-light').textContent = htmlEmbed(lightUrl, 'light');
+  document.getElementById('code-md-dark').textContent    = mdEmbed(darkUrl);
+  document.getElementById('code-md-light').textContent   = mdEmbed(lightUrl);
+
+  // Tab switching
+  document.querySelectorAll('.embed-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.embed-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.embed-block').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Copy button
+  window.copyCode = function(id, btn) {
+    const text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      // Fallback for insecure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  };
+
+  // PNG download (client-side SVG→canvas→PNG)
+  window.downloadPNG = async function(variant) {
+    const svgUrl = variant === 'light' ? lightUrl : darkUrl;
+    try {
+      const r   = await fetch(svgUrl);
+      const svg = await r.text();
+      // Encode as data URI (avoids tainted canvas)
+      const b64 = btoa(unescape(encodeURIComponent(svg)));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.getElementById('pngCanvas');
+        const ctx    = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 400, 88);
+        ctx.scale(2, 2);
+        ctx.drawImage(img, 0, 0, 200, 44);
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // reset scale
+        const link = document.createElement('a');
+        link.download = `sf-directory-badge-${variant}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      img.onerror = () => alert('PNG generation failed — please right-click the badge preview and save as image instead.');
+      img.src = `data:image/svg+xml;base64,${b64}`;
+    } catch(e) {
+      alert('Could not download PNG: ' + e.message);
+    }
+  };
+})();
+</script>
+</body>
+</html>
