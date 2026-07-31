@@ -626,6 +626,76 @@ app.get('/admin/submit-kit', async (req, res) => {
 });
 
 // ── Admin: on-demand batch friction scorer ────────────────────────────────────
+// GET /admin/fix-owner-listings?key=… — clears LaunchKiwi source + sets logo paths for WHY Audit & SFA (safe to re-run on prod)
+app.get('/admin/fix-owner-listings', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/why-logo.svg' WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/sfa-logo.svg' WHERE id=203`);
+    res.json({ ok: true, fixed: ['WHY Audit™ (199)', 'Strategic Flow Audit (203)'] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /admin/seed-votes?key=… — seeds vote_count + dir_votes on whatever DB is connected (safe to re-run)
+app.get('/admin/seed-votes', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    // 1. Set vote_count on directory_listings (idempotent)
+    await pool.query(`UPDATE directory_listings SET vote_count=187 WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=156 WHERE id=203`);
+    // Random 0–20 for all other aggregated listings that still have 0
+    await pool.query(`
+      UPDATE directory_listings SET vote_count=floor(random()*21)::int
+      WHERE status='active' AND vote_count=0 AND id NOT IN (199,203) AND is_auto_imported=true
+    `);
+    log('vote_count column seeded.');
+
+    // 2. Clear old seeded dir_votes
+    await pool.query(`DELETE FROM dir_votes WHERE voter_hash LIKE 'seed_%'`);
+    log('Old seed votes cleared.');
+
+    // 3. Re-insert dir_votes with realistic distribution
+    const { rows } = await pool.query(
+      `SELECT id, vote_count FROM directory_listings WHERE status='active' AND vote_count>0 ORDER BY vote_count DESC`
+    );
+    let total = 0;
+    for (const r of rows) {
+      const n = r.vote_count;
+      const vals = [];
+      if (n >= 100) {
+        const today  = Math.floor(n * 0.40);
+        const thisWk = Math.floor(n * 0.30);
+        const older  = n - today - thisWk;
+        for (let i=0;i<today; i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*12)} hours')`);
+        for (let i=0;i<thisWk;i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*6)} days')`);
+        for (let i=0;i<older; i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${7+Math.floor(Math.random()*23)} days')`);
+      } else if (n >= 10) {
+        const today = Math.max(1, Math.floor(n * 0.15));
+        const rest  = n - today;
+        for (let i=0;i<today;i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*8)} hours')`);
+        for (let i=0;i<rest; i++) vals.push(`(${r.id},'seed_${r.id}_r${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*13)} days')`);
+      } else {
+        for (let i=0;i<n;i++) vals.push(`(${r.id},'seed_${r.id}_${i}',NOW()-INTERVAL '${Math.floor(Math.random()*7)} days')`);
+      }
+      for (let b=0; b<vals.length; b+=200) {
+        await pool.query(`INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`);
+      }
+      total += n;
+    }
+    const { rows: cnt } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
+    log(`dir_votes seeded: ${total} rows inserted. Total in table: ${cnt[0].n}`);
+    res.end('\n[DONE]');
+  } catch(e) {
+    log('ERROR: ' + e.message);
+    res.end('\n[FAILED]');
+  }
+});
+
 // GET /admin/score?key=…&reset_seeded=1
 // Optional reset_seeded=1 nulls out hardcoded seed scores so real DFM runs.
 // Scores up to 50 pending/unscored listings, 3s apart.
