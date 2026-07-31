@@ -47,9 +47,35 @@ a:hover{text-decoration:underline;}
 .dir-stat-num{font-size:24px;font-weight:800;color:var(--teal);}
 .dir-stat-label{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
 
-/* FEATURED SPOTLIGHT */
-.dir-featured-section{padding:0 40px 32px;}
-.dir-featured-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+/* PROMOTED PREMIUM — owner's spotlight, always after hero */
+.dir-promoted-wrap{padding:0 40px 32px;}
+.dir-promoted-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.dir-promoted-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;background:rgba(167,139,250,0.10);border:1px solid rgba(167,139,250,0.3);font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--purple);font-weight:600;}
+.dir-promoted-pill-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 2s infinite;flex-shrink:0;}
+.dir-promoted-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.dir-promoted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;}
+.dir-promoted-card{background:linear-gradient(135deg,rgba(167,139,250,0.09),rgba(167,139,250,0.02),rgba(10,22,40,0));border:1px solid rgba(167,139,250,0.28);border-radius:14px;padding:22px 24px;display:flex;gap:18px;position:relative;overflow:hidden;transition:border-color .2s;}
+.dir-promoted-card:hover{border-color:rgba(167,139,250,0.5);}
+.dir-promoted-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),rgba(167,139,250,0.3),transparent);}
+.dir-promoted-logo{width:60px;height:60px;border-radius:12px;object-fit:cover;border:1px solid rgba(167,139,250,0.2);flex-shrink:0;background:rgba(167,139,250,0.08);}
+.dir-promoted-logo-fb{width:60px;height:60px;border-radius:12px;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;font-family:var(--mono);color:var(--purple);letter-spacing:-.02em;}
+.dir-promoted-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.dir-promoted-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.dir-promoted-name{font-size:17px;font-weight:800;color:#fff;line-height:1.2;}
+.dir-promoted-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.3);font-size:9px;font-family:var(--mono);color:var(--purple);font-weight:700;letter-spacing:.08em;white-space:nowrap;flex-shrink:0;}
+.dir-promoted-cat{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
+.dir-promoted-desc{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.55;}
+.dir-promoted-perks{list-style:none;display:flex;flex-direction:column;gap:4px;padding:0;}
+.dir-promoted-perks li{font-size:11px;color:var(--muted);display:flex;align-items:flex-start;gap:7px;line-height:1.4;}
+.dir-promoted-perks li::before{content:'✓';color:var(--purple);flex-shrink:0;font-weight:700;margin-top:1px;}
+.dir-promoted-footer{display:flex;align-items:center;gap:10px;margin-top:2px;flex-wrap:wrap;}
+.dir-promoted-cta{display:inline-flex;align-items:center;gap:6px;background:var(--purple);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;transition:opacity .2s;font-family:var(--mono);}
+.dir-promoted-cta:hover{opacity:.82;text-decoration:none;color:#fff;}
+.dir-promoted-votes{display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);color:var(--muted);}
+
+/* FEATURED SPOTLIGHT — paid weekly/daily placements */
+.dir-featured-section{padding:0 40px 28px;}
+.dir-featured-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .dir-featured-title{font-size:11px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);}
 .dir-featured-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite;}
 .dir-featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
@@ -65,6 +91,13 @@ a:hover{text-decoration:underline;}
 .dir-featured-link{font-size:11px;font-weight:600;font-family:var(--mono);color:var(--gold);transition:opacity .2s;}
 .dir-featured-link:hover{opacity:.8;text-decoration:none;}
 .dir-featured-votes{display:flex;align-items:center;gap:4px;font-size:11px;font-family:var(--mono);color:var(--muted);}
+
+/* TIER PERKS in boost modal */
+.tier-perks{list-style:none;padding:0;margin:7px 0 0;display:flex;flex-direction:column;gap:3px;}
+.tier-perks li{font-size:10px;color:var(--muted);display:flex;align-items:flex-start;gap:5px;line-height:1.35;}
+.tier-perks li::before{content:'✓';color:var(--teal);flex-shrink:0;font-weight:700;}
+.tier-option.selected .tier-perks li{color:rgba(255,255,255,0.65);}
+.tier-option.selected .tier-perks li::before{color:var(--teal);}
 
 /* LEADERBOARD */
 .dir-leaderboard-section{padding:0 40px 36px;}
@@ -253,7 +286,10 @@ a:hover{text-decoration:underline;}
   .dir-form-row{grid-template-columns:1fr;}
   .dir-submit-section{padding:40px 20px;}
   .dir-footer{padding:28px 20px;}
-  .dir-featured-section,.dir-leaderboard-section{padding-left:20px;padding-right:20px;}
+  .dir-promoted-wrap,.dir-featured-section,.dir-leaderboard-section{padding-left:20px;padding-right:20px;}
+  .dir-promoted-grid{grid-template-columns:1fr;}
+  .dir-promoted-card{flex-direction:column;gap:14px;}
+  .dir-promoted-logo,.dir-promoted-logo-fb{width:48px;height:48px;}
   .modal-box{padding:24px 20px;}
 }
 </style>
@@ -298,11 +334,23 @@ a:hover{text-decoration:underline;}
   </div>
 </section>
 
-<!-- FEATURED SPOTLIGHT (populated if any featured listings exist) -->
+<!-- PROMOTED PREMIUM — owner's apps, always visible after hero -->
+<div class="dir-promoted-wrap" id="promotedSection" style="display:none;">
+  <div class="dir-promoted-header">
+    <span class="dir-promoted-pill">
+      <span class="dir-promoted-pill-dot"></span>
+      💎 Promoted Premium
+    </span>
+    <span class="dir-promoted-sub">By the creators of ToolIndex</span>
+  </div>
+  <div class="dir-promoted-grid" id="promotedGrid"></div>
+</div>
+
+<!-- FEATURED SPOTLIGHT — paid weekly/daily placements -->
 <div class="dir-featured-section" id="featuredSection" style="display:none;">
   <div class="dir-featured-header">
     <span class="dir-featured-dot"></span>
-    <span class="dir-featured-title">Featured Spotlight</span>
+    <span class="dir-featured-title">⭐ Featured Spotlight</span>
   </div>
   <div class="dir-featured-grid" id="featuredGrid"></div>
 </div>
@@ -476,11 +524,18 @@ a:hover{text-decoration:underline;}
     <div class="modal-sub">Choose a placement tier. Payment via Stripe — secure, one-time charge.</div>
 
     <div class="tier-options" id="tierOptions">
+
       <div class="tier-option selected" data-tier="weekly_feature" onclick="selectTier(this)">
         <div class="tier-radio"></div>
         <div class="tier-info">
-          <div class="tier-name">Weekly Feature</div>
-          <div class="tier-desc">Featured spotlight section for 14 days</div>
+          <div class="tier-name">⭐ Weekly Feature</div>
+          <div class="tier-desc">14-day spotlight above the main directory grid</div>
+          <ul class="tier-perks">
+            <li>Shown in the "Featured Spotlight" band — seen by every visitor</li>
+            <li>Gold border on your card in all search &amp; filter results</li>
+            <li>⭐ Weekly Feature badge on your listing</li>
+            <li>Priority ranking in the grid for the full 14 days</li>
+          </ul>
         </div>
         <div class="tier-price-wrap">
           <span class="tier-price-orig">$20</span>
@@ -488,11 +543,18 @@ a:hover{text-decoration:underline;}
           <span class="tier-discount">50% OFF</span>
         </div>
       </div>
+
       <div class="tier-option" data-tier="premium" onclick="selectTier(this)">
         <div class="tier-radio"></div>
         <div class="tier-info">
-          <div class="tier-name">Premium Listing</div>
-          <div class="tier-desc">Premium badge + priority placement for 30 days</div>
+          <div class="tier-name">💎 Premium Listing</div>
+          <div class="tier-desc">30-day top-priority placement with Premium badge</div>
+          <ul class="tier-perks">
+            <li>Purple 💎 Premium badge — stands out across every category filter</li>
+            <li>Top-3 position in the grid for 30 full days</li>
+            <li>Shown first in every category &amp; search result</li>
+            <li>Appears in the Featured Spotlight section throughout</li>
+          </ul>
         </div>
         <div class="tier-price-wrap">
           <span class="tier-price-orig">$30</span>
@@ -500,11 +562,18 @@ a:hover{text-decoration:underline;}
           <span class="tier-discount">50% OFF</span>
         </div>
       </div>
+
       <div class="tier-option" data-tier="daily_top" onclick="selectTier(this)">
         <div class="tier-radio"></div>
         <div class="tier-info">
-          <div class="tier-name">Daily Top Entry</div>
-          <div class="tier-desc">Skip the queue — today's top placement, instant</div>
+          <div class="tier-name">🔥 Daily Top Entry</div>
+          <div class="tier-desc">24-hour burst — #1 position, instant activation</div>
+          <ul class="tier-perks">
+            <li>Pinned to #1 in the main grid for the entire day</li>
+            <li>🔥 Daily Top badge — maximum visual contrast</li>
+            <li>First result in every category &amp; search for 24 hours</li>
+            <li>Instant — goes live as soon as payment clears</li>
+          </ul>
         </div>
         <div class="tier-price-wrap">
           <span class="tier-price-orig">$20</span>
@@ -512,6 +581,7 @@ a:hover{text-decoration:underline;}
           <span class="tier-discount">50% OFF</span>
         </div>
       </div>
+
     </div>
 
     <div class="modal-email-label">Your email (receipt + confirmation)</div>
@@ -679,34 +749,94 @@ document.querySelectorAll('.dir-lb-tab').forEach(btn=>{
   });
 });
 
+// ── Promoted Premium section (premium tier = owner's apps, always first) ──────
+const PROMOTED_PERKS = {
+  199: ['Uncovers real audience beliefs, fears, and objections',
+        'Generates psychographic profiles from any niche or product',
+        'Turns raw insights into ready-to-use copy frameworks',
+        'Used by marketers to write ads, emails, and landing pages faster'],
+  203: ['Paste any email or page — AI finds every friction point instantly',
+        'Detailed rewrite suggestions for each flagged issue',
+        'Covers clarity, trust signals, urgency, and CTA quality',
+        'Works on cold emails, newsletters, product launches, and more'],
+};
+
+function renderPromotedCard(l){
+  const domain=(()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return l.url;}})();
+  const initials=l.name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'??';
+  const logo = l.image_url
+    ? `<img class="dir-promoted-logo" src="${escHtml(l.image_url)}" alt="${escHtml(l.name)}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'" /><div class="dir-promoted-logo-fb" style="display:none;">${initials}</div>`
+    : `<div class="dir-promoted-logo-fb">${initials}</div>`;
+  const perks = (PROMOTED_PERKS[l.id]||[]).map(p=>`<li>${escHtml(p)}</li>`).join('');
+  return `<div class="dir-promoted-card">
+    ${logo}
+    <div class="dir-promoted-body">
+      <div class="dir-promoted-top">
+        <div class="dir-promoted-name">${escHtml(l.name)}</div>
+        <span class="dir-promoted-badge">💎 Promoted Premium</span>
+      </div>
+      <div class="dir-promoted-cat">${escHtml(l.category||'')}</div>
+      <div class="dir-promoted-desc">${escHtml((l.description||'').slice(0,180))}</div>
+      ${perks?`<ul class="dir-promoted-perks">${perks}</ul>`:''}
+      <div class="dir-promoted-footer">
+        <a href="${escHtml(l.url)}" class="dir-promoted-cta" target="_blank" rel="noopener">Try it free →</a>
+        <div class="dir-promoted-votes">▲ ${l.vote_count||0} upvotes</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── Featured spotlight ────────────────────────────────────────────────────────
 async function loadFeatured(){
   try{
-    const r = await fetch('/api/directory/featured');
-    const d = await r.json();
+    const r  = await fetch('/api/directory/featured');
+    const d  = await r.json();
     const items = d.listings||[];
-    const sec = document.getElementById('featuredSection');
-    if(items.length===0){ sec.style.display='none'; return; }
-    sec.style.display='block';
-    const grid = document.getElementById('featuredGrid');
-    grid.innerHTML = items.map(l=>{
-      const domain=(()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
-      const badgeLabel = BADGE_LABELS[l.featured_tier]||l.featured_tier;
-      const until = l.featured_until ? new Date(l.featured_until).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-      return `<div class="dir-featured-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(badgeLabel)}</span>
-          ${until?`<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">until ${until}</span>`:''}
-        </div>
-        <div class="dir-featured-name">${escHtml(l.name)}</div>
-        <div class="dir-featured-desc">${escHtml((l.description||'').slice(0,120))}</div>
-        <div class="dir-featured-footer">
-          <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener">Visit ${escHtml(domain)} →</a>
-          <div class="dir-featured-votes">▲ ${l.vote_count||0}</div>
-        </div>
-      </div>`;
-    }).join('');
-  }catch{ document.getElementById('featuredSection').style.display='none'; }
+
+    // Split: premium tier → promoted section, others → featured spotlight
+    const promoted = items.filter(l => l.featured_tier === 'premium');
+    const spotlight= items.filter(l => l.featured_tier !== 'premium');
+
+    // Promoted Premium section
+    const promSec = document.getElementById('promotedSection');
+    const promGrid = document.getElementById('promotedGrid');
+    if(promoted.length > 0){
+      promGrid.innerHTML = promoted.map(renderPromotedCard).join('');
+      promSec.style.display='block';
+    } else {
+      promSec.style.display='none';
+    }
+
+    // Featured Spotlight section (paid weekly/daily placements)
+    const featSec  = document.getElementById('featuredSection');
+    const featGrid = document.getElementById('featuredGrid');
+    if(spotlight.length > 0){
+      featSec.style.display='block';
+      featGrid.innerHTML = spotlight.map(l=>{
+        const domain=(()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
+        const badgeLabel = BADGE_LABELS[l.featured_tier]||l.featured_tier;
+        const until = l.featured_until && new Date(l.featured_until).getFullYear()<2099
+          ? new Date(l.featured_until).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+        return `<div class="dir-featured-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(badgeLabel)}</span>
+            ${until?`<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">until ${until}</span>`:''}
+          </div>
+          <div class="dir-featured-name">${escHtml(l.name)}</div>
+          <div class="dir-featured-desc">${escHtml((l.description||'').slice(0,120))}</div>
+          <div class="dir-featured-footer">
+            <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener">Visit ${escHtml(domain)} →</a>
+            <div class="dir-featured-votes">▲ ${l.vote_count||0}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      featSec.style.display='none';
+    }
+  }catch(e){
+    document.getElementById('promotedSection').style.display='none';
+    document.getElementById('featuredSection').style.display='none';
+  }
 }
 
 // ── Main listing grid ─────────────────────────────────────────────────────────

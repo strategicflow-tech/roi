@@ -455,6 +455,51 @@ app.get('/admin/aggregate', async (req, res) => {
   });
 });
 
+// ── Admin: set owner's apps as permanently promoted ───────────────────────────
+app.get('/admin/set-owner-promoted', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    // WHY Audit — ID 199
+    await pool.query(`
+      UPDATE directory_listings SET
+        name         = 'WHY Audit™',
+        url          = 'https://strategic-flow-audit.replit.app/why.html',
+        category     = 'Analytics',
+        description  = 'Psychographic research tool. Uncover the real beliefs, fears, and buying motivators of your target audience — then build messaging that actually converts.',
+        featured_tier  = 'premium',
+        featured_until = '2099-12-31 23:59:59+00',
+        is_auto_imported = FALSE,
+        status = 'active'
+      WHERE id = 199
+    `);
+    // Strategic Flow Audit — ID 203
+    await pool.query(`
+      UPDATE directory_listings SET
+        name         = 'Strategic Flow Audit',
+        url          = 'https://strategic-flow-audit.replit.app',
+        category     = 'Marketing',
+        description  = 'AI-powered email & digital friction audit. Paste any email or landing page and get a full teardown: friction points, copy flaws, and rewrite suggestions in seconds.',
+        featured_tier  = 'premium',
+        featured_until = '2099-12-31 23:59:59+00',
+        is_auto_imported = FALSE,
+        status = 'active'
+      WHERE id = 203
+    `);
+    // Fetch fresh logos for both
+    setImmediate(async () => {
+      for (const [id, url] of [[199,'https://strategic-flow-audit.replit.app/why.html'],[203,'https://strategic-flow-audit.replit.app']]) {
+        const logo = await fetchProductLogo(url).catch(()=>null);
+        if (logo) await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logo, id]).catch(()=>{});
+        console.log(`[owner-promoted] id=${id} logo=${logo||'none'}`);
+        await new Promise(r=>setTimeout(r,3000));
+      }
+    });
+    res.json({ ok: true, message: 'Both owner apps set as permanently featured premium.' });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Admin: retroactive logo fetcher ──────────────────────────────────────────
 // GET /admin/fetch-logos?key=… — fetches real logos for listings missing image_url
 app.get('/admin/fetch-logos', async (req, res) => {
