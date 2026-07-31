@@ -582,7 +582,7 @@ app.get('/directory/:slug', async (req, res) => {
     const claimHtml = (!l.is_claimed) ? `
 <div class="claim-banner">
   <div class="claim-text"><strong>Is this your product?</strong> Claim it free to edit description, update your logo, and track real traffic from ToolIndex.</div>
-  <a href="/directory#claim-${l.id}" class="claim-link">Claim free →</a>
+  <a href="/directory?claim=${l.id}" class="claim-link">Claim free →</a>
 </div>` : `
 <div class="claimed-badge-row">
   <span class="claimed-badge">✓ Verified owner</span>

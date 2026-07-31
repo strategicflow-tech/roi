@@ -1568,6 +1568,17 @@ async function loadListings(){
     allListings = listings;
     applyFilters();
     injectItemListSchema(allListings);
+    // Auto-open claim modal when arriving from a product page (?claim=ID)
+    const claimParam = new URLSearchParams(location.search).get('claim');
+    if (claimParam) {
+      const target = allListings.find(l => String(l.id) === String(claimParam));
+      if (target) {
+        try {
+          const dom = new URL(target.url).hostname.replace(/^www\./, '');
+          setTimeout(() => openClaimModal(target.id, target.name, dom), 300);
+        } catch(e) {}
+      }
+    }
   }catch{
     document.getElementById('dirGrid').innerHTML='<div class="dir-empty">Could not load listings. Please refresh.</div>';
   }
