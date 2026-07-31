@@ -1667,20 +1667,52 @@ Or paste a cold email, landing page, proposal — anything with a reader who nee
     </a>
   </div>
   WHY.<span class="footer-tm">™</span> &nbsp;&nbsp; A Strategic Flow product. &nbsp;&nbsp;
-  <div style="margin-top:16px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
-    <a href="https://fazier.com" target="_blank" rel="noopener">
-      <img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=light" width="120" alt="Launched on Fazier" style="max-width:100%;height:auto;" />
-    </a>
-    <a href="https://fazier.com/launches/why" target="_blank">
-      <img src="https://fazier.com/api/v1/public/badges/embed_image.svg?launch_id=10408&badge_type=daily&theme=light" width="270" alt="Fazier badge" />
-    </a>
-    <a href="https://launchnest.io/p/why" target="_blank">
-      <img src="https://launchnest.io/badge/why.svg" alt="WHY.™ on LaunchNest" width="200" height="54" />
-    </a>
-    <a href="https://launchkiwi.com/p/why" target="_blank" rel="noopener">
-      <img src="https://launchkiwi.com/badge-dark.svg" alt="Featured on LaunchKiwi" width="198" height="62" />
-    </a>
+  <style>
+  .why-ticker-wrap{display:flex;align-items:stretch;overflow:hidden;border-top:1px solid rgba(29,158,117,0.15);border-bottom:1px solid rgba(29,158,117,0.15);background:rgba(29,158,117,0.03);margin:14px 0 0;}
+  .why-ticker-lbl{flex-shrink:0;display:flex;align-items:center;padding:0 13px 0 18px;border-right:1px solid rgba(29,158,117,0.15);font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(29,158,117,0.65);white-space:nowrap;min-height:40px;}
+  .why-ticker-vp{flex:1;overflow:hidden;min-width:0;position:relative;}
+  .why-ticker-vp::before,.why-ticker-vp::after{content:'';position:absolute;top:0;bottom:0;width:28px;z-index:2;pointer-events:none;}
+  .why-ticker-vp::before{left:0;background:linear-gradient(to right,#0a0a0a,transparent);}
+  .why-ticker-vp::after{right:0;background:linear-gradient(to left,#0a0a0a,transparent);}
+  .why-ticker-track{display:flex;gap:6px;padding:9px 6px;width:max-content;will-change:transform;animation:why-scroll 62s linear infinite;}
+  .why-ticker-wrap.why-fast .why-ticker-track{animation-duration:32s;}
+  .why-ticker-wrap:hover .why-ticker-track,.why-ticker-wrap:focus-within .why-ticker-track{animation-play-state:paused;}
+  .why-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border:1px solid rgba(29,158,117,0.22);border-radius:20px;font-family:'Space Mono',monospace;font-size:11px;color:rgba(255,255,255,0.62);white-space:nowrap;line-height:1.5;transition:border-color .15s,color .15s,background .15s;cursor:default;text-decoration:none;}
+  .why-pill:hover{border-color:rgba(29,158,117,0.60);color:rgba(255,255,255,.92);background:rgba(29,158,117,0.08);}
+  .why-pill-dot{width:5px;height:5px;border-radius:50%;background:rgba(29,158,117,0.70);flex-shrink:0;display:inline-block;}
+  @keyframes why-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  </style>
+
+  <div class="why-ticker-wrap" aria-label="Independently reviewed brands">
+    <span class="why-ticker-lbl">Independently reviewed</span>
+    <div class="why-ticker-vp">
+      <div class="why-ticker-track" id="whyTickerBrands"></div>
+    </div>
   </div>
+  <div class="why-ticker-wrap why-fast" aria-label="Listed on platforms" style="border-top:none;">
+    <span class="why-ticker-lbl">Listed on</span>
+    <div class="why-ticker-vp">
+      <div class="why-ticker-track" id="whyTickerListings"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var br=document.getElementById('whyTickerBrands');
+    var li=document.getElementById('whyTickerListings');
+    var brands=['Semrush','HeyGen','Optimizely','Revolut','Medallia','Wrike','Zoho','ElevenLabs','Cato Networks','Userpilot','Xelix','Intercom','HubSpot','Pitch','Miro','Clay','Zapier','ClickUp','Airtable','Calendly','Circle','Webflow','Linear','Perplexity','Booking.com','Figma','Gamma','Landbot','Neon','Spreedly','Lodgify','Weaviate','Seamless','Sequel AI','LeadPages','Limelight','dotCompliance','EasyLlama','SplitMetrics','TripleDart','Confluence','dbt Labs','Qonto','Alt21','Wizzair','Tilled','Rize','SoFi'];
+    var platforms=[
+      {n:'LaunchKiwi',u:'https://launchkiwi.com/p/why'},
+      {n:'LaunchNest',u:'https://launchnest.io/p/why'},
+      {n:'Fazier',u:'https://fazier.com/launches/why'},
+      {n:'G2',u:'https://www.g2.com/products/strategic-flow/reviews'},
+      {n:'Capterra',u:'https://www.capterra.com/p/10050131/Strategic-Flow/'},
+      {n:'Product Hunt',u:'https://www.producthunt.com/products/strategic-flow-audit-app'},
+      {n:'LaunchBuff',u:'https://launchbuff.com/products/strategic-flow-audit-app-lmtvry'}
+    ];
+    if(br){var b=brands.concat(brands);br.innerHTML=b.map(function(n){return'<span class="why-pill" aria-hidden="true"><span class="why-pill-dot"></span>'+n+'</span>';}).join('');}
+    if(li){var p=platforms.concat(platforms).concat(platforms).concat(platforms);li.innerHTML=p.map(function(x){return'<a class="why-pill" href="'+x.u+'" target="_blank" rel="noopener" style="cursor:pointer;"><span class="why-pill-dot"></span>'+x.n+'</a>';}).join('');}
+  })();
+  </script>
   <a href="mailto:alex@strategicflow.tech" style="color:#FF4422;font-family:'Space Mono',monospace;font-size:12px;text-decoration:none;">alex@strategicflow.tech</a><br>
   <span style="color:#FFFFFF;">Built to explain why content fails — before you rewrite it.</span>
 </footer>
