@@ -1402,6 +1402,21 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeBoostModal()
   }
 })();
 
+// ── Deep-link ?q= handler — pre-fills search so outreach links land on the right listing ──
+(function(){
+  const qp = new URLSearchParams(location.search);
+  const q  = qp.get('q');
+  if(q){
+    const input = document.getElementById('dirSearch');
+    if(input){ input.value = q; input.dispatchEvent(new Event('input')); }
+    // Scroll past hero to the grid after listings load
+    setTimeout(()=>{
+      const grid = document.getElementById('dirGrid');
+      if(grid) grid.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 900);
+  }
+})();
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadListings();
 loadFeatured();

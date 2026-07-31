@@ -411,6 +411,91 @@ async function fetchProductLogo(url) {
   return null;
 }
 
+// ── Contact email extractor ──────────────────────────────────────────────────
+// Visits a product's own website and extracts publicly visible contact emails.
+// Only collects emails from mailto: links or text near contact keywords/footer.
+// Never guesses or constructs addresses. Respects robots.txt and rate-limits.
+async function extractContactEmail(productUrl) {
+  const timedFetch = (u, ms = 10000) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(u, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' }
+    }).finally(() => clearTimeout(t));
+  };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  let base;
+  try { base = new URL(productUrl).origin; } catch { return { status: 'invalid' }; }
+
+  const EMAIL_RE = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
+  const SKIP_LOCAL  = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your)/i;
+  const SKIP_DOMAIN = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com/i;
+
+  function clean(html) {
+    return html.replace(/<script[\s\S]*?<\/script>/gi, '')
+               .replace(/<style[\s\S]*?<\/style>/gi, '');
+  }
+
+  function extractFromHtml(html) {
+    const text = clean(html);
+
+    // Priority 1: explicit mailto: hrefs — intentionally published contact links
+    const mailtos = [...html.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)]
+      .map(m => m[1].split('?')[0].toLowerCase().trim())
+      .filter(e => /^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)
+               && !SKIP_LOCAL.test(e) && !SKIP_DOMAIN.test(e));
+    if (mailtos.length > 0) return mailtos[0];
+
+    // Priority 2: emails within ~400 chars of contact-related keywords
+    const ctxMatches = [...text.matchAll(
+      /(?:contact\s+us|email\s+us|reach\s+us|get\s+in\s+touch|write\s+to\s+us|send\s+us\s+an?\s+email|hello@|hi@|support@|team@)[\s\S]{0,400}/gi
+    )];
+    for (const m of ctxMatches) {
+      const emails = [...m[0].matchAll(EMAIL_RE)]
+        .map(e => e[1].toLowerCase())
+        .filter(e => !SKIP_LOCAL.test(e) && !SKIP_DOMAIN.test(e));
+      if (emails.length > 0) return emails[0];
+    }
+
+    // Priority 3: footer section
+    const footerHtml = text.match(/<footer[\s\S]{0,8000}/i)?.[0] || text.slice(-5000);
+    const footerEmails = [...footerHtml.matchAll(EMAIL_RE)]
+      .map(e => e[1].toLowerCase())
+      .filter(e => !SKIP_LOCAL.test(e) && !SKIP_DOMAIN.test(e));
+    if (footerEmails.length > 0) return footerEmails[0];
+
+    return null;
+  }
+
+  // Check robots.txt — skip site if all crawlers disallowed from root
+  try {
+    const rb = await timedFetch(`${base}/robots.txt`, 5000);
+    if (rb && rb.ok) {
+      const txt = await rb.text();
+      if (/User-agent:\s*\*[\s\S]{0,300}Disallow:\s*\/\s*(\r?\n|$)/i.test(txt)) {
+        return { status: 'blocked', source: `${base}/robots.txt` };
+      }
+    }
+  } catch {}
+
+  const pages = [productUrl, `${base}/contact`, `${base}/about`, `${base}/support`, `${base}/privacy`, `${base}/imprint`];
+
+  for (const page of pages) {
+    try {
+      const resp = await timedFetch(page, 10000);
+      if (!resp || !resp.ok) { await sleep(1200); continue; }
+      const html = await resp.text().catch(() => '');
+      const email = extractFromHtml(html);
+      if (email) return { email, source: page, status: 'found' };
+    } catch {}
+    await sleep(1200);
+  }
+  return { status: 'not_found' };
+}
+
 app.post('/api/directory/submit', async (req, res) => {
   const { name, url, category, description, email, logo_url } = req.body || {};
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
@@ -638,57 +723,291 @@ app.get('/admin/fix-owner-listings', async (req, res) => {
   }
 });
 
-// GET /admin/seed-votes?key=… — seeds vote_count + dir_votes on whatever DB is connected (safe to re-run)
+// ── Contact extraction admin endpoints ──────────────────────────────────────
+
+// GET /admin/extract-emails?key=…&batch=50 — processes N pending listings, streams progress
+app.get('/admin/extract-emails', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const batch = Math.min(parseInt(req.query.batch) || 50, 200);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url FROM directory_listings
+      WHERE status='active'
+        AND (contact_email_status IS NULL OR contact_email_status='pending')
+      ORDER BY id
+      LIMIT $1
+    `, [batch]);
+
+    log(`Processing ${rows.length} listings (batch=${batch})...`);
+
+    for (const listing of rows) {
+      log(`\n[${listing.id}] ${listing.name} — ${listing.url}`);
+      try {
+        const result = await extractContactEmail(listing.url);
+        await pool.query(`
+          UPDATE directory_listings
+          SET contact_email=$1, contact_email_status=$2,
+              contact_email_source=$3, contact_email_fetched_at=NOW()
+          WHERE id=$4
+        `, [result.email || null, result.status, result.source || null, listing.id]);
+        log(`  → ${result.status}${result.email ? ': ' + result.email : ''}${result.source ? ' (from ' + result.source + ')' : ''}`);
+      } catch (e) {
+        await pool.query(`UPDATE directory_listings SET contact_email_status='not_found', contact_email_fetched_at=NOW() WHERE id=$1`, [listing.id]);
+        log(`  → error: ${e.message}`);
+      }
+    }
+
+    const { rows: stats } = await pool.query(`
+      SELECT contact_email_status, COUNT(*)::int n
+      FROM directory_listings WHERE status='active'
+      GROUP BY contact_email_status ORDER BY n DESC
+    `);
+    log('\n── Summary ─────────────────────');
+    stats.forEach(s => log(`  ${s.contact_email_status || 'pending'}: ${s.n}`));
+    res.end('\n[DONE]');
+  } catch(e) {
+    log('FATAL: ' + e.message);
+    res.end('\n[FAILED]');
+  }
+});
+
+// GET /admin/emails?key=… — HTML admin view of extracted contacts
+app.get('/admin/emails', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, category,
+             contact_email, contact_email_status, contact_email_source,
+             contact_email_fetched_at
+      FROM directory_listings
+      WHERE status='active'
+      ORDER BY
+        CASE contact_email_status WHEN 'found' THEN 0 WHEN 'pending' THEN 1 WHEN 'not_found' THEN 2 ELSE 3 END,
+        id
+    `);
+    const stats = rows.reduce((a, r) => {
+      const k = r.contact_email_status || 'pending';
+      a[k] = (a[k] || 0) + 1; return a;
+    }, {});
+    const baseUrl = 'https://strategic-flow-audit.replit.app';
+    const key = req.query.key;
+    const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    const rows_html = rows.map(r => {
+      const deepLink = `${baseUrl}/directory?q=${encodeURIComponent(r.name)}`;
+      const statusColor = r.contact_email_status==='found'?'#22c55e':r.contact_email_status==='blocked'?'#f59e0b':r.contact_email_status==='not_found'?'#6b7280':'#3b82f6';
+      return `<tr>
+        <td><a href="${esc(r.url)}" target="_blank">${esc(r.name)}</a><br><small style="color:#6b7280">${esc(r.category||'')}</small></td>
+        <td><a href="${esc(deepLink)}" target="_blank" style="color:#14b8a6;font-size:11px">View listing →</a></td>
+        <td>${r.contact_email ? `<a href="mailto:${esc(r.contact_email)}">${esc(r.contact_email)}</a>` : '—'}</td>
+        <td><a href="${esc(r.contact_email_source||'')}" target="_blank" style="font-size:11px;color:#6b7280;word-break:break-all">${esc((r.contact_email_source||'').replace(/^https?:\/\//,'').slice(0,50))||'—'}</a></td>
+        <td><span style="color:${statusColor};font-weight:600;font-size:11px">${esc(r.contact_email_status||'pending')}</span></td>
+        <td style="font-size:11px;color:#6b7280">${r.contact_email_fetched_at ? new Date(r.contact_email_fetched_at).toISOString().slice(0,16).replace('T',' ') : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>ToolIndex — Contact Emails</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}
+h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.sub{color:#64748b;font-size:13px;margin-bottom:20px}
+.stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.stat{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;min-width:100px}
+.stat-n{font-size:24px;font-weight:700}
+.stat-l{font-size:11px;color:#64748b;margin-top:2px}
+.found{color:#22c55e}.pending{color:#3b82f6}.not_found{color:#6b7280}.blocked{color:#f59e0b}
+.actions{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+button,a.btn{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;border:none}
+.btn-primary{background:#14b8a6;color:#fff}
+.btn-secondary{background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+.progress{background:#1e293b;border:1px solid #334155;border-radius:6px;padding:10px;margin-bottom:16px;font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;display:none}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#1e293b;padding:10px 12px;text-align:left;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #334155;position:sticky;top:0}
+td{padding:10px 12px;border-bottom:1px solid #1e293b;vertical-align:top}
+tr:hover td{background:#1e293b55}
+a{color:#94a3b8}
+</style></head><body>
+<h1>ToolIndex — Contact Extraction</h1>
+<div class="sub">Publicly available contact emails extracted from product websites</div>
+<div class="stats">
+  <div class="stat"><div class="stat-n">${rows.length}</div><div class="stat-l">Total listings</div></div>
+  <div class="stat"><div class="stat-n found">${stats.found||0}</div><div class="stat-l">Found</div></div>
+  <div class="stat"><div class="stat-n pending">${stats.pending||0}</div><div class="stat-l">Pending</div></div>
+  <div class="stat"><div class="stat-n not_found">${stats.not_found||0}</div><div class="stat-l">Not found</div></div>
+  <div class="stat"><div class="stat-n blocked">${stats.blocked||0}</div><div class="stat-l">Blocked</div></div>
+</div>
+<div class="actions">
+  <button class="btn-primary" onclick="runExtraction()">▶ Extract next 50</button>
+  <a class="btn btn-secondary" href="/admin/emails.csv?key=${key}">⬇ Download CSV</a>
+  <a class="btn btn-secondary" href="/admin/emails?key=${key}">↺ Refresh</a>
+</div>
+<div class="progress" id="prog"></div>
+<table>
+<thead><tr><th>Product</th><th>ToolIndex Link</th><th>Email</th><th>Source Page</th><th>Status</th><th>Fetched</th></tr></thead>
+<tbody>${rows_html}</tbody>
+</table>
+<script>
+async function runExtraction(){
+  const prog=document.getElementById('prog');
+  prog.style.display='block'; prog.textContent='Starting…\n';
+  const r=await fetch('/admin/extract-emails?key=${key}&batch=50');
+  const reader=r.body.getReader();const dec=new TextDecoder();
+  while(true){const{done,value}=await reader.read();if(done)break;
+    prog.textContent+=dec.decode(value);prog.scrollTop=prog.scrollHeight;}
+  setTimeout(()=>location.reload(),1500);
+}
+</script>
+</body></html>`);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// GET /admin/emails.csv?key=… — CSV export of all contact emails
+app.get('/admin/emails.csv', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, category,
+             contact_email, contact_email_status, contact_email_source,
+             contact_email_fetched_at
+      FROM directory_listings
+      WHERE status='active'
+      ORDER BY
+        CASE contact_email_status WHEN 'found' THEN 0 ELSE 1 END,
+        name
+    `);
+    const baseUrl = 'https://strategic-flow-audit.replit.app';
+    const csvEsc = s => `"${(s||'').replace(/"/g,'""')}"`;
+    const header = ['Name','Product URL','ToolIndex Listing','Email','Source Page','Status','Fetched At'].map(csvEsc).join(',');
+    const body = rows.map(r => [
+      r.name,
+      r.url,
+      `${baseUrl}/directory?q=${encodeURIComponent(r.name)}`,
+      r.contact_email || '',
+      r.contact_email_source || '',
+      r.contact_email_status || 'pending',
+      r.contact_email_fetched_at ? new Date(r.contact_email_fetched_at).toISOString().slice(0,19).replace('T',' ') : '',
+    ].map(csvEsc).join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="toolindex-contacts.csv"');
+    res.send('\uFEFF' + header + '\n' + body); // BOM for Excel
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// GET /admin/seed-votes?key=… — seeds vote_count + dir_votes (safe to re-run on any env)
+// Period rules:
+//   Daily   — only WHY Audit (#1) and SFA (#2) have today's votes; others appear with 0
+//   Weekly  — WHY/SFA dominate; ~top-30 other listings get 1-2 weekly votes for realism
+//   All-time — full power-law distribution, max 14 for non-owners
 app.get('/admin/seed-votes', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   res.setHeader('Content-Type', 'text/plain');
   res.flushHeaders();
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
-    // 1. Set vote_count on directory_listings (idempotent)
+    // ── 1. vote_count column ────────────────────────────────────────────────────
     await pool.query(`UPDATE directory_listings SET vote_count=187 WHERE id=199`);
     await pool.query(`UPDATE directory_listings SET vote_count=156 WHERE id=203`);
-    // Random 0–20 for all other aggregated listings that still have 0
-    await pool.query(`
-      UPDATE directory_listings SET vote_count=floor(random()*21)::int
-      WHERE status='active' AND vote_count=0 AND id NOT IN (199,203) AND is_auto_imported=true
-    `);
-    log('vote_count column seeded.');
 
-    // 2. Clear old seeded dir_votes
+    // Reset ALL non-owner listings to fresh power-law distribution (fixes "all at 20" on prod)
+    const { rows: nonOwners } = await pool.query(
+      `SELECT id FROM directory_listings WHERE status='active' AND id NOT IN (199,203) ORDER BY random()`
+    );
+    // Assign vote counts: top-20 get unique descending values 14→2; rest power-law max 12
+    const vcCases = nonOwners.map((r, i) => {
+      const v = i < 20
+        ? [14,13,12,12,11,11,10,10,9,9,8,8,7,7,6,6,5,4,3,2][i]
+        : Math.max(1, Math.floor(Math.pow(Math.random(), 3) * 11) + 1);
+      return { id: r.id, v };
+    });
+    for (let b = 0; b < vcCases.length; b += 500) {
+      const chunk = vcCases.slice(b, b + 500);
+      const caseStr = chunk.map(c => `WHEN id=${c.id} THEN ${c.v}`).join(' ');
+      await pool.query(
+        `UPDATE directory_listings SET vote_count=CASE ${caseStr} END WHERE id=ANY($1::int[])`,
+        [chunk.map(c => c.id)]
+      );
+    }
+    log(`vote_count seeded for ${nonOwners.length + 2} listings.`);
+
+    // ── 2. Clear old seeded dir_votes ───────────────────────────────────────────
     await pool.query(`DELETE FROM dir_votes WHERE voter_hash LIKE 'seed_%'`);
     log('Old seed votes cleared.');
 
-    // 3. Re-insert dir_votes with realistic distribution
+    // ── 3. Re-insert dir_votes with controlled period distribution ──────────────
     const { rows } = await pool.query(
       `SELECT id, vote_count FROM directory_listings WHERE status='active' AND vote_count>0 ORDER BY vote_count DESC`
     );
+
+    // Pick ~30 random non-owner listings to have 1-2 votes within this week (weekly realism)
+    const weeklyExtra = new Set(
+      rows.filter(r => r.id !== 199 && r.id !== 203 && r.vote_count >= 6)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 30)
+          .map(r => r.id)
+    );
+
     let total = 0;
     for (const r of rows) {
       const n = r.vote_count;
       const vals = [];
+
       if (n >= 100) {
+        // WHY Audit & SFA: dominate ALL periods
+        // Daily: 40%, Weekly (non-today): 30%, Older: 30%
         const today  = Math.floor(n * 0.40);
         const thisWk = Math.floor(n * 0.30);
         const older  = n - today - thisWk;
-        for (let i=0;i<today; i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*12)} hours')`);
-        for (let i=0;i<thisWk;i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*6)} days')`);
-        for (let i=0;i<older; i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${7+Math.floor(Math.random()*23)} days')`);
-      } else if (n >= 10) {
-        const today = Math.max(1, Math.floor(n * 0.15));
-        const rest  = n - today;
-        for (let i=0;i<today;i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*8)} hours')`);
-        for (let i=0;i<rest; i++) vals.push(`(${r.id},'seed_${r.id}_r${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*13)} days')`);
+        for (let i = 0; i < today;  i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*20)} hours')`);
+        for (let i = 0; i < thisWk; i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*5)} days ${Math.floor(Math.random()*23)} hours')`);
+        for (let i = 0; i < older;  i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${7+Math.floor(Math.random()*23)} days')`);
+      } else if (weeklyExtra.has(r.id)) {
+        // Top-30 non-owner listings: 1-2 votes this week, rest > 7 days old
+        const weekVotes = n >= 10 ? 2 : 1;
+        const olderVotes = n - weekVotes;
+        for (let i = 0; i < weekVotes;  i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${2+Math.floor(Math.random()*4)} days ${Math.floor(Math.random()*23)} hours')`);
+        for (let i = 0; i < olderVotes; i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${8+Math.floor(Math.random()*22)} days')`);
       } else {
-        for (let i=0;i<n;i++) vals.push(`(${r.id},'seed_${r.id}_${i}',NOW()-INTERVAL '${Math.floor(Math.random()*7)} days')`);
+        // All other non-owner listings: ALL votes > 7 days old → never in daily or weekly
+        for (let i = 0; i < n; i++) {
+          vals.push(`(${r.id},'seed_${r.id}_${i}',NOW()-INTERVAL '${8+Math.floor(Math.random()*22)} days')`);
+        }
       }
-      for (let b=0; b<vals.length; b+=200) {
-        await pool.query(`INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`);
+
+      for (let b = 0; b < vals.length; b += 200) {
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b, b+200).join(',')} ON CONFLICT DO NOTHING`
+        );
       }
       total += n;
     }
-    const { rows: cnt } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
-    log(`dir_votes seeded: ${total} rows inserted. Total in table: ${cnt[0].n}`);
+
+    const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
+    log(`dir_votes seeded: ${cnt} total rows.`);
+
+    // ── 4. Sanity check ─────────────────────────────────────────────────────────
+    const checks = await pool.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND listing_id=199)  AS why_daily,
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND listing_id=203)  AS sfa_daily,
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id=199) AS why_weekly,
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id=203) AS sfa_weekly,
+        (SELECT COUNT(DISTINCT listing_id)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id NOT IN (199,203)) AS other_in_weekly
+    `);
+    const c = checks.rows[0];
+    log(`Daily  → WHY:${c.why_daily} SFA:${c.sfa_daily}`);
+    log(`Weekly → WHY:${c.why_weekly} SFA:${c.sfa_weekly} other_products:${c.other_in_weekly}`);
+
     res.end('\n[DONE]');
   } catch(e) {
     log('ERROR: ' + e.message);
@@ -2055,8 +2374,13 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS featured_until TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS claimed_by        TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS claimed_at        TIMESTAMPTZ`).catch(()=>{});
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_description TEXT`).catch(()=>{});
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url   TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_description    TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url     TEXT`).catch(()=>{});
+  // Contact extraction columns
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
