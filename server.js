@@ -715,8 +715,8 @@ app.get('/admin/submit-kit', async (req, res) => {
 app.get('/admin/fix-owner-listings', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
-    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/why-logo.svg' WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/sfa-logo.svg' WHERE id=203`);
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/why-logo.png' WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/sfa-logo.jpg' WHERE id=203`);
     res.json({ ok: true, fixed: ['WHY Audit™ (199)', 'Strategic Flow Audit (203)'] });
   } catch(e) {
     res.status(500).json({ error: e.message });
