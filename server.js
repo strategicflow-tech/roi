@@ -356,52 +356,127 @@ function toListingSlug(name, id) {
   return `${base}-${id}`;
 }
 
-// ── GET /directory/:slug — individual product page with unique meta tags ──────
-// URL format: /directory/product-name-42  (ID appended for uniqueness)
+// ── GET /directory/:slug — rich individual product page ───────────────────────
+// URL format: /directory/product-name-42  (ID appended for guaranteed uniqueness)
 app.get('/directory/:slug', async (req, res) => {
   const slug = req.params.slug;
-
-  // Extract the numeric ID from the end of the slug
   const idMatch = slug.match(/-(\d+)$/);
   if (!idMatch) return res.redirect('/directory');
   const id = parseInt(idMatch[1]);
   if (isNaN(id)) return res.redirect('/directory');
 
   try {
-    const r = await pool.query(
-      `SELECT id, name, url, category, description,
-              COALESCE(owner_image_url, image_url) AS image_url,
-              vote_count, featured_tier
-       FROM directory_listings WHERE id=$1 AND status='active'`,
+    const mainR = await pool.query(
+      `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+              COALESCE(dl.owner_image_url, dl.image_url) AS image_url,
+              dl.vote_count, dl.featured_tier, dl.is_auto_imported,
+              (dl.claimed_by IS NOT NULL) AS is_claimed,
+              (SELECT COUNT(*)::int FROM dir_listing_views  WHERE listing_id=dl.id
+               AND viewed_at  >= NOW()-INTERVAL '30 days') AS views_30d,
+              (SELECT COUNT(*)::int FROM dir_listing_clicks WHERE listing_id=dl.id
+               AND clicked_at >= NOW()-INTERVAL '30 days') AS clicks_30d
+       FROM directory_listings dl
+       WHERE dl.id=$1 AND dl.status='active'`,
       [id]
     );
-    if (!r.rows.length) return res.redirect('/directory');
-    const l = r.rows[0];
+    if (!mainR.rows.length) return res.redirect('/directory');
+    const l = mainR.rows[0];
 
-    // Canonical redirect if slug doesn't match (preserves link equity)
+    // Canonical redirect (preserves link equity on renamed slugs)
     const canonical = toListingSlug(l.name, l.id);
     if (slug !== canonical) return res.redirect(301, `/directory/${canonical}`);
 
+    // Fetch similar tools in same category
+    const simR = await pool.query(
+      `SELECT id, name, url, category, vote_count,
+              COALESCE(owner_image_url, image_url) AS image_url
+       FROM directory_listings
+       WHERE category=$1 AND id!=$2 AND status='active'
+       ORDER BY vote_count DESC NULLS LAST
+       LIMIT 4`,
+      [l.category || 'General', l.id]
+    );
+    const similar = simR.rows;
+
+    // ── helpers ────────────────────────────────────────────────────────────
     const BASE = 'https://strategic-flow-audit.replit.app';
     const canonicalUrl = `${BASE}/directory/${canonical}`;
+    const he = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const rawImg = l.image_url || '';
     const absImg = rawImg.startsWith('http') ? rawImg : (rawImg ? `${BASE}${rawImg}` : '');
+    const clearbitImg = `https://logo.clearbit.com/${(() => { try { return new URL(l.url).hostname.replace(/^www\./,''); } catch { return ''; } })()}`;
+    const hostname = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return l.url; } })();
     const metaDesc = (l.description || `${l.name} is listed on ToolIndex — the free SaaS directory with a DR 86 dofollow backlink.`)
       .slice(0, 160).replace(/"/g, '&quot;');
-    const title = `${l.name} — ToolIndex`;
-    const hostname = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return l.url; } })();
+    const pageTitle = `${l.name} — ToolIndex`;
+    const votes = Number(l.vote_count) || 0;
+    const views30 = Number(l.views_30d) || 0;
+    const clicks30 = Number(l.clicks_30d) || 0;
+    const cat = l.category || 'General SaaS';
+    const initials = (l.name || '?').replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/).filter(Boolean)
+      .slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
 
     const ld = {
       '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
       name: l.name,
       url: l.url,
-      applicationCategory: l.category || 'SoftwareApplication',
+      applicationCategory: cat,
       description: (l.description || '').slice(0, 500) || undefined,
     };
-    if (l.vote_count > 0) {
-      ld.aggregateRating = { '@type': 'AggregateRating', ratingValue: '5', reviewCount: l.vote_count };
-    }
+    if (votes > 0) ld.aggregateRating = { '@type': 'AggregateRating', ratingValue: '5', reviewCount: votes };
+
+    // ── Similar tools HTML ─────────────────────────────────────────────────
+    function fmtK(n) { return n >= 1000 ? (n/1000).toFixed(1).replace('.0','')+'k' : String(n); }
+
+    const simCards = similar.map(s => {
+      const sSlug  = toListingSlug(s.name, s.id);
+      const sDomain = (() => { try { return new URL(s.url).hostname.replace(/^www\./,''); } catch { return ''; } })();
+      const sImg   = (s.image_url && s.image_url.startsWith('http')) ? s.image_url : `https://logo.clearbit.com/${sDomain}`;
+      const sInit  = (s.name || '?').replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
+      return `<a href="/directory/${he(sSlug)}" class="sim-card">
+  <div class="sim-logo"><span class="sim-init">${he(sInit)}</span><img src="${he(sImg)}" alt="" onerror="this.style.display='none'"/></div>
+  <div class="sim-body">
+    <div class="sim-name">${he(s.name)}</div>
+    <div class="sim-meta">${he(s.category||'General')}${s.vote_count > 0 ? ` · ▲ ${fmtK(s.vote_count)}` : ''}</div>
+  </div>
+</a>`;
+    }).join('');
+
+    // ── logo HTML (letter avatar underneath, image on top) ─────────────────
+    const logoHtml = `<div class="logo-wrap">
+  <span class="logo-init">${he(initials)}</span>
+  <img class="logo-img" src="${he(absImg || clearbitImg)}" alt="${he(l.name)} logo"
+       onerror="this.src='${he(clearbitImg)}';this.onerror=function(){this.style.display='none';}"/>
+</div>`;
+
+    // ── stats row (only shown when real data exists) ────────────────────────
+    const statsHtml = (views30 > 0 || clicks30 > 0 || votes > 0) ? `
+<div class="stats-row">
+  ${votes > 0    ? `<div class="stat-box"><div class="stat-n">${fmtK(votes)}</div><div class="stat-l">Upvotes</div></div>` : ''}
+  ${views30 > 0  ? `<div class="stat-box"><div class="stat-n">${fmtK(views30)}</div><div class="stat-l">ToolIndex views · 30d</div></div>` : ''}
+  ${clicks30 > 0 ? `<div class="stat-box"><div class="stat-n">${fmtK(clicks30)}</div><div class="stat-l">Clicks sent · 30d</div></div>` : ''}
+</div>` : '';
+
+    // ── claim prompt ───────────────────────────────────────────────────────
+    const claimHtml = (!l.is_claimed) ? `
+<div class="claim-banner">
+  <div class="claim-text"><strong>Is this your product?</strong> Claim it free to edit description, update your logo, and track real traffic from ToolIndex.</div>
+  <a href="/directory#claim-${l.id}" class="claim-link">Claim free →</a>
+</div>` : `
+<div class="claimed-badge-row">
+  <span class="claimed-badge">✓ Verified owner</span>
+  <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
+</div>`;
+
+    // ── similar tools section ──────────────────────────────────────────────
+    const catLabel = cat.toLowerCase().includes('tool') ? cat : `${cat} tools`;
+  const similarHtml = similar.length > 0 ? `
+<section class="similar-section">
+  <h2 class="similar-title">Similar ${he(catLabel)}</h2>
+  <div class="similar-grid">${simCards}</div>
+  <a href="/directory?cat=${encodeURIComponent(cat)}" class="similar-all">View all ${he(catLabel)} →</a>
+</section>` : '';
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(`<!DOCTYPE html>
@@ -409,62 +484,154 @@ app.get('/directory/:slug', async (req, res) => {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${title}</title>
+<title>${he(pageTitle)}</title>
 <meta name="description" content="${metaDesc}"/>
-<link rel="canonical" href="${canonicalUrl}"/>
+<link rel="canonical" href="${he(canonicalUrl)}"/>
 <meta property="og:type" content="website"/>
-<meta property="og:url" content="${canonicalUrl}"/>
-<meta property="og:title" content="${title}"/>
+<meta property="og:url" content="${he(canonicalUrl)}"/>
+<meta property="og:title" content="${he(pageTitle)}"/>
 <meta property="og:description" content="${metaDesc}"/>
-${absImg ? `<meta property="og:image" content="${absImg}"/>` : ''}
+${absImg ? `<meta property="og:image" content="${he(absImg)}"/>` : ''}
 <meta name="twitter:card" content="${absImg ? 'summary_large_image' : 'summary'}"/>
-<meta name="twitter:title" content="${title}"/>
+<meta name="twitter:title" content="${he(pageTitle)}"/>
 <meta name="twitter:description" content="${metaDesc}"/>
-${absImg ? `<meta name="twitter:image" content="${absImg}"/>` : ''}
+${absImg ? `<meta name="twitter:image" content="${he(absImg)}"/>` : ''}
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--teal:#00d4c8;--bg:#0a1628;--card:#0f2035;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8}
+:root{--teal:#00d4c8;--teal-dim:rgba(0,212,200,.1);--bg:#0a1628;--card:#0f2035;--card2:#0d1c31;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8;--gold:#f59e0b;--mono:'DM Mono',monospace}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 a{color:var(--teal);text-decoration:none}
 a:hover{text-decoration:underline}
-nav{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:16px;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--border);z-index:10}
-.nav-logo{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700}
-.nav-back{font-size:13px;color:var(--muted)}
-main{margin-top:80px;padding:24px;max-width:600px;margin-left:auto;margin-right:auto;padding-bottom:64px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px}
-.logo-img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#1a2d47;margin-bottom:20px;display:block}
-.cat{font-size:10px;font-family:'DM Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.prod-name{font-size:26px;font-weight:800;color:#fff;margin-bottom:14px;line-height:1.2}
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:0;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--border);z-index:10}
+.nav-logo{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700;margin-right:auto}
+.nav-back{font-size:13px;color:var(--muted);margin-right:16px}
+.nav-back:hover{color:var(--text)}
+.nav-cta{font-size:12px;font-family:var(--mono);padding:7px 14px;background:var(--teal);color:#0a1628;border-radius:6px;font-weight:700;letter-spacing:.02em}
+.nav-cta:hover{text-decoration:none;opacity:.9}
+/* Layout */
+main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;margin-right:auto}
+/* Breadcrumb */
+.breadcrumb{font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:20px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.breadcrumb a{color:var(--muted)}
+.breadcrumb a:hover{color:var(--teal)}
+.breadcrumb-sep{opacity:.4}
+/* Hero */
+.hero{display:flex;gap:20px;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:16px}
+@media(max-width:560px){.hero{flex-direction:column;gap:16px}}
+.logo-wrap{position:relative;width:72px;height:72px;border-radius:14px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.logo-init{font-size:26px;font-weight:800;color:#fff;font-family:var(--mono);line-height:1;z-index:1;position:absolute}
+.logo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;z-index:2}
+.hero-body{flex:1;min-width:0}
+.cat-chip{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:2px 10px;margin-bottom:10px}
+.prod-name{font-size:26px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px;word-break:break-word}
 .prod-desc{font-size:14px;color:var(--sub);line-height:1.65;margin-bottom:20px}
-.votes{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:24px}
-.btns{display:flex;gap:12px;flex-wrap:wrap}
-.btn-p{display:inline-flex;align-items:center;gap:6px;padding:12px 22px;background:var(--teal);color:#0a1628;border-radius:8px;font-weight:700;font-size:14px;white-space:nowrap}
-.btn-s{display:inline-flex;align-items:center;gap:6px;padding:12px 18px;border:1px solid var(--border);color:var(--sub);border-radius:8px;font-size:14px;white-space:nowrap}
-.dir-link{margin-top:24px;font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn-visit{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:var(--teal);color:#0a1628;border-radius:8px;font-weight:700;font-size:14px;white-space:nowrap}
+.btn-visit:hover{text-decoration:none;opacity:.9}
+.btn-vote{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:14px;font-family:var(--mono);cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-vote:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-dim)}
+.btn-vote.voted{border-color:var(--teal);color:var(--teal);background:var(--teal-dim);cursor:default}
+/* Stats */
+.stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;flex:1;min-width:100px}
+.stat-n{font-size:22px;font-weight:800;color:var(--teal);font-family:var(--mono);line-height:1;margin-bottom:4px}
+.stat-l{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+/* Claim banner */
+.claim-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(0,212,200,.06);border:1px solid rgba(0,212,200,.2);border-radius:10px;padding:14px 18px;margin-bottom:16px;flex-wrap:wrap}
+.claim-text{font-size:13px;color:var(--sub)}
+.claim-text strong{color:var(--text)}
+.claim-link{font-size:12px;font-family:var(--mono);color:var(--teal);white-space:nowrap;font-weight:600}
+.claimed-badge-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.claimed-badge{font-size:11px;font-family:var(--mono);color:var(--teal);background:var(--teal-dim);border:1px solid rgba(0,212,200,.3);border-radius:20px;padding:3px 10px;letter-spacing:.04em}
+.badge-link{font-size:12px;color:var(--muted)}
+/* Similar tools */
+.similar-section{margin-bottom:24px}
+.similar-title{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.similar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px}
+.sim-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .2s}
+.sim-card:hover{border-color:rgba(0,212,200,.35);text-decoration:none}
+.sim-logo{position:relative;width:36px;height:36px;border-radius:8px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sim-init{font-size:13px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
+.sim-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;z-index:2}
+.sim-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sim-meta{font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:2px}
+.similar-all{font-size:12px;font-family:var(--mono);color:var(--muted)}
+.similar-all:hover{color:var(--teal)}
+/* Attribution */
+.attribution{font-size:12px;color:var(--muted);text-align:center;padding-top:24px;border-top:1px solid var(--border)}
+.attribution a{color:var(--muted)}
+.attribution a:hover{color:var(--teal)}
 </style>
 </head>
 <body>
 <nav>
   <span class="nav-logo">● ToolIndex</span>
-  <a href="/directory" class="nav-back">← Back to directory</a>
+  <a href="/directory" class="nav-back">← Directory</a>
+  <a href="/directory#submit" class="nav-cta">Get your free backlink →</a>
 </nav>
 <main>
-  <div class="card">
-    ${absImg ? `<img class="logo-img" src="${absImg}" alt="${l.name} logo" onerror="this.style.display='none'"/>` : ''}
-    <div class="cat">${l.category || 'General SaaS'}</div>
-    <div class="prod-name">${l.name}</div>
-    <div class="prod-desc">${l.description || `${l.name} is listed on ToolIndex.`}</div>
-    ${l.vote_count > 0 ? `<div class="votes">▲ ${Number(l.vote_count).toLocaleString()} upvotes on ToolIndex</div>` : ''}
-    <div class="btns">
-      <a href="${l.url}" class="btn-p" target="_blank" rel="noopener">Visit ${hostname} →</a>
-      <a href="/directory" class="btn-s">Browse all tools</a>
-    </div>
-    <div class="dir-link" style="margin-top:24px">
-      Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink
+  <div class="breadcrumb">
+    <a href="/directory">ToolIndex</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="/directory?cat=${encodeURIComponent(cat)}">${he(cat)}</a>
+    <span class="breadcrumb-sep">/</span>
+    <span>${he(l.name)}</span>
+  </div>
+
+  <div class="hero">
+    ${logoHtml}
+    <div class="hero-body">
+      <div class="cat-chip">${he(cat)}</div>
+      <h1 class="prod-name">${he(l.name)}</h1>
+      <p class="prod-desc">${he(l.description || `${l.name} is listed on ToolIndex.`)}</p>
+      <div class="actions">
+        <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname)} →</a>
+        <button class="btn-vote" id="voteBtn">▲ ${votes.toLocaleString()} upvote${votes !== 1 ? 's' : ''}</button>
+      </div>
     </div>
   </div>
+
+  ${statsHtml}
+  ${claimHtml}
+  ${similarHtml}
+
+  <div class="attribution">
+    Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink · 500+ products
+  </div>
 </main>
+
+<script>
+var PAGE = ${JSON.stringify({ id: l.id, votes: votes })};
+var VOTE_KEY = 'dir_voted_v2';
+function getVotedIds(){try{return JSON.parse(localStorage.getItem(VOTE_KEY)||'[]');}catch{return[];}}
+function saveVotedId(id){var ids=getVotedIds();if(!ids.includes(id)){ids.push(id);localStorage.setItem(VOTE_KEY,JSON.stringify(ids));}}
+var btn = document.getElementById('voteBtn');
+if(getVotedIds().includes(PAGE.id)){btn.classList.add('voted');btn.disabled=true;}
+btn.addEventListener('click',function(){
+  if(btn.disabled||btn.classList.contains('voted'))return;
+  btn.disabled=true;btn.classList.add('voted');
+  var prev=PAGE.votes;
+  btn.textContent='▲ '+(prev+1).toLocaleString()+' upvote'+(prev+1!==1?'s':'');
+  fetch('/api/directory/vote/'+PAGE.id,{method:'POST'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.ok||d.error==='already_voted'){
+        saveVotedId(PAGE.id);
+        var v=d.vote_count||prev+1;
+        btn.textContent='▲ '+v.toLocaleString()+' upvote'+(v!==1?'s':'');
+        PAGE.votes=v;
+      } else {
+        btn.textContent='▲ '+prev.toLocaleString()+' upvote'+(prev!==1?'s':'');
+        btn.disabled=false;btn.classList.remove('voted');
+      }
+    }).catch(function(){
+      btn.textContent='▲ '+prev.toLocaleString()+' upvote'+(prev!==1?'s':'');
+      btn.disabled=false;btn.classList.remove('voted');
+    });
+});
+</script>
 </body>
 </html>`);
   } catch (err) {
@@ -495,46 +662,104 @@ app.get('/api/directory/listings', async (req, res) => {
 });
 
 // ── Fetch real logo/favicon for a product URL ─────────────────────────────────
-// Priority: og:image → apple-touch-icon → link[rel=icon] → favicon.ico
+// Priority: apple-touch-icon → og:image (same-domain + non-hero only) →
+//           link[rel=icon] PNG/SVG → link[rel=icon] any → favicon.ico → Clearbit
+// Strict validation rejects cross-domain images, hero/screenshot URL patterns,
+// tiny tracking pixels, and known generic CMS placeholder patterns.
 async function fetchProductLogo(url) {
   const timedFetch = (u, ms = 8000) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     return fetch(u, {
       signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' }
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' }
     }).finally(() => clearTimeout(t));
   };
+
+  let base, domain;
   try {
-    const base = new URL(url).origin;
-    const domain = new URL(url).hostname.replace(/^www\./, '');
-    const res  = await timedFetch(url).catch(() => null);
+    const parsed = new URL(url);
+    base   = parsed.origin;
+    domain = parsed.hostname.replace(/^www\./, '');
+  } catch { return null; }
+
+  // URL patterns that indicate a social-preview/hero image rather than a logo
+  const HERO_RE = [
+    /[/_-]og[-_]?image/i, /opengraph/i, /open[-_]?graph/i,
+    /[/_-]hero[-_.]/i, /screenshot/i, /social[-_]?(?:preview|share|image)/i,
+    /twitter[-_]?card/i, /share[-_]?image/i, /feature[-_]?image/i,
+    /banner[-_]?image/i, /cover[-_]?(?:image|photo)/i,
+    /wp-content\/themes/i,
+    /placeholder/i, /default[-_]?(?:logo|avatar|img)/i,
+    /noimage/i, /no[-_]?img/i, /1x1/i, /pixel\.gif/i,
+  ];
+
+  // CDN hostnames that legitimately host logos for any company
+  const CDN_EXACT  = ['s3.amazonaws.com','cloudfront.net','cloudinary.com','imgix.net',
+                      'fastly.net','akamaihd.net','bunnycdn.com','b-cdn.net'];
+  const CDN_PREFIX = ['cdn.','static.','assets.','img.','images.','media.','files.','upload.','storage.'];
+
+  function isTrustedCDN(h) {
+    return CDN_EXACT.some(c => h.includes(c)) || CDN_PREFIX.some(p => h.startsWith(p));
+  }
+
+  function validateLogoUrl(candidate) {
+    if (!candidate) return false;
+    if (HERO_RE.some(re => re.test(candidate))) return false;
+    try {
+      const h = new URL(candidate).hostname.replace(/^www\./, '');
+      if (h === domain) return true;
+      if (h.endsWith('.' + domain) || domain.endsWith('.' + h)) return true;
+      if (isTrustedCDN(h)) return true;
+      return false; // different unrelated domain — reject
+    } catch { return false; }
+  }
+
+  function resolveUrl(href) {
+    try { return (href.startsWith('http') ? href : new URL(href, url).href).slice(0, 500); }
+    catch { return null; }
+  }
+
+  try {
+    const res  = await timedFetch(url, 10000).catch(() => null);
     const html = res && res.ok ? await res.text().catch(() => '') : '';
+
     if (html) {
-      // 1. apple-touch-icon — actual logo, high resolution
-      const apple = html.match(/<link[^>]*rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i)?.[1];
-      if (apple) return (apple.startsWith('http') ? apple : new URL(apple, url).href).slice(0, 500);
+      // 1. apple-touch-icon — purpose-built app icon, always logo-appropriate
+      const apple = html.match(/<link[^>]*rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']{4,})["']/i)?.[1]
+                 || html.match(/<link[^>]*href=["']([^"']{4,})["'][^>]*rel=["'][^"']*apple-touch-icon[^"']*["']/i)?.[1];
+      if (apple) { const a = resolveUrl(apple); if (a) return a; }
 
-      // 2. <link rel="icon"> with real image extension (not .ico for quality)
-      const pngIcon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(png|svg|webp)[^"']*)["']/i)?.[1];
-      if (pngIcon) return (pngIcon.startsWith('http') ? pngIcon : new URL(pngIcon, url).href).slice(0, 500);
+      // 2. og:image — only accepted when it looks like a logo (same/CDN domain, no hero patterns)
+      const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']{10,})["']/i)?.[1]
+              || html.match(/<meta[^>]*content=["']([^"']{10,})["'][^>]*property=["']og:image["']/i)?.[1];
+      if (og) { const a = resolveUrl(og); if (a && validateLogoUrl(a)) return a; }
 
-      // 3. <link rel="icon"> including .ico
-      const icon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(png|svg|webp|jpg|ico)[^"']*)["']/i)?.[1];
-      if (icon) return (icon.startsWith('http') ? icon : new URL(icon, url).href).slice(0, 500);
+      // 3. <link rel="icon"> PNG/SVG/WEBP — better quality than .ico
+      const pngIcon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(?:png|svg|webp)(?:\?[^"']*)?)["']/i)?.[1]
+                   || html.match(/<link[^>]*href=["']([^"']+\.(?:png|svg|webp)(?:\?[^"']*)?)["'][^>]*rel=["'][^"']*icon[^"']*["']/i)?.[1];
+      if (pngIcon) { const a = resolveUrl(pngIcon); if (a) return a; }
+
+      // 4. <link rel="icon"> any supported image extension
+      const anyIcon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(?:png|svg|webp|jpg|jpeg|ico)(?:\?[^"']*)?)["']/i)?.[1]
+                   || html.match(/<link[^>]*href=["']([^"']+\.(?:png|svg|webp|jpg|jpeg|ico)(?:\?[^"']*)?)["'][^>]*rel=["'][^"']*icon[^"']*["']/i)?.[1];
+      if (anyIcon) { const a = resolveUrl(anyIcon); if (a) return a; }
     }
-    // 4. /favicon.ico
+
+    // 5. /favicon.ico — verify it's actually an image
     const favRes = await timedFetch(`${base}/favicon.ico`, 5000).catch(() => null);
     if (favRes && favRes.ok) {
       const ct = favRes.headers.get('content-type') || '';
       if (ct.startsWith('image') || ct.includes('icon')) return `${base}/favicon.ico`;
     }
-    // 5. Clearbit logo API as guaranteed fallback — returns real company logo
-    if (domain) return `https://logo.clearbit.com/${domain}`;
+
+    // 6. Clearbit logo API — reliable for known companies
+    return `https://logo.clearbit.com/${domain}`;
   } catch(e) {
-    console.log('[logo] fetch failed for', url, ':', e.message);
+    console.log('[logo] fetch failed for', url, e.message);
+    return `https://logo.clearbit.com/${domain}`;
   }
-  return null;
 }
 
 // ── Contact email extractor ──────────────────────────────────────────────────
@@ -739,6 +964,86 @@ app.get('/admin/fetch-logos', async (req, res) => {
       }
       console.log(`[admin/fetch-logos] Done. Fetched ${fetched}/${r.rows.length} logos.`);
     } catch(e) { console.error('[admin/fetch-logos]', e.message); }
+  });
+});
+
+// ── Admin: strict logo re-validation and re-fetch ─────────────────────────────
+// GET /admin/strict-logo-refresh?key=… — validates all stored image_urls,
+// clears ones that fail the strict logo check, re-fetches with the new logic,
+// and reports stats. Skips owner_image_url (owner-controlled, always kept).
+// Runs in background; check server logs for progress. Safe to re-run.
+app.get('/admin/strict-logo-refresh', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.json({ ok: true, message: 'Strict logo refresh started in background — check server logs for progress and final report.' });
+  setImmediate(async () => {
+    // Patterns that identify social-preview/hero images stored as logos
+    const HERO_RE = [
+      /[/_-]og[-_]?image/i, /opengraph/i, /open[-_]?graph/i,
+      /[/_-]hero[-_.]/i, /screenshot/i, /social[-_]?(?:preview|share|image)/i,
+      /twitter[-_]?card/i, /share[-_]?image/i, /feature[-_]?image/i,
+      /banner[-_]?image/i, /cover[-_]?(?:image|photo)/i,
+      /wp-content\/themes/i, /placeholder/i, /default[-_]?(?:logo|avatar|img)/i,
+      /noimage/i, /no[-_]?img/i, /1x1/i, /pixel\.gif/i,
+    ];
+    const CDN_EXACT  = ['s3.amazonaws.com','cloudfront.net','cloudinary.com','imgix.net',
+                        'fastly.net','akamaihd.net','bunnycdn.com','b-cdn.net'];
+    const CDN_PREFIX = ['cdn.','static.','assets.','img.','images.','media.','files.','upload.','storage.'];
+    function isTrustedCDN(h) {
+      return CDN_EXACT.some(c=>h.includes(c)) || CDN_PREFIX.some(p=>h.startsWith(p));
+    }
+    function isUrlBad(imageUrl, productUrl) {
+      if (!imageUrl) return false;
+      if (HERO_RE.some(re => re.test(imageUrl))) return true;
+      try {
+        const imgHost = new URL(imageUrl).hostname.replace(/^www\./,'');
+        const prodHost = new URL(productUrl).hostname.replace(/^www\./,'');
+        if (imgHost === prodHost) return false;
+        if (imgHost.endsWith('.'+prodHost) || prodHost.endsWith('.'+imgHost)) return false;
+        // Clearbit URLs are always intentional — never reject them
+        if (imgHost === 'logo.clearbit.com') return false;
+        if (isTrustedCDN(imgHost)) return false;
+        // Google favicons are fallbacks set by client — don't store-validate them
+        if (imgHost === 't0.gstatic.com' || imgHost.includes('google.com')) return false;
+        return true; // unrelated domain
+      } catch { return true; }
+    }
+
+    const stats = { total: 0, bad_pattern: 0, bad_domain: 0, cleared: 0, refetched: 0, clearbit_fallback: 0, remained_null: 0 };
+    try {
+      const rows = await pool.query(
+        `SELECT id, url, image_url FROM directory_listings
+         WHERE status='active' AND owner_image_url IS NULL
+         ORDER BY id ASC`
+      );
+      stats.total = rows.rowCount;
+      console.log(`[strict-logo-refresh] Processing ${stats.total} listings…`);
+
+      for (const row of rows.rows) {
+        const bad = isUrlBad(row.image_url, row.url);
+        if (bad) {
+          // Determine why it's bad for reporting
+          if (row.image_url && HERO_RE.some(re => re.test(row.image_url))) stats.bad_pattern++;
+          else stats.bad_domain++;
+          stats.cleared++;
+          // Null it out then re-fetch
+          await pool.query('UPDATE directory_listings SET image_url=NULL WHERE id=$1', [row.id]).catch(()=>{});
+          const fresh = await fetchProductLogo(row.url).catch(()=>null);
+          if (fresh) {
+            await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [fresh, row.id]).catch(()=>{});
+            if (fresh.includes('clearbit.com')) stats.clearbit_fallback++;
+            else stats.refetched++;
+            console.log(`[strict-logo-refresh] FIXED id=${row.id} → ${fresh.slice(0,80)}`);
+          } else {
+            stats.remained_null++;
+            console.log(`[strict-logo-refresh] NULL  id=${row.id} (no logo found, client will fallback)`);
+          }
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+      console.log('[strict-logo-refresh] Complete:', JSON.stringify(stats));
+    } catch(e) {
+      console.error('[strict-logo-refresh] error:', e.message);
+    }
   });
 });
 
