@@ -596,6 +596,10 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <label>Short description (1–2 sentences) *</label>
         <textarea id="fDesc" placeholder="Factual one-line summary of what the product does." required maxlength="300"></textarea>
       </div>
+      <div class="dir-field">
+        <label>Logo URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(optional — paste a direct .png/.svg link, or we'll auto-fetch it)</span></label>
+        <input type="url" id="fLogo" placeholder="https://yourproduct.com/logo.png" />
+      </div>
       <div class="dir-submit-perks">
         <ul>
           <li>Dofollow backlink from DR 86 domain</li>
@@ -1171,6 +1175,7 @@ async function submitListing(e){
         category: document.getElementById('fCategory').value,
         description: document.getElementById('fDesc').value,
         email:    document.getElementById('fEmail').value,
+        logo_url: document.getElementById('fLogo').value.trim(),
       })
     });
     const d = await r.json();

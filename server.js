@@ -412,22 +412,28 @@ async function fetchProductLogo(url) {
 }
 
 app.post('/api/directory/submit', async (req, res) => {
-  const { name, url, category, description, email } = req.body || {};
+  const { name, url, category, description, email, logo_url } = req.body || {};
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
   let cleanUrl = url.trim();
   if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = 'https://' + cleanUrl;
+  // Accept a user-supplied logo URL if it looks like a real image link
+  const suppliedLogo = (logo_url && /^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(logo_url.trim()))
+    ? logo_url.trim().slice(0, 500)
+    : null;
   try {
     const r = await pool.query(
-      `INSERT INTO directory_listings (name, url, category, description, submitter_email, score_pending, status)
-       VALUES ($1,$2,$3,$4,$5,FALSE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
-      [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), email||null]
+      `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
+       VALUES ($1,$2,$3,$4,$5,$6,FALSE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
+      [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), email||null, suppliedLogo]
     );
     if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
     const id = r.rows[0].id;
-    // Fetch real logo in background — no scoring
-    fetchProductLogo(cleanUrl).then(logoUrl => {
-      if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
-    }).catch(()=>{});
+    // If no logo supplied, fetch one in the background
+    if (!suppliedLogo) {
+      fetchProductLogo(cleanUrl).then(logoUrl => {
+        if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
+      }).catch(()=>{});
+    }
     res.json({ success: true, id });
   } catch (err) {
     console.error('[directory] submit error:', err.message);
@@ -556,6 +562,66 @@ app.get('/admin/fetch-logos', async (req, res) => {
       }
       console.log(`[admin/fetch-logos] Done. Fetched ${fetched}/${r.rows.length} logos.`);
     } catch(e) { console.error('[admin/fetch-logos]', e.message); }
+  });
+});
+
+// ── Admin: cross-backlink submission kit ─────────────────────────────────────
+// GET /admin/submit-kit?key=… — returns submit URLs + pre-filled copy for all major directories
+app.get('/admin/submit-kit', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+
+  const apps = [
+    {
+      name: 'ToolIndex',
+      url: 'https://strategic-flow-audit.replit.app/directory',
+      tagline: 'The AI & SaaS tools directory that gives every listing a real dofollow backlink.',
+      description: 'ToolIndex is a curated directory of 500+ AI and SaaS products. Every listing includes a dofollow backlink to the product homepage. Makers can claim their listing, add screenshots, and get featured placement.',
+      category: 'Directory / AI Tools',
+      twitter: '',
+    },
+    {
+      name: 'WHY Audit™',
+      url: 'https://strategic-flow-audit.replit.app',
+      tagline: 'AI-powered email sequence auditor that finds friction bugs and rewrites them.',
+      description: 'WHY Audit scans your email sequences for friction patterns — unclear CTAs, vague subject lines, missing urgency — and suggests specific rewrites powered by Claude AI.',
+      category: 'Marketing / Email / AI Tools',
+      twitter: '',
+    },
+  ];
+
+  const directories = [
+    { name: 'Turbo0',         submitUrl: 'https://turbo0.com/submit',                     status: 'auto-imported' },
+    { name: 'SaaSTool.site',  submitUrl: 'https://saastool.site/submit',                   status: 'auto-imported' },
+    { name: 'SaaSFame',       submitUrl: 'https://saasfame.com/submit',                    status: 'auto-imported' },
+    { name: 'ToolFame',       submitUrl: 'https://toolfame.com/submit',                    status: 'pending' },
+    { name: 'Findly.tools',   submitUrl: 'https://findly.tools/submit',                    status: 'pending' },
+    { name: 'twelve.tools',   submitUrl: 'https://twelve.tools/submit-your-tool',          status: 'auto-imported' },
+    { name: 'Startup Fame',   submitUrl: 'https://startupfa.me/submit',                    status: 'pending' },
+    { name: 'Dofollow.Tools', submitUrl: 'https://dofollow.tools/submit',                  status: 'pending' },
+    { name: 'NewTool.site',   submitUrl: 'https://newtool.site/submit',                    status: 'auto-imported' },
+    { name: 'Fazier',         submitUrl: 'https://fazier.com/submit',                      status: 'pending' },
+    { name: 'LaunchBuff',     submitUrl: 'https://launchbuff.com/submit',                  status: 'auto-imported' },
+    { name: 'LaunchKiwi',     submitUrl: 'https://launchkiwi.co/submit',                   status: 'auto-imported' },
+    { name: 'TheSaaSDir',     submitUrl: 'https://thesaasdir.com/submit',                  status: 'auto-imported' },
+    { name: 'BetaList',       submitUrl: 'https://betalist.com/startups/new',              status: 'pending' },
+    { name: 'Indie Hackers',  submitUrl: 'https://www.indiehackers.com/products/new',      status: 'pending' },
+    { name: 'StackShare',     submitUrl: 'https://stackshare.io/posts/new',                status: 'pending' },
+    { name: 'AlternativeTo',  submitUrl: 'https://alternativeto.net/add-product/',         status: 'pending' },
+    { name: 'SaaSHub',        submitUrl: 'https://www.saashub.com/submit',                 status: 'pending' },
+  ];
+
+  // Count current listings from each source
+  let sourceCounts = {};
+  try {
+    const r = await pool.query(`SELECT source, COUNT(*) as n FROM directory_listings WHERE status='active' GROUP BY source`);
+    r.rows.forEach(row => { sourceCounts[row.source] = parseInt(row.n); });
+  } catch {}
+
+  res.json({
+    apps,
+    directories,
+    sourceCounts,
+    note: 'Submit each app to the "pending" directories manually. Auto-imported sources already list tools from those directories in ToolIndex — message the directory owners to list ToolIndex on their site in return (cross-backlink exchange).',
   });
 });
 

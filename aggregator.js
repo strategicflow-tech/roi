@@ -1,7 +1,8 @@
 'use strict';
 // aggregator.js — Auto-aggregates real product listings from public directories.
 // Sources: Turbo0 (Sanity API), LaunchKiwi (JSON API), SaaSFame (HTML scrape),
-//          NewTool.site (HTML scrape), twelve.tools (HTML scrape)
+//          NewTool.site (HTML scrape), twelve.tools (HTML scrape),
+//          LaunchBuff (HTML scrape), TheSaaSDir (sitemap+HTML), SaaSTool.site (HTML scrape)
 // All descriptions are paraphrased/cleaned; no content is fabricated.
 
 const FETCH_TIMEOUT_MS = 12000;
@@ -354,6 +355,125 @@ async function fetchNewTool(limit = 25) {
   return results;
 }
 
+// ── Source 6: LaunchBuff (launchbuff.com) ─────────────────────────────────────
+// /products page lists all tools — h2 names + ?ref=launchbuff URLs paired by position.
+const LAUNCHBUFF_SKIP_NAMES = /^(all\s+products?|best|submit|compete|win|three\s+steps|not\s+another|more\s+than|winner|real\s+backlink|categor)/i;
+const LAUNCHBUFF_SKIP_URLS  = /launchbuff|twitter|x\.com|facebook|instagram|linkedin|youtube|google/i;
+
+async function fetchLaunchBuff(limit = 200) {
+  const resp = await safeFetch('https://launchbuff.com/products');
+  if (!resp || !resp.ok) return [];
+  const html = await resp.text().catch(() => '');
+
+  // All h2/h3 headings on the page — first is "All Products" (nav), rest are product names
+  const names = [...html.matchAll(/<h\d[^>]*>([^<]{2,80})<\/h\d>/gi)]
+    .map(m => m[1].trim())
+    .filter(n => n.length >= 2 && !LAUNCHBUFF_SKIP_NAMES.test(n));
+
+  // All external product URLs (stripped of ?ref=launchbuff)
+  const urls = [...html.matchAll(/href="(https?:\/\/(?!launchbuff)[^"]*\?ref=launchbuff[^"]*)"/gi)]
+    .map(m => { try { const u = new URL(m[1]); return `${u.origin}${u.pathname}`.replace(/\/+$/, ''); } catch { return null; } })
+    .filter(Boolean);
+
+  const results = [];
+  const seen    = new Set();
+  const count   = Math.min(names.length, urls.length, limit);
+
+  for (let i = 0; i < count; i++) {
+    const name = names[i];
+    const url  = urls[i];
+    if (!name || !url || LAUNCHBUFF_SKIP_URLS.test(url)) continue;
+    const key = normalizeUrl(url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!isEnglish(name)) continue;
+
+    results.push({
+      name:       name.slice(0, 80),
+      url,
+      category:   'Other',
+      description: '',
+      image_url:  null,
+      source:     'LaunchBuff',
+      source_url: 'https://launchbuff.com/products',
+      source_id:  `launchbuff:${key}`,
+      _needsDesc: true,
+    });
+  }
+  return results;
+}
+
+// ── Source 7: TheSaaSDir (thesaasdir.com) ────────────────────────────────────
+// 189 product pages in sitemap. Each page:
+//   - Name  : <h1>Name</h1>
+//   - Desc  : <meta name="description" content="…">
+//   - ExtURL: first href with utm_source=thesaasdir.com (HTML entities decoded, UTM stripped)
+const THESAASDIR_SKIP = /thesaasdir|twitter|x\.com|facebook|instagram|linkedin|youtube|google|cdn\.|gstatic|aitooltrek|verifiedtools|wired\.business|sellwithboost/i;
+
+function htmlDecode(str) {
+  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+async function fetchTheSaaSDir(limit = 80) {
+  const smResp = await safeFetch('https://thesaasdir.com/sitemap.xml');
+  if (!smResp || !smResp.ok) return [];
+  const smXml = await smResp.text().catch(() => '');
+
+  const productUrls = [...smXml.matchAll(/<loc>(https?:\/\/thesaasdir\.com\/product\/[^<]+)<\/loc>/gi)]
+    .map(m => m[1].trim())
+    .slice(0, limit * 2);
+
+  const results = [];
+  for (const pageUrl of productUrls) {
+    if (results.length >= limit) break;
+    const resp = await safeFetch(pageUrl);
+    if (!resp || !resp.ok) { await sleep(500); continue; }
+    const html = await resp.text().catch(() => '');
+
+    // Name from <h1> (the product page always has <h1>ProductName</h1>)
+    const name = html.match(/<h1[^>]*>([^<]{2,80})<\/h1>/i)?.[1]?.trim();
+    // Description from <meta name="description">
+    const rawDesc = html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i)?.[1]
+                 || html.match(/<meta[^>]+content="([^"]+)"[^>]+name="description"/i)?.[1];
+    // First external URL with utm_source=thesaasdir.com (HTML-decoded)
+    const rawMatch = html.match(/href="(https?:\/\/[^"]*utm_source=thesaasdir[^"]{0,300})"/i)?.[1];
+    if (!name || !rawMatch) { await sleep(400); continue; }
+
+    // HTML-decode &amp; then strip UTM params
+    const decodedRaw = htmlDecode(rawMatch);
+    let extUrl = decodedRaw;
+    try {
+      const u = new URL(decodedRaw);
+      ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(p => u.searchParams.delete(p));
+      extUrl = u.toString().replace(/\?$/, '').replace(/\/+$/, '');
+    } catch { extUrl = decodedRaw.replace(/[?&]utm_[^&]+/g,'').replace(/[?&]+$/,''); }
+
+    if (THESAASDIR_SKIP.test(extUrl)) { await sleep(400); continue; }
+    if (!isEnglish(name)) { await sleep(400); continue; }
+
+    const slug = pageUrl.split('/product/')[1]?.replace(/\/$/, '') || '';
+    const key  = normalizeUrl(extUrl);
+    results.push({
+      name:        name.slice(0, 80),
+      url:         extUrl,
+      category:    'Other',
+      description: rawDesc ? cleanDescription(rawDesc, name).slice(0, 300) : '',
+      image_url:   null,
+      source:      'TheSaaSDir',
+      source_url:  pageUrl,
+      source_id:   `thesaasdir:${slug}`,
+    });
+    await sleep(450);
+  }
+  return results;
+}
+
+// ── Source 8: SaaSTool.site ───────────────────────────────────────────────────
+// NOTE: saastool.site product listing pages are JavaScript-rendered — no product links
+// appear in the static HTML (only badge/partner links do). This source is disabled.
+// Keeping the stub so the runner doesn't crash if called directly.
+async function fetchSaaSTool(_limit = 60) { return []; }
+
 // ── Main runner ───────────────────────────────────────────────────────────────
 
 /**
@@ -372,19 +492,22 @@ async function runAggregation(pool, opts = {}) {
 
   // ── Fetch all sources ─────────────────────────────────────────────────────────
   let turbo0 = [], launchkiwi = [], saasfame = [], newtool = [], twelve = [];
+  let launchbuff = [], thesaasdir = [];
 
-  // Parallel: Turbo0 + LaunchKiwi (both JSON APIs, no rate-limit concern)
+  // Parallel: JSON API + single-page scrapers (low rate-limit concern)
   await Promise.all([
     fetchTurbo0(300).then(r => { turbo0 = r; log(`Turbo0: ${r.length}`); }).catch(e => { log('Turbo0 error:', e.message); stats.errors++; }),
     fetchLaunchKiwi().then(r => { launchkiwi = r; log(`LaunchKiwi: ${r.length}`); }).catch(e => { log('LaunchKiwi error:', e.message); stats.errors++; }),
+    fetchLaunchBuff(200).then(r => { launchbuff = r; log(`LaunchBuff: ${r.length}`); }).catch(e => { log('LaunchBuff error:', e.message); stats.errors++; }),
   ]);
 
-  // Scrape sources run sequentially (rate-limited HTML scraping)
+  // Sequential HTML scrapers (rate-limited per-page fetches)
   await fetchSaaSFame(50).then(r => { saasfame = r; log(`SaaSFame: ${r.length}`); }).catch(e => { log('SaaSFame error:', e.message); stats.errors++; });
   await fetchNewTool(25).then(r => { newtool = r; log(`NewTool.site: ${r.length}`); }).catch(e => { log('NewTool error:', e.message); stats.errors++; });
   await fetchTwelveTools(120).then(r => { twelve = r; log(`twelve.tools: ${r.length}`); }).catch(e => { log('twelve.tools error:', e.message); stats.errors++; });
+  await fetchTheSaaSDir(80).then(r => { thesaasdir = r; log(`TheSaaSDir: ${r.length}`); }).catch(e => { log('TheSaaSDir error:', e.message); stats.errors++; });
 
-  const all = [...turbo0, ...launchkiwi, ...saasfame, ...newtool, ...twelve];
+  const all = [...turbo0, ...launchkiwi, ...saasfame, ...newtool, ...twelve, ...launchbuff, ...thesaasdir];
   log(`Raw total: ${all.length}`);
 
   // ── Deduplicate by normalised URL (first occurrence wins) ──
@@ -409,23 +532,31 @@ async function runAggregation(pool, opts = {}) {
   const truly_new = deduped.filter(i => !existingUrls.has(normalizeUrl(i.url)));
   log(`Truly new (not already in DB): ${truly_new.length}`);
 
-  // ── Resolve descriptions for twelve.tools entries (need per-URL og fetch) ──
+  // ── Resolve names/descriptions for entries that need a per-URL og fetch ──────
   const needsDesc = truly_new.filter(i => i._needsDesc);
   if (needsDesc.length > 0) {
-    log(`Fetching og:description for ${needsDesc.length} twelve.tools entries…`);
+    log(`Fetching og:title/og:description for ${needsDesc.length} entries (LaunchBuff, SaaSTool, twelve.tools)…`);
     for (const item of needsDesc) {
       const resp = await safeFetch(item.url).catch(() => null);
       if (resp && resp.ok) {
         const html = await resp.text().catch(() => '');
-        const ogDesc = html.match(/<meta[^>]+(?:property="og:description"|name="description")[^>]+content="([^"]{15,300})"/i)?.[1]
-                    || html.match(/<meta[^>]+content="([^"]{15,300})"[^>]+(?:property="og:description"|name="description")/i)?.[1];
-        const ogImg  = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]{8,})"[^>]*/i)?.[1]
-                    || html.match(/<meta[^>]+content="([^"]{8,})"[^>]*property="og:image"/i)?.[1];
+        const ogTitle = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]{2,80})"/i)?.[1]?.trim()
+                     || html.match(/<meta[^>]+content="([^"]{2,80})"[^>]+property="og:title"/i)?.[1]?.trim();
+        const ogDesc  = html.match(/<meta[^>]+(?:property="og:description"|name="description")[^>]+content="([^"]{15,300})"/i)?.[1]
+                     || html.match(/<meta[^>]+content="([^"]{15,300})"[^>]+(?:property="og:description"|name="description")/i)?.[1];
+        const ogImg   = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]{8,})"[^>]*/i)?.[1]
+                     || html.match(/<meta[^>]+content="([^"]{8,})"[^>]*property="og:image"/i)?.[1];
+        // Update name from og:title when _needsName is set (e.g. SaaSTool domain-derived names)
+        if (item._needsName && ogTitle && isEnglish(ogTitle)) {
+          item.name = ogTitle.slice(0, 80);
+          delete item._needsName;
+        }
         if (ogDesc) item.description = cleanDescription(ogDesc, item.name).slice(0, 300);
-        if (ogImg && !item.image_url) item.image_url = ogImg.slice(0, 500);
+        // Skip og:image here — frontend uses Clearbit; storing og:image causes screenshot logos
+        // if (ogImg && !item.image_url) item.image_url = ogImg.slice(0, 500);
       }
       if (!item.description || item.description.length < 10) {
-        item.description = `${item.name} — a SaaS tool featured on twelve.tools.`;
+        item.description = `${item.name} — listed on ${item.source || 'a SaaS directory'}.`;
       }
       delete item._needsDesc;
       await sleep(250);
