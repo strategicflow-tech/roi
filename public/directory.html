@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Product Directory — Strategic Flow | SaaS & Tool Listings with Friction Scores</title>
-<meta name="description" content="A general SaaS and tool directory where every listing shows a live Decision Friction Score — computed automatically against the product's landing page. Submit your product for a free dofollow backlink." />
+<title>ToolIndex — SaaS & Tool Directory | Submit Your Product Free</title>
+<meta name="description" content="ToolIndex is a free SaaS and tool directory. Submit your product for a dofollow backlink, get discovered by buyers, and claim your listing. Browse 278+ tools across AI, productivity, marketing, developer tools and more." />
+<meta property="og:title" content="ToolIndex — SaaS & Tool Directory" />
+<meta property="og:description" content="Free SaaS and tool directory. Submit your product for a dofollow backlink from DR 86." />
+<meta name="keywords" content="tool index, SaaS directory, submit your product, product directory, tool directory, AI tools directory" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -17,9 +20,6 @@
   --gold:#f59e0b;--red:#e8455a;--purple:#a78bfa;
   --text:#ffffff;--muted:#7a9ab8;
   --font:'Inter',sans-serif;--mono:'DM Mono',monospace;
-  --score-low:#22c55e;--score-low-bg:rgba(34,197,94,0.10);
-  --score-mid:#f59e0b;--score-mid-bg:rgba(245,158,11,0.10);
-  --score-high:#e8455a;--score-high-bg:rgba(232,69,90,0.10);
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;}
 a{color:var(--teal);text-decoration:none;}
@@ -97,12 +97,6 @@ a:hover{text-decoration:underline;}
 .dir-promo-text p a{color:var(--teal);}
 .dir-promo-badge{background:var(--teal);color:#041214;font-size:11px;font-weight:800;font-family:var(--mono);padding:4px 10px;border-radius:20px;letter-spacing:.06em;white-space:nowrap;}
 
-/* SCORE LEGEND */
-.dir-score-explain{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin:0 40px 40px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.dir-score-explain-title{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
-.dir-score-scale{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.scale-item{display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);}
-.scale-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 
 /* FILTERS */
 .dir-filters{padding:0 40px 28px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -127,17 +121,6 @@ a:hover{text-decoration:underline;}
 .dir-thumb{width:38px;height:38px;border-radius:10px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;background:var(--bg3);}
 .dir-card-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dir-cat-tag{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
-.dir-score-badge{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
-.dir-score-val{font-size:18px;font-weight:800;line-height:1;}
-.dir-score-lbl{font-size:9px;font-family:var(--mono);letter-spacing:.10em;text-transform:uppercase;}
-.score-low .dir-score-val{color:var(--score-low);}
-.score-low .dir-score-lbl{color:rgba(34,197,94,.6);}
-.score-mid .dir-score-val{color:var(--score-mid);}
-.score-mid .dir-score-lbl{color:rgba(245,158,11,.6);}
-.score-high .dir-score-val{color:var(--score-high);}
-.score-high .dir-score-lbl{color:rgba(232,69,90,.6);}
-.score-pending .dir-score-val{color:var(--muted);font-size:11px;font-weight:500;}
-.score-pending .dir-score-lbl{color:var(--muted);opacity:.6;}
 .dir-desc{font-size:13px;color:var(--muted);line-height:1.55;flex:1;}
 .dir-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .dir-card-actions{display:flex;align-items:center;gap:8px;}
@@ -154,8 +137,8 @@ a:hover{text-decoration:underline;}
 .dir-vote-btn:hover .vote-arrow{transform:translateY(-2px);}
 
 /* BOOST BUTTON */
-.dir-boost-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;transition:all .2s;letter-spacing:.05em;}
-.dir-boost-btn:hover{border-color:var(--gold);color:var(--gold);}
+.dir-boost-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--gold);background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:4px 10px;cursor:pointer;transition:all .2s;letter-spacing:.05em;font-weight:600;}
+.dir-boost-btn:hover{background:rgba(245,158,11,0.14);border-color:var(--gold);}
 
 /* CLAIM */
 .dir-claim-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:none;padding:0;cursor:pointer;transition:color .2s;letter-spacing:.03em;text-decoration:underline;text-decoration-style:dotted;}
@@ -267,7 +250,6 @@ a:hover{text-decoration:underline;}
   .dir-filters{padding:0 20px 20px;}
   .dir-search-wrap{padding:0 20px 16px;}
   .dir-grid{grid-template-columns:1fr;gap:12px;padding:0 20px 48px;}
-  .dir-score-explain{margin:0 20px 28px;}
   .dir-form-row{grid-template-columns:1fr;}
   .dir-submit-section{padding:40px 20px;}
   .dir-footer{padding:28px 20px;}
@@ -280,15 +262,14 @@ a:hover{text-decoration:underline;}
 
 <!-- NAV -->
 <nav class="dir-nav">
-  <a href="/" class="dir-nav-logo">
+  <a href="/directory" class="dir-nav-logo">
     <span class="dir-nav-logo-dot"></span>
-    Strategic Flow
+    ToolIndex
   </a>
   <div class="dir-nav-links">
-    <a href="/">Audit Tool</a>
-    <a href="/why.html">WHY.</a>
-    <a href="/blink-test">Blink Test</a>
-    <a href="/ai-visibility">AI Visibility</a>
+    <a href="#submit">Submit</a>
+    <a href="#leaderboard">Leaderboard</a>
+    <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">Strategic Flow ↗</a>
     <a href="#submit" class="dir-nav-cta">Submit your product →</a>
   </div>
 </nav>
@@ -297,22 +278,22 @@ a:hover{text-decoration:underline;}
 <section class="dir-hero">
   <div class="dir-hero-tag">
     <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 2s infinite;"></span>
-    General Product Directory · Powered by the Decision Friction Model
+    SaaS &amp; Tool Directory · Free to list · Dofollow backlinks
   </div>
-  <h1>Every listing shows a <em>live Friction Score</em></h1>
-  <p class="dir-hero-sub">The only SaaS and tool directory where each listing is automatically scored on landing-page clarity by the Decision Friction Model — so you know what you're clicking through to.</p>
+  <h1>The <em>tool index</em> built for discovery</h1>
+  <p class="dir-hero-sub">Browse and submit SaaS tools, apps, and products. Every listing gets a free dofollow backlink. Claim ownership, collect upvotes, and feature your product in front of buyers.</p>
   <div class="dir-stats">
     <div class="dir-stat">
-      <div class="dir-stat-num" id="statCount">265</div>
+      <div class="dir-stat-num" id="statCount">278</div>
       <div class="dir-stat-label">Products listed</div>
-    </div>
-    <div class="dir-stat">
-      <div class="dir-stat-num">1–10</div>
-      <div class="dir-stat-label">Friction scale</div>
     </div>
     <div class="dir-stat">
       <div class="dir-stat-num">Free</div>
       <div class="dir-stat-label">Dofollow backlink</div>
+    </div>
+    <div class="dir-stat">
+      <div class="dir-stat-num">DR 86</div>
+      <div class="dir-stat-label">Domain rating</div>
     </div>
   </div>
 </section>
@@ -327,7 +308,7 @@ a:hover{text-decoration:underline;}
 </div>
 
 <!-- LEADERBOARD -->
-<div class="dir-leaderboard-section">
+<div class="dir-leaderboard-section" id="leaderboard">
   <div class="dir-lb-header">
     <span class="dir-lb-title">Leaderboard</span>
     <div class="dir-lb-tabs">
@@ -341,28 +322,6 @@ a:hover{text-decoration:underline;}
   </div>
 </div>
 
-<!-- PROMO BANNER -->
-<div class="dir-promo">
-  <div class="dir-promo-left">
-    <div class="dir-promo-icon">⚡</div>
-    <div class="dir-promo-text">
-      <strong>Powered by Strategic Flow — Get 20% off your Diagnostic Audit</strong>
-      <p>Submit your product here and get the full Decision Friction Audit at <strong style="color:#fff;">$39 instead of $49</strong>. <a href="/">Run the free audit first →</a></p>
-    </div>
-  </div>
-  <div class="dir-promo-badge">$49 → $39</div>
-</div>
-
-<!-- SCORE LEGEND -->
-<div class="dir-score-explain">
-  <span class="dir-score-explain-title">Friction Score</span>
-  <div class="dir-score-scale">
-    <div class="scale-item"><span class="scale-dot" style="background:var(--score-low);"></span><span style="color:var(--score-low);">1–3</span> <span style="color:var(--muted);">Low — clear value prop</span></div>
-    <div class="scale-item"><span class="scale-dot" style="background:var(--score-mid);"></span><span style="color:var(--score-mid);">4–6</span> <span style="color:var(--muted);">Medium — some confusion</span></div>
-    <div class="scale-item"><span class="scale-dot" style="background:var(--score-high);"></span><span style="color:var(--score-high);">7–10</span> <span style="color:var(--muted);">High — unclear or complex</span></div>
-  </div>
-  <span style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:auto;">auto-computed by DFM engine</span>
-</div>
 
 <!-- FILTERS + SEARCH -->
 <div class="dir-search-wrap">
@@ -391,8 +350,8 @@ a:hover{text-decoration:underline;}
 <section class="dir-submit-section" id="submit">
   <div class="dir-submit-inner">
     <div class="dir-submit-label">Submit your product</div>
-    <h2>Get a free dofollow backlink + your Friction Score</h2>
-    <p>Submit any SaaS tool, app, or product. We'll automatically run the Decision Friction Model against your landing page and display a live score on your listing. No review queue — goes live immediately.</p>
+    <h2>Get a free dofollow backlink from DR 86</h2>
+    <p>Submit any SaaS tool, app, or product. Your listing goes live immediately with a dofollow backlink. No review queue, no account required.</p>
     <form class="dir-form" id="dirForm" onsubmit="submitListing(event)">
       <div class="dir-form-row">
         <div class="dir-field">
@@ -425,7 +384,7 @@ a:hover{text-decoration:underline;}
           </select>
         </div>
         <div class="dir-field">
-          <label>Your email (optional — notified when score is ready)</label>
+          <label>Your email (optional — notified when votes come in)</label>
           <input type="email" id="fEmail" placeholder="you@company.com" />
         </div>
       </div>
@@ -436,13 +395,13 @@ a:hover{text-decoration:underline;}
       <div class="dir-submit-perks">
         <ul>
           <li>Dofollow backlink from DR 86 domain</li>
-          <li>Live Friction Score computed automatically</li>
-          <li>Goes live immediately</li>
-          <li>20% off Strategic Flow audit ($39 instead of $49)</li>
+          <li>Upvoting &amp; leaderboard visibility</li>
+          <li>Claim ownership &amp; add your own description</li>
+          <li>Goes live immediately — no review queue</li>
         </ul>
       </div>
       <div class="dir-form-msg" id="dirFormMsg"></div>
-      <button type="submit" class="dir-submit-btn" id="dirSubmitBtn">Submit product + get Friction Score →</button>
+      <button type="submit" class="dir-submit-btn" id="dirSubmitBtn">Submit your product free →</button>
     </form>
   </div>
 </section>
@@ -450,47 +409,9 @@ a:hover{text-decoration:underline;}
 <!-- FOOTER -->
 <footer class="dir-footer">
   <div class="dir-footer-inner">
-    <div class="dir-footer-label">More free tools from Strategic Flow</div>
-    <div class="dir-footer-links">
-      <a href="/why.html" class="dir-footer-link">
-        <span class="dir-footer-link-icon">🔍</span>
-        <div>
-          <div class="dir-footer-link-name">WHY.</div>
-          <div class="dir-footer-link-desc">Decision Friction Diagnostic</div>
-        </div>
-      </a>
-      <a href="/blink-test" class="dir-footer-link">
-        <span class="dir-footer-link-icon">👁️</span>
-        <div>
-          <div class="dir-footer-link-name">Blink Test</div>
-          <div class="dir-footer-link-desc">3-second clarity check</div>
-        </div>
-      </a>
-      <a href="/ai-visibility" class="dir-footer-link">
-        <span class="dir-footer-link-icon">🤖</span>
-        <div>
-          <div class="dir-footer-link-name">AI Visibility</div>
-          <div class="dir-footer-link-desc">Check AI citation coverage</div>
-        </div>
-      </a>
-      <a href="https://strategicflow.tech" target="_blank" rel="noopener" class="dir-footer-link">
-        <span class="dir-footer-link-icon">🌐</span>
-        <div>
-          <div class="dir-footer-link-name">strategicflow.tech</div>
-          <div class="dir-footer-link-desc">Main homepage</div>
-        </div>
-      </a>
-      <a href="/" class="dir-footer-link">
-        <span class="dir-footer-link-icon">📧</span>
-        <div>
-          <div class="dir-footer-link-name">Email Audit</div>
-          <div class="dir-footer-link-desc">Free SaaS email teardown</div>
-        </div>
-      </a>
-    </div>
     <div class="dir-footer-copy">
-      <span>Strategic Flow © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--muted);">Terms</a></span>
-      <span style="font-family:var(--mono);font-size:11px;">DR 86 · Powered by Decision Friction Model</span>
+      <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:var(--muted);">Terms</a></span>
+      <span style="font-family:var(--mono);font-size:11px;">Powered by <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">Strategic Flow</a> · DR 86</span>
     </div>
   </div>
 </footer>
@@ -651,14 +572,8 @@ function lbThumbFor(name, category, imageUrl){
   return `<div style="${fallbackStyle}">${initSpan}</div>`;
 }
 
-// ── Score helpers ─────────────────────────────────────────────────────────────
-function scoreClass(s,p){ if(p||s==null) return 'score-pending'; if(s<=3) return 'score-low'; if(s<=6) return 'score-mid'; return 'score-high'; }
-function scoreLbl(s,p){ if(p||s==null) return['Computing…','auto-scoring']; if(s<=3) return[`${s}/10`,'Low friction']; if(s<=6) return[`${s}/10`,'Med friction']; return[`${s}/10`,'High friction']; }
-
 // ── Card rendering ────────────────────────────────────────────────────────────
 function renderCard(l){
-  const cls   = scoreClass(l.friction_score, l.score_pending);
-  const [val,lbl] = scoreLbl(l.friction_score, l.score_pending);
   const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
   const votes  = l.vote_count||0;
   const voted  = votedIds.has(l.id);
@@ -680,10 +595,6 @@ function renderCard(l){
           ${featBadge}
         </div>
       </div>
-      <div class="dir-score-badge ${cls}">
-        <div class="dir-score-val">${val}</div>
-        <div class="dir-score-lbl">${lbl}</div>
-      </div>
     </div>
     <p class="dir-desc">${escHtml(l.description||'')}</p>
     <div class="dir-card-footer">
@@ -701,7 +612,7 @@ function renderCard(l){
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
-        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost</button>
+        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Feature from $10</button>
       </div>
     </div>
   </div>`;
@@ -869,7 +780,7 @@ async function submitListing(e){
     const d = await r.json();
     if(r.ok && d.success){
       msg.className='dir-form-msg success';
-      msg.textContent='✓ Listed! Your Friction Score is being computed in the background (~30s). Refresh to see your listing.';
+      msg.textContent='✓ Listed! Your product is live on ToolIndex. Refresh to see your listing.';
       document.getElementById('dirForm').reset();
       setTimeout(loadListings, 3000);
     }else if(d.error==='already_listed'){
@@ -880,7 +791,7 @@ async function submitListing(e){
     msg.className='dir-form-msg error';
     msg.textContent='Something went wrong. Please try again.';
   }finally{
-    btn.disabled=false; btn.textContent='Submit product + get Friction Score →';
+    btn.disabled=false; btn.textContent='Submit your product free →';
     msg.style.display='block';
   }
 }

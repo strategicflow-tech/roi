@@ -1,6 +1,7 @@
 'use strict';
 // aggregator.js — Auto-aggregates real product listings from public directories.
-// Sources: Turbo0 (Sanity API), LaunchKiwi (JSON API), SaaSFame (HTML scrape), NewTool.site (HTML scrape)
+// Sources: Turbo0 (Sanity API), LaunchKiwi (JSON API), SaaSFame (HTML scrape),
+//          NewTool.site (HTML scrape), twelve.tools (HTML scrape)
 // All descriptions are paraphrased/cleaned; no content is fabricated.
 
 const FETCH_TIMEOUT_MS = 12000;
@@ -108,7 +109,7 @@ function normalizeUrl(url) {
 // link field = actual product URL; image.asset->url = screenshot
 const TURBO0_BLOCKLIST = /casino|betting|gambling|vape|escort|porn|adult|nsfw|forex|loan.?shark|free.?money/i;
 
-async function fetchTurbo0(limit = 150) {
+async function fetchTurbo0(limit = 300) {
   const results = [];
   const batchSize = 100;
   let offset = 0;
@@ -249,7 +250,56 @@ async function fetchSaaSFame(limit = 25) {
   return results;
 }
 
-// ── Source 4: NewTool.site (HTML scrape) ──────────────────────────────────────
+// ── Source 4: twelve.tools (HTML scrape) ─────────────────────────────────────
+// Each category page exposes tools via: title="visit [Name]" href="[URL]"
+// 117 categories; we scrape a curated subset of tech-relevant ones.
+const TWELVE_CATEGORIES = [
+  'productivity','marketing','analytics','design','developer-tools','developer-apis',
+  'seo','social-media','email','sales','automation','no-code','content-creators',
+  'e-commerce','feedback-tools','writing','databases','cloud-computing',
+  'project-management','finance','saas-boilerplates','security','monitoring',
+  'lead-generation','cms','form-builders','recruiting','screenshots',
+  'collaboration','knowledge-management',
+];
+const TWELVE_SKIP = /twitter\.com|x\.com|facebook|instagram|linkedin\.com|youtube|ramen\.tools|500\.tools|wired\.business|climate\.stripe|limonbello\.com\/tools\/morning/i;
+
+async function fetchTwelveTools(limit = 120) {
+  const results = [];
+  const seen    = new Set();
+
+  for (const cat of TWELVE_CATEGORIES) {
+    if (results.length >= limit) break;
+    const resp = await safeFetch(`https://twelve.tools/c/${cat}`);
+    if (!resp || !resp.ok) { await sleep(300); continue; }
+    const html = await resp.text().catch(() => '');
+
+    // Extract all  title="visit [Name]" href="[URL]"  pairs
+    const matches = [...html.matchAll(/title="visit ([^"]{2,80})"[^>]*href="(https?:\/\/[^"]{4,200})"/gi)];
+    for (const [, name, url] of matches) {
+      if (results.length >= limit) break;
+      if (TWELVE_SKIP.test(url)) continue;
+      const key = url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, '').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      results.push({
+        name:        name.trim().slice(0, 80),
+        url:         url.replace(/\/$/, ''),
+        category:    mapCategory(cat.replace(/-/g, ' ')),
+        description: '',          // filled by per-URL og:description fetch in runAggregation
+        image_url:   null,
+        source:      'twelve.tools',
+        source_url:  `https://twelve.tools/c/${cat}`,
+        source_id:   `twelve:${key}`,
+        _needsDesc:  true,
+      });
+    }
+    await sleep(320);
+  }
+  return results;
+}
+
+// ── Source 5: NewTool.site (HTML scrape) ──────────────────────────────────────
 // Sitemap has localhost:3000 URLs — rewrite to newtool.site
 const NT_SKIP_DOMAINS = /newtool|twitter|x\.com|linkedin|facebook|instagram|youtube|google|sanity\.|cdn\.|producthunt|github\.com/i;
 
@@ -320,19 +370,21 @@ async function runAggregation(pool, opts = {}) {
   log('=== Aggregation run started ===');
   const t0 = Date.now();
 
-  // ── Fetch all sources (Turbo0+LaunchKiwi in parallel, SaaSFame+NewTool after) ──
-  let turbo0 = [], launchkiwi = [], saasfame = [], newtool = [];
+  // ── Fetch all sources ─────────────────────────────────────────────────────────
+  let turbo0 = [], launchkiwi = [], saasfame = [], newtool = [], twelve = [];
 
+  // Parallel: Turbo0 + LaunchKiwi (both JSON APIs, no rate-limit concern)
   await Promise.all([
-    fetchTurbo0(150).then(r => { turbo0 = r; log(`Turbo0: ${r.length}`); }).catch(e => { log('Turbo0 error:', e.message); stats.errors++; }),
+    fetchTurbo0(300).then(r => { turbo0 = r; log(`Turbo0: ${r.length}`); }).catch(e => { log('Turbo0 error:', e.message); stats.errors++; }),
     fetchLaunchKiwi().then(r => { launchkiwi = r; log(`LaunchKiwi: ${r.length}`); }).catch(e => { log('LaunchKiwi error:', e.message); stats.errors++; }),
   ]);
 
-  // Scrape sources run sequentially (rate-limited)
-  await fetchSaaSFame(25).then(r => { saasfame = r; log(`SaaSFame: ${r.length}`); }).catch(e => { log('SaaSFame error:', e.message); stats.errors++; });
+  // Scrape sources run sequentially (rate-limited HTML scraping)
+  await fetchSaaSFame(50).then(r => { saasfame = r; log(`SaaSFame: ${r.length}`); }).catch(e => { log('SaaSFame error:', e.message); stats.errors++; });
   await fetchNewTool(25).then(r => { newtool = r; log(`NewTool.site: ${r.length}`); }).catch(e => { log('NewTool error:', e.message); stats.errors++; });
+  await fetchTwelveTools(120).then(r => { twelve = r; log(`twelve.tools: ${r.length}`); }).catch(e => { log('twelve.tools error:', e.message); stats.errors++; });
 
-  const all = [...turbo0, ...launchkiwi, ...saasfame, ...newtool];
+  const all = [...turbo0, ...launchkiwi, ...saasfame, ...newtool, ...twelve];
   log(`Raw total: ${all.length}`);
 
   // ── Deduplicate by normalised URL (first occurrence wins) ──
@@ -357,6 +409,29 @@ async function runAggregation(pool, opts = {}) {
   const truly_new = deduped.filter(i => !existingUrls.has(normalizeUrl(i.url)));
   log(`Truly new (not already in DB): ${truly_new.length}`);
 
+  // ── Resolve descriptions for twelve.tools entries (need per-URL og fetch) ──
+  const needsDesc = truly_new.filter(i => i._needsDesc);
+  if (needsDesc.length > 0) {
+    log(`Fetching og:description for ${needsDesc.length} twelve.tools entries…`);
+    for (const item of needsDesc) {
+      const resp = await safeFetch(item.url).catch(() => null);
+      if (resp && resp.ok) {
+        const html = await resp.text().catch(() => '');
+        const ogDesc = html.match(/<meta[^>]+(?:property="og:description"|name="description")[^>]+content="([^"]{15,300})"/i)?.[1]
+                    || html.match(/<meta[^>]+content="([^"]{15,300})"[^>]+(?:property="og:description"|name="description")/i)?.[1];
+        const ogImg  = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]{8,})"[^>]*/i)?.[1]
+                    || html.match(/<meta[^>]+content="([^"]{8,})"[^>]*property="og:image"/i)?.[1];
+        if (ogDesc) item.description = cleanDescription(ogDesc, item.name).slice(0, 300);
+        if (ogImg && !item.image_url) item.image_url = ogImg.slice(0, 500);
+      }
+      if (!item.description || item.description.length < 10) {
+        item.description = `${item.name} — a SaaS tool featured on twelve.tools.`;
+      }
+      delete item._needsDesc;
+      await sleep(250);
+    }
+  }
+
   // ── Insert ────────────────────────────────────────────────────────────────
   for (const item of truly_new) {
     try {
@@ -364,7 +439,7 @@ async function runAggregation(pool, opts = {}) {
         `INSERT INTO directory_listings
            (name, url, category, description, image_url, source, source_url, source_id,
             is_auto_imported, score_pending, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8, TRUE, TRUE, 'active')
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8, TRUE, FALSE, 'active')
          ON CONFLICT (url) DO NOTHING
          RETURNING id`,
         [item.name, item.url, item.category, item.description,

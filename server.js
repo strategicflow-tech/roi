@@ -368,6 +368,47 @@ app.get('/api/directory/listings', async (req, res) => {
   }
 });
 
+// ── Fetch real logo/favicon for a product URL ─────────────────────────────────
+// Priority: og:image → apple-touch-icon → link[rel=icon] → favicon.ico
+async function fetchProductLogo(url) {
+  const timedFetch = (u, ms = 8000) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(u, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' }
+    }).finally(() => clearTimeout(t));
+  };
+  try {
+    const base = new URL(url).origin;
+    const res  = await timedFetch(url).catch(() => null);
+    const html = res && res.ok ? await res.text().catch(() => '') : '';
+    if (html) {
+      // 1. og:image
+      const og = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']{8,}?)["']/i)?.[1]
+               || html.match(/<meta[^>]*content=["']([^"']{8,}?)["'][^>]*property=["']og:image["']/i)?.[1];
+      if (og) return (og.startsWith('http') ? og : new URL(og, url).href).slice(0, 500);
+
+      // 2. apple-touch-icon
+      const apple = html.match(/<link[^>]*rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i)?.[1];
+      if (apple) return (apple.startsWith('http') ? apple : new URL(apple, url).href).slice(0, 500);
+
+      // 3. <link rel="icon"> with image extension
+      const icon = html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']([^"']+\.(png|svg|webp|jpg|ico)[^"']*)["']/i)?.[1];
+      if (icon) return (icon.startsWith('http') ? icon : new URL(icon, url).href).slice(0, 500);
+    }
+    // 4. Fallback: /favicon.ico
+    const favRes = await timedFetch(`${base}/favicon.ico`, 5000).catch(() => null);
+    if (favRes && favRes.ok) {
+      const ct = favRes.headers.get('content-type') || '';
+      if (ct.startsWith('image') || ct.includes('icon')) return `${base}/favicon.ico`;
+    }
+  } catch(e) {
+    console.log('[logo] fetch failed for', url, ':', e.message);
+  }
+  return null;
+}
+
 app.post('/api/directory/submit', async (req, res) => {
   const { name, url, category, description, email } = req.body || {};
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
@@ -376,12 +417,15 @@ app.post('/api/directory/submit', async (req, res) => {
   try {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, score_pending, status)
-       VALUES ($1,$2,$3,$4,$5,TRUE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
+       VALUES ($1,$2,$3,$4,$5,FALSE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
       [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), email||null]
     );
     if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
     const id = r.rows[0].id;
-    computeDirectoryFrictionScore(id, cleanUrl).catch(() => {});
+    // Fetch real logo in background — no scoring
+    fetchProductLogo(cleanUrl).then(logoUrl => {
+      if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
+    }).catch(()=>{});
     res.json({ success: true, id });
   } catch (err) {
     console.error('[directory] submit error:', err.message);
@@ -396,14 +440,78 @@ app.get('/admin/aggregate', async (req, res) => {
   setImmediate(async () => {
     try {
       const stats = await runAggregation(pool);
-      // Score up to 10 new listings immediately
-      const toScore = stats.newIds.slice(0, 10);
-      for (const id of toScore) {
+      // Fetch logos for new listings (3s apart to be polite)
+      const toLogo = stats.newIds.slice(0, 20);
+      for (const id of toLogo) {
         const r = await pool.query('SELECT url FROM directory_listings WHERE id=$1', [id]).catch(()=>null);
-        if (r?.rows[0]?.url) computeDirectoryFrictionScore(id, r.rows[0].url).catch(()=>{});
-        await new Promise(resolve => setTimeout(resolve, 2000)); // space out API calls
+        if (r?.rows[0]?.url) {
+          const logoUrl = await fetchProductLogo(r.rows[0].url).catch(()=>null);
+          if (logoUrl) await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
+      console.log(`[admin/aggregate] Logo fetch done for ${toLogo.length} new listings.`);
     } catch(e) { console.error('[admin/aggregate]', e.message); }
+  });
+});
+
+// ── Admin: retroactive logo fetcher ──────────────────────────────────────────
+// GET /admin/fetch-logos?key=… — fetches real logos for listings missing image_url
+app.get('/admin/fetch-logos', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.json({ ok: true, message: 'Logo fetch started in background — check server logs.' });
+  setImmediate(async () => {
+    try {
+      const r = await pool.query(
+        `SELECT id, url FROM directory_listings WHERE image_url IS NULL AND status='active' ORDER BY id ASC LIMIT 100`
+      );
+      console.log(`[admin/fetch-logos] Fetching logos for ${r.rows.length} listings…`);
+      let fetched = 0;
+      for (const row of r.rows) {
+        const logoUrl = await fetchProductLogo(row.url).catch(() => null);
+        if (logoUrl) {
+          await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, row.id]).catch(()=>{});
+          fetched++;
+          console.log(`[admin/fetch-logos] id=${row.id} → ${logoUrl.slice(0,80)}`);
+        }
+        await new Promise(res => setTimeout(res, 2000)); // 2s between fetches
+      }
+      console.log(`[admin/fetch-logos] Done. Fetched ${fetched}/${r.rows.length} logos.`);
+    } catch(e) { console.error('[admin/fetch-logos]', e.message); }
+  });
+});
+
+// ── Admin: on-demand batch friction scorer ────────────────────────────────────
+// GET /admin/score?key=…&reset_seeded=1
+// Optional reset_seeded=1 nulls out hardcoded seed scores so real DFM runs.
+// Scores up to 50 pending/unscored listings, 3s apart.
+app.get('/admin/score', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.json({ ok: true, message: 'Scoring run started in background — check server logs.' });
+  setImmediate(async () => {
+    try {
+      if (req.query.reset_seeded === '1') {
+        await pool.query(
+          `UPDATE directory_listings
+           SET friction_score = NULL, score_pending = TRUE, scored_at = NULL
+           WHERE is_seeded = TRUE`
+        );
+        console.log('[admin/score] Reset seeded listing scores to pending.');
+      }
+      const r = await pool.query(
+        `SELECT id, url FROM directory_listings
+         WHERE (score_pending = TRUE OR friction_score IS NULL) AND status = 'active'
+         ORDER BY submitted_at ASC LIMIT 50`
+      );
+      console.log(`[admin/score] Scoring ${r.rows.length} listings…`);
+      for (const row of r.rows) {
+        await computeDirectoryFrictionScore(row.id, row.url).catch(e =>
+          console.error(`[admin/score] id=${row.id} error:`, e.message)
+        );
+        await new Promise(res => setTimeout(res, 3000));
+      }
+      console.log('[admin/score] Batch done.');
+    } catch(e) { console.error('[admin/score] Fatal:', e.message); }
   });
 });
 
