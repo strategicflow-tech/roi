@@ -972,12 +972,11 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <button class="modal-close" onclick="closeClaimModal()">&times;</button>
     <div class="modal-tag">🔑 Claim this listing</div>
     <div class="modal-title" id="claimProductName">Your product</div>
-    <div class="modal-sub">Verify you own this listing by entering your <span id="claimDomain" style="color:var(--teal);font-family:var(--mono);"></span> email address. We'll send a one-time code.</div>
+    <div class="modal-sub">Verify you own this listing by entering your email address. We'll send a one-time code.</div>
 
     <!-- Step 1: email -->
     <div class="claim-step active" id="claimStep1">
-      <div class="claim-hint">📧 Use an email address at your product's domain — e.g. <span id="claimEmailHint" style="color:var(--teal);font-family:var(--mono);"></span></div>
-      <input class="claim-input" type="email" id="claimEmail" placeholder="you@yourdomain.com" />
+      <input class="claim-input" type="email" id="claimEmail" placeholder="your@email.com" />
       <div class="claim-err" id="claimErr1"></div>
       <button class="claim-btn" id="claimSendBtn" onclick="claimSendOTP()">Send verification code →</button>
     </div>
@@ -1636,8 +1635,6 @@ function openClaimModal(id, name, domain) {
   claimEditToken  = null;
   claimOwnerEmail = null;
   document.getElementById('claimProductName').textContent = name;
-  document.getElementById('claimDomain').textContent      = domain;
-  document.getElementById('claimEmailHint').textContent   = 'you@' + domain;
   document.getElementById('claimEmail').value = '';
   document.getElementById('claimOTP').value   = '';
   document.getElementById('claimDesc').value      = '';

@@ -2163,12 +2163,6 @@ app.post('/api/directory/claim/start', async (req, res) => {
     if (listing.claimed_by)
       return res.status(409).json({ error: 'already_claimed' });
 
-    if (!emailMatchesDomain(email, listing.url))
-      return res.status(422).json({
-        error: 'domain_mismatch',
-        hint: `Email must match the domain of ${new URL(listing.url).hostname}`
-      });
-
     const otp     = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 15 * 60 * 1000);
 
