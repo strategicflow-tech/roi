@@ -1713,6 +1713,22 @@ Or paste a cold email, landing page, proposal — anything with a reader who nee
     if(li){var p=platforms.concat(platforms).concat(platforms).concat(platforms);li.innerHTML=p.map(function(x){return'<a class="why-pill" href="'+x.u+'" target="_blank" rel="noopener" style="cursor:pointer;"><span class="why-pill-dot"></span>'+x.n+'</a>';}).join('');}
   })();
   </script>
+  <script>
+  /* Touch pause — tap non-link area to freeze ticker; auto-resumes after 4s */
+  (function(){
+    document.querySelectorAll('.why-ticker-wrap').forEach(function(wrap){
+      var track=wrap.querySelector('.why-ticker-track');if(!track)return;
+      var tmr;
+      wrap.addEventListener('touchstart',function(e){
+        if(e.target.closest('a[href]'))return;
+        var running=track.style.animationPlayState!=='paused';
+        track.style.animationPlayState=running?'paused':'running';
+        clearTimeout(tmr);
+        if(running)tmr=setTimeout(function(){track.style.animationPlayState='running';},4000);
+      },{passive:true});
+    });
+  })();
+  </script>
   <a href="mailto:alex@strategicflow.tech" style="color:#FF4422;font-family:'Space Mono',monospace;font-size:12px;text-decoration:none;">alex@strategicflow.tech</a><br>
   <span style="color:#FFFFFF;">Built to explain why content fails — before you rewrite it.</span>
 </footer>

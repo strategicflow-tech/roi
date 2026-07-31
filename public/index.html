@@ -1324,6 +1324,22 @@ textarea{resize:vertical;line-height:1.7;}
     el.innerHTML=all.map(function(x){return'<a class="sf-pill" href="'+x.u+'" target="_blank" rel="noopener" style="cursor:pointer;"><span class="sf-pill-dot"></span>'+x.n+'</a>';}).join('');
   })();
   </script>
+  <script>
+  /* Touch pause — tap non-link area to freeze ticker; auto-resumes after 4s */
+  (function(){
+    document.querySelectorAll('.sf-ticker-wrap').forEach(function(wrap){
+      var track=wrap.querySelector('.sf-ticker-track');if(!track)return;
+      var tmr;
+      wrap.addEventListener('touchstart',function(e){
+        if(e.target.closest('a[href]'))return;
+        var running=track.style.animationPlayState!=='paused';
+        track.style.animationPlayState=running?'paused':'running';
+        clearTimeout(tmr);
+        if(running)tmr=setTimeout(function(){track.style.animationPlayState='running';},4000);
+      },{passive:true});
+    });
+  })();
+  </script>
 </div>
 
 <style>
