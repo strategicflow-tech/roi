@@ -513,6 +513,34 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 @media(max-width:480px){
   .dir-footer-cols{grid-template-columns:1fr;}
 }
+/* ── Body layout: listing grid + sticky sidebar ──────────────────── */
+.dir-body-wrap{display:grid;grid-template-columns:1fr 264px;gap:28px;padding:0 40px 28px;align-items:start}
+.dir-body-main{min-width:0}
+.dir-body-sidebar{position:sticky;top:80px}
+/* Override inner element padding inside the wrapper */
+.dir-body-wrap .dir-search-wrap{padding-left:0;padding-right:0}
+.dir-body-wrap .dir-filters{padding-left:0;padding-right:0}
+.dir-body-wrap .dir-grid{padding-left:0;padding-right:0}
+.dir-body-wrap .dir-load-more-wrap{padding-left:0;padding-right:0}
+/* Sponsor widget */
+.dir-sponsor-widget{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px}
+.dir-sponsor-widget-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.dir-sponsor-widget-title{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.dir-sponsor-slots{font-size:10px;font-family:var(--mono);color:var(--teal)}
+.dir-sponsor-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;text-decoration:none;transition:border-color .2s}
+.dir-sponsor-item:hover{border-color:rgba(0,212,200,.3);text-decoration:none}
+.dir-sp-logo{position:relative;width:32px;height:32px;border-radius:7px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.dir-sp-init{font-size:11px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
+.dir-sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:7px;z-index:2}
+.dir-sp-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-sp-tag{font-size:10px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-sponsor-empty{font-size:12px;color:var(--muted);text-align:center;padding:12px 0;font-style:italic}
+.dir-sponsor-cta{display:block;text-align:center;font-size:12px;font-family:var(--mono);color:var(--teal);margin-top:14px;padding:8px;border:1px solid rgba(0,212,200,.2);border-radius:8px;transition:all .2s}
+.dir-sponsor-cta:hover{background:var(--teal-dim);text-decoration:none}
+@media(max-width:960px){
+  .dir-body-wrap{grid-template-columns:1fr;padding:0 20px 28px}
+  .dir-body-sidebar{position:static;order:99}
+}
 </style>
 </head>
 <body>
@@ -527,6 +555,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="#submit">Submit</a>
     <a href="#leaderboard">Leaderboard</a>
     <a href="#pricing" class="dir-nav-pricing">⚡ Pricing</a>
+    <a href="/sponsor">Sponsor</a>
     <a href="#submit" class="dir-nav-cta">Get your free backlink →</a>
   </div>
   <button class="dir-hamburger" id="dirHamburger" aria-label="Open menu" onclick="toggleNavPanel()">
@@ -558,6 +587,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Get your free backlink <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Claim your listing <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#pricing" class="dir-nav-panel-link" onclick="closeNavPanel()">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="/sponsor" class="dir-nav-panel-link" onclick="closeNavPanel()">Become a Sponsor <span class="dir-nav-panel-arrow">→</span></a>
   </div>
 
   <div class="dir-nav-panel-section">
@@ -641,11 +671,14 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 </div>
 
 
+<div class="dir-body-wrap">
+<div class="dir-body-main">
+
 <!-- FILTERS + SEARCH -->
 <div class="dir-search-wrap">
   <input class="dir-search" type="text" id="dirSearch" placeholder="Search products…" autocomplete="off" />
 </div>
-<div class="dir-filters">
+<div class="dir-filters" id="filters">
   <span class="dir-filter-label">Filter:</span>
   <button class="dir-filter-btn active" data-cat="All">All</button>
   <button class="dir-filter-btn" data-cat="AI Tools">AI Tools</button>
@@ -669,6 +702,19 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <span class="dir-showing-count" id="dirShowingCount"></span>
   <button class="dir-load-more-btn" id="dirLoadMoreBtn" onclick="loadMore()">Load 10 more ↓</button>
 </div>
+
+</div><!-- /.dir-body-main -->
+<aside class="dir-body-sidebar" id="dirBodySidebar">
+  <div class="dir-sponsor-widget">
+    <div class="dir-sponsor-widget-head">
+      <span class="dir-sponsor-widget-title">Sponsors</span>
+      <span class="dir-sponsor-slots" id="dirSponsorSlots"></span>
+    </div>
+    <div id="dirSponsorList"><div class="dir-sponsor-empty">Loading…</div></div>
+    <a href="/sponsor" class="dir-sponsor-cta">Become a sponsor →</a>
+  </div>
+</aside>
+</div><!-- /.dir-body-wrap -->
 
 <!-- PRICING SECTION -->
 <section class="dir-pricing-section" id="pricing">
@@ -876,6 +922,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <div class="dir-footer-col-title">Info</div>
         <div class="dir-footer-col-links">
           <a href="mailto:alex@strategicflow.tech" class="dir-footer-col-link">Contact us</a>
+          <a href="/sponsor" class="dir-footer-col-link">Become a sponsor</a>
           <a href="#" class="dir-footer-col-link" onclick="openReportModal();return false;">Report a listing</a>
           <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" class="dir-footer-col-link">Terms of service</a>
         </div>
@@ -1530,9 +1577,18 @@ function injectItemListSchema(listings){
 
 async function loadListings(){
   try{
-    const r = await fetch('/api/directory/listings');
-    const d = await r.json();
-    allListings = d.listings||[];
+    let listings;
+    if(window.__SSR_LISTINGS__ && window.__SSR_LISTINGS__.length){
+      // Server pre-loaded all listing data into the page — skip the API round-trip
+      listings = window.__SSR_LISTINGS__;
+      // Also hydrate click counts so cards show accurate stats immediately
+      if(window.__SSR_CLICK_COUNTS__) Object.assign(clickCounts, window.__SSR_CLICK_COUNTS__);
+    } else {
+      const r = await fetch('/api/directory/listings');
+      const d = await r.json();
+      listings = d.listings||[];
+    }
+    allListings = listings;
     applyFilters();
     injectItemListSchema(allListings);
   }catch{
@@ -1963,6 +2019,35 @@ loadListings();
 loadFeatured();
 loadLeaderboard('daily');
 loadClickCounts();
+
+// ── Sponsor sidebar ───────────────────────────────────────────────────────────
+(function loadSponsorSidebar() {
+  function escSp(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  fetch('/api/sponsor/active').then(function(r){return r.json();}).then(function(d){
+    var slotsEl = document.getElementById('dirSponsorSlots');
+    var listEl  = document.getElementById('dirSponsorList');
+    if (!slotsEl || !listEl) return;
+    var avail = d.slots_available;
+    slotsEl.textContent = avail > 0 ? avail + ' slot'+(avail>1?'s':'')+' open' : 'Full';
+    slotsEl.style.color = avail === 0 ? '#ef4444' : avail === 1 ? '#f59e0b' : 'var(--teal)';
+    if (!d.sponsors || !d.sponsors.length) {
+      listEl.innerHTML = '<div class="dir-sponsor-empty">No sponsors yet — be the first.</div>';
+      return;
+    }
+    listEl.innerHTML = d.sponsors.map(function(s){
+      var dom=''; try{dom=new URL(s.sponsor_url).hostname.replace(/^www\./,'');}catch(e){}
+      var logo = s.sponsor_logo || (dom ? 'https://logo.clearbit.com/'+dom : '');
+      var init = (s.sponsor_name||'?').replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean)
+                  .slice(0,2).map(function(w){return w[0].toUpperCase();}).join('')||'?';
+      return '<a href="'+escSp(s.sponsor_url)+'" class="dir-sponsor-item" target="_blank" rel="noopener sponsored">'
+        +'<div class="dir-sp-logo"><span class="dir-sp-init">'+escSp(init)+'</span>'
+        +(logo?'<img src="'+escSp(logo)+'" alt="" onerror="this.style.display=\'none\'"/>':'')+'</div>'
+        +'<div style="min-width:0"><div class="dir-sp-name">'+escSp(s.sponsor_name)+'</div>'
+        +(s.sponsor_tagline?'<div class="dir-sp-tag">'+escSp(s.sponsor_tagline)+'</div>':'')+'</div>'
+        +'</a>';
+    }).join('');
+  }).catch(function(){ document.getElementById('dirSponsorList').innerHTML='<div class="dir-sponsor-empty">No sponsors yet — be the first.</div>'; });
+})();
 </script>
 </body>
 </html>

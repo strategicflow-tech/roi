@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Become a Sponsor — ToolIndex</title>
+<meta name="description" content="Sponsor ToolIndex and get your brand in front of founders browsing 566+ SaaS tools. Only 3 sidebar slots. DR 86 dofollow link included."/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#00d4c8;--teal-dim:rgba(0,212,200,.1);--bg:#0a1628;--card:#0f2035;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8;--mono:'DM Mono',monospace}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--teal);text-decoration:none}
+a:hover{text-decoration:underline}
+/* Nav */
+nav{position:sticky;top:0;height:56px;display:flex;align-items:center;padding:0 32px;background:rgba(10,22,40,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);z-index:20;gap:0}
+.nav-logo{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700;margin-right:auto;display:flex;align-items:center;gap:6px;text-decoration:none}
+.nav-logo::before{content:'●';font-size:8px}
+.nav-back{font-size:12px;font-family:var(--mono);color:var(--muted);margin-right:16px}
+.nav-back:hover{color:var(--text)}
+.nav-cta{font-size:11px;font-family:var(--mono);padding:7px 14px;background:var(--teal);color:#0a1628;border-radius:6px;font-weight:700;white-space:nowrap}
+.nav-cta:hover{text-decoration:none;opacity:.9}
+/* Page */
+.page{max-width:780px;margin:0 auto;padding:48px 24px 80px}
+/* Success banner */
+.success-banner{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:10px;padding:14px 20px;margin-bottom:32px;font-size:14px;color:#10b981;display:none;align-items:center;gap:10px}
+.success-banner.show{display:flex}
+/* Hero */
+.hero-tag{font-size:10px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:14px}
+h1{font-size:38px;font-weight:800;line-height:1.15;margin-bottom:16px}
+h1 span{color:var(--teal)}
+.hero-sub{font-size:16px;color:var(--sub);line-height:1.65;max-width:560px;margin-bottom:32px}
+/* Slot counter */
+.slot-counter{display:inline-flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:30px;padding:10px 20px;font-size:13px;font-family:var(--mono);margin-bottom:48px}
+.slot-dot{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0;animation:pulse 2s infinite}
+.slot-dot.warn{background:#f59e0b}
+.slot-dot.full{background:#ef4444;animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* Benefits */
+.benefits{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 28px;margin-bottom:48px}
+.benefits-title{font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.benefits-list{display:flex;flex-direction:column;gap:10px}
+.benefit-item{display:flex;align-items:flex-start;gap:12px;font-size:14px;color:var(--sub);line-height:1.5}
+.benefit-check{color:var(--teal);font-weight:700;flex-shrink:0;margin-top:1px}
+/* Form */
+.form-section{margin-bottom:48px}
+.form-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.form-sub{font-size:14px;color:var(--muted);margin-bottom:24px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+.field label{font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.field input,.field textarea{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
+.field input:focus,.field textarea:focus{border-color:var(--teal)}
+.field input::placeholder,.field textarea::placeholder{color:rgba(122,154,184,.5)}
+.field textarea{resize:vertical;min-height:72px}
+/* Pricing */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:640px){.pricing-grid{grid-template-columns:1fr}}
+.pricing-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px;position:relative;transition:border-color .2s}
+.pricing-card:hover{border-color:rgba(0,212,200,.3)}
+.pricing-card.best{border-color:rgba(0,212,200,.4)}
+.best-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--teal);color:#0a1628;font-size:10px;font-family:var(--mono);font-weight:700;letter-spacing:.08em;padding:3px 12px;border-radius:20px;white-space:nowrap}
+.tier-label{font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tier-price{font-size:32px;font-weight:800;color:var(--text);line-height:1}
+.tier-price span{font-size:16px;font-weight:400;color:var(--muted)}
+.tier-period{font-size:12px;color:var(--muted);margin-top:-4px}
+.tier-btn{margin-top:auto;width:100%;padding:12px;background:var(--teal);color:#0a1628;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:var(--mono);cursor:pointer;transition:opacity .2s;letter-spacing:.02em}
+.tier-btn:hover{opacity:.88}
+.tier-btn:disabled{opacity:.4;cursor:not-allowed}
+/* Error */
+.form-err{font-size:13px;color:#ef4444;margin-top:12px;display:none}
+/* Active sponsors */
+.sponsors-section{margin-top:64px;border-top:1px solid var(--border);padding-top:40px}
+.sponsors-title{font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
+.sponsors-grid{display:flex;flex-direction:column;gap:12px}
+.sponsor-card{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.sponsor-logo-box{position:relative;width:40px;height:40px;border-radius:10px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sponsor-logo-init{font-size:14px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
+.sponsor-logo-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:10px;z-index:2}
+.sponsor-card-name{font-size:14px;font-weight:600;color:var(--text)}
+.sponsor-card-tag{font-size:12px;color:var(--muted);margin-top:2px}
+.sponsor-card-link{font-size:11px;font-family:var(--mono);color:var(--teal);margin-left:auto;white-space:nowrap}
+.sponsors-empty{font-size:14px;color:var(--muted);font-style:italic;padding:12px 0}
+/* Footer note */
+.footer-note{margin-top:48px;font-size:12px;color:var(--muted);text-align:center;line-height:1.7}
+.footer-note a{color:var(--muted)}
+.footer-note a:hover{color:var(--teal)}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/directory" class="nav-logo">ToolIndex</a>
+  <a href="/directory" class="nav-back">← Directory</a>
+  <a href="/directory#submit" class="nav-cta">Get your free backlink →</a>
+</nav>
+
+<div class="page">
+
+  <!-- SUCCESS BANNER -->
+  <div class="success-banner" id="successBanner">
+    <span>✓</span>
+    <span>Payment confirmed — your sponsorship is now live! Your brand will appear in the sidebar across every ToolIndex page.</span>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero-tag">🎯 Sponsorship</div>
+  <h1>Reach founders browsing <span>566+ SaaS tools</span></h1>
+  <p class="hero-sub">
+    Your brand sits in the sidebar of every ToolIndex listing page — the directory with a DR 86 dofollow link.
+    Only 3 slots. No scripts, no tracking pixel, no middleman. Just a clean logo, name, and link.
+  </p>
+
+  <!-- SLOT COUNTER -->
+  <div class="slot-counter" id="slotCounter">
+    <span class="slot-dot" id="slotDot"></span>
+    <span id="slotText">Loading…</span>
+  </div>
+
+  <!-- BENEFITS -->
+  <div class="benefits">
+    <div class="benefits-title">What you get</div>
+    <div class="benefits-list">
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Featured in the sidebar on the main directory page — visible on every scroll</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Displayed on every individual product page across 566+ listings</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Direct dofollow link from DR 86 domain — genuine SEO value</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Audience of founders and makers actively evaluating tools</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Instant activation — live as soon as payment clears, no approval queue</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Maximum 3 sponsors at any time — no ad saturation</span></div>
+    </div>
+  </div>
+
+  <!-- SPONSOR INFO FORM -->
+  <div class="form-section">
+    <div class="form-title">Your sponsor details</div>
+    <div class="form-sub">Fill in your info once, then choose a duration below. You'll be taken to Stripe to pay.</div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label>Company name *</label>
+        <input type="text" id="fName" placeholder="Acme Corp" maxlength="80" required/>
+      </div>
+      <div class="field">
+        <label>Website URL *</label>
+        <input type="url" id="fUrl" placeholder="https://acme.com" required/>
+      </div>
+      <div class="field">
+        <label>Logo URL <span style="color:var(--muted);font-size:10px">(optional)</span></label>
+        <input type="url" id="fLogo" placeholder="https://acme.com/logo.png"/>
+      </div>
+      <div class="field">
+        <label>Email (for receipt)</label>
+        <input type="email" id="fEmail" placeholder="you@acme.com"/>
+      </div>
+      <div class="field full">
+        <label>One-line tagline <span style="color:var(--muted);font-size:10px">(optional, shown under your name)</span></label>
+        <input type="text" id="fTagline" placeholder="The fastest way to…" maxlength="140"/>
+      </div>
+    </div>
+
+    <!-- PRICING CARDS -->
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="tier-label">1 Month</div>
+        <div class="tier-price">$19<span>/mo</span></div>
+        <div class="tier-period">30 days · one-time</div>
+        <button class="tier-btn" onclick="startCheckout('1mo',this)">Buy 1 Month →</button>
+      </div>
+
+      <div class="pricing-card best">
+        <div class="best-badge">BEST VALUE</div>
+        <div class="tier-label">3 Months</div>
+        <div class="tier-price">$39</div>
+        <div class="tier-period">90 days · $13/mo</div>
+        <button class="tier-btn" onclick="startCheckout('3mo',this)">Buy 3 Months →</button>
+      </div>
+
+      <div class="pricing-card">
+        <div class="tier-label">12 Months</div>
+        <div class="tier-price">$129</div>
+        <div class="tier-period">365 days · $10.75/mo</div>
+        <button class="tier-btn" onclick="startCheckout('12mo',this)">Buy 12 Months →</button>
+      </div>
+    </div>
+
+    <div class="form-err" id="formErr"></div>
+  </div>
+
+  <!-- ACTIVE SPONSORS -->
+  <div class="sponsors-section">
+    <div class="sponsors-title">Current sponsors</div>
+    <div class="sponsors-grid" id="sponsorsList">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Questions? Email <a href="mailto:alex@strategicflow.tech">alex@strategicflow.tech</a> ·
+    <a href="/directory">ToolIndex directory</a> ·
+    <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a>
+  </div>
+
+</div>
+
+<script>
+// ── SSR data (injected server-side) ────────────────────────────────────────────
+var SSR_SPONSORS  = window.__SSR_SPONSORS__  || [];
+var SSR_SLOTS     = window.__SSR_SLOTS__ !== undefined ? window.__SSR_SLOTS__ : null;
+var MAX_SLOTS     = 3;
+
+// ── Slot counter ───────────────────────────────────────────────────────────────
+function renderSlotCounter(slotsAvailable) {
+  var dot  = document.getElementById('slotDot');
+  var text = document.getElementById('slotText');
+  if (slotsAvailable === 0) {
+    dot.className = 'slot-dot full';
+    text.textContent = 'All 3 slots taken — check back when one opens';
+    // Disable all checkout buttons
+    document.querySelectorAll('.tier-btn').forEach(function(b){ b.disabled = true; });
+  } else if (slotsAvailable === 1) {
+    dot.className = 'slot-dot warn';
+    text.textContent = '1 of 3 slots available';
+  } else {
+    dot.className = 'slot-dot';
+    text.textContent = slotsAvailable + ' of 3 slots available';
+  }
+}
+
+// ── Sponsors list ─────────────────────────────────────────────────────────────
+function renderSponsors(sponsors) {
+  var el = document.getElementById('sponsorsList');
+  if (!sponsors.length) {
+    el.innerHTML = '<div class="sponsors-empty">No active sponsors yet — be the first.</div>';
+    return;
+  }
+  el.innerHTML = sponsors.map(function(s) {
+    var domain = '';
+    try { domain = new URL(s.sponsor_url).hostname.replace(/^www\./,''); } catch(e){}
+    var logo = s.sponsor_logo || (domain ? 'https://logo.clearbit.com/'+domain : '');
+    var init = (s.sponsor_name||'?').replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean)
+                .slice(0,2).map(function(w){return w[0].toUpperCase();}).join('')||'?';
+    return '<div class="sponsor-card">'
+      + '<div class="sponsor-logo-box"><span class="sponsor-logo-init">'+esc(init)+'</span>'
+      + (logo ? '<img src="'+esc(logo)+'" alt="" onerror="this.style.display=\'none\'"/>' : '')
+      + '</div>'
+      + '<div><div class="sponsor-card-name">'+esc(s.sponsor_name)+'</div>'
+      + (s.sponsor_tagline ? '<div class="sponsor-card-tag">'+esc(s.sponsor_tagline)+'</div>' : '')
+      + '</div>'
+      + '<a href="'+esc(s.sponsor_url)+'" class="sponsor-card-link" target="_blank" rel="noopener sponsored">'
+      + esc(domain)+' →</a>'
+      + '</div>';
+  }).join('');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Initialise from SSR data ───────────────────────────────────────────────────
+if (SSR_SLOTS !== null) renderSlotCounter(SSR_SLOTS);
+renderSponsors(SSR_SPONSORS);
+
+// ── Also refresh live from API (handles any slot changes since SSR) ────────────
+fetch('/api/sponsor/active').then(function(r){return r.json();}).then(function(d){
+  renderSlotCounter(d.slots_available);
+  renderSponsors(d.sponsors);
+}).catch(function(){});
+
+// ── Success banner ─────────────────────────────────────────────────────────────
+(function(){
+  var p = new URLSearchParams(location.search);
+  if (p.get('success') === '1') {
+    document.getElementById('successBanner').classList.add('show');
+    history.replaceState({}, '', '/sponsor');
+  }
+})();
+
+// ── Checkout form submission ───────────────────────────────────────────────────
+async function startCheckout(tier, btn) {
+  var name    = document.getElementById('fName').value.trim();
+  var url     = document.getElementById('fUrl').value.trim();
+  var logo    = document.getElementById('fLogo').value.trim();
+  var tagline = document.getElementById('fTagline').value.trim();
+  var email   = document.getElementById('fEmail').value.trim();
+  var err     = document.getElementById('formErr');
+
+  err.style.display = 'none';
+  if (!name) { err.textContent = 'Please enter your company name.'; err.style.display='block'; return; }
+  if (!url || !/^https?:\/\//i.test(url)) {
+    err.textContent = 'Please enter a valid website URL (starting with https://).';
+    err.style.display='block'; return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Redirecting…';
+  try {
+    var res = await fetch('/api/sponsor/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier, sponsor_name:name, sponsor_url:url,
+                             sponsor_logo:logo, sponsor_tagline:tagline, email }),
+    });
+    var d = await res.json();
+    if (d.url) {
+      location.href = d.url;
+    } else if (d.error === 'no_slots_available') {
+      err.textContent = 'Sorry, all 3 slots are taken right now. Check back soon.';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Buy ' + (tier==='1mo'?'1 Month':tier==='3mo'?'3 Months':'12 Months') + ' →';
+    } else {
+      throw new Error(d.error || 'unknown');
+    }
+  } catch(e) {
+    err.textContent = 'Something went wrong — please try again or email alex@strategicflow.tech.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Buy ' + (tier==='1mo'?'1 Month':tier==='3mo'?'3 Months':'12 Months') + ' →';
+  }
+}
+</script>
+</body>
+</html>

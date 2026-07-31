@@ -345,7 +345,120 @@ app.get('/ai-visibility', (req, res) => {
 app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glossary.html')));
 
 // ─── DIRECTORY ────────────────────────────────────────────────────────────────
-app.get('/directory', (req, res) => res.sendFile(path.join(__dirname, 'public/directory.html')));
+
+// ── HTML-escape helper (module-level, used by SSR card renderer) ──────────────
+function heDir(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Server-side card renderer — mirrors client renderCard() in directory.html ──
+// Vote state is unknown server-side; cards render unvoted; JS hydrates from localStorage.
+function ssrCard(l, clickMap) {
+  const clicks = (clickMap && clickMap[l.id]) || 0;
+  let domain = '';
+  try { domain = new URL(l.url).hostname.replace(/^www\./, ''); } catch {}
+  const name   = l.name || '';
+  const cat    = l.category || 'General';
+  const votes  = l.vote_count || 0;
+  const isFeat = !!l.featured_tier;
+  const BADGE_LABELS = { weekly_feature:'⚡ Weekly Feature', premium:'💎 Premium', daily_top:'🔥 Daily Top' };
+
+  // Avatar — matches client avatarFor() palette
+  const COLORS = ['#0ea5e9','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
+  const bg       = COLORS[(name.charCodeAt(0) || 0) % COLORS.length];
+  const initials = name.replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean)
+                       .slice(0,2).map(w=>w[0].toUpperCase()).join('') || '??';
+  const fallStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
+  const imgStyle  = 'position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);';
+  const initSpan  = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:#fff;">${initials}</span>`;
+  const clearbit  = domain ? `https://logo.clearbit.com/${domain}` : '';
+  const gfav      = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
+  let avatar;
+  if (l.image_url) {
+    const oe = clearbit
+      ? `this.onerror=function(){this.onerror=function(){this.style.display='none';};this.src='${gfav||clearbit}';};this.src='${clearbit}'`
+      : `this.style.display='none'`;
+    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${heDir(l.image_url)}" alt="" loading="lazy" onerror="${oe}"/></div>`;
+  } else if (clearbit) {
+    const oe = gfav ? `this.onerror=function(){this.style.display='none';};this.src='${gfav}'` : `this.style.display='none'`;
+    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${clearbit}" alt="" loading="lazy" onerror="${oe}"/></div>`;
+  } else {
+    avatar = `<div style="${fallStyle}">${initSpan}</div>`;
+  }
+
+  let sourceTag = '';
+  if (l.source && l.source_url) sourceTag = `<a href="${heDir(l.source_url)}" class="dir-source-tag" target="_blank" rel="noopener">via ${heDir(l.source)}</a>`;
+  else if (l.source)             sourceTag = `<span class="dir-source-tag">via ${heDir(l.source)}</span>`;
+  const featBadge = isFeat ? `<span class="dir-featured-badge badge-${heDir(l.featured_tier)}">${heDir(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>` : '';
+  const clickStat = clicks > 0 ? `<span class="dir-click-stat">${clicks >= 1000 ? (clicks/1000).toFixed(1)+'k' : clicks} clicks sent · 30d</span>` : '';
+  const safeName   = name.replace(/'/g,"\\'").replace(/[<>]/g,'');
+  const safeDomain = domain.replace(/'/g,"\\'");
+  let claimSection = '';
+  if (l.is_claimed) {
+    claimSection = `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a>`;
+  } else if (l.is_auto_imported) {
+    claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Is this your product? Claim it free →</button>`;
+  }
+
+  return `<div class="dir-card${isFeat?' is-featured':''}" data-id="${l.id}" data-cat="${heDir(cat)}" data-name="${heDir(name.toLowerCase())}" data-desc="${heDir((l.description||'').toLowerCase())}">
+<div class="dir-card-top"><div class="dir-card-left">${avatar}<div style="min-width:0;"><a class="dir-card-name" href="/directory/${toListingSlug(name,l.id)}">${heDir(name)}</a><div class="dir-cat-tag">${heDir(cat)}</div>${featBadge}</div></div></div>
+<p class="dir-desc">${heDir(l.description||'')}</p>
+<div class="dir-card-footer"><div class="dir-card-actions"><a href="${heDir(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${heDir(domain)} →</a><button class="dir-vote-btn" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" title="Upvote this product"><span class="vote-arrow">▲</span><span class="vote-count" id="vc-${l.id}">${votes}</span></button></div>${clickStat}<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${sourceTag}${claimSection}<button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${safeName}')">⚡ Boost from $9</button></div></div>
+</div>`;
+}
+
+// ── GET /directory — SSR: pre-render cards + inject listing data for hydration ─
+app.get('/directory', async (req, res) => {
+  try {
+    let html = require('fs').readFileSync(path.join(__dirname, 'public/directory.html'), 'utf8');
+
+    // Same query order as /api/directory/listings
+    const r = await pool.query(
+      `SELECT id, name, url, category, is_auto_imported, source, source_url, vote_count,
+              featured_tier, featured_until,
+              (claimed_by IS NOT NULL) AS is_claimed,
+              COALESCE(owner_description, description) AS description,
+              COALESCE(owner_image_url, image_url)     AS image_url
+       FROM directory_listings WHERE status='active'
+       ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC,
+                vote_count DESC, COALESCE(scored_at, submitted_at) DESC
+       LIMIT 1000`
+    );
+    const listings = r.rows;
+
+    // 30-day click counts for each listing
+    const cc = await pool.query(
+      `SELECT listing_id, COUNT(*)::int AS n
+       FROM dir_listing_clicks WHERE clicked_at >= NOW()-INTERVAL '30 days'
+       GROUP BY listing_id`
+    );
+    const clickMap = {};
+    cc.rows.forEach(row => { clickMap[row.listing_id] = row.n; });
+
+    // Pre-render first 30 cards so bots get real HTML without executing JS
+    const ssrHtml = listings.slice(0, 30).map(l => ssrCard(l, clickMap)).join('\n');
+
+    // Inject SSR payload so the client JS skips the /api/directory/listings fetch
+    const safeListings = JSON.stringify(listings).replace(/<\/script>/gi, '<\\/script>');
+    const safeClicks   = JSON.stringify(clickMap).replace(/<\/script>/gi, '<\\/script>');
+    html = html.replace('</head>',
+      `<script>window.__SSR_LISTINGS__=${safeListings};window.__SSR_CLICK_COUNTS__=${safeClicks};</script>\n</head>`);
+
+    // Replace the "Loading listings…" placeholder with actual card HTML
+    html = html.replace(
+      '<div class="dir-loading" id="dirLoading">Loading listings…</div>',
+      ssrHtml
+    );
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.send(html);
+  } catch (err) {
+    console.error('[dir-ssr] error:', err.message);
+    // Fallback to static file if SSR fails
+    res.sendFile(path.join(__dirname, 'public/directory.html'));
+  }
+});
 
 // ── Helper: generate a stable slug for a listing ─────────────────────────────
 function toListingSlug(name, id) {
@@ -385,6 +498,14 @@ app.get('/directory/:slug', async (req, res) => {
     // Canonical redirect (preserves link equity on renamed slugs)
     const canonical = toListingSlug(l.name, l.id);
     if (slug !== canonical) return res.redirect(301, `/directory/${canonical}`);
+
+    // Fetch active sponsors for sidebar widget
+    const sponsorR = await pool.query(
+      `SELECT sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
+       FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
+       ORDER BY created_at ASC LIMIT 3`
+    );
+    const activeSponsors = sponsorR.rows;
 
     // Fetch similar tools in same category
     const simR = await pool.query(
@@ -471,11 +592,29 @@ app.get('/directory/:slug', async (req, res) => {
 
     // ── similar tools section ──────────────────────────────────────────────
     const catLabel = cat.toLowerCase().includes('tool') ? cat : `${cat} tools`;
-  const similarHtml = similar.length > 0 ? `
+    const similarHtml = similar.length > 0 ? `
 <section class="similar-section">
   <h2 class="similar-title">Similar ${he(catLabel)}</h2>
   <div class="similar-grid">${simCards}</div>
   <a href="/directory?cat=${encodeURIComponent(cat)}" class="similar-all">View all ${he(catLabel)} →</a>
+</section>` : '';
+
+    // ── sponsors section (shown only when active sponsors exist) ───────────
+    const sponsorHtml = activeSponsors.length > 0 ? `
+<section class="sponsor-section">
+  <div class="sponsor-section-head">
+    <span class="sponsor-section-label">Sponsors</span>
+    <a href="/sponsor" class="sponsor-section-more">Become a sponsor →</a>
+  </div>
+  ${activeSponsors.map(s => {
+    const sd = (() => { try { return new URL(s.sponsor_url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+    const si = (s.sponsor_name||'?').replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
+    const sl = s.sponsor_logo || (sd ? `https://logo.clearbit.com/${sd}` : '');
+    return `<a href="${he(s.sponsor_url)}" class="sponsor-item" target="_blank" rel="noopener sponsored">
+  <div class="sp-logo"><span class="sp-init">${he(si)}</span>${sl ? `<img src="${he(sl)}" alt="" onerror="this.style.display='none'"/>` : ''}</div>
+  <div style="min-width:0"><div class="sp-name">${he(s.sponsor_name)}</div>${s.sponsor_tagline ? `<div class="sp-tag">${he(s.sponsor_tagline)}</div>` : ''}</div>
+</a>`;
+  }).join('\n')}
 </section>` : '';
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -563,6 +702,19 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .attribution{font-size:12px;color:var(--muted);text-align:center;padding-top:24px;border-top:1px solid var(--border)}
 .attribution a{color:var(--muted)}
 .attribution a:hover{color:var(--teal)}
+/* Sponsor widget */
+.sponsor-section{border-top:1px solid var(--border);padding-top:24px;margin-top:8px;margin-bottom:24px}
+.sponsor-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sponsor-section-label{font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sponsor-section-more{font-size:11px;font-family:var(--mono);color:var(--muted)}
+.sponsor-section-more:hover{color:var(--teal)}
+.sponsor-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;transition:border-color .2s}
+.sponsor-item:hover{border-color:rgba(0,212,200,.3);text-decoration:none}
+.sp-logo{position:relative;width:34px;height:34px;border-radius:8px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sp-init{font-size:12px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
+.sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;z-index:2}
+.sp-name{font-size:13px;font-weight:600;color:var(--text)}
+.sp-tag{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -596,6 +748,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${statsHtml}
   ${claimHtml}
   ${similarHtml}
+  ${sponsorHtml}
 
   <div class="attribution">
     Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink · 500+ products
@@ -1008,7 +1161,8 @@ app.get('/admin/strict-logo-refresh', async (req, res) => {
       } catch { return true; }
     }
 
-    const stats = { total: 0, bad_pattern: 0, bad_domain: 0, cleared: 0, refetched: 0, clearbit_fallback: 0, remained_null: 0 };
+    const stats = { total: 0, bad_pattern: 0, bad_domain: 0, cleared: 0, refetched: 0,
+                    null_fetched: 0, clearbit_fallback: 0, remained_null: 0 };
     try {
       const rows = await pool.query(
         `SELECT id, url, image_url FROM directory_listings
@@ -1019,6 +1173,20 @@ app.get('/admin/strict-logo-refresh', async (req, res) => {
       console.log(`[strict-logo-refresh] Processing ${stats.total} listings…`);
 
       for (const row of rows.rows) {
+        if (row.image_url === null) {
+          // No logo stored at all — attempt to fetch one
+          const fresh = await fetchProductLogo(row.url).catch(()=>null);
+          if (fresh) {
+            await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [fresh, row.id]).catch(()=>{});
+            if (fresh.includes('clearbit.com')) stats.clearbit_fallback++;
+            else stats.null_fetched++;
+            console.log(`[strict-logo-refresh] BACKFILL id=${row.id} → ${fresh.slice(0,80)}`);
+          } else {
+            stats.remained_null++;
+          }
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
         const bad = isUrlBad(row.image_url, row.url);
         if (bad) {
           // Determine why it's bad for reporting
@@ -1452,6 +1620,14 @@ const DIR_PRICES = {
   daily_top:      { price_id: 'price_1TzK3ZDpTwoDeZJnEVQvI4Cs', days: 1,  label: 'Daily Boost',      amount: 9  },
 };
 
+// ── Sidebar sponsorship tiers (Stripe price IDs pre-created in live mode) ─────
+const SPONSOR_TIERS = {
+  '1mo':  { price_id: 'price_1TzP0mDpTwoDeZJnZV9p6FkC',  days: 30,  label: '1 Month',    amount: 19 },
+  '3mo':  { price_id: 'price_1TzP0uDpTwoDeZJnDxP1f1rv',  days: 90,  label: '3 Months',   amount: 39,  badge: 'Best Value' },
+  '12mo': { price_id: 'price_1TzP12DpTwoDeZJnpKg4X13m',  days: 365, label: '12 Months',  amount: 129 },
+};
+const SPONSOR_MAX_SLOTS = 3;
+
 // ── Directory: expire stale featured placements ───────────────────────────────
 async function expireFeaturedListings() {
   try {
@@ -1496,6 +1672,121 @@ async function handleDirectoryPayment(session) {
   );
   console.log(`[dir-payment] ${tier} applied to listing ${lid} until ${expires.toISOString()}`);
 }
+
+// ── Sponsorship: handle post-payment sponsor record creation ──────────────────
+async function handleSponsorPayment(session) {
+  const meta = session.metadata || {};
+  const { sponsor_tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline } = meta;
+  if (!sponsor_tier || !SPONSOR_TIERS[sponsor_tier] || !sponsor_name || !sponsor_url) {
+    console.error('[sponsor] missing metadata in session', session.id);
+    return;
+  }
+  const email   = (session.customer_details?.email || session.customer_email || '').toLowerCase();
+  const days    = SPONSOR_TIERS[sponsor_tier].days;
+  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  try {
+    await pool.query(
+      `INSERT INTO dir_sponsors
+         (stripe_session_id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline,
+          payer_email, tier, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (stripe_session_id) DO NOTHING`,
+      [session.id, sponsor_name.slice(0,80), sponsor_url.slice(0,300),
+       sponsor_logo?.slice(0,300)||null, (sponsor_tagline||'').slice(0,140),
+       email, sponsor_tier, expires]
+    );
+    console.log(`[sponsor] "${sponsor_name}" (${sponsor_tier}) active until ${expires.toISOString()}`);
+  } catch(e) { console.error('[sponsor] DB insert error:', e.message); }
+}
+
+// ── Sponsorship: expire stale sponsor placements ──────────────────────────────
+async function expireSponsors() {
+  try {
+    const r = await pool.query(
+      `UPDATE dir_sponsors SET is_active=FALSE
+       WHERE is_active=TRUE AND expires_at < NOW()
+       RETURNING id, sponsor_name`
+    );
+    if (r.rows.length > 0)
+      console.log(`[sponsor] expired ${r.rows.length}: ${r.rows.map(r=>r.sponsor_name).join(', ')}`);
+  } catch(e) { console.error('[sponsor] expiry error:', e.message); }
+}
+
+// ── GET /api/sponsor/active ────────────────────────────────────────────────────
+app.get('/api/sponsor/active', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
+       FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
+       ORDER BY created_at ASC LIMIT 3`
+    );
+    res.json({
+      sponsors:        r.rows,
+      slots_used:      r.rows.length,
+      slots_available: Math.max(0, SPONSOR_MAX_SLOTS - r.rows.length),
+    });
+  } catch(e) { res.status(500).json({ error: 'db_error' }); }
+});
+
+// ── POST /api/sponsor/checkout ─────────────────────────────────────────────────
+app.post('/api/sponsor/checkout', async (req, res) => {
+  const { tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, email } = req.body || {};
+  if (!SPONSOR_TIERS[tier]) return res.status(400).json({ error: 'invalid_tier' });
+  if (!sponsor_name?.trim() || !sponsor_url?.trim())
+    return res.status(400).json({ error: 'name_and_url_required' });
+
+  // Enforce hard cap — check live count
+  const active = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()`
+  ).catch(() => ({ rows: [{ n: 0 }] }));
+  if (active.rows[0].n >= SPONSOR_MAX_SLOTS)
+    return res.status(409).json({ error: 'no_slots_available' });
+
+  try {
+    const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    const sess = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{ price: SPONSOR_TIERS[tier].price_id, quantity: 1 }],
+      success_url: `${base}/sponsor?success=1&tier=${tier}`,
+      cancel_url:  `${base}/sponsor`,
+      customer_email: email?.includes('@') ? email.toLowerCase() : undefined,
+      metadata: {
+        source:          'sponsor',
+        sponsor_tier:    tier,
+        sponsor_name:    (sponsor_name||'').slice(0,80),
+        sponsor_url:     (sponsor_url||'').slice(0,300),
+        sponsor_logo:    (sponsor_logo||'').slice(0,300),
+        sponsor_tagline: (sponsor_tagline||'').slice(0,140),
+      },
+    });
+    res.json({ url: sess.url });
+  } catch(err) {
+    console.error('[sponsor/checkout]', err.message);
+    res.status(500).json({ error: 'checkout_failed' });
+  }
+});
+
+// ── GET /sponsor — SSR sponsor page ───────────────────────────────────────────
+app.get('/sponsor', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
+       FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
+       ORDER BY created_at ASC LIMIT 3`
+    );
+    const sponsors        = r.rows;
+    const slots_available = Math.max(0, SPONSOR_MAX_SLOTS - sponsors.length);
+    let html = require('fs').readFileSync(path.join(__dirname, 'public/sponsor.html'), 'utf8');
+    const safe = s => JSON.stringify(s).replace(/<\/script>/gi, '<\\/script>');
+    html = html.replace('</head>',
+      `<script>window.__SSR_SPONSORS__=${safe(sponsors)};window.__SSR_SLOTS__=${slots_available};</script>\n</head>`);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch(err) {
+    console.error('[sponsor-ssr]', err.message);
+    res.sendFile(path.join(__dirname, 'public/sponsor.html'));
+  }
+});
 
 // ── POST /api/directory/checkout ──────────────────────────────────────────────
 app.post('/api/directory/checkout', async (req, res) => {
@@ -2964,6 +3255,25 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_listing ON dir_votes(listing_id)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_voted_at ON dir_votes(voted_at)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_featured_active ON dir_featured(is_active, expires_at)`).catch(()=>{});
+
+  // Sidebar sponsors table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_sponsors (
+      id                SERIAL PRIMARY KEY,
+      stripe_session_id TEXT UNIQUE,
+      sponsor_name      TEXT NOT NULL,
+      sponsor_url       TEXT NOT NULL,
+      sponsor_logo      TEXT,
+      sponsor_tagline   TEXT,
+      payer_email       TEXT,
+      tier              TEXT NOT NULL,
+      starts_at         TIMESTAMPTZ DEFAULT NOW(),
+      expires_at        TIMESTAMPTZ NOT NULL,
+      is_active         BOOLEAN DEFAULT TRUE,
+      created_at        TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] dir_sponsors:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS dir_sponsors_active ON dir_sponsors(is_active, expires_at)`).catch(()=>{});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_claims (
@@ -7590,10 +7900,17 @@ app.post('/webhook/stripe', async (req, res) => {
   res.json({ received: true });
 
   try {
-    // ── 0. Directory paid placements — checked first ───────────────────────
+    // ── 0a. Directory paid placements ─────────────────────────────────────
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'directory') {
       await handleDirectoryPayment(event.data.object);
+      return;
+    }
+
+    // ── 0b. Sidebar sponsor payments ──────────────────────────────────────
+    if (event.type === 'checkout.session.completed' &&
+        event.data.object.metadata?.source === 'sponsor') {
+      await handleSponsorPayment(event.data.object);
       return;
     }
 
@@ -13995,10 +14312,14 @@ ${content}
   server.timeout = 180000;
   server.keepAliveTimeout = 180000;
 
-  // ── Hourly: expire featured directory placements ───────────────────────
-  cron.schedule('0 * * * *', () => expireFeaturedListings().catch(()=>{}));
+  // ── Hourly: expire featured directory placements + sidebar sponsors ────
+  cron.schedule('0 * * * *', () => {
+    expireFeaturedListings().catch(()=>{});
+    expireSponsors().catch(()=>{});
+  });
   // Run once at startup too
   expireFeaturedListings().catch(()=>{});
+  expireSponsors().catch(()=>{});
 
   // ── Weekly directory aggregation (Sunday 03:00) ────────────────────────────
   cron.schedule('0 3 * * 0', async () => {
