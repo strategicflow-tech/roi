@@ -366,6 +366,44 @@ a:hover{text-decoration:underline;}
 .dir-footer-link-desc{font-size:11px;color:var(--muted);}
 .dir-footer-copy{font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
 
+/* ── PRICING SECTION ──────────────────────────────────────────────────────── */
+.dir-pricing-section{padding:64px 40px;border-top:1px solid var(--border);}
+.dir-pricing-inner{max-width:960px;margin:0 auto;}
+.dir-pricing-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(245,158,11,.3);padding:4px 12px;border-radius:20px;margin-bottom:16px;}
+.dir-pricing-title{font-size:clamp(22px,4vw,34px);font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-.02em;}
+.dir-pricing-sub{font-size:15px;color:var(--muted);margin-bottom:40px;max-width:520px;}
+.dir-pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start;}
+.dir-pricing-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px 24px;position:relative;transition:border-color .2s,transform .2s;display:flex;flex-direction:column;gap:0;}
+.dir-pricing-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.dir-pricing-card.popular{border-color:rgba(245,158,11,.4);background:linear-gradient(135deg,rgba(245,158,11,.06),var(--bg2));}
+.dir-pricing-card.popular::before{content:'Most popular';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:10px;font-weight:700;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 12px;border-radius:10px;white-space:nowrap;}
+.dir-pricing-tier{font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;}
+.dir-pricing-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px;}
+.dir-pricing-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;}
+.dir-pricing-orig{font-size:14px;color:var(--muted);text-decoration:line-through;}
+.dir-pricing-amount{font-size:36px;font-weight:800;color:var(--teal);font-family:var(--mono);}
+.dir-pricing-off{font-size:11px;font-weight:700;background:rgba(0,212,200,.12);color:var(--teal);border:1px solid rgba(0,212,200,.25);border-radius:6px;padding:2px 7px;font-family:var(--mono);}
+.dir-pricing-period{font-size:12px;color:var(--muted);margin-bottom:22px;}
+.dir-pricing-perks{list-style:none;display:flex;flex-direction:column;gap:9px;margin-bottom:26px;flex:1;}
+.dir-pricing-perks li{font-size:13px;color:var(--muted);display:flex;align-items:flex-start;gap:8px;line-height:1.4;}
+.dir-pricing-perks li::before{content:'✓';color:var(--teal);font-weight:700;font-size:13px;flex-shrink:0;margin-top:0;}
+.dir-pricing-cta{display:block;width:100%;background:var(--teal);color:#041214;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:13px;cursor:pointer;transition:opacity .2s;font-family:var(--font);text-align:center;}
+.dir-pricing-cta:hover{opacity:.88;}
+.dir-pricing-card.popular .dir-pricing-cta{background:var(--gold);color:#000;}
+.dir-pricing-note{text-align:center;font-size:12px;color:var(--muted);margin-top:28px;font-family:var(--mono);}
+/* nav pricing link */
+.dir-nav-pricing{color:var(--gold) !important;font-weight:600 !important;}
+.dir-nav-pricing:hover{color:#fff !important;}
+/* hero pricing CTA */
+.dir-hero-pricing-link{display:inline-flex;align-items:center;gap:6px;margin-top:20px;font-size:13px;font-weight:600;color:var(--gold);text-decoration:none;border:1px solid rgba(245,158,11,.35);padding:8px 18px;border-radius:8px;transition:all .2s;font-family:var(--mono);}
+.dir-hero-pricing-link:hover{background:rgba(245,158,11,.08);border-color:var(--gold);text-decoration:none;}
+/* pricing highlight pulse */
+@keyframes pricingPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,200,.4);}50%{box-shadow:0 0 0 8px rgba(0,212,200,.0);}}
+.dir-pricing-section.highlight{animation:pricingPulse .7s ease-out 2;}
+/* toast */
+.dir-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1e3a5f;border:1px solid var(--teal);color:#e2e8f0;font-size:13px;font-weight:600;padding:12px 22px;border-radius:10px;z-index:500;transition:transform .3s,opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;text-align:center;}
+.dir-toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
 /* LOAD MORE */
 .dir-load-more-wrap{text-align:center;padding:0 40px 40px;display:flex;flex-direction:column;align-items:center;gap:10px;}
 .dir-load-more-btn{background:transparent;border:1px solid var(--border2);color:var(--teal);border-radius:10px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s;font-family:var(--font);}
@@ -456,6 +494,10 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   .dir-submit-section{padding:40px 20px;}
   .dir-footer{padding:40px 20px 32px;}
   .dir-footer-cols{grid-template-columns:1fr 1fr;gap:28px;}
+  .dir-pricing-section{padding:48px 20px;}
+  .dir-pricing-grid{grid-template-columns:1fr;gap:14px;}
+  .dir-pricing-card.popular{margin-top:8px;}
+  .dir-toast{white-space:normal;max-width:280px;}
   .dir-promoted-wrap,.dir-featured-section,.dir-leaderboard-section{padding-left:20px;padding-right:20px;}
   .dir-promoted-grid{grid-template-columns:1fr;}
   .dir-promoted-card{flex-direction:column;gap:14px;}
@@ -478,6 +520,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <div class="dir-nav-links">
     <a href="#submit">Submit</a>
     <a href="#leaderboard">Leaderboard</a>
+    <a href="#pricing" class="dir-nav-pricing">⚡ Pricing</a>
     <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">Strategic Flow ↗</a>
     <a href="#submit" class="dir-nav-cta">Submit your product →</a>
   </div>
@@ -509,7 +552,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <div class="dir-nav-panel-section-label">Submit</div>
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Submit your product (free) <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Claim your listing <span class="dir-nav-panel-arrow">→</span></a>
-    <a href="#" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(()=>{const c=document.querySelector('.dir-boost-btn');if(c)c.click();},300)">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#pricing" class="dir-nav-panel-link" onclick="closeNavPanel()">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
   </div>
 
   <div class="dir-nav-panel-section">
@@ -539,6 +582,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
   <h1>The <em>tool index</em> built for discovery</h1>
   <p class="dir-hero-sub">Browse and submit SaaS tools, apps, and products. Every listing gets a free dofollow backlink. Claim ownership, collect upvotes, and feature your product in front of buyers.</p>
+  <a href="#pricing" class="dir-hero-pricing-link">⚡ Featured placements from $9 — see pricing →</a>
   <div class="dir-stats">
     <div class="dir-stat">
       <div class="dir-stat-num" id="statCount">278</div>
@@ -620,6 +664,77 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <span class="dir-showing-count" id="dirShowingCount"></span>
   <button class="dir-load-more-btn" id="dirLoadMoreBtn" onclick="loadMore()">Load 10 more ↓</button>
 </div>
+
+<!-- PRICING SECTION -->
+<section class="dir-pricing-section" id="pricing">
+  <div class="dir-pricing-inner">
+    <div class="dir-pricing-tag">⚡ Featured placements</div>
+    <h2 class="dir-pricing-title">Get your product seen first</h2>
+    <p class="dir-pricing-sub">One-time payment. No subscription. Goes live as soon as payment clears.</p>
+
+    <div class="dir-pricing-grid">
+
+      <!-- Daily Boost -->
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">🔥 Daily Boost</div>
+        <div class="dir-pricing-desc">24-hour burst to the #1 spot — instant, no review queue</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-orig">$18</span>
+          <span class="dir-pricing-amount">$9</span>
+          <span class="dir-pricing-off">50% OFF</span>
+        </div>
+        <div class="dir-pricing-period">One-time · 24 hours</div>
+        <ul class="dir-pricing-perks">
+          <li>Pinned to #1 in the main grid for the entire day</li>
+          <li>🔥 Daily Top badge — maximum visual contrast</li>
+          <li>First in every category &amp; search for 24 hours</li>
+          <li>Activates immediately after payment</li>
+        </ul>
+        <button class="dir-pricing-cta" onclick="startBoostCheckout('daily_top')">⚡ Get Daily Boost — $9</button>
+      </div>
+
+      <!-- Weekly Feature (most popular) -->
+      <div class="dir-pricing-card popular">
+        <div class="dir-pricing-tier">⭐ Weekly Feature</div>
+        <div class="dir-pricing-desc">14-day Featured Spotlight above the directory grid</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-orig">$38</span>
+          <span class="dir-pricing-amount">$19</span>
+          <span class="dir-pricing-off">50% OFF</span>
+        </div>
+        <div class="dir-pricing-period">One-time · 14 days</div>
+        <ul class="dir-pricing-perks">
+          <li>Shown in the Featured Spotlight — seen by every visitor</li>
+          <li>Gold border on your card in all search &amp; filter results</li>
+          <li>⭐ Weekly Feature badge on your listing</li>
+          <li>Priority ranking in the grid for 14 full days</li>
+        </ul>
+        <button class="dir-pricing-cta" onclick="startBoostCheckout('weekly_feature')">⚡ Get Weekly Feature — $19</button>
+      </div>
+
+      <!-- Premium Listing -->
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">💎 Premium Listing</div>
+        <div class="dir-pricing-desc">30-day top-priority placement with purple Premium badge</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-orig">$58</span>
+          <span class="dir-pricing-amount">$29</span>
+          <span class="dir-pricing-off">50% OFF</span>
+        </div>
+        <div class="dir-pricing-period">One-time · 30 days</div>
+        <ul class="dir-pricing-perks">
+          <li>💎 Premium badge — stands out across every category filter</li>
+          <li>Top-3 position in the grid for 30 full days</li>
+          <li>Shown first in every category &amp; search result</li>
+          <li>Appears in the Featured Spotlight section throughout</li>
+        </ul>
+        <button class="dir-pricing-cta" onclick="startBoostCheckout('premium')">⚡ Get Premium — $29</button>
+      </div>
+
+    </div>
+    <p class="dir-pricing-note">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; No subscription &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a></p>
+  </div>
+</section>
 
 <!-- FAQ SECTION -->
 <section class="dir-faq" id="faq" aria-label="Frequently asked questions about ToolIndex">
@@ -747,7 +862,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           <a href="#leaderboard" class="dir-footer-col-link">Leaderboard</a>
           <a href="#submit" class="dir-footer-col-link">Submit your product</a>
           <a href="#submit" class="dir-footer-col-link">Claim your listing</a>
-          <a href="#" class="dir-footer-col-link" onclick="openBoostModal(null,'your product');return false;">Featured placements</a>
+          <a href="#pricing" class="dir-footer-col-link">Featured placements</a>
         </div>
       </div>
 
@@ -1074,7 +1189,7 @@ function renderCard(l){
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
-        <button class="dir-boost-btn" onclick="openBoostModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost from $9</button>
+        <button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost from $9</button>
       </div>
     </div>
   </div>`;
@@ -1537,15 +1652,56 @@ function updateCtaLabel(){
   if(btn && !btn.disabled) btn.textContent = `Continue to payment — ${TIER_PRICES[selectedTier]||''} →`;
 }
 
-function openBoostModal(id, name){
+function openBoostModal(id, name, tier='weekly_feature'){
   boostListingId = id;
-  document.getElementById('boostListingName').textContent = name;
+  document.getElementById('boostListingName').textContent = name || 'your product';
   document.getElementById('boostEmail').value = '';
-  selectedTier = 'weekly_feature';
-  document.querySelectorAll('.tier-option').forEach(o => o.classList.toggle('selected', o.dataset.tier==='weekly_feature'));
+  selectedTier = tier;
+  document.querySelectorAll('.tier-option').forEach(o => o.classList.toggle('selected', o.dataset.tier===tier));
   document.getElementById('boostModal').classList.add('open');
   document.body.style.overflow='hidden';
   updateCtaLabel();
+}
+
+// ── Pricing section helpers ───────────────────────────────────────────────────
+let pendingBoostId   = null;
+let pendingBoostName = null;
+
+function showToast(msg, duration=3500){
+  let t = document.getElementById('dirToast');
+  if(!t){ t=document.createElement('div'); t.id='dirToast'; t.className='dir-toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), duration);
+}
+
+// Called from listing card ⚡ button — saves listing context then scrolls to pricing
+function scrollToPricing(id, name){
+  pendingBoostId   = id;
+  pendingBoostName = name;
+  const section = document.getElementById('pricing');
+  if(section){
+    section.scrollIntoView({behavior:'smooth', block:'start'});
+    // Brief visual pulse after scroll lands
+    setTimeout(()=>{
+      section.classList.add('highlight');
+      setTimeout(()=>section.classList.remove('highlight'), 1500);
+    }, 600);
+  }
+  showToast(`⚡ Boost for: ${name} — pick a plan below`, 4000);
+}
+
+// Called from pricing section CTA buttons
+function startBoostCheckout(tier){
+  if(!pendingBoostId){
+    showToast('Click ⚡ Boost on any listing card first, then pick a plan here.', 4000);
+    // Scroll up to the grid so they can choose
+    const grid = document.getElementById('dirGrid');
+    if(grid) setTimeout(()=>grid.scrollIntoView({behavior:'smooth', block:'start'}), 400);
+    return;
+  }
+  openBoostModal(pendingBoostId, pendingBoostName, tier);
 }
 
 function closeBoostModal(e){
