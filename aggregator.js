@@ -105,10 +105,38 @@ function normalizeUrl(url) {
   } catch { return url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/+$/, ''); }
 }
 
+// ── Global content filter (applied to ALL sources before insert) ──────────────
+// Rejects listings that are not genuine software/SaaS products.
+const GLOBAL_BLOCKLIST = new RegExp([
+  // Gambling / betting
+  'casino','slot\\s+gacor','slot\\s+online','gambling','togel','judi','sbobet','taruhan',
+  'poker\\s+online','bet\\b','betting','jackpot.*spin','gacor\\s+maxwin','slot.*maxwin',
+  // Adult / escort
+  'escort','porn','adult.?content','xxx','onlyfans\\s+clone','nsfw',
+  // Physical retail unrelated to software
+  'interior.?door','flooring.?store','furniture.?store','mattress.?store',
+  'cigar.?deal','cigar.?coupon','cheap.?cigar','tobacco.?shop',
+  'luxury.?watch.?store','jewellery.?shop','jewelry.?store',
+  // Predatory finance
+  'forex.?signal','loan.?shark','payday.?loan','free.?money.?guaranteed',
+  // Spam markers
+  'vape.?shop','vaping.?store','free.?slots','play.?slots',
+].join('|'), 'i');
+
+/** Returns true if this listing should be rejected from the directory */
+function isBlockedContent(name, description, url) {
+  const text = `${name} ${description || ''} ${url || ''}`;
+  if (GLOBAL_BLOCKLIST.test(text)) return true;
+  // Reject if description is predominantly non-Latin (Indonesian/Arabic slot spam, etc.)
+  const nonLatin = (text.match(/[\u0600-\u06FF\u0E00-\u0E7F\u4E00-\u9FFF\u0400-\u04FF]/g) || []).length;
+  if (nonLatin / Math.max(text.length, 1) > 0.15) return true;
+  return false;
+}
+
 // ── Source 1: Turbo0 via Sanity CMS public API ────────────────────────────────
 // Project ID: 7tbt32ra  Dataset: production  Type: item
 // link field = actual product URL; image.asset->url = screenshot
-const TURBO0_BLOCKLIST = /casino|betting|gambling|vape|escort|porn|adult|nsfw|forex|loan.?shark|free.?money/i;
+const TURBO0_BLOCKLIST = GLOBAL_BLOCKLIST;
 
 async function fetchTurbo0(limit = 300) {
   const results = [];
@@ -529,7 +557,14 @@ async function runAggregation(pool, opts = {}) {
     ex.rows.forEach(r => existingUrls.add(normalizeUrl(r.url)));
   } catch(e) { log('Could not load existing URLs:', e.message); }
 
-  const truly_new = deduped.filter(i => !existingUrls.has(normalizeUrl(i.url)));
+  const truly_new = deduped.filter(i => {
+    if (existingUrls.has(normalizeUrl(i.url))) return false;
+    if (isBlockedContent(i.name, i.description, i.url)) {
+      log(`[filter] Blocked: "${i.name}" (${i.url})`);
+      return false;
+    }
+    return true;
+  });
   log(`Truly new (not already in DB): ${truly_new.length}`);
 
   // ── Resolve names/descriptions for entries that need a per-URL og fetch ──────

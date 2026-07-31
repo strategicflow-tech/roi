@@ -805,16 +805,18 @@ function avatarFor(name, category, imageUrl, siteUrl){
   const clearbit = logoSrcFor(siteUrl);
   const gfav     = googleFavFor(siteUrl);
 
+  // Priority: stored image_url (owner-uploaded / fetched) → Clearbit → Google Favicon → initials
+  if(imageUrl){
+    const oe2 = clearbit
+      ? `this.onerror=function(){this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};this.src='${gfav||''}';};this.src='${clearbit}'`
+      : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
+    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onerror="${oe2}"/>${avatarFb}`;
+  }
   if(clearbit){
-    // Clearbit → Google Favicon → initials
     const oe2 = gfav
       ? `this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex';};this.src='${gfav}'`
       : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
     return `<img class="dir-thumb" src="${clearbit}" alt="${escHtml(name)}" loading="lazy" onerror="${oe2}"/>${avatarFb}`;
-  }
-  // No domain — fall back to stored image_url or initials
-  if(imageUrl){
-    return `<img class="dir-thumb" src="${escHtml(imageUrl)}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>${avatarFb}`;
   }
   return `<div class="dir-avatar" style="background:${bg};color:${col};">${initials}</div>`;
 }
@@ -829,14 +831,18 @@ function lbThumbFor(name, category, imageUrl, siteUrl){
   const clearbit = logoSrcFor(siteUrl);
   const gfav     = googleFavFor(siteUrl);
 
+  // Priority: stored image_url → Clearbit → Google Favicon → initials
+  if(imageUrl){
+    const oe2 = clearbit
+      ? `this.onerror=function(){this.onerror=function(){this.style.display='none';};this.src='${gfav||clearbit}';};this.src='${clearbit}'`
+      : `this.style.display='none'`;
+    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${escHtml(imageUrl)}" alt="" loading="lazy" onerror="${oe2}"/></div>`;
+  }
   if(clearbit){
     const oe2 = gfav
       ? `this.onerror=function(){this.style.display='none';};this.src='${gfav}'`
       : `this.style.display='none'`;
     return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${clearbit}" alt="" loading="lazy" onerror="${oe2}"/></div>`;
-  }
-  if(imageUrl){
-    return `<div style="${fallbackStyle}">${initSpan}<img style="${imgStyle}" src="${escHtml(imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none'"/></div>`;
   }
   return `<div style="${fallbackStyle}">${initSpan}</div>`;
 }
