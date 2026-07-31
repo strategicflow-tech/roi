@@ -318,7 +318,7 @@ function renderSponsors(sponsors) {
   el.innerHTML = sponsors.map(function(s) {
     var domain = '';
     try { domain = new URL(s.sponsor_url).hostname.replace(/^www\./,''); } catch(e){}
-    var logo = s.sponsor_logo || (domain ? 'https://logo.clearbit.com/'+domain : '');
+    var logo = s.sponsor_logo || (domain ? 'https://www.google.com/s2/favicons?domain='+domain+'&sz=128' : '');
     var init = (s.sponsor_name||'?').replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean)
                 .slice(0,2).map(function(w){return w[0].toUpperCase();}).join('')||'?';
     return '<div class="sponsor-card">'

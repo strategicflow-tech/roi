@@ -371,17 +371,11 @@ function ssrCard(l, clickMap) {
   const fallStyle = `position:relative;width:28px;height:28px;border-radius:6px;background:${bg};flex-shrink:0;display:flex;align-items:center;justify-content:center;`;
   const imgStyle  = 'position:absolute;inset:0;width:100%;height:100%;border-radius:6px;object-fit:cover;border:1px solid var(--border);';
   const initSpan  = `<span style="position:absolute;font-size:10px;font-weight:700;font-family:var(--mono);color:#fff;">${initials}</span>`;
-  const clearbit  = domain ? `https://logo.clearbit.com/${domain}` : '';
-  const gfav      = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
+  // Use Google Favicon → initials. Skip image_url (mostly og:images stored from scraping).
+  const gfav = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : '';
   let avatar;
-  if (l.image_url) {
-    const oe = clearbit
-      ? `this.onerror=function(){this.onerror=function(){this.style.display='none';};this.src='${gfav||clearbit}';};this.src='${clearbit}'`
-      : `this.style.display='none'`;
-    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${heDir(l.image_url)}" alt="" loading="lazy" onerror="${oe}"/></div>`;
-  } else if (clearbit) {
-    const oe = gfav ? `this.onerror=function(){this.style.display='none';};this.src='${gfav}'` : `this.style.display='none'`;
-    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${clearbit}" alt="" loading="lazy" onerror="${oe}"/></div>`;
+  if (gfav) {
+    avatar = `<div style="${fallStyle}">${initSpan}<img style="${imgStyle}" src="${gfav}" alt="" loading="lazy" onerror="this.style.display='none';"/></div>`;
   } else {
     avatar = `<div style="${fallStyle}">${initSpan}</div>`;
   }
@@ -525,8 +519,8 @@ app.get('/directory/:slug', async (req, res) => {
     const he = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const rawImg = l.image_url || '';
     const absImg = rawImg.startsWith('http') ? rawImg : (rawImg ? `${BASE}${rawImg}` : '');
-    const clearbitImg = `https://logo.clearbit.com/${(() => { try { return new URL(l.url).hostname.replace(/^www\./,''); } catch { return ''; } })()}`;
     const hostname = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return l.url; } })();
+    const favImg = hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=128` : '';
     const metaDesc = (l.description || `${l.name} is listed on ToolIndex — the free SaaS directory with a DR 86 dofollow backlink.`)
       .slice(0, 160).replace(/"/g, '&quot;');
     const pageTitle = `${l.name} — ToolIndex`;
@@ -553,7 +547,7 @@ app.get('/directory/:slug', async (req, res) => {
     const simCards = similar.map(s => {
       const sSlug  = toListingSlug(s.name, s.id);
       const sDomain = (() => { try { return new URL(s.url).hostname.replace(/^www\./,''); } catch { return ''; } })();
-      const sImg   = (s.image_url && s.image_url.startsWith('http')) ? s.image_url : `https://logo.clearbit.com/${sDomain}`;
+      const sImg   = sDomain ? `https://www.google.com/s2/favicons?domain=${sDomain}&sz=128` : '';
       const sInit  = (s.name || '?').replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
       return `<a href="/directory/${he(sSlug)}" class="sim-card">
   <div class="sim-logo"><span class="sim-init">${he(sInit)}</span><img src="${he(sImg)}" alt="" onerror="this.style.display='none'"/></div>
@@ -567,8 +561,8 @@ app.get('/directory/:slug', async (req, res) => {
     // ── logo HTML (letter avatar underneath, image on top) ─────────────────
     const logoHtml = `<div class="logo-wrap">
   <span class="logo-init">${he(initials)}</span>
-  <img class="logo-img" src="${he(absImg || clearbitImg)}" alt="${he(l.name)} logo"
-       onerror="this.src='${he(clearbitImg)}';this.onerror=function(){this.style.display='none';}"/>
+  <img class="logo-img" src="${he(favImg)}" alt="${he(l.name)} logo"
+       onerror="this.style.display='none';"/>
 </div>`;
 
     // ── stats row (only shown when real data exists) ────────────────────────
@@ -609,7 +603,7 @@ app.get('/directory/:slug', async (req, res) => {
   ${activeSponsors.map(s => {
     const sd = (() => { try { return new URL(s.sponsor_url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
     const si = (s.sponsor_name||'?').replace(/[^a-zA-Z0-9 ]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
-    const sl = s.sponsor_logo || (sd ? `https://logo.clearbit.com/${sd}` : '');
+    const sl = s.sponsor_logo || (sd ? `https://www.google.com/s2/favicons?domain=${sd}&sz=128` : '');
     return `<a href="${he(s.sponsor_url)}" class="sponsor-item" target="_blank" rel="noopener sponsored">
   <div class="sp-logo"><span class="sp-init">${he(si)}</span>${sl ? `<img src="${he(sl)}" alt="" onerror="this.style.display='none'"/>` : ''}</div>
   <div style="min-width:0"><div class="sp-name">${he(s.sponsor_name)}</div>${s.sponsor_tagline ? `<div class="sp-tag">${he(s.sponsor_tagline)}</div>` : ''}</div>
