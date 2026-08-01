@@ -1979,14 +1979,6 @@ async function loadClaimAnalytics(){
     body.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div style="background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.2);border-radius:8px;padding:10px;">
-          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Page views (30d)</div>
-          <div style="font-size:18px;">${fmt(d.views_30d)}</div>
-        </div>
-        <div style="background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.2);border-radius:8px;padding:10px;">
-          <div style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Outbound clicks (30d)</div>
-          <div style="font-size:18px;">${fmt(d.clicks_30d)}</div>
-        </div>
-        <div style="background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.2);border-radius:8px;padding:10px;">
           <div style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Click-through rate</div>
           <div style="font-size:18px;">${fmtCtr(d.ctr_pct)}</div>
         </div>

@@ -579,10 +579,9 @@ app.get('/directory/:slug', async (req, res) => {
 </div>`;
 
     // ── stats row (only shown when real data exists) ────────────────────────
-    const statsHtml = (views30 > 0 || clicks30 > 0 || votes > 0) ? `
+    const statsHtml = votes > 0 ? `
 <div class="stats-row">
-  ${votes > 0    ? `<div class="stat-box"><div class="stat-n">${fmtK(votes)}</div><div class="stat-l">Upvotes</div></div>` : ''}
-  ${views30 > 0  ? `<div class="stat-box"><div class="stat-n">${fmtK(views30)}</div><div class="stat-l">ToolIndex views · 30d</div></div>` : ''}
+  <div class="stat-box"><div class="stat-n">${fmtK(votes)}</div><div class="stat-l">Upvotes</div></div>
 </div>` : '';
 
     // ── claim prompt ───────────────────────────────────────────────────────
