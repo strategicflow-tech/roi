@@ -259,7 +259,12 @@ app.use('/stripe/webhook',          express.raw({ type: 'application/json' }));
 app.use('/webhook/stripe',          express.raw({ type: 'application/json' }));
 app.use('/api/why-stripe-webhook',  express.raw({ type: 'application/json' }));
 app.use('/api/ai-visibility-index/stripe-webhook', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '2mb' }));
+// Skip JSON body-parsing for multipart upload routes (multer handles those)
+app.use((req, res, next) => {
+  if (req.path.includes('/upload-') && req.method === 'POST') return next();
+  next();
+});
+app.use(express.json({ limit: '10mb' }));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -2381,6 +2386,45 @@ app.post('/api/directory/claim/start', async (req, res) => {
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/start]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── GET /api/directory/claim/prefill/:id — returns editable fields for the owner's form ──
+app.get('/api/directory/claim/prefill/:id', async (req, res) => {
+  const id    = parseInt(req.params.id, 10);
+  const email = (req.query.email || '').toLowerCase().trim();
+  const token = (req.query.token || '').trim();
+  if (!id || !email || !token) return res.status(400).json({ error: 'id, email, token required' });
+  try {
+    const auth = await pool.query(
+      `SELECT 1 FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
+      [id, email, token]
+    );
+    if (!auth.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const { rows } = await pool.query(
+      `SELECT description, image_url, founder_name, founder_avatar_url,
+              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
+       FROM directory_listings WHERE id=$1`, [id]
+    );
+    const r = rows[0] || {};
+    res.json({
+      ok: true,
+      listing: {
+        description:     r.description     || '',
+        image_url:       r.image_url       || '',
+        founder_name:    r.founder_name    || '',
+        founder_avatar:  r.founder_avatar_url || '',
+        social_twitter:  r.social_twitter  || '',
+        social_linkedin: r.social_linkedin || '',
+        tech_stack:      r.tech_stack      || '',
+        platform:        r.platform        || '',
+        pricing_model:   r.pricing_model   || '',
+        launch_date:     r.launch_date ? r.launch_date.toISOString().slice(0,10) : ''
+      }
+    });
+  } catch(err) {
+    console.error('[dir-claim/prefill]', err.message);
     res.status(500).json({ error: 'server_error' });
   }
 });
