@@ -2617,18 +2617,19 @@ app.post('/api/directory/claim/upload-screenshot', (req, res) => {
 // Persistent across redeploys; no external storage service needed.
 const logoUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 800 * 1024 }, // 800 KB max — keeps DB rows reasonable
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Images only'));
-  }
-});
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB max
+  fileFilter: (_, file, cb) => file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+}).single('logo');
 
-app.post('/api/directory/claim/upload-logo', logoUpload.single('logo'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'no_file' });
-  const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-  console.log(`[dir-claim/upload] logo encoded as data URL (${Math.round(dataUrl.length/1024)}KB)`);
-  res.json({ ok: true, url: dataUrl });
+app.post('/api/directory/claim/upload-logo', (req, res) => {
+  logoUpload(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Logo must be under 4 MB.' });
+    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
+    if (!req.file) return res.status(400).json({ error: 'no_file' });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    console.log(`[dir-claim/upload] logo encoded as data URL (${Math.round(dataUrl.length/1024)}KB)`);
+    res.json({ ok: true, url: dataUrl });
+  });
 });
 
 // ── Directory badges ──────────────────────────────────────────────────────────
