@@ -2272,8 +2272,8 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       params.push(description.trim().slice(0, 400));
       updates.push(`owner_description=$${params.length}`);
     }
-    if (image_url && image_url.startsWith('http')) {
-      params.push(image_url.trim().slice(0, 500));
+    if (image_url && (image_url.startsWith('http') || image_url.startsWith('data:image/'))) {
+      params.push(image_url.trim().slice(0, 2 * 1024 * 1024)); // allow up to 2MB for data URLs
       updates.push(`owner_image_url=$${params.length}`);
     }
     if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
@@ -2292,21 +2292,11 @@ app.post('/api/directory/claim/edit', async (req, res) => {
   }
 });
 
-// ── POST /api/directory/claim/upload-logo ─────────────────────────────────────
-const logoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, 'public', 'uploads', 'logos');
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.jpg';
-    cb(null, `logo_${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`);
-  }
-});
+// ── Logo upload — converts to base64 data URL, stored directly in DB ──────────
+// Persistent across redeploys; no external storage service needed.
 const logoUpload = multer({
-  storage: logoStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 800 * 1024 }, // 800 KB max — keeps DB rows reasonable
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Images only'));
@@ -2315,9 +2305,9 @@ const logoUpload = multer({
 
 app.post('/api/directory/claim/upload-logo', logoUpload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'no_file' });
-  const url = `/uploads/logos/${req.file.filename}`;
-  console.log(`[dir-claim/upload] logo saved: ${url}`);
-  res.json({ ok: true, url });
+  const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  console.log(`[dir-claim/upload] logo encoded as data URL (${Math.round(dataUrl.length/1024)}KB)`);
+  res.json({ ok: true, url: dataUrl });
 });
 
 // ── Directory badges ──────────────────────────────────────────────────────────
