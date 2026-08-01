@@ -571,6 +571,172 @@ function listingCard(l) {
   </div>`;
 }
 
+// ── GET /directory/alternative-to-microlaunch ─────────────────────────────────
+app.get('/directory/alternative-to-microlaunch', async (req, res) => {
+  try {
+    const [dirsR, topR, aiR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Directories'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 10`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active'
+                 ORDER BY vote_count DESC LIMIT 8`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='AI Tools'
+                 ORDER BY vote_count DESC LIMIT 6`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const total = totalR.rows[0].n;
+    const allItems = [...dirsR.rows, ...topR.rows];
+    const schemaItems = allItems.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:l.category,description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'MicroLaunch Alternatives — Submit Your SaaS Free | ToolIndex',
+      description:`${total}+ SaaS tools listed on ToolIndex with free DR 86 dofollow backlinks. No launch windows, no daily slots.`,
+      url:'https://strategic-flow-audit.replit.app/directory/alternative-to-microlaunch',
+      mainEntity:{'@type':'ItemList',name:'MicroLaunch Alternatives',itemListElement:schemaItems}
+    };
+    const catLinks = ['AI Tools','Developer Tools','Productivity','Marketing','Design','Analytics','Directories']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>SaaS Discovery Platforms & Launch Directories</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">${total}+ products already indexed on ToolIndex — no launch windows, no daily caps.</p>
+      <div class="grid">${dirsR.rows.map(listingCard).join('')}</div>
+      <h2>Top Products on ToolIndex</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">Ranked by real visitor upvotes across all categories.</p>
+      <div class="grid">${topR.rows.map(listingCard).join('')}</div>
+      <h2>Featured AI Tools</h2>
+      <div class="grid">${aiR.rows.map(listingCard).join('')}</div>
+      <h2>Browse by category</h2><div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:'MicroLaunch Alternatives (2025) — List Your SaaS Free | ToolIndex',
+      metaDesc:`Looking for MicroLaunch alternatives? ToolIndex lists ${total}+ SaaS tools with a free DR 86 dofollow backlink and instant approval — no launch windows, no daily caps.`,
+      canonical:'/directory/alternative-to-microlaunch',
+      h1:'MicroLaunch Alternatives for SaaS Founders',
+      intro:`MicroLaunch has daily launch slots and editorial curation. ToolIndex doesn't. Submit any SaaS, app, or tool and it goes live immediately — no slots, no queues — with a permanent dofollow backlink from a DR 86 domain. ${total}+ products already listed.`,
+      schema, body
+    }));
+  } catch(err) {
+    console.error('[dir-seo/alt-ml]', err.message);
+    res.redirect('/directory');
+  }
+});
+
+// ── GET /directory/alternative-to-uneed ──────────────────────────────────────
+app.get('/directory/alternative-to-uneed', async (req, res) => {
+  try {
+    const [dirsR, topR, prodR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Directories'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 8`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active'
+                 ORDER BY vote_count DESC LIMIT 8`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Productivity'
+                 ORDER BY vote_count DESC LIMIT 6`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const total = totalR.rows[0].n;
+    const allItems = [...dirsR.rows, ...topR.rows];
+    const schemaItems = allItems.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:l.category,description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'Uneed Alternatives — List Your Product Free | ToolIndex',
+      description:`${total}+ tools listed on ToolIndex with free DR 86 dofollow backlinks and instant approval.`,
+      url:'https://strategic-flow-audit.replit.app/directory/alternative-to-uneed',
+      mainEntity:{'@type':'ItemList',name:'Uneed Alternatives',itemListElement:schemaItems}
+    };
+    const catLinks = ['AI Tools','Productivity','Marketing','Developer Tools','Design','Social Media','Directories']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>SaaS Directories Similar to Uneed</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">${total}+ products already listed on ToolIndex with permanent dofollow backlinks.</p>
+      <div class="grid">${dirsR.rows.map(listingCard).join('')}</div>
+      <h2>Top Products on ToolIndex by Upvotes</h2>
+      <div class="grid">${topR.rows.map(listingCard).join('')}</div>
+      <h2>Productivity Tools</h2>
+      <div class="grid">${prodR.rows.map(listingCard).join('')}</div>
+      <h2>Browse by category</h2><div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:'Uneed Alternatives (2025) — List Your Product Free | ToolIndex',
+      metaDesc:`Looking for Uneed alternatives? ToolIndex lists ${total}+ SaaS and AI tools with free DR 86 dofollow backlinks. Instant approval, no editorial queue, no daily launch windows.`,
+      canonical:'/directory/alternative-to-uneed',
+      h1:'Uneed Alternatives for Product Founders',
+      intro:`Uneed runs daily curated launches. ToolIndex is different: submit your product and it's live in seconds — no curation, no daily slots, no editorial gatekeeping. Every listing gets a permanent dofollow backlink from a DR 86 domain. Currently ${total}+ products indexed.`,
+      schema, body
+    }));
+  } catch(err) {
+    console.error('[dir-seo/alt-un]', err.message);
+    res.redirect('/directory');
+  }
+});
+
+// ── GET /directory/best-developer-tools ──────────────────────────────────────
+app.get('/directory/best-developer-tools', async (req, res) => {
+  try {
+    const [devR, totalR, allTotalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Developer Tools'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='Developer Tools'`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const devCount = totalR.rows[0].n;
+    const allTotal = allTotalR.rows[0].n;
+    const devTools = devR.rows;
+    const schemaItems = devTools.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:'Developer Tools',description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:`Best Developer Tools (2025) — ${devCount} Vetted Products | ToolIndex`,
+      description:`${devCount} developer tools listed on ToolIndex with free DR 86 dofollow backlinks. Ranked by real upvotes.`,
+      url:'https://strategic-flow-audit.replit.app/directory/best-developer-tools',
+      mainEntity:{'@type':'ItemList',name:'Best Developer Tools',itemListElement:schemaItems}
+    };
+    const catLinks = ['AI Tools','Productivity','Marketing','Design','Analytics','Social Media','Finance']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>Developer Tools on ToolIndex (${devCount} total)</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        Every listing includes a free dofollow backlink from a DR 86 domain. Ranked by real visitor upvotes.
+      </p>
+      <div class="grid">${devTools.map(listingCard).join('')}</div>
+      <h2>About ToolIndex</h2>
+      <p style="font-size:14px;color:#94a3b8;line-height:1.7;max-width:680px;margin-bottom:24px;">
+        ToolIndex is a free SaaS directory with ${allTotal}+ active listings across all categories. Every submission gets a permanent dofollow backlink — no editorial queue, no paid approval. <a href="/directory">View the full directory →</a>
+      </p>
+      <h2>Browse other categories</h2>
+      <div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:`Best Developer Tools (2025) — ${devCount} Vetted Products | ToolIndex`,
+      metaDesc:`Browse ${devCount} developer tools on ToolIndex — APIs, databases, code editors, and dev infrastructure. Free DR 86 dofollow backlinks for every listing. Ranked by real upvotes.`,
+      canonical:'/directory/best-developer-tools',
+      h1:'Best Developer Tools — ToolIndex Directory',
+      intro:`${devCount} developer tools are indexed on ToolIndex across categories including databases, APIs, code editors, and infrastructure. Every listing carries a permanent dofollow backlink from a DR 86 domain. Rankings reflect real visitor upvotes — no algorithmic boosts.`,
+      schema, body
+    }));
+  } catch(err) {
+    console.error('[dir-seo/dev-tools]', err.message);
+    res.redirect('/directory');
+  }
+});
+
 // ── GET /directory/alternative-to-product-hunt ────────────────────────────────
 app.get('/directory/alternative-to-product-hunt', async (req, res) => {
   try {

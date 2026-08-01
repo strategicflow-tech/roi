@@ -141,6 +141,41 @@ a:hover{text-decoration:underline;}
 .dir-why-icon{font-size:20px;flex-shrink:0;line-height:1;margin-top:1px;}
 .dir-why-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
 .dir-why-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+/* Pulse section: New Today + Startup of Week */
+.dir-pulse-section{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:0 40px 32px;}
+.dir-pulse-label{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+.dir-sotw-card{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--bg2);border:1px solid rgba(255,215,0,.2);border-radius:12px;text-decoration:none;color:inherit;transition:border-color .2s;}
+.dir-sotw-card:hover{border-color:rgba(255,215,0,.4);text-decoration:none;}
+.dir-sotw-logo{width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--bg3);}
+.dir-sotw-body{flex:1;min-width:0;}
+.dir-sotw-name{font-size:14px;font-weight:700;color:#fff;margin-bottom:2px;}
+.dir-sotw-cat{font-size:10px;font-family:var(--mono);color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.dir-sotw-desc{font-size:12px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.dir-sotw-votes{font-size:11px;font-family:var(--mono);color:#f5c842;margin-top:6px;}
+/* Promoted card injected in main grid */
+.dir-card-promoted{background:linear-gradient(135deg,var(--bg2),rgba(0,212,200,.05))!important;border-color:rgba(0,212,200,.28)!important;position:relative;}
+.dir-promoted-badge{display:inline-block;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;background:rgba(0,212,200,.13);color:var(--teal);padding:2px 8px;border-radius:10px;border:1px solid rgba(0,212,200,.28);margin-top:2px;}
+/* Collections sidebar widget */
+.dir-collections-widget{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:16px;}
+.dir-collections-title{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.dir-collection-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);text-decoration:none;transition:color .2s;}
+.dir-collection-item:last-child{border-bottom:none;}
+.dir-collection-item:hover .dir-collection-name{color:var(--teal);}
+.dir-collection-name{font-size:13px;color:#c8d4e0;font-weight:500;transition:color .2s;}
+.dir-collection-count{font-size:10px;font-family:var(--mono);color:var(--muted);}
+/* Trust / About section */
+.dir-trust-section{background:var(--bg2);border-top:1px solid var(--border);padding:44px 40px;}
+.dir-trust-inner{max-width:860px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;}
+.dir-trust-label{font-size:10px;font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:12px;}
+.dir-trust-h2{font-size:21px;font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:-.01em;}
+.dir-trust-p{font-size:13px;color:var(--muted);line-height:1.75;}
+.dir-trust-links{display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;}
+.dir-trust-link{font-size:12px;font-family:var(--mono);color:var(--teal);}
+.dir-trust-stats{display:flex;flex-direction:column;gap:12px;}
+.dir-trust-stat-row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:9px;}
+.dir-trust-stat-val{font-size:20px;font-weight:800;color:var(--teal);min-width:64px;flex-shrink:0;}
+.dir-trust-stat-lbl{font-size:12px;color:var(--muted);line-height:1.45;}
+@media(max-width:760px){.dir-pulse-section{grid-template-columns:1fr;padding:0 20px 20px;}.dir-trust-inner{grid-template-columns:1fr;gap:28px;}.dir-trust-section{padding:36px 20px;}}
 
 /* PROMOTED PREMIUM — owner's spotlight, always after hero */
 .dir-promoted-wrap{padding:0 40px 32px;}
@@ -685,6 +720,17 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </div>
 
+<!-- PULSE: New Today + Startup of the Week -->
+<div class="dir-pulse-section" id="dirPulseSection">
+  <div>
+    <div class="dir-pulse-label">🆕 New today</div>
+    <div id="newTodayList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
+  </div>
+  <div>
+    <div class="dir-pulse-label">⭐ Startup of the week</div>
+    <div id="startupOfWeek"><div class="dir-lb-empty">Loading…</div></div>
+  </div>
+</div>
 
 <div class="dir-body-wrap">
 <div class="dir-body-main">
@@ -727,6 +773,11 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     </div>
     <div id="dirSponsorList"><div class="dir-sponsor-empty">Loading…</div></div>
     <a href="/sponsor" class="dir-sponsor-cta">Become a sponsor →</a>
+  </div>
+  <!-- Collections by category -->
+  <div class="dir-collections-widget">
+    <div class="dir-collections-title">Browse by category</div>
+    <div id="dirCollections"><div class="dir-sponsor-empty">Loading…</div></div>
   </div>
 </aside>
 </div><!-- /.dir-body-wrap -->
@@ -840,6 +891,40 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <summary class="dir-faq-q">How do I get my product featured at the top?</summary>
     <p class="dir-faq-a">Click the <strong>⚡ Boost</strong> button on any listing card. Options: <strong>Daily Boost</strong> ($9 — 24 hours as #1 in the grid, activates instantly, no review queue), <strong>Weekly Feature</strong> ($19 — 14 days in the Featured Spotlight with a gold badge), or <strong>Premium Listing</strong> ($29 — 30 days with a purple badge and top-3 placement).</p>
   </details>
+</section>
+
+<!-- TRUST / ABOUT SECTION -->
+<section class="dir-trust-section" id="about">
+  <div class="dir-trust-inner">
+    <div>
+      <div class="dir-trust-label">About ToolIndex</div>
+      <div class="dir-trust-h2">Built to give SaaS tools a fair shot at organic visibility</div>
+      <p class="dir-trust-p">ToolIndex is a free SaaS &amp; AI tools directory built by <strong style="color:#fff;">Strategic Flow</strong>. Every listing gets a permanent dofollow backlink from a DR 86 domain — indexed by Google, no expiry, no review queue. The goal is simple: help founders get discovered without paying for ads or waiting in editorial queues.</p>
+      <div class="dir-trust-links">
+        <a class="dir-trust-link" href="/directory#submit">Submit your product →</a>
+        <a class="dir-trust-link" href="/directory/best-saas-directories">Compare directories →</a>
+        <a class="dir-trust-link" href="/directory/alternative-to-product-hunt">Alternatives →</a>
+      </div>
+    </div>
+    <div class="dir-trust-stats" id="trustStats">
+      <div class="dir-trust-stat-row">
+        <span class="dir-trust-stat-val" id="trustTotal">544+</span>
+        <span class="dir-trust-stat-lbl">Active products listed — real backlinks, all indexed</span>
+      </div>
+      <div class="dir-trust-stat-row">
+        <span class="dir-trust-stat-val">DR 86</span>
+        <span class="dir-trust-stat-lbl">Domain rating — high-authority link equity passed to every listing</span>
+      </div>
+      <div class="dir-trust-stat-row">
+        <span class="dir-trust-stat-val">Free</span>
+        <span class="dir-trust-stat-lbl">Base listing costs nothing — no account required to submit</span>
+      </div>
+      <div class="dir-trust-stat-row">
+        <span class="dir-trust-stat-val">Instant</span>
+        <span class="dir-trust-stat-lbl">Listings go live immediately — no editorial queue, no waiting</span>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- SUBMIT SECTION -->
@@ -1372,6 +1457,55 @@ function renderCard(l){
   </div>`;
 }
 
+// ── Promoted card (injected every ~10 items in main grid) ────────────────────
+const PROMOTED_IDS = [199, 203]; // WHY Audit™, Strategic Flow Audit
+function renderPromotedCard(l){
+  if(!l) return '';
+  const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
+  const votes  = l.vote_count||0;
+  const voted  = votedIds.has(l.id);
+  return `<div class="dir-card dir-card-promoted" data-id="${l.id}" data-cat="${l.category||'General'}">
+    <div class="dir-card-top">
+      <div class="dir-card-left">
+        ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
+        <div style="min-width:0;">
+          <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
+          <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
+          <span class="dir-promoted-badge">Promoted</span>
+        </div>
+      </div>
+    </div>
+    <p class="dir-desc">${escHtml(l.description||'')}</p>
+    <div class="dir-card-footer">
+      <div class="dir-card-actions">
+        <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
+        <button class="dir-vote-btn${voted?' voted':''}" id="vbtn-p-${l.id}" onclick="castVote(${l.id},this)" ${voted?'disabled':''} title="${voted?'Already upvoted':'Upvote this product'}">
+          <span class="vote-arrow">▲</span>
+          <span class="vote-count" id="vc-p-${l.id}"${votes>0?'':' style="display:none"'}>${votes}</span>
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildGridHtml(cards){
+  const promos = PROMOTED_IDS.map(id => allListings.find(l => l.id === id)).filter(Boolean);
+  // Only inject in unfiltered "All" view without active search
+  if(!promos.length || activeCategory !== 'All' || searchQuery){
+    return cards.map(renderCard).join('');
+  }
+  const result = [];
+  let promoIdx = 0;
+  cards.forEach((card, i) => {
+    result.push(renderCard(card));
+    if((i + 1) % 10 === 0){
+      result.push(renderPromotedCard(promos[promoIdx % promos.length]));
+      promoIdx++;
+    }
+  });
+  return result.join('');
+}
+
 // ── Voting ────────────────────────────────────────────────────────────────────
 async function castVote(id, btn){
   if(votedIds.has(id)) return;
@@ -1585,7 +1719,7 @@ function renderVisible(){
     wrap.style.display = 'none';
     return;
   }
-  grid.innerHTML = filteredListings.slice(0, showing).map(renderCard).join('');
+  grid.innerHTML = buildGridHtml(filteredListings.slice(0, showing));
   counter.textContent = `Showing ${showing} of ${total} products`;
   const heroCount = document.getElementById('heroCount');
   if (heroCount && allListings.length) heroCount.textContent = allListings.length + '+';
@@ -1602,6 +1736,72 @@ function renderVisible(){
 function loadMore(){
   visibleCount += PAGE_SIZE;
   renderVisible();
+}
+
+// ── Pulse sections: New Today + Startup of the Week ──────────────────────────
+function loadPulseSections(){
+  // New Today
+  fetch('/api/directory/leaderboard?period=new')
+    .then(r=>r.json())
+    .then(d=>{
+      const el = document.getElementById('newTodayList');
+      if(!el) return;
+      const items = d.items||[];
+      if(!items.length){
+        el.innerHTML='<div class="dir-lb-empty">No new listings added today yet.</div>';
+      } else {
+        el.innerHTML = items.slice(0,5).map((l,i)=>`
+          <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
+            <span class="dir-lb-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span>
+            <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
+            <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
+          </a>`).join('');
+      }
+    }).catch(()=>{
+      const el=document.getElementById('newTodayList');
+      if(el) el.innerHTML='<div class="dir-lb-empty">No new listings added today yet.</div>';
+    });
+
+  // Startup of the Week
+  fetch('/api/directory/leaderboard?period=weekly')
+    .then(r=>r.json())
+    .then(d=>{
+      const el=document.getElementById('startupOfWeek');
+      if(!el) return;
+      const top=(d.items||[])[0];
+      if(!top){el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';return;}
+      const votes = top.period_votes||top.vote_count||0;
+      el.innerHTML=`
+        <a class="dir-sotw-card" href="/directory/${toSlug(top.name,top.id)}">
+          <img class="dir-sotw-logo" src="${top.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(top.name)}"/>
+          <div class="dir-sotw-body">
+            <div class="dir-sotw-name">🏆 ${escHtml(top.name)}</div>
+            <div class="dir-sotw-cat">${escHtml(top.category)}</div>
+            <div class="dir-sotw-desc">${escHtml((top.description||'').slice(0,130))}</div>
+            <div class="dir-sotw-votes">▲ ${votes} votes this week</div>
+          </div>
+        </a>`;
+    }).catch(()=>{
+      const el=document.getElementById('startupOfWeek');
+      if(el) el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';
+    });
+}
+
+// ── Collections sidebar: categories from real allListings data ────────────────
+function loadCollections(){
+  const el=document.getElementById('dirCollections');
+  if(!el||!allListings.length) return;
+  const cats={};
+  allListings.forEach(l=>{cats[l.category]=(cats[l.category]||0)+1;});
+  const sorted=Object.entries(cats)
+    .filter(([c])=>c&&c!=='Other')
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,7);
+  el.innerHTML=sorted.map(([cat,cnt])=>
+    `<a class="dir-collection-item" href="/directory?category=${encodeURIComponent(cat)}" onclick="document.querySelector('[data-cat=\\''+${JSON.stringify(cat)}+'\\']')?.click();return false;">
+      <span class="dir-collection-name">${escHtml(cat)}</span>
+      <span class="dir-collection-count">${cnt}</span>
+    </a>`).join('');
 }
 
 function applyFilters(){
@@ -1682,6 +1882,11 @@ async function loadListings(){
     allListings = listings;
     applyFilters();
     injectItemListSchema(allListings);
+    loadPulseSections();
+    loadCollections();
+    // Sync trust section total with real count
+    const trustTotal = document.getElementById('trustTotal');
+    if(trustTotal && allListings.length) trustTotal.textContent = allListings.length + '+';
     // Auto-open claim modal when arriving from a product page (?claim=ID)
     const claimParam = new URLSearchParams(location.search).get('claim');
     if (claimParam) {
