@@ -1225,23 +1225,11 @@ async function loadClickCounts(){
     const d = await r.json();
     clickCounts    = d.counts    || {};
     totalClicks30d = d.total_30d || 0;
-    // Show aggregate stat in hero only when real data exists
-    if(totalClicks30d > 0) _showHeroClickStat(totalClicks30d);
     // Re-render cards if listings already loaded so click stats appear
     if(allListings.length > 0) renderVisible();
   }catch{}
 }
 
-function _showHeroClickStat(total){
-  if(document.getElementById('statClicksEl')) return; // already shown
-  const statsEl = document.querySelector('.dir-stats');
-  if(!statsEl) return;
-  const div = document.createElement('div');
-  div.className = 'dir-stat';
-  div.id = 'statClicksEl';
-  div.innerHTML = `<div class="dir-stat-num">${fmtNum(total)}</div><div class="dir-stat-label">Clicks sent · 30d</div>`;
-  statsEl.appendChild(div);
-}
 
 // ── Click and view tracking ───────────────────────────────────────────────────
 const _trackedViews = new Set(); // avoid re-recording same listing in same session
@@ -1336,7 +1324,6 @@ function renderCard(l){
           <span class="vote-count" id="vc-${l.id}">${votes}</span>
         </button>
       </div>
-      ${(()=>{ const c = clickCounts[l.id]; return c > 0 ? `<span class="dir-click-stat">${fmtNum(c)} clicks sent · 30d</span>` : ''; })()}
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${sourceTag}
         ${l.is_claimed

@@ -393,7 +393,7 @@ function ssrCard(l, clickMap) {
   if (l.source && l.source_url) sourceTag = `<a href="${heDir(l.source_url)}" class="dir-source-tag" target="_blank" rel="noopener">via ${heDir(l.source)}</a>`;
   else if (l.source)             sourceTag = `<span class="dir-source-tag">via ${heDir(l.source)}</span>`;
   const featBadge = isFeat ? `<span class="dir-featured-badge badge-${heDir(l.featured_tier)}">${heDir(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>` : '';
-  const clickStat = clicks > 0 ? `<span class="dir-click-stat">${clicks >= 1000 ? (clicks/1000).toFixed(1)+'k' : clicks} clicks sent · 30d</span>` : '';
+  const clickStat = '';
   const safeName   = name.replace(/'/g,"\\'").replace(/[<>]/g,'');
   const safeDomain = domain.replace(/'/g,"\\'");
   let claimSection = '';
@@ -583,7 +583,6 @@ app.get('/directory/:slug', async (req, res) => {
 <div class="stats-row">
   ${votes > 0    ? `<div class="stat-box"><div class="stat-n">${fmtK(votes)}</div><div class="stat-l">Upvotes</div></div>` : ''}
   ${views30 > 0  ? `<div class="stat-box"><div class="stat-n">${fmtK(views30)}</div><div class="stat-l">ToolIndex views · 30d</div></div>` : ''}
-  ${clicks30 > 0 ? `<div class="stat-box"><div class="stat-n">${fmtK(clicks30)}</div><div class="stat-l">Clicks sent · 30d</div></div>` : ''}
 </div>` : '';
 
     // ── claim prompt ───────────────────────────────────────────────────────
