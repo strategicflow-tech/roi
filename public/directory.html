@@ -1869,9 +1869,17 @@ function loadRecentlyClaimed(){
   const hs=document.getElementById('dirHeroSearch');
   const cnt=document.getElementById('heroSearchCount');
   if(!hs) return;
+  let _scrolled=false;
   hs.addEventListener('input',function(e){
     const main=document.getElementById('dirSearch');
     if(main){main.value=e.target.value;main.dispatchEvent(new Event('input'));}
+    // Scroll to results grid on first keystroke
+    if(!_scrolled && e.target.value.length>0){
+      _scrolled=true;
+      const grid=document.getElementById('dirGrid');
+      if(grid) setTimeout(()=>grid.scrollIntoView({behavior:'smooth',block:'start'}),120);
+    }
+    if(e.target.value.length===0) _scrolled=false;
   });
   // Update count placeholder once listings load
   document.addEventListener('listingsLoaded',function(e){
