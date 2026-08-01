@@ -2123,24 +2123,21 @@ app.get('/admin/seed-votes', async (req, res) => {
   res.flushHeaders();
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
-    // ── 0. Helper ──────────────────────────────────────────────────────────────
-    function rndInterval(minH, maxH) {
-      const h = minH + Math.random() * (maxH - minH);
-      return `'${Math.floor(h)} hours ${Math.floor(Math.random()*59)} minutes'`;
+    // ── 0. Helpers ─────────────────────────────────────────────────────────────
+    function rndMs(minH, maxH) {
+      return (minH + Math.random() * (maxH - minH)) * 3600000;
     }
-    // Buckets: TODAY (0–20h ago), TW_NOT_TODAY (24–119h ago = 1–5d),
-    //          LAST_WEEK (168–311h ago = 7–13d), OLDER (336–1440h ago = 14–60d)
+    // Returns array of [listing_id, voter_hash, voted_at_Date] rows
     function makeBucket(id, prefix, n, bucket) {
-      const vals = [];
+      const rows = [];
       for (let i = 0; i < n; i++) {
-        let interval;
-        if      (bucket === 'today')    interval = rndInterval(0.5, 20);
-        else if (bucket === 'tw')       interval = rndInterval(24,  119);
-        else if (bucket === 'lw')       interval = rndInterval(168, 311);
-        else                            interval = rndInterval(336, 1440);
-        vals.push(`(${id},'${prefix}_${i}',NOW()-INTERVAL ${interval})`);
+        const ms = bucket === 'today' ? rndMs(0.5, 20)
+                 : bucket === 'tw'    ? rndMs(24,  119)
+                 : bucket === 'lw'    ? rndMs(168, 311)
+                 :                      rndMs(336, 1440);
+        rows.push([id, `${prefix}_${i}_${Math.random().toString(36).slice(2)}`, new Date(Date.now() - ms)]);
       }
-      return vals;
+      return rows;
     }
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
