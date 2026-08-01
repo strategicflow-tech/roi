@@ -1045,6 +1045,18 @@ async function extractContactEmail(productUrl) {
                .replace(/<style[\s\S]*?<\/style>/gi, '');
   }
 
+  // Extract LinkedIn profile URL (personal founder/company page, not /jobs /posts etc.)
+  function extractLinkedIn(html) {
+    const LI_RE = /https?:\/\/(?:www\.)?linkedin\.com\/(in|company)\/([a-zA-Z0-9_%-]{2,80})\/?/g;
+    const matches = [...html.matchAll(LI_RE)];
+    if (!matches.length) return null;
+    // Prefer personal /in/ over /company/ for founder contact
+    const personal = matches.find(m => m[1] === 'in');
+    const chosen = personal || matches[0];
+    // Normalise to clean URL
+    return `https://www.linkedin.com/${chosen[1]}/${chosen[2]}/`;
+  }
+
   function extractFromHtml(html) {
     const text = clean(html);
 
@@ -1089,16 +1101,20 @@ async function extractContactEmail(productUrl) {
 
   const pages = [productUrl, `${base}/contact`, `${base}/about`, `${base}/support`, `${base}/privacy`, `${base}/imprint`];
 
+  let foundLinkedIn = null;
   for (const page of pages) {
     try {
       const resp = await timedFetch(page, 10000);
       if (!resp || !resp.ok) { await sleep(1200); continue; }
       const html = await resp.text().catch(() => '');
       const email = extractFromHtml(html);
-      if (email) return { email, source: page, status: 'found' };
+      if (!foundLinkedIn) foundLinkedIn = extractLinkedIn(html);
+      if (email) return { email, linkedin: foundLinkedIn, source: page, status: 'found' };
     } catch {}
     await sleep(1200);
   }
+  // No email found — return linkedin if any
+  if (foundLinkedIn) return { linkedin: foundLinkedIn, status: 'not_found' };
   return { status: 'not_found' };
 }
 
@@ -1415,13 +1431,20 @@ app.get('/admin/extract-emails', async (req, res) => {
       log(`\n[${listing.id}] ${listing.name} — ${listing.url}`);
       try {
         const result = await extractContactEmail(listing.url);
+        // Build UPDATE — also save linkedin if found and not already set by founder
+        const liUpdate = result.linkedin
+          ? `, social_linkedin = COALESCE(NULLIF(social_linkedin,''), $5)`
+          : '';
         await pool.query(`
           UPDATE directory_listings
           SET contact_email=$1, contact_email_status=$2,
               contact_email_source=$3, contact_email_fetched_at=NOW()
+              ${liUpdate}
           WHERE id=$4
-        `, [result.email || null, result.status, result.source || null, listing.id]);
-        log(`  → ${result.status}${result.email ? ': ' + result.email : ''}${result.source ? ' (from ' + result.source + ')' : ''}`);
+        `, result.linkedin
+            ? [result.email || null, result.status, result.source || null, listing.id, result.linkedin]
+            : [result.email || null, result.status, result.source || null, listing.id]);
+        log(`  → ${result.status}${result.email ? ': ' + result.email : ''}${result.linkedin ? ' | li: ' + result.linkedin : ''}${result.source ? ' (from ' + result.source + ')' : ''}`);
       } catch (e) {
         await pool.query(`UPDATE directory_listings SET contact_email_status='not_found', contact_email_fetched_at=NOW() WHERE id=$1`, [listing.id]);
         log(`  → error: ${e.message}`);
