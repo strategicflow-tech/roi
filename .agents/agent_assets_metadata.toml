@@ -30,3 +30,10 @@ id = "nRk-IYBieA51u2cLvJnNe"
 uri = "file://n8n-icp-finder/README.md"
 type = "text"
 title = "Setup Instructions — Google CSE + Sheets"
+
+[[outputs]]
+id = "6QTHgGFIc_C_TZcwH90oE"
+uri = "file://toolindex_contacts.csv"
+type = "table"
+title = "ToolIndex Contacts — 305 fondatori"
+description = "228 emailuri + 162 LinkedIn (85 au ambele). Sortat: email-urile găsite primele."
