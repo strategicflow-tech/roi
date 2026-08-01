@@ -1832,7 +1832,8 @@ async function extractContactEmail(productUrl) {
 }
 
 app.post('/api/directory/submit', async (req, res) => {
-  const { name, url, category, description, email, logo_url } = req.body || {};
+  const { name, url, category, description, email, logo_url, terms_accepted } = req.body || {};
+  if (!terms_accepted) return res.status(400).json({ error: 'terms_required', message: 'You must accept the Terms of Use.' });
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
   let cleanUrl = url.trim();
   if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = 'https://' + cleanUrl;
