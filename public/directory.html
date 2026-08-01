@@ -1369,12 +1369,12 @@ const LB_EMPTY_STATES = {
 };
 
 const LB_SCORE_LABELS = {
-  daily:    l => `▲ ${l.period_votes||0}`,
-  weekly:   l => `▲ ${l.period_votes||0}`,
-  all:      l => `▲ ${l.period_votes||0}`,
-  trending: l => `▲ ${l.period_votes||0} today`,
+  daily:    l => (l.period_votes > 0 ? `▲ ${l.period_votes}` : ''),
+  weekly:   l => (l.period_votes > 0 ? `▲ ${l.period_votes}` : ''),
+  all:      l => (l.period_votes > 0 ? `▲ ${l.period_votes}` : ''),
+  trending: l => (l.period_votes > 0 ? `▲ ${l.period_votes} today` : ''),
   new:      l => `New`,
-  clicked:  l => `${l.period_votes||0} clicks`,
+  clicked:  l => (l.period_votes > 0 ? `${l.period_votes} clicks` : ''),
 };
 
 async function loadLeaderboard(period){
