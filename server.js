@@ -2164,8 +2164,8 @@ app.post('/api/directory/claim/start', async (req, res) => {
     if (!row.rows.length) return res.status(404).json({ error: 'listing_not_found' });
     const listing = row.rows[0];
 
-    if (listing.claimed_by)
-      return res.status(409).json({ error: 'already_claimed' });
+    if (listing.claimed_by && listing.claimed_by !== email.toLowerCase())
+      return res.status(409).json({ error: 'claimed_by_other' });
 
     const otp     = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 15 * 60 * 1000);
@@ -2214,7 +2214,6 @@ app.post('/api/directory/claim/verify', async (req, res) => {
     if (!claim.rows.length) return res.status(404).json({ error: 'no_claim_started' });
     const c = claim.rows[0];
 
-    if (c.is_verified)         return res.status(409).json({ error: 'already_verified' });
     if (c.otp !== otp)         return res.status(422).json({ error: 'wrong_code' });
     if (new Date(c.otp_expires_at) < new Date()) return res.status(422).json({ error: 'code_expired' });
 
@@ -2231,9 +2230,10 @@ app.post('/api/directory/claim/verify', async (req, res) => {
 
     const listing = await pool.query('SELECT name FROM directory_listings WHERE id=$1', [listing_id]);
     const name    = listing.rows[0]?.name || 'your product';
+    const isRelogin = c.is_verified; // already claimed — skip welcome email
 
-    // Welcome email
-    resend.emails.send({
+    // Welcome email (only on first claim)
+    if (!isRelogin) resend.emails.send({
       from:    SENDER,
       to:      email,
       subject: `You've claimed "${name}" on Strategic Flow Directory ✓`,

@@ -1704,8 +1704,8 @@ async function claimSendOTP() {
     } else if (d.error === 'domain_mismatch') {
       errEl.textContent = d.hint || 'Email must match the product domain.';
       errEl.style.display = 'block';
-    } else if (d.error === 'already_claimed') {
-      errEl.textContent = 'This listing has already been claimed.';
+    } else if (d.error === 'claimed_by_other') {
+      errEl.textContent = 'This listing has already been claimed by another owner.';
       errEl.style.display = 'block';
     } else {
       errEl.textContent = 'Something went wrong. Try again.';
