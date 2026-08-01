@@ -2413,8 +2413,12 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       [email.toLowerCase(), listing_id]
     );
 
-    const listing = await pool.query('SELECT name FROM directory_listings WHERE id=$1', [listing_id]);
-    const name    = listing.rows[0]?.name || 'your product';
+    const listing = await pool.query(
+      `SELECT name, description, image_url, founder_name, founder_avatar_url,
+              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
+       FROM directory_listings WHERE id=$1`, [listing_id]);
+    const row  = listing.rows[0] || {};
+    const name = row.name || 'your product';
     const isRelogin = c.is_verified; // already claimed — skip welcome email
 
     // Welcome email (only on first claim)
@@ -2431,7 +2435,21 @@ app.post('/api/directory/claim/verify', async (req, res) => {
     }).catch(() => {});
 
     console.log(`[dir-claim] verified: ${email} owns listing ${listing_id}`);
-    res.json({ ok: true, edit_token: editToken });
+    res.json({
+      ok: true, edit_token: editToken,
+      listing: {
+        description:    row.description    || '',
+        image_url:      row.image_url      || '',
+        founder_name:   row.founder_name   || '',
+        founder_avatar: row.founder_avatar_url || '',
+        social_twitter: row.social_twitter || '',
+        social_linkedin:row.social_linkedin|| '',
+        tech_stack:     row.tech_stack     || '',
+        platform:       row.platform       || '',
+        pricing_model:  row.pricing_model  || '',
+        launch_date:    row.launch_date    ? row.launch_date.toISOString().slice(0,10) : ''
+      }
+    });
   } catch(err) {
     console.error('[dir-claim/verify]', err.message);
     res.status(500).json({ error: 'server_error' });

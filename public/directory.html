@@ -1728,8 +1728,8 @@ function openClaimModal(id, name, domain) {
   claimEditToken  = null;
   claimOwnerEmail = null;
 
-  // Restore session if owner already verified this listing this browser session
-  const saved = JSON.parse(sessionStorage.getItem('claim_' + id) || 'null');
+  // Restore session from localStorage so owners stay logged in across refreshes
+  const saved = JSON.parse(localStorage.getItem('claim_' + id) || 'null');
   if (saved && saved.email && saved.token) {
     claimOwnerEmail = saved.email;
     claimEditToken  = saved.token;
@@ -1831,8 +1831,10 @@ async function claimVerifyOTP() {
     const d = await r.json();
     if (d.ok) {
       claimEditToken = d.edit_token;
-      // Persist in sessionStorage so edits survive a modal reopen this session
-      sessionStorage.setItem(`claim_${claimListingId}`, JSON.stringify({ email: claimOwnerEmail, token: d.edit_token }));
+      // Persist in localStorage so edits survive refresh
+      localStorage.setItem(`claim_${claimListingId}`, JSON.stringify({ email: claimOwnerEmail, token: d.edit_token }));
+      // Pre-fill form with existing listing data
+      if (d.listing) prefillClaimForm(d.listing);
       document.getElementById('claimStep2').classList.remove('active');
       document.getElementById('claimStep3').classList.add('active');
       // Mark card as claimed without reload
@@ -2031,7 +2033,26 @@ async function loadClaimAnalytics(){
   }
 }
 
-// Restore claim context from sessionStorage (so returning owners can re-edit)
+function prefillClaimForm(l) {
+  if (!l) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('claimDesc',      l.description);
+  set('claimImageUrl',  l.image_url);
+  set('claimFounderName', l.founder_name);
+  set('claimTwitter',   l.social_twitter);
+  set('claimLinkedin',  l.social_linkedin);
+  set('claimTechStack', l.tech_stack);
+  set('claimPlatform',  l.platform);
+  set('claimPricing',   l.pricing_model);
+  set('claimLaunchDate',l.launch_date);
+  if (l.founder_avatar) {
+    const prev = document.getElementById('claimFounderPreview');
+    if (prev) { prev.src = l.founder_avatar; prev.style.display = 'block'; }
+    claimFounderAvatarUrl = l.founder_avatar;
+  }
+}
+
+// Restore claim context from localStorage (so returning owners skip re-login)
 (function restoreClaimSessions(){
   // No-op on page load — modal only opens via button click
 })();
