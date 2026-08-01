@@ -1465,6 +1465,70 @@ app.get('/admin/extract-emails', async (req, res) => {
   }
 });
 
+// POST /admin/extract-contacts-bg?key=… — starts fast parallel extraction in-process, returns immediately
+let _extractBgRunning = false;
+app.post('/admin/extract-contacts-bg', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (_extractBgRunning) return res.json({ ok: false, message: 'already running' });
+  _extractBgRunning = true;
+  res.json({ ok: true, message: 'extraction started in background' });
+
+  // Run entirely inside server process — survives shell session end
+  setImmediate(async () => {
+    const CONCURRENCY = 15;
+    const EMAIL_RE2 = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
+    const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your)/i;
+    const SKIP_D = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com/i;
+    const tf = (u) => { const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000); return fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}}).finally(()=>clearTimeout(t)); };
+    const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
+    const getEmail = html => {
+      const mt=[...html.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)].map(m=>m[1].split('?')[0].toLowerCase().trim()).filter(e=>/^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)&&!SKIP_L.test(e)&&!SKIP_D.test(e));
+      if(mt.length)return mt[0];
+      const text=cl(html);
+      for(const m of [...text.matchAll(/(?:contact\s+us|email\s+us|reach\s+us|get\s+in\s+touch|hello@|hi@|support@|team@)[\s\S]{0,300}/gi)]){
+        const em=[...m[0].matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e));
+        if(em.length)return em[0];
+      }
+      const ft=text.match(/<footer[\s\S]{0,6000}/i)?.[0]||text.slice(-4000);
+      return([...ft.matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e))[0])||null;
+    };
+    const getLI = html => { const m=[...html.matchAll(/https?:\/\/(?:www\.)?linkedin\.com\/(in|company)\/([a-zA-Z0-9_%-]{2,80})\/?/g)]; if(!m.length)return null; const p=m.find(x=>x[1]==='in')||m[0]; return`https://www.linkedin.com/${p[1]}/${p[2]}/`; };
+
+    try {
+      const { rows } = await pool.query(`SELECT id,name,url FROM directory_listings WHERE status='active' AND (contact_email_status IS NULL OR contact_email_status='pending') ORDER BY id`);
+      console.log(`[extract-bg] Starting ${rows.length} listings at concurrency ${CONCURRENCY}`);
+      let done=0, found=0, li=0;
+      let i=0;
+      const worker = async () => {
+        while(i<rows.length){
+          const l=rows[i++];
+          try{
+            let base; try{base=new URL(l.url).origin;}catch{await pool.query(`UPDATE directory_listings SET contact_email_status='not_found',contact_email_fetched_at=NOW() WHERE id=$1`,[l.id]);done++;continue;}
+            let email=null,linkedin=null,src=null;
+            for(const pg of[l.url,`${base}/contact`,`${base}/about`]){
+              try{ const r=await tf(pg); if(!r||!r.ok)continue; const html=await r.text().catch(()=>''); if(!email){email=getEmail(html);if(email)src=pg;} if(!linkedin)linkedin=getLI(html); if(email&&linkedin)break; }catch{}
+            }
+            const status=email?'found':'not_found';
+            const liQ=linkedin?`,social_linkedin=COALESCE(NULLIF(social_linkedin,''),$5)`:'';
+            await pool.query(`UPDATE directory_listings SET contact_email=$1,contact_email_status=$2,contact_email_source=$3,contact_email_fetched_at=NOW()${liQ} WHERE id=$4`,
+              linkedin?[email||null,status,src||null,l.id,linkedin]:[email||null,status,src||null,l.id]);
+            if(email)found++; if(linkedin)li++; done++;
+            if(done%25===0)console.log(`[extract-bg] ${done}/${rows.length} done — emails:${found} linkedin:${li}`);
+          }catch(e){
+            done++;
+            try{await pool.query(`UPDATE directory_listings SET contact_email_status='not_found',contact_email_fetched_at=NOW() WHERE id=$1`,[l.id]);}catch{}
+          }
+        }
+      };
+      await Promise.all(Array.from({length:CONCURRENCY},worker));
+      const {rows:summary}=await pool.query(`SELECT contact_email_status,COUNT(*)::int n FROM directory_listings WHERE status='active' GROUP BY contact_email_status ORDER BY n DESC`);
+      console.log(`[extract-bg] DONE — emails:${found} linkedin:${li}`);
+      summary.forEach(r=>console.log(`[extract-bg]   ${r.contact_email_status||'pending'}: ${r.n}`));
+    } catch(e){ console.error('[extract-bg] FATAL:',e.message); }
+    finally { _extractBgRunning = false; }
+  });
+});
+
 // GET /admin/emails?key=… — HTML admin view of extracted contacts
 app.get('/admin/emails', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
