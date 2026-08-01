@@ -23,6 +23,10 @@ const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
 
+const multer = require('multer');
+const path   = require('path');
+const fs     = require('fs');
+
 const app    = express();
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -2288,6 +2292,34 @@ app.post('/api/directory/claim/edit', async (req, res) => {
   }
 });
 
+// ── POST /api/directory/claim/upload-logo ─────────────────────────────────────
+const logoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, 'public', 'uploads', 'logos');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.jpg';
+    cb(null, `logo_${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`);
+  }
+});
+const logoUpload = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Images only'));
+  }
+});
+
+app.post('/api/directory/claim/upload-logo', logoUpload.single('logo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no_file' });
+  const url = `/uploads/logos/${req.file.filename}`;
+  console.log(`[dir-claim/upload] logo saved: ${url}`);
+  res.json({ ok: true, url });
+});
+
 // ── Directory badges ──────────────────────────────────────────────────────────
 const DIR_BADGE = {
   dark: (title = 'Listed on Strategic Flow') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
@@ -2991,9 +3023,6 @@ app.get('/admin/users', async (req, res) => {
 });
 
 // ─── END AUTH BLOCK ───────────────────────────────────────────────────────────
-
-const fs = require('fs');
-const path = require('path');
 
 app.get('/debug/server', (req, res) => {
   try {

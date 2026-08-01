@@ -1006,8 +1006,15 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
       <div class="claim-edit-section">
         <div class="claim-edit-label">Update your description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
         <textarea class="claim-edit-area" id="claimDesc" placeholder="One or two honest sentences about what your product does." maxlength="400"></textarea>
-        <div class="claim-edit-label">Screenshot / logo URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional — paste a direct image URL)</span></div>
-        <input class="claim-input" type="url" id="claimImageUrl" placeholder="https://yoursite.com/screenshot.png" />
+        <div class="claim-edit-label">Logo / screenshot <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label id="claimUploadLabel" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:var(--mono);transition:border-color .2s;white-space:nowrap;">
+            📷 Upload photo
+            <input type="file" id="claimLogoFile" accept="image/*" style="display:none;" onchange="claimUploadLogo(this)"/>
+          </label>
+          <input class="claim-input" type="url" id="claimImageUrl" placeholder="or paste image URL…" style="flex:1;min-width:0;"/>
+        </div>
+        <div id="claimUploadStatus" style="font-size:11px;color:var(--muted);display:none;"></div>
         <div class="claim-err" id="claimErr3"></div>
         <button class="claim-save-btn" id="claimSaveBtn" onclick="claimSaveEdit()">Save changes →</button>
         <div class="claim-save-msg" id="claimSaveMsg">✓ Saved! Changes will appear after the next page load.</div>
@@ -1650,6 +1657,9 @@ function openClaimModal(id, name, domain) {
   document.getElementById('claimOTP').value   = '';
   document.getElementById('claimDesc').value      = '';
   document.getElementById('claimImageUrl').value  = '';
+  document.getElementById('claimLogoFile').value  = '';
+  const upSt = document.getElementById('claimUploadStatus');
+  if (upSt) { upSt.style.display = 'none'; upSt.textContent = ''; }
   ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(id => {
     const el = document.getElementById(id);
     el.style.display = 'none'; el.textContent = '';
@@ -1765,6 +1775,38 @@ async function claimSaveEdit() {
     else { errEl.textContent = 'Save failed: ' + (d.error||'unknown'); errEl.style.display = 'block'; }
   } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
   btn.disabled = false; btn.textContent = 'Save changes →';
+}
+
+async function claimUploadLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('claimUploadStatus');
+  const label    = document.getElementById('claimUploadLabel');
+  statusEl.style.display = 'block';
+  statusEl.style.color   = 'var(--muted)';
+  statusEl.textContent   = 'Uploading…';
+  label.style.opacity    = '0.5';
+  label.style.pointerEvents = 'none';
+
+  try {
+    const fd = new FormData();
+    fd.append('logo', file);
+    const r = await fetch('/api/directory/claim/upload-logo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok && d.url) {
+      document.getElementById('claimImageUrl').value = d.url;
+      statusEl.style.color   = '#22c55e';
+      statusEl.textContent   = '✓ Photo uploaded — click Save changes to apply.';
+    } else {
+      statusEl.style.color   = '#e8455a';
+      statusEl.textContent   = 'Upload failed. Try pasting a URL instead.';
+    }
+  } catch {
+    statusEl.style.color   = '#e8455a';
+    statusEl.textContent   = 'Upload error. Try pasting a URL instead.';
+  }
+  label.style.opacity = '1';
+  label.style.pointerEvents = 'auto';
 }
 
 // ── My Listing Analytics (shown in claim step 3 after verification) ───────────
