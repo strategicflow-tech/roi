@@ -1180,6 +1180,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <div class="modal-tag">🔑 Claim this listing</div>
     <div class="modal-title" id="claimProductName">Your product</div>
     <div class="modal-sub">Verify you own this listing by entering your email address. We'll send a one-time code.</div>
+    <div style="font-size:11px;color:var(--teal);font-family:var(--mono);background:rgba(0,212,200,.07);border:1px solid rgba(0,212,200,.2);border-radius:6px;padding:7px 12px;margin-top:8px;">✦ Claim your listing to unlock a longer, more detailed description.</div>
 
     <!-- Step 1: email -->
     <div class="claim-step active" id="claimStep1">
@@ -1211,8 +1212,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         </a>
       </div>
       <div class="claim-edit-section">
-        <div class="claim-edit-label">Update your description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
-        <textarea class="claim-edit-area" id="claimDesc" placeholder="One or two honest sentences about what your product does." maxlength="400"></textarea>
+        <div class="claim-edit-label">Extended description <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional — up to 500 characters)</span></div>
+        <textarea class="claim-edit-area" id="claimDesc" placeholder="Describe what your product does, who it's for, and what makes it different. This replaces the short auto-imported description across the directory." maxlength="500" style="min-height:100px;"></textarea>
         <div class="claim-edit-label">Logo / screenshot <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
         <div style="display:flex;gap:8px;align-items:center;">
           <label id="claimUploadLabel" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:var(--mono);transition:border-color .2s;white-space:nowrap;">
@@ -1720,7 +1721,7 @@ function renderPromotedCard(l){
         <span class="dir-promoted-badge">💎 Premium</span>
       </div>
       <div class="dir-promoted-cat">${escHtml(l.category||'')}</div>
-      <div class="dir-promoted-desc">${escHtml((l.description||'').slice(0,180))}</div>
+      <div class="dir-promoted-desc">${escHtml((l.description||'').slice(0,340))}</div>
       <div class="dir-promoted-footer">
         <a href="${escHtml(l.url)}" class="dir-promoted-cta" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
         <div class="dir-promoted-votes">▲ ${l.vote_count||0} upvotes</div>
