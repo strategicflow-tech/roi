@@ -1018,9 +1018,65 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           <input class="claim-input" type="url" id="claimImageUrl" placeholder="or paste image URL…" style="flex:1;min-width:0;"/>
         </div>
         <div id="claimUploadStatus" style="font-size:11px;color:var(--muted);display:none;"></div>
+
+        <!-- ── Founder / Publisher ─────────────────────────────── -->
+        <div class="claim-edit-label" style="margin-top:18px;">Founder / Publisher <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+          <div style="position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <img id="claimFounderPreview" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--border);display:none;" alt=""/>
+            <label style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;font-family:var(--mono);white-space:nowrap;">
+              👤 Photo
+              <input type="file" accept="image/*" style="display:none;" onchange="claimUploadFounderAvatar(this)"/>
+            </label>
+          </div>
+          <input class="claim-input" type="text" id="claimFounderName" placeholder="Your name (founder / maker)" style="flex:1;"/>
+        </div>
+        <div id="claimFounderStatus" style="font-size:11px;color:var(--muted);display:none;margin-bottom:8px;"></div>
+
+        <!-- ── Social Links ─────────────────────────────────────── -->
+        <div class="claim-edit-label" style="margin-top:14px;">Social Links <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <input class="claim-input" type="url" id="claimTwitter" placeholder="https://x.com/yourusername" style="margin-bottom:8px;"/>
+        <input class="claim-input" type="url" id="claimLinkedin" placeholder="https://linkedin.com/in/yourprofile" style="margin-bottom:8px;"/>
+
+        <!-- ── Screenshots ──────────────────────────────────────── -->
+        <div class="claim-edit-label" style="margin-top:14px;">Screenshots <span style="font-weight:400;text-transform:none;letter-spacing:0;">(up to 3, highly recommended)</span></div>
+        <div id="claimScreenshotStrip" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;min-height:0;"></div>
+        <label id="claimSsBtn" style="display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:var(--mono);transition:border-color .2s;white-space:nowrap;">
+          📸 Add screenshot (0/3)
+          <input type="file" id="claimSsFile" accept="image/*" style="display:none;" onchange="claimUploadScreenshot(this)"/>
+        </label>
+        <div id="claimSsStatus" style="font-size:11px;color:var(--muted);display:none;margin-top:4px;"></div>
+
+        <!-- ── Tech Stack ───────────────────────────────────────── -->
+        <div class="claim-edit-label" style="margin-top:14px;">Tech Stack <span style="font-weight:400;text-transform:none;letter-spacing:0;">(comma-separated, optional)</span></div>
+        <input class="claim-input" type="text" id="claimTechStack" placeholder="e.g. Next.js, PostgreSQL, TypeScript" style="margin-bottom:12px;"/>
+
+        <!-- ── Platform / Pricing / Launch ──────────────────────── -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
+          <div>
+            <div class="claim-edit-label" style="font-size:9px;margin-bottom:5px;">Platform</div>
+            <select class="claim-input" id="claimPlatform" style="width:100%;background:var(--bg3);color:var(--text);">
+              <option value="">Select…</option>
+              <option>Web</option><option>iOS</option><option>Android</option>
+              <option>Chrome Extension</option><option>API</option><option>Desktop</option>
+            </select>
+          </div>
+          <div>
+            <div class="claim-edit-label" style="font-size:9px;margin-bottom:5px;">Pricing</div>
+            <select class="claim-input" id="claimPricing" style="width:100%;background:var(--bg3);color:var(--text);">
+              <option value="">Select…</option>
+              <option>Free</option><option>Freemium</option><option>Paid</option><option>Open Source</option>
+            </select>
+          </div>
+          <div>
+            <div class="claim-edit-label" style="font-size:9px;margin-bottom:5px;">Launch Date</div>
+            <input class="claim-input" type="date" id="claimLaunchDate" style="width:100%;color-scheme:dark;"/>
+          </div>
+        </div>
+
         <div class="claim-err" id="claimErr3"></div>
         <button class="claim-save-btn" id="claimSaveBtn" onclick="claimSaveEdit()">Save changes →</button>
-        <div class="claim-save-msg" id="claimSaveMsg">✓ Saved! Changes will appear after the next page load.</div>
+        <div class="claim-save-msg" id="claimSaveMsg">✓ Saved! Your profile will update on the next page load.</div>
       </div>
 
       <!-- Analytics dashboard -->
@@ -1754,14 +1810,35 @@ async function claimVerifyOTP() {
 }
 
 async function claimSaveEdit() {
-  const description = document.getElementById('claimDesc').value.trim();
-  const image_url   = document.getElementById('claimImageUrl').value.trim();
-  const errEl       = document.getElementById('claimErr3');
-  const msg         = document.getElementById('claimSaveMsg');
+  const description     = (document.getElementById('claimDesc').value        || '').trim();
+  const image_url       = (document.getElementById('claimImageUrl').value     || '').trim();
+  const founder_name    = (document.getElementById('claimFounderName').value  || '').trim();
+  const social_twitter  = (document.getElementById('claimTwitter').value      || '').trim();
+  const social_linkedin = (document.getElementById('claimLinkedin').value     || '').trim();
+  const tech_stack      = (document.getElementById('claimTechStack').value    || '').trim();
+  const platform        = document.getElementById('claimPlatform').value;
+  const pricing_model   = document.getElementById('claimPricing').value;
+  const launch_date     = document.getElementById('claimLaunchDate').value;
+
+  const errEl = document.getElementById('claimErr3');
+  const msg   = document.getElementById('claimSaveMsg');
   errEl.style.display = 'none'; msg.style.display = 'none';
 
-  if (!description && !image_url) {
-    errEl.textContent = 'Enter a description or image URL to save.';
+  const body = { listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken };
+  if (description)           body.description = description;
+  if (image_url)             body.image_url = image_url;
+  if (founder_name)          body.founder_name = founder_name;
+  if (claimFounderAvatarUrl) body.founder_avatar_url = claimFounderAvatarUrl;
+  if (social_twitter)        body.social_twitter = social_twitter;
+  if (social_linkedin)       body.social_linkedin = social_linkedin;
+  if (tech_stack)            body.tech_stack = tech_stack;
+  if (platform)              body.platform = platform;
+  if (pricing_model)         body.pricing_model = pricing_model;
+  if (launch_date)           body.launch_date = launch_date;
+  if (claimScreenshots.length > 0) body.screenshots = claimScreenshots;
+
+  if (Object.keys(body).length <= 3) {
+    errEl.textContent = 'Fill in at least one field to save.';
     errEl.style.display = 'block'; return;
   }
 
@@ -1771,7 +1848,7 @@ async function claimSaveEdit() {
   try {
     const r = await fetch('/api/directory/claim/edit', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, description, image_url })
+      body: JSON.stringify(body)
     });
     const d = await r.json();
     if (d.ok) { msg.style.display = 'block'; }
@@ -1810,6 +1887,69 @@ async function claimUploadLogo(input) {
   }
   label.style.opacity = '1';
   label.style.pointerEvents = 'auto';
+}
+
+// ── Rich profile upload helpers ───────────────────────────────────────────────
+var claimFounderAvatarUrl = '';
+var claimScreenshots = [];
+
+async function claimUploadFounderAvatar(input) {
+  const file = input.files[0]; if (!file) return;
+  const statusEl = document.getElementById('claimFounderStatus');
+  statusEl.style.display = 'block'; statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Uploading…';
+  try {
+    const fd = new FormData(); fd.append('avatar', file);
+    const r = await fetch('/api/directory/claim/upload-founder-avatar', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok && d.url) {
+      claimFounderAvatarUrl = d.url;
+      const prev = document.getElementById('claimFounderPreview');
+      if (prev) { prev.src = d.url; prev.style.display = 'block'; }
+      statusEl.style.color = '#22c55e';
+      statusEl.textContent = '✓ Photo uploaded — click Save to apply.';
+    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload failed.'; }
+  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload error.'; }
+}
+
+async function claimUploadScreenshot(input) {
+  if (claimScreenshots.length >= 3) { alert('Maximum 3 screenshots allowed.'); input.value = ''; return; }
+  const file = input.files[0]; if (!file) return;
+  const statusEl = document.getElementById('claimSsStatus');
+  statusEl.style.display = 'block'; statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Uploading screenshot…';
+  try {
+    const fd = new FormData(); fd.append('screenshot', file);
+    const r = await fetch('/api/directory/claim/upload-screenshot', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok && d.url) {
+      claimScreenshots.push(d.url);
+      renderClaimScreenshots();
+      statusEl.style.color = '#22c55e';
+      statusEl.textContent = '✓ Added (' + claimScreenshots.length + '/3). Click Save to apply.';
+    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload failed.'; }
+  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload error.'; }
+  input.value = '';
+}
+
+function renderClaimScreenshots() {
+  var strip = document.getElementById('claimScreenshotStrip');
+  var btn   = document.getElementById('claimSsBtn');
+  if (!strip) return;
+  strip.innerHTML = claimScreenshots.map(function(url, i) {
+    return '<div style="position:relative;flex-shrink:0;">' +
+      '<img src="' + url + '" style="width:96px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;" alt="Screenshot ' + (i+1) + '"/>' +
+      '<button onclick="removeClaimScreenshot(' + i + ')" title="Remove" style="position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:#e8455a;border:none;color:#fff;font-size:11px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>' +
+      '</div>';
+  }).join('');
+  if (btn) { var t = btn.childNodes[0]; if (t) t.nodeValue = '📸 Add screenshot (' + claimScreenshots.length + '/3) '; }
+}
+
+function removeClaimScreenshot(i) {
+  claimScreenshots.splice(i, 1);
+  renderClaimScreenshots();
+  var statusEl = document.getElementById('claimSsStatus');
+  if (statusEl) { statusEl.style.color = 'var(--muted)'; statusEl.textContent = claimScreenshots.length + ' screenshot(s) queued.'; statusEl.style.display = 'block'; }
 }
 
 // ── My Listing Analytics (shown in claim step 3 after verification) ───────────

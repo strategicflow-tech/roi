@@ -487,6 +487,9 @@ app.get('/directory/:slug', async (req, res) => {
               CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
               (dl.claimed_by IS NOT NULL) AS is_claimed,
+              dl.founder_name, dl.social_twitter, dl.social_linkedin,
+              dl.screenshots, dl.tech_stack, dl.platform, dl.pricing_model, dl.launch_date,
+              CASE WHEN dl.founder_avatar_url IS NOT NULL THEN '/api/directory/listing-founder-avatar/' || dl.id::text ELSE NULL END AS founder_avatar_url,
               (SELECT COUNT(*)::int FROM dir_listing_views  WHERE listing_id=dl.id
                AND viewed_at  >= NOW()-INTERVAL '30 days') AS views_30d,
               (SELECT COUNT(*)::int FROM dir_listing_clicks WHERE listing_id=dl.id
@@ -594,6 +597,59 @@ app.get('/directory/:slug', async (req, res) => {
   <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
   <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
 </div>`;
+
+    // ── premium badge ─────────────────────────────────────────────────────────
+    const premiumBadge = l.featured_tier === 'premium'
+      ? ' <span class="pp-premium-badge">💎 Premium</span>' : '';
+
+    // ── founder card ──────────────────────────────────────────────────────────
+    const founderHtml = l.founder_name ? `
+<div class="founder-card">
+  ${l.founder_avatar_url
+    ? `<img class="founder-avatar" src="${he(l.founder_avatar_url)}" alt="${he(l.founder_name)}" onerror="this.style.display='none'"/>`
+    : `<div class="founder-avatar-init">${he((l.founder_name[0]||'?').toUpperCase())}</div>`}
+  <div>
+    <div class="founder-label">Publisher</div>
+    <div class="founder-name-text">${he(l.founder_name)}</div>
+  </div>
+</div>` : '';
+
+    // ── social links ──────────────────────────────────────────────────────────
+    const socialLinks = [
+      l.social_twitter  && { url: l.social_twitter,  icon: '𝕏', label: 'X / Twitter' },
+      l.social_linkedin && { url: l.social_linkedin, icon: 'in', label: 'LinkedIn' },
+    ].filter(Boolean);
+    const socialsHtml = socialLinks.length ? `
+<div class="socials-row">
+  ${socialLinks.map(s => `<a href="${he(s.url)}" class="social-link" target="_blank" rel="noopener">${s.icon} ${he(s.label)}</a>`).join('')}
+</div>` : '';
+
+    // ── metadata row (platform / pricing / launch date) ───────────────────────
+    const metaChips = [
+      l.platform      && { label: 'Platform', val: l.platform },
+      l.pricing_model && { label: 'Pricing',  val: l.pricing_model },
+      l.launch_date   && { label: 'Launched', val: String(l.launch_date).slice(0, 10) },
+    ].filter(Boolean);
+    const metaHtml = metaChips.length ? `
+<div class="meta-row">
+  ${metaChips.map(m => `<div class="meta-chip"><span class="meta-chip-label">${he(m.label)}</span>&nbsp;<span class="meta-chip-val">${he(m.val)}</span></div>`).join('')}
+</div>` : '';
+
+    // ── tech stack chips ──────────────────────────────────────────────────────
+    const techHtml = l.tech_stack ? `
+<div class="tech-row">
+  ${(l.tech_stack||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="tech-tag">#${he(t)}</span>`).join('')}
+</div>` : '';
+
+    // ── screenshots strip ─────────────────────────────────────────────────────
+    const screenshotsArr = Array.isArray(l.screenshots) ? l.screenshots : [];
+    const screenshotsHtml = screenshotsArr.length ? `
+<div class="screenshots-section">
+  <div class="screenshots-label">Screenshots</div>
+  <div class="screenshots-strip">
+    ${screenshotsArr.map((_,i) => `<img class="screenshot-thumb" src="/api/directory/listing-screenshot/${l.id}/${i}" alt="Screenshot ${i+1}" loading="lazy" onclick="openSsLb(this.src)"/>`).join('')}
+  </div>
+</div>` : '';
 
     // ── similar tools section ──────────────────────────────────────────────
     const catLabel = cat.toLowerCase().includes('tool') ? cat : `${cat} tools`;
@@ -720,6 +776,37 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;z-index:2}
 .sp-name{font-size:13px;font-weight:600;color:var(--text)}
 .sp-tag{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Premium badge */
+.pp-premium-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-family:var(--mono);font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;border-radius:10px;background:linear-gradient(135deg,rgba(0,212,200,.25),rgba(167,139,250,.2));color:#e0fffe;border:1px solid rgba(0,212,200,.55);vertical-align:middle;margin-left:8px;white-space:nowrap;}
+/* Founder card */
+.founder-card{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;}
+.founder-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border);}
+.founder-avatar-init{width:44px;height:44px;border-radius:50%;background:#1a3050;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;font-family:var(--mono);color:#fff;flex-shrink:0;}
+.founder-label{font-size:10px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.founder-name-text{font-size:14px;font-weight:600;color:var(--text);}
+/* Socials */
+.socials-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.social-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);font-family:var(--mono);background:var(--card);transition:all .2s;}
+.social-link:hover{border-color:var(--teal);color:var(--teal);text-decoration:none;}
+/* Metadata */
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.meta-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:var(--mono);padding:5px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);}
+.meta-chip-label{color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-size:9px;}
+.meta-chip-val{color:var(--text);font-weight:600;}
+/* Tech stack */
+.tech-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.tech-tag{font-size:11px;font-family:var(--mono);color:var(--teal);background:rgba(0,212,200,.08);border:1px solid rgba(0,212,200,.2);border-radius:6px;padding:3px 10px;letter-spacing:.04em;}
+/* Screenshots */
+.screenshots-section{margin-bottom:16px;}
+.screenshots-label{font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.screenshots-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent;}
+.screenshot-thumb{width:220px;height:138px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;transition:transform .15s,border-color .15s;}
+.screenshot-thumb:hover{transform:scale(1.02);border-color:rgba(0,212,200,.4);}
+/* Lightbox */
+.ss-lb{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out;}
+.ss-lb img{max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain;}
+.ss-lb-x{position:absolute;top:14px;right:18px;color:#fff;font-size:28px;cursor:pointer;opacity:.7;line-height:1;background:none;border:none;}
+.ss-lb-x:hover{opacity:1;}
 </style>
 </head>
 <body>
@@ -741,7 +828,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
     ${logoHtml}
     <div class="hero-body">
       <div class="cat-chip">${he(cat)}</div>
-      <h1 class="prod-name">${he(l.name)}</h1>
+      <h1 class="prod-name">${he(l.name)}${premiumBadge}</h1>
       <p class="prod-desc">${he(l.description || `${l.name} is listed on ToolIndex.`)}</p>
       <div class="actions">
         <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname)} →</a>
@@ -751,6 +838,11 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   </div>
 
   ${statsHtml}
+  ${founderHtml}
+  ${socialsHtml}
+  ${metaHtml}
+  ${techHtml}
+  ${screenshotsHtml}
   ${claimHtml}
   ${similarHtml}
   ${sponsorHtml}
@@ -765,6 +857,12 @@ var PAGE = ${JSON.stringify({ id: l.id, votes: votes })};
 var VOTE_KEY = 'dir_voted_v2';
 function getVotedIds(){try{return JSON.parse(localStorage.getItem(VOTE_KEY)||'[]');}catch{return[];}}
 function saveVotedId(id){var ids=getVotedIds();if(!ids.includes(id)){ids.push(id);localStorage.setItem(VOTE_KEY,JSON.stringify(ids));}}
+function openSsLb(src){
+  var lb=document.createElement('div');lb.className='ss-lb';
+  lb.innerHTML='<button class="ss-lb-x" onclick="this.parentElement.remove()">✕</button><img src="'+src+'" alt="Screenshot"/>';
+  lb.addEventListener('click',function(e){if(e.target===lb)lb.remove();});
+  document.body.appendChild(lb);
+}
 var btn = document.getElementById('voteBtn');
 if(getVotedIds().includes(PAGE.id)){btn.classList.add('voted');btn.disabled=true;}
 btn.addEventListener('click',function(){
@@ -2257,7 +2355,10 @@ app.post('/api/directory/claim/verify', async (req, res) => {
 
 // ── POST /api/directory/claim/edit ────────────────────────────────────────────
 app.post('/api/directory/claim/edit', async (req, res) => {
-  const { listing_id, email, edit_token, description, image_url } = req.body || {};
+  const { listing_id, email, edit_token,
+          description, image_url,
+          founder_name, founder_avatar_url, social_twitter, social_linkedin,
+          screenshots, tech_stack, platform, pricing_model, launch_date } = req.body || {};
   if (!listing_id || !email || !edit_token)
     return res.status(400).json({ error: 'listing_id, email, edit_token required' });
 
@@ -2270,14 +2371,57 @@ app.post('/api/directory/claim/edit', async (req, res) => {
 
     const updates = [];
     const params  = [];
+
     if (description && description.trim()) {
       params.push(description.trim().slice(0, 400));
       updates.push(`owner_description=$${params.length}`);
     }
     if (image_url && (image_url.startsWith('http') || image_url.startsWith('data:image/'))) {
-      params.push(image_url.trim().slice(0, 2 * 1024 * 1024)); // allow up to 2MB for data URLs
+      params.push(image_url.trim().slice(0, 2*1024*1024));
       updates.push(`owner_image_url=$${params.length}`);
     }
+    if (founder_name && founder_name.trim()) {
+      params.push(founder_name.trim().slice(0, 100));
+      updates.push(`founder_name=$${params.length}`);
+    }
+    if (founder_avatar_url && (founder_avatar_url.startsWith('http') || founder_avatar_url.startsWith('data:image/'))) {
+      params.push(founder_avatar_url.trim().slice(0, 2*1024*1024));
+      updates.push(`founder_avatar_url=$${params.length}`);
+    }
+    if (social_twitter && social_twitter.trim()) {
+      params.push(social_twitter.trim().slice(0, 300));
+      updates.push(`social_twitter=$${params.length}`);
+    }
+    if (social_linkedin && social_linkedin.trim()) {
+      params.push(social_linkedin.trim().slice(0, 300));
+      updates.push(`social_linkedin=$${params.length}`);
+    }
+    if (Array.isArray(screenshots) && screenshots.length > 0) {
+      const valid = screenshots.filter(s => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:image/')));
+      if (valid.length > 0) {
+        params.push(JSON.stringify(valid.slice(0, 3)));
+        updates.push(`screenshots=$${params.length}`);
+      }
+    }
+    if (tech_stack && tech_stack.trim()) {
+      params.push(tech_stack.trim().slice(0, 300));
+      updates.push(`tech_stack=$${params.length}`);
+    }
+    const VALID_PLATFORMS = ['Web','iOS','Android','Chrome Extension','API','Desktop'];
+    if (platform && VALID_PLATFORMS.includes(platform.trim())) {
+      params.push(platform.trim());
+      updates.push(`platform=$${params.length}`);
+    }
+    const VALID_PRICING = ['Free','Freemium','Paid','Open Source'];
+    if (pricing_model && VALID_PRICING.includes(pricing_model.trim())) {
+      params.push(pricing_model.trim());
+      updates.push(`pricing_model=$${params.length}`);
+    }
+    if (launch_date && /^\d{4}-\d{2}-\d{2}$/.test(launch_date)) {
+      params.push(launch_date);
+      updates.push(`launch_date=$${params.length}`);
+    }
+
     if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
 
     params.push(listing_id);
@@ -2286,7 +2430,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       params
     );
 
-    console.log(`[dir-claim/edit] listing ${listing_id} updated by owner`);
+    console.log(`[dir-claim/edit] listing ${listing_id} updated by owner (${updates.length} fields)`);
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/edit]', err.message);
@@ -2312,6 +2456,67 @@ app.get('/api/directory/listing-logo/:id', async (req, res) => {
     res.redirect(raw);
   } catch { res.status(404).end(); }
 });
+
+// ── GET /api/directory/listing-founder-avatar/:id — serve founder avatar ───────
+app.get('/api/directory/listing-founder-avatar/:id', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT founder_avatar_url FROM directory_listings WHERE id=$1', [parseInt(req.params.id)]);
+    if (!r.rows.length || !r.rows[0].founder_avatar_url) return res.status(404).end();
+    const raw = r.rows[0].founder_avatar_url;
+    if (raw.startsWith('data:')) {
+      const comma = raw.indexOf(',');
+      const mime  = (raw.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(raw.slice(comma + 1), 'base64'));
+    }
+    res.redirect(raw);
+  } catch { res.status(404).end(); }
+});
+
+// ── GET /api/directory/listing-screenshot/:id/:index — serve screenshot ─────────
+app.get('/api/directory/listing-screenshot/:id/:index', async (req, res) => {
+  try {
+    const id  = parseInt(req.params.id);
+    const idx = parseInt(req.params.index);
+    if (isNaN(id) || isNaN(idx) || idx < 0 || idx > 2) return res.status(400).end();
+    const r = await pool.query('SELECT screenshots FROM directory_listings WHERE id=$1', [id]);
+    if (!r.rows.length) return res.status(404).end();
+    const arr = r.rows[0].screenshots || [];
+    const raw = arr[idx];
+    if (!raw) return res.status(404).end();
+    if (raw.startsWith('data:')) {
+      const comma = raw.indexOf(',');
+      const mime  = (raw.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(raw.slice(comma + 1), 'base64'));
+    }
+    res.redirect(raw);
+  } catch { res.status(404).end(); }
+});
+
+// ── POST /api/directory/claim/upload-founder-avatar ──────────────────────────
+app.post('/api/directory/claim/upload-founder-avatar',
+  multer({ storage: multer.memoryStorage(), limits: { fileSize: 800*1024 },
+           fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null,true) : cb(new Error('Images only')) }).single('avatar'),
+  (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'no_file' });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    res.json({ ok: true, url: dataUrl });
+  }
+);
+
+// ── POST /api/directory/claim/upload-screenshot ──────────────────────────────
+app.post('/api/directory/claim/upload-screenshot',
+  multer({ storage: multer.memoryStorage(), limits: { fileSize: 2*1024*1024 },
+           fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null,true) : cb(new Error('Images only')) }).single('screenshot'),
+  (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'no_file' });
+    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    res.json({ ok: true, url: dataUrl });
+  }
+);
 
 // ── Logo upload — converts to base64 data URL, stored directly in DB ──────────
 // Persistent across redeploys; no external storage service needed.
@@ -3445,6 +3650,16 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
+  // Rich profile fields (founder, socials, screenshots, tech)
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_name        TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_avatar_url  TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS social_twitter      TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS social_linkedin     TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS screenshots         JSONB DEFAULT '[]'`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS tech_stack          TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS platform            TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pricing_model       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS launch_date         DATE`).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
