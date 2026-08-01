@@ -2152,7 +2152,7 @@ app.get('/admin/seed-votes', async (req, res) => {
     const specificVC = [
       {id:543,vc:116},{id:165,vc:91},{id:248,vc:81},{id:111,vc:82},
       {id:55,vc:85},  {id:163,vc:75},{id:234,vc:34},{id:457,vc:31},
-      {id:474,vc:32}, {id:576,vc:29},{id:716,vc:29},{id:219,vc:26},
+      {id:474,vc:32}, {id:576,vc:29},{id:219,vc:26},
       {id:577,vc:27},
     ];
     for (const {id,vc} of specificVC) {
@@ -2199,25 +2199,41 @@ app.get('/admin/seed-votes', async (req, res) => {
       {id:457, today:1,  tw:19,  lw:8,   old:3},   // Quit With Us      total=31
       {id:474, today:1,  tw:13,  lw:9,   old:9},   // PandaChat         total=32
       {id:234, today:1,  tw:16,  lw:9,   old:8},   // NotebookLM        total=34
-      {id:716, today:1,  tw:16,  lw:7,   old:5},   // Cited             total=29
+      // id:716 omitted — not present on production
       {id:576, today:1,  tw:15,  lw:8,   old:5},   // PDFuck            total=29
       {id:219, today:1,  tw:14,  lw:6,   old:5},   // Rollout           total=26
       {id:577, today:1,  tw:14,  lw:6,   old:6},   // InvoiceFreely     total=27
     ];
     const keyIds = new Set(keyListings.map(x=>x.id));
 
+    // Helper: insert rows using fully parameterized query (avoids FK/syntax issues)
+    async function insertVoteRows(rows) {
+      for (let b = 0; b < rows.length; b += 50) {
+        const chunk = rows.slice(b, b + 50);
+        const ph    = chunk.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',');
+        const params = chunk.flat();
+        try {
+          await pool.query(
+            `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${ph} ON CONFLICT DO NOTHING`,
+            params
+          );
+        } catch(e) {
+          log(`WARN insert chunk lid=${chunk[0][0]}: ${e.message}`);
+        }
+      }
+    }
+
     for (const {id,today,tw,lw,old} of keyListings) {
-      const vals = [
+      // Verify listing exists before inserting
+      const {rows:[{c}]} = await pool.query(`SELECT COUNT(*)::int AS c FROM directory_listings WHERE id=$1`,[id]);
+      if (!c) { log(`SKIP id=${id} not found`); continue; }
+      const rows = [
         ...makeBucket(id,`seed_${id}_td`,today,'today'),
         ...makeBucket(id,`seed_${id}_tw`,tw,   'tw'),
         ...makeBucket(id,`seed_${id}_lw`,lw,   'lw'),
         ...makeBucket(id,`seed_${id}_ol`,old,  'old'),
       ];
-      for (let b=0; b<vals.length; b+=200) {
-        await pool.query(
-          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`
-        );
-      }
+      await insertVoteRows(rows);
     }
     log(`Key listing votes inserted.`);
 
@@ -2230,20 +2246,13 @@ app.get('/admin/seed-votes', async (req, res) => {
       others.filter(r=>r.vote_count>=6).sort(()=>Math.random()-0.5).slice(0,30).map(r=>r.id)
     );
     for (const r of others) {
-      const n = r.vote_count;
-      const vals = [];
-      if (weeklyExtra.has(r.id)) {
-        const wv = n>=10?2:1;
-        vals.push(...makeBucket(r.id,`seed_${r.id}_tw`,wv,'tw'));
-        vals.push(...makeBucket(r.id,`seed_${r.id}_ol`,n-wv,'old'));
-      } else {
-        vals.push(...makeBucket(r.id,`seed_${r.id}_ol`,n,'old'));
-      }
-      for (let b=0; b<vals.length; b+=200) {
-        await pool.query(
-          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`
-        );
-      }
+      const n  = r.vote_count;
+      const wv = weeklyExtra.has(r.id) ? (n>=10?2:1) : 0;
+      const rows = [
+        ...(wv > 0 ? makeBucket(r.id,`seed_${r.id}_tw`,wv,'tw') : []),
+        ...makeBucket(r.id,`seed_${r.id}_ol`,n-wv,'old'),
+      ];
+      await insertVoteRows(rows);
     }
 
     // ── 5. Sync vote_count from real dir_votes ───────────────────────────────────
