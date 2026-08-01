@@ -176,6 +176,31 @@ a:hover{text-decoration:underline;}
 .dir-trust-stat-val{font-size:20px;font-weight:800;color:var(--teal);min-width:64px;flex-shrink:0;}
 .dir-trust-stat-lbl{font-size:12px;color:var(--muted);line-height:1.45;}
 @media(max-width:760px){.dir-pulse-section{grid-template-columns:1fr;padding:0 20px 20px;}.dir-trust-inner{grid-template-columns:1fr;gap:28px;}.dir-trust-section{padding:36px 20px;}}
+/* HERO SEARCH — prominent central bar */
+.dir-herosearch-wrap{padding:0 40px 28px;max-width:900px;margin:0 auto;}
+.dir-herosearch-inner{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:14px 20px;transition:border-color .25s;box-shadow:0 4px 24px rgba(0,0,0,.18);}
+.dir-herosearch-inner:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,200,.08);}
+.dir-herosearch-icon{font-size:20px;flex-shrink:0;opacity:.7;}
+.dir-herosearch-input{flex:1;background:none;border:none;outline:none;font-size:16px;color:var(--text);font-family:var(--font);}
+.dir-herosearch-input::placeholder{color:var(--muted);}
+.dir-herosearch-count{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap;flex-shrink:0;}
+/* Pulse interval tabs */
+.dir-pulse-tabs{display:flex;gap:6px;margin-bottom:10px;}
+.dir-pulse-tab{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:10px;font-family:var(--mono);padding:3px 10px;cursor:pointer;letter-spacing:.08em;transition:all .2s;}
+.dir-pulse-tab.active{background:rgba(0,212,200,.1);border-color:var(--teal);color:var(--teal);}
+/* Recently Claimed */
+.dir-claimed-section{padding:0 40px 32px;max-width:900px;margin:0 auto;}
+/* Brand marquee */
+.dir-marquee-section{border-top:1px solid var(--border);padding:28px 0 26px;overflow:hidden;background:rgba(255,255,255,.012);}
+.dir-marquee-label{font-size:10px;font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:18px;opacity:.7;}
+.dir-marquee-outer{overflow:hidden;width:100%;}
+.dir-marquee-track{display:flex;align-items:center;gap:12px;width:max-content;animation:marqueeScroll 32s linear infinite;}
+.dir-marquee-track:hover{animation-play-state:paused;}
+@keyframes marqueeScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.dir-marquee-item{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:7px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:#8a9ab0;font-size:12px;font-weight:500;transition:border-color .2s,color .2s;white-space:nowrap;}
+.dir-marquee-item:hover{border-color:var(--teal);color:var(--text);text-decoration:none;}
+.dir-marquee-logo{width:20px;height:20px;border-radius:4px;object-fit:contain;flex-shrink:0;}
+@media(max-width:600px){.dir-herosearch-wrap{padding:0 20px 20px;}.dir-claimed-section{padding:0 20px 20px;}}
 
 /* PROMOTED PREMIUM — owner's spotlight, always after hero */
 .dir-promoted-wrap{padding:0 40px 32px;}
@@ -655,8 +680,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 2s infinite;"></span>
     Free to list · Dofollow backlink · Instant approval
   </div>
-  <h1>Your competitors are <em>already here.</em></h1>
-  <p class="dir-hero-sub"><span id="heroCount">500+</span> products collecting free, indexed backlinks from a DR 86 domain — don't be the one still missing out on permanent, organic visibility.</p>
+  <h1>Every day you're not listed,<br><em>a competitor gets the backlink.</em></h1>
+  <p class="dir-hero-sub"><span id="heroCount">500+</span> products already indexed on a DR&nbsp;86 domain. The organic visibility you're skipping goes directly to whoever listed before you.</p>
   <a href="#pricing" class="dir-hero-pricing-link">⚡ Featured placements from $9 — see pricing →</a>
   <div class="dir-stats">
     <div class="dir-stat">
@@ -678,6 +703,15 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     </div>
   </div>
 </section>
+
+<!-- HERO SEARCH — prominent central search bar -->
+<div class="dir-herosearch-wrap">
+  <div class="dir-herosearch-inner">
+    <span class="dir-herosearch-icon">🔍</span>
+    <input class="dir-herosearch-input" id="dirHeroSearch" type="text" placeholder="Search 500+ tools, SaaS, AI products, developer tools…" autocomplete="off" spellcheck="false"/>
+    <span class="dir-herosearch-count" id="heroSearchCount"></span>
+  </div>
+</div>
 
 <!-- PROMOTED PREMIUM — paid premium tier listings -->
 <div class="dir-promoted-wrap" id="promotedSection" style="display:none;">
@@ -720,16 +754,27 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </div>
 
-<!-- PULSE: New Today + Startup of the Week -->
+<!-- PULSE: Recent Launches + Startup of the Week -->
 <div class="dir-pulse-section" id="dirPulseSection">
   <div>
-    <div class="dir-pulse-label">🆕 New today</div>
-    <div id="newTodayList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
+    <div class="dir-pulse-label">🆕 Recent Launches</div>
+    <div class="dir-pulse-tabs">
+      <button class="dir-pulse-tab active" data-interval="24h">24h</button>
+      <button class="dir-pulse-tab" data-interval="7d">7 days</button>
+      <button class="dir-pulse-tab" data-interval="30d">30 days</button>
+    </div>
+    <div id="recentLaunchesList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
   </div>
   <div>
     <div class="dir-pulse-label">⭐ Startup of the week</div>
     <div id="startupOfWeek"><div class="dir-lb-empty">Loading…</div></div>
   </div>
+</div>
+
+<!-- RECENTLY CLAIMED -->
+<div class="dir-claimed-section" id="dirClaimedSection" style="display:none;">
+  <div class="dir-pulse-label" style="margin-bottom:10px;">✓ Recently Claimed</div>
+  <div id="recentlyClaimedList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
 </div>
 
 <div class="dir-body-wrap">
@@ -1014,6 +1059,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 </section>
 
 <!-- FOOTER -->
+<!-- BRAND MARQUEE — real listed brands -->
+<div class="dir-marquee-section">
+  <div class="dir-marquee-label">Products already listed on ToolIndex</div>
+  <div class="dir-marquee-outer">
+    <div class="dir-marquee-track" id="dirMarqueeTrack">
+      <!-- JS-generated: duplicated for infinite loop -->
+    </div>
+  </div>
+</div>
+
 <footer class="dir-footer">
   <div class="dir-footer-inner">
     <div class="dir-footer-cols">
@@ -1738,29 +1793,97 @@ function loadMore(){
   renderVisible();
 }
 
-// ── Pulse sections: New Today + Startup of the Week ──────────────────────────
-function loadPulseSections(){
-  // New Today
-  fetch('/api/directory/leaderboard?period=new')
+// ── Recent Launches (multi-interval) ─────────────────────────────────────────
+function loadRecentLaunches(interval){
+  interval = interval||'24h';
+  fetch('/api/directory/recent-launches?interval='+interval)
     .then(r=>r.json())
     .then(d=>{
-      const el = document.getElementById('newTodayList');
+      const el=document.getElementById('recentLaunchesList');
       if(!el) return;
-      const items = d.listings||d.items||[];
+      const items=d.listings||[];
+      const labels={'24h':'last 24 hours','7d':'last 7 days','30d':'last 30 days'};
       if(!items.length){
-        el.innerHTML='<div class="dir-lb-empty">No new listings added today yet.</div>';
-      } else {
-        el.innerHTML = items.slice(0,5).map((l,i)=>`
-          <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
-            <span class="dir-lb-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span>
-            <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
-            <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
-          </a>`).join('');
+        el.innerHTML='<div class="dir-lb-empty">No new listings in the '+labels[interval]+'.</div>';
+        return;
       }
+      el.innerHTML=items.slice(0,6).map((l,i)=>`
+        <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
+          <span class="dir-lb-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span>
+          <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
+          <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
+          <span style="font-size:9px;font-family:var(--mono);color:var(--teal);margin-left:auto;flex-shrink:0;">New</span>
+        </a>`).join('');
     }).catch(()=>{
-      const el=document.getElementById('newTodayList');
-      if(el) el.innerHTML='<div class="dir-lb-empty">No new listings added today yet.</div>';
+      const el=document.getElementById('recentLaunchesList');
+      if(el) el.innerHTML='<div class="dir-lb-empty">Could not load recent launches.</div>';
     });
+}
+document.addEventListener('click',function(e){
+  const tab=e.target.closest('.dir-pulse-tab');
+  if(!tab) return;
+  document.querySelectorAll('.dir-pulse-tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  loadRecentLaunches(tab.dataset.interval);
+});
+
+// ── Recently Claimed ──────────────────────────────────────────────────────────
+function loadRecentlyClaimed(){
+  fetch('/api/directory/recently-claimed')
+    .then(r=>r.json())
+    .then(d=>{
+      const items=d.listings||[];
+      const section=document.getElementById('dirClaimedSection');
+      const el=document.getElementById('recentlyClaimedList');
+      if(!items.length||!section||!el) return;
+      section.style.display='block';
+      el.innerHTML=items.map((l,i)=>`
+        <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
+          <span class="dir-lb-rank">${i+1}</span>
+          <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
+          <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
+          <span style="font-size:9px;font-family:var(--mono);color:#22c55e;margin-left:auto;flex-shrink:0;">✓ Claimed</span>
+        </a>`).join('');
+    }).catch(()=>{});
+}
+
+// ── Brand marquee — 18 real listed brands ────────────────────────────────────
+(function buildMarquee(){
+  const brands=[
+    {n:'Canva',d:'canva.com'},{n:'GitHub',d:'github.com'},{n:'Figma',d:'figma.com'},
+    {n:'Notion',d:'notion.so'},{n:'Vercel',d:'vercel.com'},{n:'Netlify',d:'netlify.com'},
+    {n:'Airtable',d:'airtable.com'},{n:'Zapier',d:'zapier.com'},{n:'Webflow',d:'webflow.com'},
+    {n:'Retool',d:'retool.com'},{n:'Linear',d:'linear.app'},{n:'Framer',d:'framer.com'},
+    {n:'Loom',d:'loom.com'},{n:'Cursor',d:'cursor.com'},{n:'Perplexity',d:'perplexity.ai'},
+    {n:'Typeform',d:'typeform.com'},{n:'Supabase',d:'supabase.com'},{n:'NotebookLM',d:'notebooklm.google.com'},
+  ];
+  const el=document.getElementById('dirMarqueeTrack');
+  if(!el) return;
+  const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+  const mk=b=>`<a class="dir-marquee-item" href="/directory?q=${encodeURIComponent(b.n)}" title="${b.n} on ToolIndex"><img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
+  el.innerHTML=brands.map(mk).join('')+brands.map(mk).join('');
+})();
+
+// ── Hero search — wires to main dirSearch ────────────────────────────────────
+(function(){
+  const hs=document.getElementById('dirHeroSearch');
+  const cnt=document.getElementById('heroSearchCount');
+  if(!hs) return;
+  hs.addEventListener('input',function(e){
+    const main=document.getElementById('dirSearch');
+    if(main){main.value=e.target.value;main.dispatchEvent(new Event('input'));}
+  });
+  // Update count placeholder once listings load
+  document.addEventListener('listingsLoaded',function(e){
+    if(cnt) cnt.textContent=(e.detail||0)+' products';
+    hs.placeholder='Search '+(e.detail||'500+')+(e.detail?' products':' tools')+'…';
+  });
+})();
+
+// ── Pulse sections orchestrator ───────────────────────────────────────────────
+function loadPulseSections(){
+  loadRecentLaunches('24h');
+  loadRecentlyClaimed();
 
   // Startup of the Week
   fetch('/api/directory/leaderboard?period=weekly')
@@ -1770,7 +1893,7 @@ function loadPulseSections(){
       if(!el) return;
       const top=(d.listings||d.items||[])[0];
       if(!top){el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';return;}
-      const votes = top.period_votes||top.vote_count||0;
+      const votes=top.period_votes||top.vote_count||0;
       el.innerHTML=`
         <a class="dir-sotw-card" href="/directory/${toSlug(top.name,top.id)}">
           <img class="dir-sotw-logo" src="${top.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(top.name)}"/>
@@ -1884,6 +2007,7 @@ async function loadListings(){
     injectItemListSchema(allListings);
     loadPulseSections();
     loadCollections();
+    document.dispatchEvent(new CustomEvent('listingsLoaded',{detail:allListings.length}));
     // Sync trust section total with real count
     const trustTotal = document.getElementById('trustTotal');
     if(trustTotal && allListings.length) trustTotal.textContent = allListings.length + '+';

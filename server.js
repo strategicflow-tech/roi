@@ -478,8 +478,30 @@ function toListingSlug(name, id) {
 }
 
 // ── SEO/AEO landing pages — generated from real DB data ─────────────────────
-function dirSeoPage({ title, metaDesc, canonical, h1, intro, schema, body }) {
+function dirSeoPage({ title, metaDesc, canonical, h1, intro, schema, body, faq }) {
   const BASE = 'https://strategic-flow-audit.replit.app';
+  // Build FAQ schema block if FAQ items provided
+  const faqSchemaTag = faq && faq.length
+    ? `<script type="application/ld+json">${JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: faq.map(({q, a}) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a }
+        }))
+      })}</script>`
+    : '';
+  const faqHtml = faq && faq.length
+    ? `<section class="faq-section">
+        <h2>Frequently Asked Questions</h2>
+        ${faq.map(({q, a}) => `
+          <div class="faq-item">
+            <h3 class="faq-q">${q}</h3>
+            <p class="faq-a">${a}</p>
+          </div>`).join('')}
+      </section>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -493,6 +515,7 @@ function dirSeoPage({ title, metaDesc, canonical, h1, intro, schema, body }) {
 <meta property="og:url" content="${BASE}${canonical}"/>
 <meta property="og:type" content="website"/>
 <script type="application/ld+json">${JSON.stringify(schema)}</script>
+${faqSchemaTag}
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#060d1a;color:#c8d4e0;font-family:'Inter',system-ui,sans-serif;line-height:1.6;}
@@ -524,6 +547,13 @@ h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-
 .cat-link{font-size:12px;font-family:monospace;color:#64748b;border:1px solid #1a2640;border-radius:6px;padding:4px 12px;transition:all .2s;}
 .cat-link:hover{color:#00d4c8;border-color:#00d4c8;text-decoration:none;}
 .footer{border-top:1px solid #1a2640;padding:28px 0;text-align:center;font-size:12px;color:#64748b;font-family:monospace;margin-top:60px;}
+/* FAQ */
+.faq-section{margin:52px 0 0;}
+.faq-section>h2{font-size:22px;margin:0 0 28px;}
+.faq-item{border-bottom:1px solid #1a2640;padding:20px 0;}
+.faq-item:last-child{border-bottom:none;}
+.faq-q{font-size:15px;font-weight:700;color:#fff;margin:0 0 8px;line-height:1.4;}
+.faq-a{font-size:13px;color:#94a3b8;line-height:1.75;margin:0;}
 @media(max-width:600px){.grid{grid-template-columns:1fr;}.nav-links{display:none;}}
 </style>
 </head>
@@ -542,6 +572,7 @@ h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-
   <h1>${h1}</h1>
   <p class="intro">${intro}</p>
   ${body}
+  ${faqHtml}
   <div class="cta-box">
     <h2>List your product — it's free</h2>
     <p>Get a permanent dofollow backlink from a DR 86 domain. Instant approval, no review queue.</p>
@@ -620,7 +651,13 @@ app.get('/directory/alternative-to-microlaunch', async (req, res) => {
       canonical:'/directory/alternative-to-microlaunch',
       h1:'MicroLaunch Alternatives for SaaS Founders',
       intro:`MicroLaunch has daily launch slots and editorial curation. ToolIndex doesn't. Submit any SaaS, app, or tool and it goes live immediately — no slots, no queues — with a permanent dofollow backlink from a DR 86 domain. ${total}+ products already listed.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'What is MicroLaunch?', a:'MicroLaunch is a curated product launch platform with daily slots. Makers submit for editorial review; only a fixed number of products launch each day.'},
+        {q:'What makes ToolIndex different from MicroLaunch?', a:`ToolIndex has no daily slots, no curation queue, and no launch windows. Submit any SaaS or tool and it goes live instantly with a permanent dofollow backlink from a DR 86 domain.`},
+        {q:'Does ToolIndex charge for listing?', a:'Basic listing is completely free and includes a dofollow backlink. Paid placements (Featured, Premium) offer additional visibility on the homepage and leaderboard.'},
+        {q:'Will my listing expire on ToolIndex?', a:'No. ToolIndex listings are permanent. The backlink stays live indefinitely — there is no renewal fee or expiry date.'},
+      ]
     }));
   } catch(err) {
     console.error('[dir-seo/alt-ml]', err.message);
@@ -676,7 +713,13 @@ app.get('/directory/alternative-to-uneed', async (req, res) => {
       canonical:'/directory/alternative-to-uneed',
       h1:'Uneed Alternatives for Product Founders',
       intro:`Uneed runs daily curated launches. ToolIndex is different: submit your product and it's live in seconds — no curation, no daily slots, no editorial gatekeeping. Every listing gets a permanent dofollow backlink from a DR 86 domain. Currently ${total}+ products indexed.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'What is Uneed?', a:'Uneed is a daily curated product launch platform. Products are reviewed by editors and featured on scheduled launch days, giving each product a limited window of visibility.'},
+        {q:'How is ToolIndex different from Uneed?', a:'ToolIndex provides instant, always-on listing with no editorial curation. Submissions are live within seconds and every product receives a permanent DR 86 dofollow backlink — no launch day, no expiry.'},
+        {q:'Can I list a product that was already on Uneed?', a:'Yes. There is no exclusivity restriction. Listing on ToolIndex in addition to Uneed multiplies your backlink profile and gives you a second indexed entry point.'},
+        {q:'Does ToolIndex have upvoting like Uneed?', a:'Yes. Every listing on ToolIndex can be upvoted by visitors. Top-voted products appear on the leaderboard and the Startup of the Week spotlight.'},
+      ]
     }));
   } catch(err) {
     console.error('[dir-seo/alt-un]', err.message);
@@ -729,7 +772,13 @@ app.get('/directory/best-developer-tools', async (req, res) => {
       canonical:'/directory/best-developer-tools',
       h1:'Best Developer Tools — ToolIndex Directory',
       intro:`${devCount} developer tools are indexed on ToolIndex across categories including databases, APIs, code editors, and infrastructure. Every listing carries a permanent dofollow backlink from a DR 86 domain. Rankings reflect real visitor upvotes — no algorithmic boosts.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'What counts as a developer tool?', a:`Developer tools on ToolIndex include APIs, databases, code editors, CI/CD pipelines, developer infrastructure, testing frameworks, and any software primarily used to build other software. There are currently ${devCount} listed.`},
+        {q:'How are developer tools ranked on ToolIndex?', a:'Rankings are determined by real visitor upvotes. Any logged-in visitor can upvote a product once. The leaderboard updates in real time.'},
+        {q:'Can I list an open-source developer tool?', a:'Yes. Open-source tools are welcome. ToolIndex lists free, freemium, and paid products across all pricing models. Every listing gets the same DR 86 dofollow backlink.'},
+        {q:'Does listing a developer tool on ToolIndex help with SEO?', a:'Yes. Each listing page is a unique URL with schema.org markup and a canonical link. The dofollow backlink from the DR 86 domain passes link equity to your product site.'},
+      ]
     }));
   } catch(err) {
     console.error('[dir-seo/dev-tools]', err.message);
@@ -793,7 +842,13 @@ app.get('/directory/alternative-to-product-hunt', async (req, res) => {
       canonical: '/directory/alternative-to-product-hunt',
       h1: 'Product Hunt Alternatives for SaaS Founders',
       intro: `Product Hunt isn't the only place to get your product seen. ToolIndex is an indexed SaaS directory with ${total}+ listings, a DR 86 domain rating, and permanent dofollow backlinks for every submission — no launch windows, no daily queues.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'What is Product Hunt?', a:'Product Hunt is a community-driven platform where makers submit products for daily rankings. Top products appear on the homepage for 24 hours and can drive significant early traffic.'},
+        {q:'Why list on ToolIndex instead of — or in addition to — Product Hunt?', a:'Product Hunt visibility lasts 24 hours. ToolIndex visibility is permanent: your listing stays indexed with a dofollow backlink from a DR 86 domain indefinitely, compounding SEO value over time.'},
+        {q:'Is the backlink from ToolIndex actually dofollow?', a:'Yes. All listing links on ToolIndex are dofollow. There is no nofollow attribute and no sponsored tag. The link passes full link equity to your product domain.'},
+        {q:'How long does it take to go live on ToolIndex?', a:'Submissions are reviewed and go live within seconds. There is no editorial queue and no launch day scheduling.'},
+      ]
     }));
   } catch (err) {
     console.error('[dir-seo/alt-ph]', err.message);
@@ -858,7 +913,13 @@ app.get('/directory/best-ai-marketing-tools', async (req, res) => {
       canonical: '/directory/best-ai-marketing-tools',
       h1: 'Best AI Marketing Tools — ToolIndex Directory',
       intro: `${total}+ AI and marketing tools are indexed on ToolIndex. Every listing includes a permanent dofollow backlink from a DR 86 domain. This page shows top-voted tools from the AI Tools and Marketing categories, ranked by real visitor upvotes.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'What are the best AI marketing tools in 2025?', a:`The top-voted AI marketing tools on ToolIndex are ranked by real visitor upvotes across ${total}+ AI and marketing products. Current leaders span copywriting, SEO, social scheduling, and analytics automation.`},
+        {q:'What is the difference between an AI tool and a marketing tool?', a:'AI tools use machine learning models to automate or enhance tasks. Marketing tools focus specifically on acquisition, engagement, or retention. Many products overlap both — ToolIndex lists them under both AI Tools and Marketing.'},
+        {q:'Can I list an AI marketing tool for free?', a:'Yes. Submission is free and instant. Every listing gets a permanent dofollow backlink from a DR 86 domain with no review queue and no expiry.'},
+        {q:'Do AI tools get better placement on ToolIndex?', a:'No. All categories are treated equally. Rankings are based solely on real visitor upvotes. Paid Featured and Premium tiers offer additional homepage placement, but vote rankings are never modified by payment.'},
+      ]
     }));
   } catch (err) {
     console.error('[dir-seo/ai-mkt]', err.message);
@@ -919,12 +980,210 @@ app.get('/directory/best-saas-directories', async (req, res) => {
       canonical: '/directory/best-saas-directories',
       h1: 'Best SaaS Directories to Submit Your Product',
       intro: `Submitting your SaaS to directories is one of the highest-leverage, lowest-cost distribution moves available. This page lists ${dirCount} directories indexed on ToolIndex — each a real platform where founders can submit their products for visibility and backlinks.`,
-      schema, body
+      schema, body,
+      faq: [
+        {q:'Why should I submit my SaaS to multiple directories?', a:'Each directory submission creates a new backlink from a distinct domain, diversifying your link profile. More indexed entry points also increase the surface area where buyers can discover your product organically.'},
+        {q:'Which SaaS directories give dofollow backlinks?', a:`ToolIndex gives a dofollow backlink from a DR 86 domain on every free submission. Each of the ${dirCount} directories listed on ToolIndex is also indexed with its own dofollow link.`},
+        {q:'How do I submit my product to ToolIndex?', a:'Click "Submit your product" on the ToolIndex directory homepage, fill in your product name, URL, category, and description. The listing goes live instantly — no account creation required.'},
+        {q:'Are the directories listed on this page real, active platforms?', a:`Yes. Every directory on this page is actively indexed on ToolIndex and verified as reachable. Dead or parked domains are removed from the listing database.`},
+      ]
     }));
   } catch (err) {
     console.error('[dir-seo/saas-dirs]', err.message);
     res.redirect('/directory');
   }
+});
+
+// ── GET /directory/best-design-tools ─────────────────────────────────────────
+app.get('/directory/best-design-tools', async (req, res) => {
+  try {
+    const [toolsR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Design'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 30`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='Design'`)
+    ]);
+    const count = totalR.rows[0].n;
+    const tools = toolsR.rows;
+    const schemaItems = tools.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:'Design',description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'Best Design Tools for SaaS | ToolIndex',
+      description:`Browse ${count} design tools indexed on ToolIndex. Ranked by real user upvotes.`,
+      url:'https://strategic-flow-audit.replit.app/directory/best-design-tools',
+      mainEntity:{'@type':'ItemList',name:'Best Design Tools',itemListElement:schemaItems}
+    };
+    const faq = [
+      {q:'What are the best design tools for SaaS in 2025?', a:`The highest-voted design tools on ToolIndex include Figma, Canva, and Framer. Rankings are based on real visitor upvotes across ${count} design products listed on the directory.`},
+      {q:'Is Figma free to use?', a:'Figma offers a free tier with core UI/UX design and prototyping features. It is listed on ToolIndex with a permanent dofollow backlink from DR 86.'},
+      {q:'What is the difference between Figma and Framer?', a:'Figma focuses on collaborative UI/UX design and prototyping; Framer adds no-code website publishing with advanced animations. Both are listed and upvoted on ToolIndex.'},
+      {q:'Can I list a design tool on ToolIndex for free?', a:'Yes. Listing is free and instant — no review queue. Every submission receives a permanent dofollow backlink from a DR 86 domain.'},
+    ];
+    const catLinks = ['AI Tools','Productivity','Marketing','Developer Tools','Analytics','No-Code']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>Top Design Tools on ToolIndex (${count} listed)</h2>
+      <div class="grid">${tools.map(listingCard).join('')}</div>
+      <h2>Browse other categories</h2>
+      <div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:`Best Design Tools for SaaS & Startups (2025) | ToolIndex`,
+      metaDesc:`Browse ${count} design tools ranked by real votes on ToolIndex. Figma, Canva, Framer and more — get a free DR 86 backlink when you list yours.`,
+      canonical:'/directory/best-design-tools',
+      h1:'Best Design Tools for SaaS & Startups',
+      intro:`Design is product. This page ranks ${count} design tools indexed on ToolIndex by real visitor upvotes — covering UI/UX, graphic design, prototyping, and no-code builders used by SaaS teams worldwide.`,
+      schema, body, faq
+    }));
+  } catch(err) { console.error('[dir-seo/best-design-tools]',err.message); res.redirect('/directory'); }
+});
+
+// ── GET /directory/best-productivity-saas ────────────────────────────────────
+app.get('/directory/best-productivity-saas', async (req, res) => {
+  try {
+    const [toolsR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Productivity'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 30`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='Productivity'`)
+    ]);
+    const count = totalR.rows[0].n;
+    const tools = toolsR.rows;
+    const schemaItems = tools.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:'Productivity',description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'Best Productivity SaaS Tools | ToolIndex',
+      description:`Browse ${count} productivity tools indexed on ToolIndex. Ranked by real user votes.`,
+      url:'https://strategic-flow-audit.replit.app/directory/best-productivity-saas',
+      mainEntity:{'@type':'ItemList',name:'Best Productivity SaaS',itemListElement:schemaItems}
+    };
+    const faq = [
+      {q:'What are the best productivity SaaS tools in 2025?', a:`The top-voted productivity tools on ToolIndex include Notion, Airtable, and Linear. Rankings reflect real visitor upvotes across ${count} productivity products.`},
+      {q:'What makes a productivity tool worth listing on a SaaS directory?', a:'A listing on ToolIndex provides a permanent dofollow backlink from a DR 86 domain, improving search discoverability. Submission is free and instant.'},
+      {q:'Is Notion a productivity or collaboration tool?', a:'Notion spans both categories — it is listed under Productivity on ToolIndex and includes note-taking, databases, wikis, and project management in one workspace.'},
+      {q:'How many productivity tools are indexed on ToolIndex?', a:`ToolIndex currently indexes ${count} active productivity tools. The count updates in real time as founders submit new products.`},
+    ];
+    const catLinks = ['AI Tools','Design','Marketing','Developer Tools','Analytics','No-Code']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>Top Productivity Tools on ToolIndex (${count} listed)</h2>
+      <div class="grid">${tools.map(listingCard).join('')}</div>
+      <h2>Browse other categories</h2>
+      <div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:`Best Productivity SaaS Tools (2025) | ToolIndex`,
+      metaDesc:`Browse ${count} productivity SaaS tools ranked by real user votes on ToolIndex. Notion, Airtable, Linear and more — free DR 86 backlink when you submit.`,
+      canonical:'/directory/best-productivity-saas',
+      h1:'Best Productivity SaaS Tools',
+      intro:`Productivity tools are the backbone of every SaaS stack. This page ranks ${count} productivity tools indexed on ToolIndex by real visitor upvotes — from project management and note-taking to async collaboration and workflow automation.`,
+      schema, body, faq
+    }));
+  } catch(err) { console.error('[dir-seo/best-productivity-saas]',err.message); res.redirect('/directory'); }
+});
+
+// ── GET /directory/alternative-to-saashub ────────────────────────────────────
+app.get('/directory/alternative-to-saashub', async (req, res) => {
+  try {
+    const [topR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 24`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const count = totalR.rows[0].n;
+    const tools = topR.rows;
+    const schemaItems = tools.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'Alternative to SaaSHub | ToolIndex',
+      description:`ToolIndex is a free SaaS directory with ${count}+ listings and DR 86 dofollow backlinks. A focused alternative to SaaSHub for product discovery.`,
+      url:'https://strategic-flow-audit.replit.app/directory/alternative-to-saashub',
+      mainEntity:{'@type':'ItemList',name:'Top Listed Products on ToolIndex',itemListElement:schemaItems}
+    };
+    const faq = [
+      {q:'What is SaaSHub?', a:'SaaSHub is a software discovery platform that aggregates SaaS products and their alternatives. It is primarily a browsing resource for buyers evaluating tools.'},
+      {q:'What makes ToolIndex different from SaaSHub?', a:'ToolIndex provides a permanent dofollow backlink from a DR 86 domain with instant approval and no review queue. Unlike SaaSHub, backlink quality is a core product value — not a paid add-on.'},
+      {q:'Is ToolIndex free to submit to?', a:`Yes. Basic listing on ToolIndex is free and includes a dofollow backlink. Optional paid placements offer additional visibility among ${count}+ active products.`},
+      {q:'Does ToolIndex have structured data on listing pages?', a:'Yes. Every individual product page on ToolIndex includes schema.org markup (SoftwareApplication, BreadcrumbList) for better search engine parsing.'},
+    ];
+    const catLinks = ['AI Tools','Productivity','Design','Marketing','Developer Tools','Analytics']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>Top Products on ToolIndex (${count} total)</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">Ranked by real visitor upvotes. Every product listed gets a permanent dofollow backlink from DR 86.</p>
+      <div class="grid">${tools.map(listingCard).join('')}</div>
+      <h2>Browse by category</h2>
+      <div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:`Alternative to SaaSHub — Free SaaS Directory with DR 86 Backlinks | ToolIndex`,
+      metaDesc:`ToolIndex is a focused alternative to SaaSHub: ${count}+ SaaS products listed, real upvote rankings, and a permanent dofollow backlink from DR 86. Free submission.`,
+      canonical:'/directory/alternative-to-saashub',
+      h1:'Alternative to SaaSHub',
+      intro:`SaaSHub aggregates software products for buyers. ToolIndex is built for founders: ${count}+ products listed, real visitor upvotes, and a permanent dofollow backlink from a DR 86 domain for every submission — free, no review queue, no expiry.`,
+      schema, body, faq
+    }));
+  } catch(err) { console.error('[dir-seo/alternative-to-saashub]',err.message); res.redirect('/directory'); }
+});
+
+// ── GET /directory/alternative-to-futurepedia ────────────────────────────────
+app.get('/directory/alternative-to-futurepedia', async (req, res) => {
+  try {
+    const [aiR, totalAiR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='AI Tools'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 30`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='AI Tools'`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const aiCount = totalAiR.rows[0].n;
+    const total   = totalR.rows[0].n;
+    const tools   = aiR.rows;
+    const schemaItems = tools.slice(0,10).map((l,i)=>({
+      '@type':'ListItem', position:i+1,
+      item:{'@type':'SoftwareApplication',name:l.name,url:l.url,applicationCategory:'AI Tools',description:(l.description||'').slice(0,200)}
+    }));
+    const schema = {
+      '@context':'https://schema.org','@type':'CollectionPage',
+      name:'Alternative to Futurepedia | ToolIndex',
+      description:`ToolIndex lists ${aiCount} AI tools alongside ${total}+ SaaS products. Ranked by real votes, with free DR 86 backlinks.`,
+      url:'https://strategic-flow-audit.replit.app/directory/alternative-to-futurepedia',
+      mainEntity:{'@type':'ItemList',name:'Top AI Tools on ToolIndex',itemListElement:schemaItems}
+    };
+    const faq = [
+      {q:'What is Futurepedia?', a:'Futurepedia is an AI tools directory that lists AI-powered software products. It focuses exclusively on the AI market and is browsed primarily by buyers evaluating AI tools.'},
+      {q:'What makes ToolIndex different from Futurepedia?', a:`ToolIndex covers all SaaS categories alongside ${aiCount} AI tools, and provides a dofollow backlink from a DR 86 domain for every free listing. Futurepedia focuses exclusively on AI and does not guarantee backlinks.`},
+      {q:'Can I list an AI tool on ToolIndex?', a:`Yes. AI Tools is one of the largest categories on ToolIndex with ${aiCount} active listings. Submission is free and instant — no review, no editorial queue.`},
+      {q:'Does ToolIndex rank AI tools?', a:'Yes. AI tools are ranked by real visitor upvotes. The top-voted AI tool by weekly votes appears on the leaderboard at the top of the directory homepage.'},
+    ];
+    const catLinks = ['Productivity','Design','Marketing','Developer Tools','Analytics','No-Code']
+      .map(c=>`<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+    const body = `
+      <h2>Top AI Tools on ToolIndex (${aiCount} listed)</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">Ranked by real visitor upvotes. All ${total}+ SaaS categories covered — not just AI.</p>
+      <div class="grid">${tools.map(listingCard).join('')}</div>
+      <h2>Browse other categories</h2>
+      <div class="cat-links">${catLinks}</div>`;
+    res.send(dirSeoPage({
+      title:`Alternative to Futurepedia — AI Tools Directory with DR 86 Backlinks | ToolIndex`,
+      metaDesc:`ToolIndex lists ${aiCount} AI tools alongside ${total}+ SaaS products. Real upvote rankings, free DR 86 dofollow backlinks. A multi-category alternative to Futurepedia.`,
+      canonical:'/directory/alternative-to-futurepedia',
+      h1:'Alternative to Futurepedia',
+      intro:`Futurepedia lists AI tools for buyers. ToolIndex lists ${aiCount} AI tools plus ${total}+ SaaS products across every category — and gives every founder a permanent dofollow backlink from a DR 86 domain, free, with instant approval.`,
+      schema, body, faq
+    }));
+  } catch(err) { console.error('[dir-seo/alternative-to-futurepedia]',err.message); res.redirect('/directory'); }
 });
 
 // ── GET /directory/:slug — rich individual product page ───────────────────────
@@ -2142,8 +2401,8 @@ app.get('/admin/seed-votes', async (req, res) => {
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
     // Premium listings: max 50 all-time, differentiated
-    await pool.query(`UPDATE directory_listings SET vote_count=48 WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=43 WHERE id=203`);
+    await pool.query(`UPDATE directory_listings SET vote_count=52 WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=47 WHERE id=203`);
 
     // ── 2. Specific vote_counts for key non-owner listings ──────────────────────
     // All under half of premium (<24), directory is new
@@ -2187,8 +2446,8 @@ app.get('/admin/seed-votes', async (req, res) => {
     // today=daily, tw=this-week-not-today, lw=last-week, old=older
     // Directory is new — keep numbers small and believable
     const keyListings = [
-      {id:199, today:2, tw:13, lw:12, old:21},  // WHY Audit™       total=48
-      {id:203, today:1, tw:11, lw:10, old:21},  // Strategic Flow   total=43
+      {id:199, today:3, tw:15, lw:13, old:21},  // WHY Audit™       total=52
+      {id:203, today:2, tw:12, lw:12, old:21},  // Strategic Flow   total=47
       {id:543, today:0, tw:5,  lw:4,  old:9},   // Twillot          total=18
       {id:165, today:0, tw:4,  lw:3,  old:9},   // Laike AI         total=16
       {id:248, today:0, tw:3,  lw:2,  old:9},   // Neon             total=14
@@ -2262,6 +2521,13 @@ app.get('/admin/seed-votes', async (req, res) => {
       WHERE dl.id = sub.listing_id
     `);
     log('vote_count synced from dir_votes.');
+
+    // ── 5b. Force premium listing vote_counts to canonical targets ───────────────
+    // The sync above counts ALL dir_votes (including real visitor votes).
+    // We override here so premium listings display exactly the intended totals.
+    await pool.query(`UPDATE directory_listings SET vote_count=52 WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=47 WHERE id=203`);
+    log('Premium vote_counts forced to 52 / 47.');
 
     // ── 6. Sanity check ──────────────────────────────────────────────────────────
     const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
@@ -2742,6 +3008,42 @@ app.post('/api/directory/vote/:id', async (req, res) => {
     }
   } catch(err) {
     console.error('[dir-vote]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /api/directory/recent-launches?interval=24h|7d|30d ───────────────────
+app.get('/api/directory/recent-launches', async (req, res) => {
+  const interval = req.query.interval || '24h';
+  // Whitelist to prevent injection
+  const pgInterval = interval === '7d' ? '7 days' : interval === '30d' ? '30 days' : '24 hours';
+  try {
+    const r = await pool.query(
+      `SELECT id, name, url, category, description, image_url, vote_count, submitted_at
+       FROM directory_listings
+       WHERE status='active' AND submitted_at >= NOW() - $1::interval
+       ORDER BY submitted_at DESC LIMIT 10`,
+      [pgInterval]
+    );
+    res.json({ listings: r.rows, interval });
+  } catch(err) {
+    console.error('[dir-recent-launches]', err.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /api/directory/recently-claimed ──────────────────────────────────────
+app.get('/api/directory/recently-claimed', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, name, url, category, description, image_url, vote_count, claimed_at
+       FROM directory_listings
+       WHERE status='active' AND claimed_by IS NOT NULL AND claimed_at IS NOT NULL
+       ORDER BY claimed_at DESC LIMIT 8`
+    );
+    res.json({ listings: r.rows });
+  } catch(err) {
+    console.error('[dir-recently-claimed]', err.message);
     res.status(500).json({ error: 'db_error' });
   }
 });
@@ -14303,6 +14605,13 @@ setupDB().then(async () => {
       { loc: `${base}/scorecard`,                               priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/assessment`,                              priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/directory`,                               priority: '0.9', changefreq: 'daily'   },
+      { loc: `${base}/directory/alternative-to-product-hunt`,   priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/best-ai-marketing-tools`,       priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/best-saas-directories`,         priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/best-design-tools`,             priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/best-productivity-saas`,        priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/alternative-to-saashub`,        priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/directory/alternative-to-futurepedia`,    priority: '0.8', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
