@@ -398,7 +398,7 @@ function ssrCard(l, clickMap) {
   const safeDomain = domain.replace(/'/g,"\\'");
   let claimSection = '';
   if (l.is_claimed) {
-    claimSection = `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a>`;
+    claimSection = `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')" style="margin-left:4px;">Edit listing →</button>`;
   } else if (l.is_auto_imported) {
     claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Is this your product? Claim it free →</button>`;
   }
@@ -591,6 +591,7 @@ app.get('/directory/:slug', async (req, res) => {
 <div class="claimed-badge-row">
   <span class="claimed-badge">✓ Verified owner</span>
   <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
+  <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
 </div>`;
 
     // ── similar tools section ──────────────────────────────────────────────

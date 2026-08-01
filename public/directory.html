@@ -1281,7 +1281,7 @@ function renderCard(l){
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${sourceTag}
         ${l.is_claimed
-          ? `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a>`
+          ? `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Edit listing →</button>`
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
