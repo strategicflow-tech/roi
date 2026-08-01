@@ -2123,98 +2123,153 @@ app.get('/admin/seed-votes', async (req, res) => {
   res.flushHeaders();
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
-    // ── 1. vote_count column ────────────────────────────────────────────────────
-    await pool.query(`UPDATE directory_listings SET vote_count=187 WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=156 WHERE id=203`);
+    // ── 0. Helper ──────────────────────────────────────────────────────────────
+    function rndInterval(minH, maxH) {
+      const h = minH + Math.random() * (maxH - minH);
+      return `'${Math.floor(h)} hours ${Math.floor(Math.random()*59)} minutes'`;
+    }
+    // Buckets: TODAY (0–20h ago), TW_NOT_TODAY (24–119h ago = 1–5d),
+    //          LAST_WEEK (168–311h ago = 7–13d), OLDER (336–1440h ago = 14–60d)
+    function makeBucket(id, prefix, n, bucket) {
+      const vals = [];
+      for (let i = 0; i < n; i++) {
+        let interval;
+        if      (bucket === 'today')    interval = rndInterval(0.5, 20);
+        else if (bucket === 'tw')       interval = rndInterval(24,  119);
+        else if (bucket === 'lw')       interval = rndInterval(168, 311);
+        else                            interval = rndInterval(336, 1440);
+        vals.push(`(${id},'${prefix}_${i}',NOW()-INTERVAL ${interval})`);
+      }
+      return vals;
+    }
 
-    // Reset ALL non-owner listings to fresh power-law distribution (fixes "all at 20" on prod)
+    // ── 1. vote_count column ────────────────────────────────────────────────────
+    // Exact values matching dev distribution
+    await pool.query(`UPDATE directory_listings SET vote_count=346 WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=271 WHERE id=203`);
+
+    // ── 2. Specific vote_counts for key non-owner listings ──────────────────────
+    const specificVC = [
+      {id:543,vc:116},{id:165,vc:91},{id:248,vc:81},{id:111,vc:82},
+      {id:55,vc:85},  {id:163,vc:75},{id:234,vc:34},{id:457,vc:31},
+      {id:474,vc:32}, {id:576,vc:29},{id:716,vc:29},{id:219,vc:26},
+      {id:577,vc:27},
+    ];
+    for (const {id,vc} of specificVC) {
+      await pool.query(`UPDATE directory_listings SET vote_count=$1 WHERE id=$2`, [vc, id]);
+    }
+
+    // Reset remaining non-owner listings to power-law distribution
     const { rows: nonOwners } = await pool.query(
-      `SELECT id FROM directory_listings WHERE status='active' AND id NOT IN (199,203) ORDER BY random()`
+      `SELECT id FROM directory_listings WHERE status='active'
+       AND id NOT IN (199,203,${specificVC.map(x=>x.id).join(',')}) ORDER BY random()`
     );
-    // Assign vote counts: top-20 get unique descending values 14→2; rest power-law max 12
-    const vcCases = nonOwners.map((r, i) => {
-      const v = i < 20
+    const vcCases = nonOwners.map((r, i) => ({
+      id: r.id,
+      v: i < 20
         ? [14,13,12,12,11,11,10,10,9,9,8,8,7,7,6,6,5,4,3,2][i]
-        : Math.max(1, Math.floor(Math.pow(Math.random(), 3) * 11) + 1);
-      return { id: r.id, v };
-    });
+        : Math.max(1, Math.floor(Math.pow(Math.random(), 3) * 11) + 1)
+    }));
     for (let b = 0; b < vcCases.length; b += 500) {
-      const chunk = vcCases.slice(b, b + 500);
-      const caseStr = chunk.map(c => `WHEN id=${c.id} THEN ${c.v}`).join(' ');
+      const chunk = vcCases.slice(b, b+500);
+      const caseStr = chunk.map(c=>`WHEN id=${c.id} THEN ${c.v}`).join(' ');
       await pool.query(
         `UPDATE directory_listings SET vote_count=CASE ${caseStr} END WHERE id=ANY($1::int[])`,
-        [chunk.map(c => c.id)]
+        [chunk.map(c=>c.id)]
       );
     }
-    log(`vote_count seeded for ${nonOwners.length + 2} listings.`);
+    log(`vote_count set for all listings.`);
 
-    // ── 2. Clear old seeded dir_votes ───────────────────────────────────────────
+    // ── 3. Clear old seeded dir_votes ───────────────────────────────────────────
     await pool.query(`DELETE FROM dir_votes WHERE voter_hash LIKE 'seed_%'`);
     log('Old seed votes cleared.');
 
-    // ── 3. Re-insert dir_votes with controlled period distribution ──────────────
-    const { rows } = await pool.query(
-      `SELECT id, vote_count FROM directory_listings WHERE status='active' AND vote_count>0 ORDER BY vote_count DESC`
-    );
+    // ── 4. Re-insert with full period distribution ───────────────────────────────
+    // Key listings: exact buckets matching dev distribution
+    // today=daily, tw=this-week-not-today, lw=last-week, old=older
+    const keyListings = [
+      {id:199, today:8,  tw:185, lw:106, old:47},  // WHY Audit™        total=346
+      {id:203, today:6,  tw:145, lw:83,  old:37},  // Strategic Flow    total=271
+      {id:543, today:3,  tw:48,  lw:30,  old:35},  // Twillot           total=116
+      {id:165, today:2,  tw:38,  lw:22,  old:29},  // Laike AI          total=91
+      {id:248, today:2,  tw:33,  lw:21,  old:25},  // Neon              total=81
+      {id:111, today:2,  tw:31,  lw:22,  old:27},  // Deep Wave         total=82
+      {id:55,  today:2,  tw:31,  lw:19,  old:33},  // xaicreator        total=85
+      {id:163, today:2,  tw:30,  lw:19,  old:24},  // Canva             total=75
+      {id:457, today:1,  tw:19,  lw:8,   old:3},   // Quit With Us      total=31
+      {id:474, today:1,  tw:13,  lw:9,   old:9},   // PandaChat         total=32
+      {id:234, today:1,  tw:16,  lw:9,   old:8},   // NotebookLM        total=34
+      {id:716, today:1,  tw:16,  lw:7,   old:5},   // Cited             total=29
+      {id:576, today:1,  tw:15,  lw:8,   old:5},   // PDFuck            total=29
+      {id:219, today:1,  tw:14,  lw:6,   old:5},   // Rollout           total=26
+      {id:577, today:1,  tw:14,  lw:6,   old:6},   // InvoiceFreely     total=27
+    ];
+    const keyIds = new Set(keyListings.map(x=>x.id));
 
-    // Pick ~30 random non-owner listings to have 1-2 votes within this week (weekly realism)
-    const weeklyExtra = new Set(
-      rows.filter(r => r.id !== 199 && r.id !== 203 && r.vote_count >= 6)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 30)
-          .map(r => r.id)
-    );
-
-    let total = 0;
-    for (const r of rows) {
-      const n = r.vote_count;
-      const vals = [];
-
-      if (n >= 100) {
-        // WHY Audit & SFA: dominate ALL periods
-        // Daily: 40%, Weekly (non-today): 30%, Older: 30%
-        const today  = Math.floor(n * 0.40);
-        const thisWk = Math.floor(n * 0.30);
-        const older  = n - today - thisWk;
-        for (let i = 0; i < today;  i++) vals.push(`(${r.id},'seed_${r.id}_t${i}',NOW()-INTERVAL '${Math.floor(Math.random()*20)} hours')`);
-        for (let i = 0; i < thisWk; i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${1+Math.floor(Math.random()*5)} days ${Math.floor(Math.random()*23)} hours')`);
-        for (let i = 0; i < older;  i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${7+Math.floor(Math.random()*23)} days')`);
-      } else if (weeklyExtra.has(r.id)) {
-        // Top-30 non-owner listings: 1-2 votes this week, rest > 7 days old
-        const weekVotes = n >= 10 ? 2 : 1;
-        const olderVotes = n - weekVotes;
-        for (let i = 0; i < weekVotes;  i++) vals.push(`(${r.id},'seed_${r.id}_w${i}',NOW()-INTERVAL '${2+Math.floor(Math.random()*4)} days ${Math.floor(Math.random()*23)} hours')`);
-        for (let i = 0; i < olderVotes; i++) vals.push(`(${r.id},'seed_${r.id}_o${i}',NOW()-INTERVAL '${8+Math.floor(Math.random()*22)} days')`);
-      } else {
-        // All other non-owner listings: ALL votes > 7 days old → never in daily or weekly
-        for (let i = 0; i < n; i++) {
-          vals.push(`(${r.id},'seed_${r.id}_${i}',NOW()-INTERVAL '${8+Math.floor(Math.random()*22)} days')`);
-        }
-      }
-
-      for (let b = 0; b < vals.length; b += 200) {
+    for (const {id,today,tw,lw,old} of keyListings) {
+      const vals = [
+        ...makeBucket(id,`seed_${id}_td`,today,'today'),
+        ...makeBucket(id,`seed_${id}_tw`,tw,   'tw'),
+        ...makeBucket(id,`seed_${id}_lw`,lw,   'lw'),
+        ...makeBucket(id,`seed_${id}_ol`,old,  'old'),
+      ];
+      for (let b=0; b<vals.length; b+=200) {
         await pool.query(
-          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b, b+200).join(',')} ON CONFLICT DO NOTHING`
+          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`
         );
       }
-      total += n;
+    }
+    log(`Key listing votes inserted.`);
+
+    // All other listings: pick ~30 to have 1–2 weekly votes, rest all older
+    const { rows: others } = await pool.query(
+      `SELECT id, vote_count FROM directory_listings WHERE status='active' AND id!=ALL($1) AND vote_count>0 ORDER BY vote_count DESC`,
+      [Array.from(keyIds)]
+    );
+    const weeklyExtra = new Set(
+      others.filter(r=>r.vote_count>=6).sort(()=>Math.random()-0.5).slice(0,30).map(r=>r.id)
+    );
+    for (const r of others) {
+      const n = r.vote_count;
+      const vals = [];
+      if (weeklyExtra.has(r.id)) {
+        const wv = n>=10?2:1;
+        vals.push(...makeBucket(r.id,`seed_${r.id}_tw`,wv,'tw'));
+        vals.push(...makeBucket(r.id,`seed_${r.id}_ol`,n-wv,'old'));
+      } else {
+        vals.push(...makeBucket(r.id,`seed_${r.id}_ol`,n,'old'));
+      }
+      for (let b=0; b<vals.length; b+=200) {
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${vals.slice(b,b+200).join(',')} ON CONFLICT DO NOTHING`
+        );
+      }
     }
 
-    const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
-    log(`dir_votes seeded: ${cnt} total rows.`);
+    // ── 5. Sync vote_count from real dir_votes ───────────────────────────────────
+    await pool.query(`
+      UPDATE directory_listings dl
+      SET vote_count = sub.real_count
+      FROM (SELECT listing_id, COUNT(*)::int AS real_count FROM dir_votes GROUP BY listing_id) sub
+      WHERE dl.id = sub.listing_id
+    `);
+    log('vote_count synced from dir_votes.');
 
-    // ── 4. Sanity check ─────────────────────────────────────────────────────────
+    // ── 6. Sanity check ──────────────────────────────────────────────────────────
+    const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
     const checks = await pool.query(`
       SELECT
-        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND listing_id=199)  AS why_daily,
-        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND listing_id=203)  AS sfa_daily,
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day',  NOW() AT TIME ZONE 'UTC') AND listing_id=199) AS why_daily,
+        (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('day',  NOW() AT TIME ZONE 'UTC') AND listing_id=203) AS sfa_daily,
         (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id=199) AS why_weekly,
         (SELECT COUNT(*)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id=203) AS sfa_weekly,
-        (SELECT COUNT(DISTINCT listing_id)::int FROM dir_votes WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id NOT IN (199,203)) AS other_in_weekly
+        (SELECT COUNT(DISTINCT listing_id)::int FROM dir_votes
+          WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND listing_id NOT IN (199,203)) AS other_in_weekly
     `);
     const c = checks.rows[0];
-    log(`Daily  → WHY:${c.why_daily} SFA:${c.sfa_daily}`);
-    log(`Weekly → WHY:${c.why_weekly} SFA:${c.sfa_weekly} other_products:${c.other_in_weekly}`);
+    log(`Total dir_votes: ${cnt}`);
+    log(`Daily  → WHY:${c.why_daily}  SFA:${c.sfa_daily}`);
+    log(`Weekly → WHY:${c.why_weekly}  SFA:${c.sfa_weekly}  other_products:${c.other_in_weekly}`);
 
     res.end('\n[DONE]');
   } catch(e) {
