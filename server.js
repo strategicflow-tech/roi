@@ -403,7 +403,7 @@ function ssrCard(l, clickMap) {
     claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Is this your product? Claim it free →</button>`;
   }
 
-  return `<div class="dir-card${isFeat?' is-featured':''}" data-id="${l.id}" data-cat="${heDir(cat)}" data-name="${heDir(name.toLowerCase())}" data-desc="${heDir((l.description||'').toLowerCase())}">
+  return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${heDir(cat)}" data-name="${heDir(name.toLowerCase())}" data-desc="${heDir((l.description||'').toLowerCase())}">
 <div class="dir-card-top"><div class="dir-card-left">${avatar}<div style="min-width:0;"><a class="dir-card-name" href="/directory/${toListingSlug(name,l.id)}">${heDir(name)}</a><div class="dir-cat-tag">${heDir(cat)}</div>${featBadge}</div></div></div>
 <p class="dir-desc">${heDir(l.description||'')}</p>
 <div class="dir-card-footer"><div class="dir-card-actions"><a href="${heDir(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${heDir(domain)} →</a><button class="dir-vote-btn" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" title="Upvote this product"><span class="vote-arrow">▲</span><span class="vote-count" id="vc-${l.id}">${votes}</span></button></div>${clickStat}<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${sourceTag}${claimSection}<button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${safeName}')">⚡ Boost from $9</button></div></div>
@@ -421,7 +421,7 @@ app.get('/directory', async (req, res) => {
               featured_tier, featured_until,
               (claimed_by IS NOT NULL) AS is_claimed,
               COALESCE(owner_description, description) AS description,
-              COALESCE(owner_image_url, image_url)     AS image_url
+              CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
        FROM directory_listings WHERE status='active'
        ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC,
                 vote_count DESC, COALESCE(scored_at, submitted_at) DESC
@@ -484,7 +484,7 @@ app.get('/directory/:slug', async (req, res) => {
   try {
     const mainR = await pool.query(
       `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-              COALESCE(dl.owner_image_url, dl.image_url) AS image_url,
+              CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
               (dl.claimed_by IS NOT NULL) AS is_claimed,
               (SELECT COUNT(*)::int FROM dir_listing_views  WHERE listing_id=dl.id
@@ -513,7 +513,7 @@ app.get('/directory/:slug', async (req, res) => {
     // Fetch similar tools in same category
     const simR = await pool.query(
       `SELECT id, name, url, category, vote_count,
-              COALESCE(owner_image_url, image_url) AS image_url
+              CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
        FROM directory_listings
        WHERE category=$1 AND id!=$2 AND status='active'
        ORDER BY vote_count DESC NULLS LAST
@@ -568,10 +568,11 @@ app.get('/directory/:slug', async (req, res) => {
     }).join('');
 
     // ── logo HTML (letter avatar underneath, image on top) ─────────────────
+    const logoImg = l.image_url || favImg;
     const logoHtml = `<div class="logo-wrap">
   <span class="logo-init">${he(initials)}</span>
-  <img class="logo-img" src="${he(favImg)}" alt="${he(l.name)} logo"
-       onerror="this.style.display='none';"/>
+  <img class="logo-img" src="${he(logoImg)}" alt="${he(l.name)} logo"
+       onerror="this.onerror=null;this.src='${he(favImg)}';"/>
 </div>`;
 
     // ── stats row (only shown when real data exists) ────────────────────────
@@ -805,7 +806,7 @@ app.get('/api/directory/listings', async (req, res) => {
                     vote_count, featured_tier, featured_until,
                     (claimed_by IS NOT NULL) AS is_claimed,
                     COALESCE(owner_description, description) AS description,
-                    COALESCE(owner_image_url, image_url)     AS image_url
+                    CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
              FROM directory_listings WHERE status='active'`;
     const params = [];
     if (category && category !== 'All') { q += ' AND category=$1'; params.push(category); }
@@ -2293,6 +2294,25 @@ app.post('/api/directory/claim/edit', async (req, res) => {
   }
 });
 
+// ── GET /api/directory/listing-logo/:id — serve owner-uploaded logo from DB ───
+app.get('/api/directory/listing-logo/:id', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT owner_image_url FROM directory_listings WHERE id=$1', [parseInt(req.params.id)]);
+    if (!r.rows.length || !r.rows[0].owner_image_url) return res.status(404).end();
+    const raw = r.rows[0].owner_image_url;
+    if (raw.startsWith('data:')) {
+      const comma = raw.indexOf(',');
+      const header = raw.slice(0, comma);
+      const b64    = raw.slice(comma + 1);
+      const mime   = (header.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(b64, 'base64'));
+    }
+    res.redirect(raw);
+  } catch { res.status(404).end(); }
+});
+
 // ── Logo upload — converts to base64 data URL, stored directly in DB ──────────
 // Persistent across redeploys; no external storage service needed.
 const logoUpload = multer({
@@ -3414,6 +3434,14 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url     TEXT`).catch(()=>{});
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
+
+  // Premium showcase listings (WHY Audit™ and Strategic Flow Audit)
+  await pool.query(`
+    UPDATE directory_listings
+    SET featured_tier='premium', featured_until='2099-12-31'
+    WHERE name IN ('WHY Audit™','Strategic Flow Audit')
+    AND (featured_tier IS NULL OR featured_tier != 'premium')
+  `).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});

@@ -172,8 +172,11 @@ a:hover{text-decoration:underline;}
 .dir-featured-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent);}
 .dir-featured-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:10px;font-weight:600;}
 .badge-weekly_feature{background:rgba(245,158,11,0.15);color:var(--gold);border:1px solid rgba(245,158,11,0.3);}
-.badge-premium{background:rgba(167,139,250,0.15);color:var(--purple);border:1px solid rgba(167,139,250,0.3);}
+.badge-premium{background:linear-gradient(135deg,rgba(0,212,200,0.25),rgba(167,139,250,0.2));color:#e0fffe;border:1px solid rgba(0,212,200,0.55);font-weight:700;letter-spacing:.1em;text-shadow:0 0 8px rgba(0,212,200,0.4);}
 .badge-daily_top{background:rgba(0,212,200,0.15);color:var(--teal);border:1px solid rgba(0,212,200,0.3);}
+.dir-card.is-premium{position:relative;overflow:hidden;border-color:rgba(0,212,200,0.5);background:linear-gradient(135deg,rgba(0,212,200,0.07) 0%,rgba(167,139,250,0.05) 50%,var(--bg2) 100%);box-shadow:0 0 0 1px rgba(0,212,200,0.12),0 4px 20px rgba(0,212,200,0.07);}
+.dir-card.is-premium:hover{border-color:rgba(0,212,200,0.75);transform:translateY(-3px);box-shadow:0 0 0 1px rgba(0,212,200,0.28),0 8px 32px rgba(0,212,200,0.13);}
+.dir-card.is-premium::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--teal),rgba(167,139,250,0.9),transparent);}
 .dir-featured-name{font-size:15px;font-weight:700;}
 .dir-featured-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
 .dir-featured-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;}
@@ -1257,7 +1260,7 @@ function renderCard(l){
 
   let featBadge = isFeat ? `<span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>` : '';
 
-  return `<div class="dir-card${isFeat?' is-featured':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
+  return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
     <div class="dir-card-top">
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
