@@ -135,6 +135,12 @@ a:hover{text-decoration:underline;}
 .dir-stat{text-align:center;}
 .dir-stat-num{font-size:24px;font-weight:800;color:var(--teal);}
 .dir-stat-label{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+.dir-stat-sub{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:4px;line-height:1.35;max-width:140px;margin-left:auto;margin-right:auto;opacity:.75;}
+.dir-why-grid{display:flex;flex-direction:column;gap:10px;margin:20px 0 24px;}
+.dir-why-item{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:rgba(0,212,200,0.05);border:1px solid rgba(0,212,200,0.15);border-radius:10px;}
+.dir-why-icon{font-size:20px;flex-shrink:0;line-height:1;margin-top:1px;}
+.dir-why-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
+.dir-why-desc{font-size:12px;color:var(--muted);line-height:1.5;}
 
 /* PROMOTED PREMIUM — owner's spotlight, always after hero */
 .dir-promoted-wrap{padding:0 40px 32px;}
@@ -614,13 +620,14 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 2s infinite;"></span>
     Free to list · Dofollow backlink · Instant approval
   </div>
-  <h1>Get your SaaS <em>discovered</em></h1>
-  <p class="dir-hero-sub">Free dofollow backlink from a DR 86 domain. Instant listing — no review queue, no waiting. Claim your page, collect upvotes, and get found by buyers who are ready to buy.</p>
+  <h1>Your competitors are <em>already here.</em></h1>
+  <p class="dir-hero-sub"><span id="heroCount">500+</span> products collecting free, indexed backlinks from a DR 86 domain — don't be the one still missing out on permanent, organic visibility.</p>
   <a href="#pricing" class="dir-hero-pricing-link">⚡ Featured placements from $9 — see pricing →</a>
   <div class="dir-stats">
     <div class="dir-stat">
       <div class="dir-stat-num">DR 86</div>
       <div class="dir-stat-label">Domain rating</div>
+      <div class="dir-stat-sub">High-authority backlink search engines trust</div>
     </div>
     <div class="dir-stat">
       <div class="dir-stat-num">Free</div>
@@ -841,6 +848,28 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <div class="dir-submit-label">Submit your product</div>
     <h2>Get a free dofollow backlink from DR 86</h2>
     <p>Submit any SaaS tool, app, or product. Your listing goes live immediately with a dofollow backlink. No review queue, no account required.</p>
+    <div class="dir-why-grid">
+      <div class="dir-why-item">
+        <span class="dir-why-icon">🔗</span>
+        <div><div class="dir-why-title">Permanent dofollow backlink from DR 86</div><div class="dir-why-desc">Every listing gets a real dofollow link from a high-authority domain — indexed by Google, no expiry date.</div></div>
+      </div>
+      <div class="dir-why-item">
+        <span class="dir-why-icon">⚡</span>
+        <div><div class="dir-why-title">Instant approval — live in seconds</div><div class="dir-why-desc">No editorial review, no waiting list. Submit and your listing is live immediately with a public URL.</div></div>
+      </div>
+      <div class="dir-why-item">
+        <span class="dir-why-icon">▲</span>
+        <div><div class="dir-why-title">Upvoting & leaderboard visibility</div><div class="dir-why-desc">Visitors can upvote your product. Top-voted listings rank higher and appear in the leaderboard seen by every visitor.</div></div>
+      </div>
+      <div class="dir-why-item">
+        <span class="dir-why-icon">🪪</span>
+        <div><div class="dir-why-title">Claim ownership & control your page</div><div class="dir-why-desc">Verify your email to claim the listing and edit your description, logo, and founder profile at any time.</div></div>
+      </div>
+      <div class="dir-why-item">
+        <span class="dir-why-icon">🆓</span>
+        <div><div class="dir-why-title">Free forever — no account required</div><div class="dir-why-desc">The base listing and backlink cost nothing. Optional paid placements exist but the core visibility is permanently free.</div></div>
+      </div>
+    </div>
     <form class="dir-form" id="dirForm" onsubmit="submitListing(event)">
       <div class="dir-form-row">
         <div class="dir-field">
@@ -1558,6 +1587,8 @@ function renderVisible(){
   }
   grid.innerHTML = filteredListings.slice(0, showing).map(renderCard).join('');
   counter.textContent = `Showing ${showing} of ${total} products`;
+  const heroCount = document.getElementById('heroCount');
+  if (heroCount && allListings.length) heroCount.textContent = allListings.length + '+';
   if(showing >= total){
     wrap.style.display = 'flex';
     btn.style.display  = 'none';

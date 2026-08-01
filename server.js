@@ -477,6 +477,290 @@ function toListingSlug(name, id) {
   return `${base}-${id}`;
 }
 
+// ── SEO/AEO landing pages — generated from real DB data ─────────────────────
+function dirSeoPage({ title, metaDesc, canonical, h1, intro, schema, body }) {
+  const BASE = 'https://strategic-flow-audit.replit.app';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${title}</title>
+<meta name="description" content="${metaDesc}"/>
+<link rel="canonical" href="${BASE}${canonical}"/>
+<meta property="og:title" content="${title}"/>
+<meta property="og:description" content="${metaDesc}"/>
+<meta property="og:url" content="${BASE}${canonical}"/>
+<meta property="og:type" content="website"/>
+<script type="application/ld+json">${JSON.stringify(schema)}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#060d1a;color:#c8d4e0;font-family:'Inter',system-ui,sans-serif;line-height:1.6;}
+a{color:#00d4c8;text-decoration:none;}a:hover{text-decoration:underline;}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px;}
+.nav{border-bottom:1px solid #1a2640;padding:14px 0;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-family:monospace;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;}
+.nav-links{display:flex;gap:20px;font-size:13px;}
+.breadcrumb{font-size:12px;color:#64748b;font-family:monospace;padding:16px 0 0;}
+.breadcrumb a{color:#64748b;}
+h1{font-size:clamp(24px,4vw,38px);font-weight:800;color:#fff;line-height:1.2;letter-spacing:-.02em;margin:28px 0 14px;}
+.intro{font-size:15px;color:#94a3b8;max-width:680px;margin-bottom:36px;line-height:1.7;}
+h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-.01em;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:40px;}
+.card{background:#0e1c2e;border:1px solid #1a2640;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s;}
+.card:hover{border-color:#00d4c8;}
+.card-head{display:flex;align-items:center;gap:10px;}
+.card-logo{width:32px;height:32px;border-radius:7px;object-fit:cover;background:#1a2640;flex-shrink:0;}
+.card-name{font-size:14px;font-weight:700;color:#fff;}
+.card-cat{font-size:10px;font-family:monospace;color:#00d4c8;text-transform:uppercase;letter-spacing:.08em;}
+.card-desc{font-size:12px;color:#94a3b8;line-height:1.5;-webkit-line-clamp:3;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;}
+.card-link{font-size:12px;font-family:monospace;color:#00d4c8;margin-top:auto;}
+.cta-box{background:linear-gradient(135deg,rgba(0,212,200,.08),rgba(0,212,200,.03));border:1px solid rgba(0,212,200,.25);border-radius:14px;padding:32px;text-align:center;margin:48px 0;}
+.cta-box h2{margin:0 0 10px;font-size:22px;}
+.cta-box p{color:#94a3b8;font-size:14px;margin-bottom:22px;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;background:#00d4c8;color:#041214;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;}
+.cta-btn:hover{opacity:.88;text-decoration:none;}
+.cat-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:40px;}
+.cat-link{font-size:12px;font-family:monospace;color:#64748b;border:1px solid #1a2640;border-radius:6px;padding:4px 12px;transition:all .2s;}
+.cat-link:hover{color:#00d4c8;border-color:#00d4c8;text-decoration:none;}
+.footer{border-top:1px solid #1a2640;padding:28px 0;text-align:center;font-size:12px;color:#64748b;font-family:monospace;margin-top:60px;}
+@media(max-width:600px){.grid{grid-template-columns:1fr;}.nav-links{display:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <a class="nav-logo" href="/directory">ToolIndex</a>
+    <div class="nav-links">
+      <a href="/directory">Directory</a>
+      <a href="/directory#leaderboard">Leaderboard</a>
+      <a href="/directory#submit">Submit</a>
+      <a href="/directory#pricing">Pricing</a>
+    </div>
+  </nav>
+  <div class="breadcrumb"><a href="/directory">ToolIndex Directory</a> › ${h1}</div>
+  <h1>${h1}</h1>
+  <p class="intro">${intro}</p>
+  ${body}
+  <div class="cta-box">
+    <h2>List your product — it's free</h2>
+    <p>Get a permanent dofollow backlink from a DR 86 domain. Instant approval, no review queue.</p>
+    <a class="cta-btn" href="/directory#submit">Submit your product →</a>
+  </div>
+  <footer class="footer">ToolIndex · <a href="/directory">SaaS Directory</a> · Free dofollow backlinks · DR 86</footer>
+</div>
+</body>
+</html>`;
+}
+
+function listingCard(l) {
+  const domain = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+  const gfav = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
+  const logoSrc = l.image_url || gfav;
+  const desc = (l.description || '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').slice(0, 160);
+  return `<div class="card" itemscope itemtype="https://schema.org/SoftwareApplication">
+    <div class="card-head">
+      ${logoSrc ? `<img class="card-logo" src="${logoSrc}" alt="${l.name} logo" loading="lazy" onerror="this.style.display='none'"/>` : ''}
+      <div>
+        <div class="card-name" itemprop="name">${l.name}</div>
+        <div class="card-cat" itemprop="applicationCategory">${l.category}</div>
+      </div>
+    </div>
+    <div class="card-desc" itemprop="description">${desc}</div>
+    <a class="card-link" href="/directory/${l.slug}" itemprop="url">View listing →</a>
+  </div>`;
+}
+
+// ── GET /directory/alternative-to-product-hunt ────────────────────────────────
+app.get('/directory/alternative-to-product-hunt', async (req, res) => {
+  try {
+    const [dirsR, topR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Directories'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 12`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active'
+                 ORDER BY vote_count DESC LIMIT 6`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const total = totalR.rows[0].n;
+    const dirs  = dirsR.rows;
+    const top   = topR.rows;
+
+    const schemaItems = [...dirs, ...top].slice(0, 10).map((l, i) => ({
+      '@type': 'ListItem', position: i + 1,
+      item: { '@type': 'SoftwareApplication', name: l.name, url: l.url,
+              applicationCategory: l.category, description: (l.description || '').slice(0, 200) }
+    }));
+
+    const schema = {
+      '@context': 'https://schema.org', '@type': 'CollectionPage',
+      name: 'Product Hunt Alternatives for SaaS Founders | ToolIndex',
+      description: `${total}+ SaaS tools and directories listed on ToolIndex, a free DR 86 directory with instant approval.`,
+      url: 'https://strategic-flow-audit.replit.app/directory/alternative-to-product-hunt',
+      mainEntity: { '@type': 'ItemList', name: 'Product Hunt Alternatives', itemListElement: schemaItems }
+    };
+
+    const catLinks = ['AI Tools','Productivity','Marketing','Developer Tools','Design','Analytics','Directories','Finance','Social Media']
+      .map(c => `<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+
+    const body = `
+      <h2>SaaS Directories Similar to Product Hunt</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        ${total}+ products already listed on ToolIndex. Each gets a permanent dofollow backlink from a DR 86 domain — no launch window, no expiry.
+      </p>
+      <div class="grid">${dirs.map(listingCard).join('')}</div>
+      <h2>Top Products on ToolIndex</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        Ranked by real upvotes from visitors — no algorithmic boosts, no pay-to-rank (outside optional paid placements).
+      </p>
+      <div class="grid">${top.map(listingCard).join('')}</div>
+      <h2>Browse by category</h2>
+      <div class="cat-links">${catLinks}</div>
+    `;
+
+    res.send(dirSeoPage({
+      title: 'Product Hunt Alternatives (2025) — List Your SaaS Free | ToolIndex',
+      metaDesc: `Looking for Product Hunt alternatives? ToolIndex lists ${total}+ SaaS products with free dofollow backlinks from a DR 86 domain. Instant approval, no review queue.`,
+      canonical: '/directory/alternative-to-product-hunt',
+      h1: 'Product Hunt Alternatives for SaaS Founders',
+      intro: `Product Hunt isn't the only place to get your product seen. ToolIndex is an indexed SaaS directory with ${total}+ listings, a DR 86 domain rating, and permanent dofollow backlinks for every submission — no launch windows, no daily queues.`,
+      schema, body
+    }));
+  } catch (err) {
+    console.error('[dir-seo/alt-ph]', err.message);
+    res.redirect('/directory');
+  }
+});
+
+// ── GET /directory/best-ai-marketing-tools ────────────────────────────────────
+app.get('/directory/best-ai-marketing-tools', async (req, res) => {
+  try {
+    const [aiR, mktR, totalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='AI Tools'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 12`),
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Marketing'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC LIMIT 8`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category IN ('AI Tools','Marketing')`)
+    ]);
+    const total = totalR.rows[0].n;
+    const aiTools = aiR.rows;
+    const mktTools = mktR.rows;
+
+    const allItems = [...aiTools, ...mktTools];
+    const schemaItems = allItems.slice(0, 10).map((l, i) => ({
+      '@type': 'ListItem', position: i + 1,
+      item: { '@type': 'SoftwareApplication', name: l.name, url: l.url,
+              applicationCategory: l.category, description: (l.description || '').slice(0, 200) }
+    }));
+
+    const schema = {
+      '@context': 'https://schema.org', '@type': 'CollectionPage',
+      name: 'Best AI Marketing Tools | ToolIndex Directory',
+      description: `${total}+ AI and marketing tools listed on ToolIndex with free DR 86 dofollow backlinks.`,
+      url: 'https://strategic-flow-audit.replit.app/directory/best-ai-marketing-tools',
+      mainEntity: { '@type': 'ItemList', name: 'Best AI Marketing Tools', itemListElement: schemaItems }
+    };
+
+    const catLinks = ['AI Tools','Marketing','Productivity','Analytics','Social Media','Developer Tools']
+      .map(c => `<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+
+    const body = `
+      <h2>Top AI Tools on ToolIndex</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        ${aiR.rows.length > 0 ? aiR.rows.length : 'Hundreds of'} AI tools indexed with real backlinks. Sorted by user upvotes.
+      </p>
+      <div class="grid">${aiTools.map(listingCard).join('')}</div>
+      <h2>Marketing Tools</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        Marketing software verified and indexed on ToolIndex.
+      </p>
+      <div class="grid">${mktTools.map(listingCard).join('')}</div>
+      <h2>Browse by category</h2>
+      <div class="cat-links">${catLinks}</div>
+    `;
+
+    res.send(dirSeoPage({
+      title: 'Best AI Marketing Tools (2025) — Vetted Directory | ToolIndex',
+      metaDesc: `Browse ${total}+ AI and marketing tools on ToolIndex. Free submissions, DR 86 dofollow backlinks, real user upvotes. Discover the top AI tools for marketers.`,
+      canonical: '/directory/best-ai-marketing-tools',
+      h1: 'Best AI Marketing Tools — ToolIndex Directory',
+      intro: `${total}+ AI and marketing tools are indexed on ToolIndex. Every listing includes a permanent dofollow backlink from a DR 86 domain. This page shows top-voted tools from the AI Tools and Marketing categories, ranked by real visitor upvotes.`,
+      schema, body
+    }));
+  } catch (err) {
+    console.error('[dir-seo/ai-mkt]', err.message);
+    res.redirect('/directory');
+  }
+});
+
+// ── GET /directory/best-saas-directories ─────────────────────────────────────
+app.get('/directory/best-saas-directories', async (req, res) => {
+  try {
+    const [dirsR, totalR, allTotalR] = await Promise.all([
+      pool.query(`SELECT id, name, url, category, description, image_url,
+                   regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug
+                 FROM directory_listings WHERE status='active' AND category='Directories'
+                 ORDER BY vote_count DESC, COALESCE(scored_at,submitted_at) DESC`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='Directories'`),
+      pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`)
+    ]);
+    const dirCount  = totalR.rows[0].n;
+    const allTotal  = allTotalR.rows[0].n;
+    const dirs      = dirsR.rows;
+
+    const schemaItems = dirs.slice(0, 10).map((l, i) => ({
+      '@type': 'ListItem', position: i + 1,
+      item: { '@type': 'SoftwareApplication', name: l.name, url: l.url,
+              applicationCategory: 'Directories', description: (l.description || '').slice(0, 200) }
+    }));
+
+    const schema = {
+      '@context': 'https://schema.org', '@type': 'CollectionPage',
+      name: 'Best SaaS Directories to Submit Your Product | ToolIndex',
+      description: `A curated list of ${dirCount} SaaS directories indexed on ToolIndex. Submit your product for free exposure and backlinks.`,
+      url: 'https://strategic-flow-audit.replit.app/directory/best-saas-directories',
+      mainEntity: { '@type': 'ItemList', name: 'Best SaaS Directories', itemListElement: schemaItems }
+    };
+
+    const catLinks = ['AI Tools','Productivity','Marketing','Developer Tools','Design','Analytics']
+      .map(c => `<a class="cat-link" href="/directory?category=${encodeURIComponent(c)}">${c}</a>`).join('');
+
+    const body = `
+      <h2>SaaS Directories Listed on ToolIndex (${dirCount} total)</h2>
+      <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;">
+        Each directory below is itself listed on ToolIndex and indexed with a dofollow backlink. Submitting to multiple directories compounds your product's discoverability.
+      </p>
+      <div class="grid">${dirs.map(listingCard).join('')}</div>
+      <h2>About ToolIndex</h2>
+      <p style="font-size:14px;color:#94a3b8;line-height:1.7;max-width:680px;margin-bottom:24px;">
+        ToolIndex is a free SaaS directory with ${allTotal}+ active listings and a Domain Rating of 86. Every submission gets a permanent dofollow backlink — no editorial queue, no paid approval, no expiry.
+        It supports upvoting, leaderboard rankings, and claimed owner profiles. <a href="/directory">View the full directory →</a>
+      </p>
+      <h2>Browse other categories</h2>
+      <div class="cat-links">${catLinks}</div>
+    `;
+
+    res.send(dirSeoPage({
+      title: 'Best SaaS Directories to Submit Your Product (2025) | ToolIndex',
+      metaDesc: `The definitive list of ${dirCount} SaaS directories listed on ToolIndex. Submit your product for free exposure and DR 86 dofollow backlinks. Instant approval.`,
+      canonical: '/directory/best-saas-directories',
+      h1: 'Best SaaS Directories to Submit Your Product',
+      intro: `Submitting your SaaS to directories is one of the highest-leverage, lowest-cost distribution moves available. This page lists ${dirCount} directories indexed on ToolIndex — each a real platform where founders can submit their products for visibility and backlinks.`,
+      schema, body
+    }));
+  } catch (err) {
+    console.error('[dir-seo/saas-dirs]', err.message);
+    res.redirect('/directory');
+  }
+});
+
 // ── GET /directory/:slug — rich individual product page ───────────────────────
 // URL format: /directory/product-name-42  (ID appended for guaranteed uniqueness)
 app.get('/directory/:slug', async (req, res) => {
