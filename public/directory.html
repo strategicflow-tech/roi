@@ -1884,7 +1884,6 @@ function loadRecentlyClaimed(){
   // Update count placeholder once listings load
   document.addEventListener('listingsLoaded',function(e){
     if(cnt) cnt.textContent=(e.detail||0)+' products';
-    hs.placeholder='Search '+(e.detail||'500+')+(e.detail?' products':' tools')+'…';
   });
 })();
 
