@@ -1932,8 +1932,8 @@ async function claimUploadFounderAvatar(input) {
       if (prev) { prev.src = d.url; prev.style.display = 'block'; }
       statusEl.style.color = '#22c55e';
       statusEl.textContent = '✓ Photo uploaded — click Save to apply.';
-    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload failed.'; }
-  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload error.'; }
+    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = d.message || 'Upload failed.'; }
+  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Network error — try again.'; }
 }
 
 async function claimUploadScreenshot(input) {
@@ -1951,8 +1951,8 @@ async function claimUploadScreenshot(input) {
       renderClaimScreenshots();
       statusEl.style.color = '#22c55e';
       statusEl.textContent = '✓ Added (' + claimScreenshots.length + '/3). Click Save to apply.';
-    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload failed.'; }
-  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Upload error.'; }
+    } else { statusEl.style.color = '#e8455a'; statusEl.textContent = d.message || 'Upload failed.'; }
+  } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Network error — try again.'; }
   input.value = '';
 }
 

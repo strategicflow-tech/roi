@@ -2497,26 +2497,36 @@ app.get('/api/directory/listing-screenshot/:id/:index', async (req, res) => {
 });
 
 // ── POST /api/directory/claim/upload-founder-avatar ──────────────────────────
-app.post('/api/directory/claim/upload-founder-avatar',
-  multer({ storage: multer.memoryStorage(), limits: { fileSize: 800*1024 },
-           fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null,true) : cb(new Error('Images only')) }).single('avatar'),
-  (req, res) => {
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
+  fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+}).single('avatar');
+app.post('/api/directory/claim/upload-founder-avatar', (req, res) => {
+  avatarUpload(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Photo must be under 4 MB.' });
+    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
     const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     res.json({ ok: true, url: dataUrl });
-  }
-);
+  });
+});
 
 // ── POST /api/directory/claim/upload-screenshot ──────────────────────────────
-app.post('/api/directory/claim/upload-screenshot',
-  multer({ storage: multer.memoryStorage(), limits: { fileSize: 2*1024*1024 },
-           fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null,true) : cb(new Error('Images only')) }).single('screenshot'),
-  (req, res) => {
+const screenshotUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
+  fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+}).single('screenshot');
+app.post('/api/directory/claim/upload-screenshot', (req, res) => {
+  screenshotUpload(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Screenshot must be under 4 MB.' });
+    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
     const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     res.json({ ok: true, url: dataUrl });
-  }
-);
+  });
+});
 
 // ── Logo upload — converts to base64 data URL, stored directly in DB ──────────
 // Persistent across redeploys; no external storage service needed.
