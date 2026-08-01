@@ -691,7 +691,10 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
   <h1>Every day you're not listed,<br><em>a competitor gets the backlink.</em></h1>
   <p class="dir-hero-sub"><span id="heroCount">500+</span> products already indexed on a DR&nbsp;86 domain. The organic visibility you're skipping goes directly to whoever listed before you.</p>
-  <a href="#pricing" class="dir-hero-pricing-link">⚡ Featured placements from $9 — see pricing →</a>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
+    <a href="#pricing" class="dir-hero-pricing-link" style="margin-bottom:0;">⚡ Featured placements from $9 — see pricing →</a>
+    <a href="#dirGrid" id="heroBrowseBtn" onclick="event.preventDefault();document.getElementById('dirGrid')?.scrollIntoView({behavior:'smooth',block:'start'});" style="font-size:13px;font-family:var(--mono);color:var(--muted);text-decoration:none;padding:8px 16px;border:1px solid var(--border);border-radius:8px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='#fff';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Browse <span id="heroBrowseCount">500+</span> products</a>
+  </div>
   <div class="dir-stats">
     <div class="dir-stat">
       <div class="dir-stat-num">DR 86</div>
@@ -1805,6 +1808,8 @@ function renderVisible(){
   counter.textContent = `Showing ${showing} of ${total} products`;
   const heroCount = document.getElementById('heroCount');
   if (heroCount && allListings.length) heroCount.textContent = allListings.length + '+';
+  const heroBrowseCount = document.getElementById('heroBrowseCount');
+  if (heroBrowseCount && allListings.length) heroBrowseCount.textContent = allListings.length + '+';
   if(showing >= total){
     wrap.style.display = 'flex';
     btn.style.display  = 'none';
@@ -2705,7 +2710,9 @@ loadClickCounts();
     slotsEl.textContent = avail > 0 ? avail + ' slot'+(avail>1?'s':'')+' open' : 'Full';
     slotsEl.style.color = avail === 0 ? '#ef4444' : avail === 1 ? '#f59e0b' : 'var(--teal)';
     if (!d.sponsors || !d.sponsors.length) {
-      listEl.innerHTML = '<div class="dir-sponsor-empty">No sponsors yet — be the first.</div>';
+      // Hide entire sponsor widget silently — reappears automatically when a sponsor exists
+      var widget = listEl.closest('.dir-sponsor-widget');
+      if (widget) widget.style.display = 'none';
       return;
     }
     listEl.innerHTML = d.sponsors.map(function(s){
@@ -2720,7 +2727,10 @@ loadClickCounts();
         +(s.sponsor_tagline?'<div class="dir-sp-tag">'+escSp(s.sponsor_tagline)+'</div>':'')+'</div>'
         +'</a>';
     }).join('');
-  }).catch(function(){ document.getElementById('dirSponsorList').innerHTML='<div class="dir-sponsor-empty">No sponsors yet — be the first.</div>'; });
+  }).catch(function(){
+    var widget = document.getElementById('dirSponsorList')?.closest('.dir-sponsor-widget');
+    if (widget) widget.style.display = 'none';
+  });
 })();
 </script>
 </body>
