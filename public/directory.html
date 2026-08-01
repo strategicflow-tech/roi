@@ -1711,17 +1711,41 @@ function openClaimModal(id, name, domain) {
   claimListingId  = id;
   claimEditToken  = null;
   claimOwnerEmail = null;
+
+  // Restore session if owner already verified this listing this browser session
+  const saved = JSON.parse(sessionStorage.getItem('claim_' + id) || 'null');
+  if (saved && saved.email && saved.token) {
+    claimOwnerEmail = saved.email;
+    claimEditToken  = saved.token;
+    claimFounderAvatarUrl = '';
+    claimScreenshots = [];
+    document.getElementById('claimProductName').textContent = name;
+    ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid){
+      var el = document.getElementById(eid);
+      if(el){ el.style.display='none'; el.textContent=''; }
+    });
+    ['claimStep1','claimStep2','claimStep3'].forEach(function(s){ document.getElementById(s).classList.remove('active'); });
+    document.getElementById('claimStep3').classList.add('active');
+    document.getElementById('claimModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadClaimAnalytics();
+    return;
+  }
+
+  // Fresh flow — show Step 1
   document.getElementById('claimProductName').textContent = name;
   document.getElementById('claimEmail').value = '';
   document.getElementById('claimOTP').value   = '';
   document.getElementById('claimDesc').value      = '';
   document.getElementById('claimImageUrl').value  = '';
   document.getElementById('claimLogoFile').value  = '';
+  claimFounderAvatarUrl = '';
+  claimScreenshots = [];
   const upSt = document.getElementById('claimUploadStatus');
   if (upSt) { upSt.style.display = 'none'; upSt.textContent = ''; }
-  ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(id => {
-    const el = document.getElementById(id);
-    el.style.display = 'none'; el.textContent = '';
+  ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid) {
+    const el = document.getElementById(eid);
+    if(el){ el.style.display = 'none'; el.textContent = ''; }
   });
   ['claimStep1','claimStep2','claimStep3'].forEach(s => document.getElementById(s).classList.remove('active'));
   document.getElementById('claimStep1').classList.add('active');

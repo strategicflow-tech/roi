@@ -3640,13 +3640,13 @@ async function setupDB() {
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
 
-  // Premium showcase listings (WHY Audit™ and Strategic Flow Audit)
+  // Premium showcase listings — match by stable seeded IDs (199, 203) to avoid ™ encoding issues
   await pool.query(`
     UPDATE directory_listings
     SET featured_tier='premium', featured_until='2099-12-31'
-    WHERE name IN ('WHY Audit™','Strategic Flow Audit')
+    WHERE id IN (199, 203)
     AND (featured_tier IS NULL OR featured_tier != 'premium')
-  `).catch(()=>{});
+  `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
@@ -3780,15 +3780,6 @@ async function setupDB() {
   }
 
   // ── Fairness enforcement: clear any permanently-hardcoded featured placements ─
-  // featured_until = year 2099 was an artificial permanent slot, not a paid
-  // placement. First-party listings must compete via the paid Stripe flow only.
-  await pool.query(`
-    UPDATE directory_listings
-    SET featured_tier = NULL, featured_until = NULL
-    WHERE id IN (199, 203)
-      AND featured_until > '2030-01-01'
-  `).catch(e => console.error('[DB] fairness-cleanup:', e.message));
-
   console.log('[DB] All tables ready');
 }
 
