@@ -2144,16 +2144,16 @@ app.get('/admin/seed-votes', async (req, res) => {
     }
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
-    // Exact values matching dev distribution
-    await pool.query(`UPDATE directory_listings SET vote_count=346 WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=271 WHERE id=203`);
+    // Premium listings: max 50 all-time, differentiated
+    await pool.query(`UPDATE directory_listings SET vote_count=48 WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=43 WHERE id=203`);
 
     // ── 2. Specific vote_counts for key non-owner listings ──────────────────────
+    // All under half of premium (<24), directory is new
     const specificVC = [
-      {id:543,vc:116},{id:165,vc:91},{id:248,vc:81},{id:111,vc:82},
-      {id:55,vc:85},  {id:163,vc:75},{id:234,vc:34},{id:457,vc:31},
-      {id:474,vc:32}, {id:576,vc:29},{id:219,vc:26},
-      {id:577,vc:27},
+      {id:543,vc:18},{id:165,vc:16},{id:248,vc:14},{id:111,vc:13},
+      {id:55,vc:12}, {id:163,vc:11},{id:234,vc:7}, {id:457,vc:7},
+      {id:474,vc:6}, {id:576,vc:5}, {id:219,vc:5}, {id:577,vc:4},
     ];
     for (const {id,vc} of specificVC) {
       await pool.query(`UPDATE directory_listings SET vote_count=$1 WHERE id=$2`, [vc, id]);
@@ -2164,11 +2164,12 @@ app.get('/admin/seed-votes', async (req, res) => {
       `SELECT id FROM directory_listings WHERE status='active'
        AND id NOT IN (199,203,${specificVC.map(x=>x.id).join(',')}) ORDER BY random()`
     );
+    // Directory is new: max 5 votes for non-key listings, power-law skewed to 1-2
     const vcCases = nonOwners.map((r, i) => ({
       id: r.id,
-      v: i < 20
-        ? [14,13,12,12,11,11,10,10,9,9,8,8,7,7,6,6,5,4,3,2][i]
-        : Math.max(1, Math.floor(Math.pow(Math.random(), 3) * 11) + 1)
+      v: i < 10
+        ? [5,5,4,4,4,3,3,3,2,2][i]
+        : Math.max(1, Math.floor(Math.pow(Math.random(), 2) * 4) + 1)
     }));
     for (let b = 0; b < vcCases.length; b += 500) {
       const chunk = vcCases.slice(b, b+500);
@@ -2187,22 +2188,22 @@ app.get('/admin/seed-votes', async (req, res) => {
     // ── 4. Re-insert with full period distribution ───────────────────────────────
     // Key listings: exact buckets matching dev distribution
     // today=daily, tw=this-week-not-today, lw=last-week, old=older
+    // Directory is new — keep numbers small and believable
     const keyListings = [
-      {id:199, today:8,  tw:185, lw:106, old:47},  // WHY Audit™        total=346
-      {id:203, today:6,  tw:145, lw:83,  old:37},  // Strategic Flow    total=271
-      {id:543, today:3,  tw:48,  lw:30,  old:35},  // Twillot           total=116
-      {id:165, today:2,  tw:38,  lw:22,  old:29},  // Laike AI          total=91
-      {id:248, today:2,  tw:33,  lw:21,  old:25},  // Neon              total=81
-      {id:111, today:2,  tw:31,  lw:22,  old:27},  // Deep Wave         total=82
-      {id:55,  today:2,  tw:31,  lw:19,  old:33},  // xaicreator        total=85
-      {id:163, today:2,  tw:30,  lw:19,  old:24},  // Canva             total=75
-      {id:457, today:1,  tw:19,  lw:8,   old:3},   // Quit With Us      total=31
-      {id:474, today:1,  tw:13,  lw:9,   old:9},   // PandaChat         total=32
-      {id:234, today:1,  tw:16,  lw:9,   old:8},   // NotebookLM        total=34
-      // id:716 omitted — not present on production
-      {id:576, today:1,  tw:15,  lw:8,   old:5},   // PDFuck            total=29
-      {id:219, today:1,  tw:14,  lw:6,   old:5},   // Rollout           total=26
-      {id:577, today:1,  tw:14,  lw:6,   old:6},   // InvoiceFreely     total=27
+      {id:199, today:2, tw:13, lw:12, old:21},  // WHY Audit™       total=48
+      {id:203, today:1, tw:11, lw:10, old:21},  // Strategic Flow   total=43
+      {id:543, today:0, tw:5,  lw:4,  old:9},   // Twillot          total=18
+      {id:165, today:0, tw:4,  lw:3,  old:9},   // Laike AI         total=16
+      {id:248, today:0, tw:3,  lw:2,  old:9},   // Neon             total=14
+      {id:111, today:0, tw:3,  lw:2,  old:8},   // Deep Wave        total=13
+      {id:55,  today:0, tw:3,  lw:2,  old:7},   // xaicreator       total=12
+      {id:163, today:0, tw:3,  lw:2,  old:6},   // Canva            total=11
+      {id:234, today:0, tw:2,  lw:1,  old:4},   // NotebookLM       total=7
+      {id:457, today:0, tw:2,  lw:1,  old:4},   // Juchats          total=7
+      {id:474, today:0, tw:1,  lw:1,  old:4},   // SimilarLabs      total=6
+      {id:576, today:0, tw:1,  lw:1,  old:3},   // Shipixen         total=5
+      {id:219, today:0, tw:1,  lw:0,  old:4},   // Rollout          total=5
+      {id:577, today:0, tw:1,  lw:0,  old:3},   // Proxied          total=4
     ];
     const keyIds = new Set(keyListings.map(x=>x.id));
 
@@ -2242,8 +2243,9 @@ app.get('/admin/seed-votes', async (req, res) => {
       `SELECT id, vote_count FROM directory_listings WHERE status='active' AND id!=ALL($1) AND vote_count>0 ORDER BY vote_count DESC`,
       [Array.from(keyIds)]
     );
+    // Only ~10 non-key listings get 1-2 weekly votes; rest are all-old (directory is new)
     const weeklyExtra = new Set(
-      others.filter(r=>r.vote_count>=6).sort(()=>Math.random()-0.5).slice(0,30).map(r=>r.id)
+      others.filter(r=>r.vote_count>=4).sort(()=>Math.random()-0.5).slice(0,10).map(r=>r.id)
     );
     for (const r of others) {
       const n  = r.vote_count;
