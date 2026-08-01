@@ -406,7 +406,7 @@ function ssrCard(l, clickMap) {
   return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${heDir(cat)}" data-name="${heDir(name.toLowerCase())}" data-desc="${heDir((l.description||'').toLowerCase())}">
 <div class="dir-card-top"><div class="dir-card-left">${avatar}<div style="min-width:0;"><a class="dir-card-name" href="/directory/${toListingSlug(name,l.id)}">${heDir(name)}</a><div class="dir-cat-tag">${heDir(cat)}</div>${featBadge}</div></div></div>
 <p class="dir-desc">${heDir(l.description||'')}</p>
-<div class="dir-card-footer"><div class="dir-card-actions"><a href="${heDir(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${heDir(domain)} →</a><button class="dir-vote-btn" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" title="Upvote this product"><span class="vote-arrow">▲</span><span class="vote-count" id="vc-${l.id}">${votes}</span></button></div>${clickStat}<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${sourceTag}${claimSection}<button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${safeName}')">⚡ Boost from $9</button></div></div>
+<div class="dir-card-footer"><div class="dir-card-actions"><a href="${heDir(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${heDir(domain)} →</a><button class="dir-vote-btn" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" title="Upvote this product"><span class="vote-arrow">▲</span><span class="vote-count" id="vc-${l.id}"${votes === 0 ? ' style="display:none"' : ''}>${votes}</span></button></div>${clickStat}<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${sourceTag}${claimSection}<button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${safeName}')">⚡ Boost from $9</button></div></div>
 </div>`;
 }
 
@@ -830,7 +830,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
       <p class="prod-desc">${he(l.description || `${l.name} is listed on ToolIndex.`)}</p>
       <div class="actions">
         <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname)} →</a>
-        <button class="btn-vote" id="voteBtn">▲ ${votes.toLocaleString()} upvote${votes !== 1 ? 's' : ''}</button>
+        <button class="btn-vote" id="voteBtn">${votes > 0 ? `▲ ${votes.toLocaleString()} upvote${votes !== 1 ? 's' : ''}` : '▲ Upvote'}</button>
       </div>
     </div>
   </div>

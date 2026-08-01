@@ -1321,7 +1321,7 @@ function renderCard(l){
         <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
         <button class="dir-vote-btn${voted?' voted':''}" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" ${voted?'disabled':''} title="${voted?'Already upvoted':'Upvote this product'}">
           <span class="vote-arrow">▲</span>
-          <span class="vote-count" id="vc-${l.id}">${votes}</span>
+          <span class="vote-count" id="vc-${l.id}"${votes > 0 ? '' : ' style="display:none"'}>${votes}</span>
         </button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -1344,13 +1344,13 @@ async function castVote(id, btn){
   btn.classList.add('voted');
   const countEl = document.getElementById('vc-'+id);
   const prev = parseInt(countEl.textContent)||0;
-  countEl.textContent = prev+1; // optimistic
+  countEl.style.display=''; countEl.textContent = prev+1; // optimistic
   try{
     const r = await fetch(`/api/directory/vote/${id}`,{method:'POST'});
     const d = await r.json();
-    if(d.ok){ saveVoted(id); countEl.textContent = d.vote_count; }
-    else if(d.error==='already_voted'){ saveVoted(id); countEl.textContent = d.vote_count; }
-    else{ countEl.textContent = prev; btn.disabled = false; btn.classList.remove('voted'); }
+    if(d.ok){ saveVoted(id); countEl.style.display=''; countEl.textContent = d.vote_count; }
+    else if(d.error==='already_voted'){ saveVoted(id); countEl.style.display=''; countEl.textContent = d.vote_count; }
+    else{ countEl.textContent = prev; if(!prev) countEl.style.display='none'; btn.disabled=false; btn.classList.remove('voted'); }
   }catch{
     countEl.textContent = prev; btn.disabled = false; btn.classList.remove('voted');
   }
