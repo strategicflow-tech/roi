@@ -1746,7 +1746,7 @@ function loadPulseSections(){
     .then(d=>{
       const el = document.getElementById('newTodayList');
       if(!el) return;
-      const items = d.items||[];
+      const items = d.listings||d.items||[];
       if(!items.length){
         el.innerHTML='<div class="dir-lb-empty">No new listings added today yet.</div>';
       } else {
@@ -1768,7 +1768,7 @@ function loadPulseSections(){
     .then(d=>{
       const el=document.getElementById('startupOfWeek');
       if(!el) return;
-      const top=(d.items||[])[0];
+      const top=(d.listings||d.items||[])[0];
       if(!top){el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';return;}
       const votes = top.period_votes||top.vote_count||0;
       el.innerHTML=`
