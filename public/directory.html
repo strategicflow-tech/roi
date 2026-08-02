@@ -1146,6 +1146,49 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     </div>
 
+    <style>
+    .sf-ticker-wrap{display:flex;align-items:stretch;overflow:hidden;border-top:1px solid rgba(0,212,200,0.10);border-bottom:1px solid rgba(0,212,200,0.10);background:rgba(0,212,200,0.025);}
+    .sf-ticker-lbl{flex-shrink:0;display:flex;align-items:center;padding:0 14px 0 20px;border-right:1px solid rgba(0,212,200,0.12);font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(0,212,200,0.55);white-space:nowrap;min-height:40px;}
+    .sf-ticker-vp{flex:1;overflow:hidden;min-width:0;position:relative;}
+    .sf-ticker-vp::before,.sf-ticker-vp::after{content:'';position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none;}
+    .sf-ticker-vp::before{left:0;background:linear-gradient(to right,rgba(10,15,30,1),transparent);}
+    .sf-ticker-vp::after{right:0;background:linear-gradient(to left,rgba(10,15,30,1),transparent);}
+    .sf-ticker-track{display:flex;gap:6px;padding:9px 6px;width:max-content;will-change:transform;animation:dir-scroll 45s linear infinite;}
+    .sf-ticker-wrap:hover .sf-ticker-track,.sf-ticker-wrap:focus-within .sf-ticker-track{animation-play-state:paused;}
+    @keyframes dir-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+    </style>
+    <div class="sf-ticker-wrap" aria-label="Listed on platforms" style="min-height:88px;">
+      <span class="sf-ticker-lbl">Listed on</span>
+      <div class="sf-ticker-vp">
+        <div class="sf-ticker-track" id="dirTickerListings" style="align-items:center;"></div>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var el=document.getElementById('dirTickerListings');if(!el)return;
+      var badges=[
+        {href:'https://turbo0.com/item/toolindex',src:'https://img.turbo0.com/badge-listed-dark.svg',alt:'Listed on Turbo0',h:54}
+      ];
+      var all=badges.concat(badges).concat(badges);
+      el.innerHTML=all.map(function(b){return'<a href="'+b.href+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;flex-shrink:0;margin:0 16px;"><img src="'+b.src+'" alt="'+b.alt+'" height="'+b.h+'" style="max-height:'+b.h+'px;width:auto;display:block;" loading="lazy" /></a>';}).join('');
+    })();
+    </script>
+    <script>
+    (function(){
+      document.querySelectorAll('.sf-ticker-wrap').forEach(function(wrap){
+        var track=wrap.querySelector('.sf-ticker-track');if(!track)return;
+        var tmr;
+        wrap.addEventListener('touchstart',function(e){
+          if(e.target.closest('a[href]'))return;
+          var running=track.style.animationPlayState!=='paused';
+          track.style.animationPlayState=running?'paused':'running';
+          clearTimeout(tmr);
+          if(running)tmr=setTimeout(function(){track.style.animationPlayState='running';},4000);
+        },{passive:true});
+      });
+    })();
+    </script>
+
     <div class="dir-footer-copy">
       <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a></span>
       <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">Also by the team: <a href="/why.html" style="color:var(--muted);">WHY Audit™</a> · <a href="/blink-test" style="color:var(--muted);">Blink Test</a> · <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">strategicflow.tech ↗</a></span>
