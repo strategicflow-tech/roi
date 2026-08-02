@@ -1200,6 +1200,7 @@ app.get('/directory/:slug', async (req, res) => {
       `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
               CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
+              COALESCE(dl.verified, FALSE) AS verified,
               (dl.claimed_by IS NOT NULL) AS is_claimed,
               dl.founder_name, dl.social_twitter, dl.social_linkedin,
               dl.screenshots, dl.tech_stack, dl.platform, dl.pricing_model, dl.launch_date,
@@ -1313,6 +1314,9 @@ app.get('/directory/:slug', async (req, res) => {
     // ── premium badge ─────────────────────────────────────────────────────────
     const premiumBadge = l.featured_tier === 'premium'
       ? ' <span class="pp-premium-badge">💎 Premium</span>' : '';
+    // ── verified badge ────────────────────────────────────────────────────────
+    const verifiedBadge = l.verified
+      ? ' <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;font-family:var(--mono);color:#60a5fa;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:6px;padding:3px 9px;vertical-align:middle;margin-left:6px;letter-spacing:.04em;">✓ Verified</span>' : '';
 
     // ── founder card ──────────────────────────────────────────────────────────
     const founderHtml = l.founder_name ? `
@@ -1540,7 +1544,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
     ${logoHtml}
     <div class="hero-body">
       <div class="cat-chip">${he(cat)}</div>
-      <h1 class="prod-name">${he(l.name)}${premiumBadge}</h1>
+      <h1 class="prod-name">${he(l.name)}${premiumBadge}${verifiedBadge}</h1>
       <p class="prod-desc">${he(l.description || `${l.name} is listed on ToolIndex.`)}</p>
       <div class="actions">
         <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname)} →</a>
@@ -1615,6 +1619,7 @@ app.get('/api/directory/listings', async (req, res) => {
                     is_seeded, is_auto_imported, source, source_url, submitted_at,
                     vote_count, featured_tier, featured_until,
                     COALESCE(verified, FALSE) AS verified,
+                    COALESCE(priority_marquee, FALSE) AS priority_marquee,
                     (claimed_by IS NOT NULL) AS is_claimed,
                     COALESCE(owner_description, description) AS description,
                     CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url

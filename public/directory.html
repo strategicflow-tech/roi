@@ -208,6 +208,7 @@ a:hover{text-decoration:underline;}
 @keyframes marqueeScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 .dir-marquee-item{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:7px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:#8a9ab0;font-size:12px;font-weight:500;transition:border-color .2s,color .2s;white-space:nowrap;}
 .dir-marquee-item:hover{border-color:var(--teal);color:var(--text);text-decoration:none;}
+.dir-marquee-priority{border-color:rgba(245,158,11,.35);color:var(--text);}
 .dir-marquee-logo{width:20px;height:20px;border-radius:4px;object-fit:contain;flex-shrink:0;}
 @media(max-width:600px){.dir-herosearch-wrap{padding:0 20px 20px;}.dir-claimed-section{padding:0 20px 20px;}}
 
@@ -2102,7 +2103,19 @@ function loadRecentlyClaimed(){
 
 // ── Brand marquee — 18 real listed brands ────────────────────────────────────
 (function buildMarquee(){
-  const brands=[
+  const el=document.getElementById('dirMarqueeTrack');
+  if(!el) return;
+  const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+
+  // Priority listings from allListings (priority_marquee=true) come first
+  const priorityItems = allListings
+    .filter(l=>l.priority_marquee && l.url)
+    .map(l=>{
+      const d=(()=>{try{return new URL(l.url).hostname.replace(/^www\./,'');}catch{return '';}})();
+      return {n:l.name, d, slug:toSlug(l.name,l.id), priority:true};
+    });
+
+  const fallback=[
     {n:'Canva',d:'canva.com'},{n:'GitHub',d:'github.com'},{n:'Figma',d:'figma.com'},
     {n:'Notion',d:'notion.so'},{n:'Vercel',d:'vercel.com'},{n:'Netlify',d:'netlify.com'},
     {n:'Airtable',d:'airtable.com'},{n:'Zapier',d:'zapier.com'},{n:'Webflow',d:'webflow.com'},
@@ -2110,10 +2123,15 @@ function loadRecentlyClaimed(){
     {n:'Loom',d:'loom.com'},{n:'Cursor',d:'cursor.com'},{n:'Perplexity',d:'perplexity.ai'},
     {n:'Typeform',d:'typeform.com'},{n:'Supabase',d:'supabase.com'},{n:'NotebookLM',d:'notebooklm.google.com'},
   ];
-  const el=document.getElementById('dirMarqueeTrack');
-  if(!el) return;
-  const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
-  const mk=b=>`<a class="dir-marquee-item" href="/directory?q=${encodeURIComponent(b.n)}" title="${b.n} on ToolIndex"><img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
+
+  const brands=[...priorityItems, ...fallback];
+
+  const mk=b=>{
+    const href=b.slug?`/directory/${b.slug}`:`/directory?q=${encodeURIComponent(b.n)}`;
+    const star=b.priority?'<span style="color:var(--gold);font-size:10px;margin-right:2px;">★</span>':'';
+    const cls=b.priority?'dir-marquee-item dir-marquee-priority':'dir-marquee-item';
+    return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
+  };
   el.innerHTML=brands.map(mk).join('')+brands.map(mk).join('');
 })();
 
