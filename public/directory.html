@@ -2103,7 +2103,7 @@ function loadRecentlyClaimed(){
 }
 
 // ── Brand marquee — 18 real listed brands ────────────────────────────────────
-(function buildMarquee(){
+function buildMarquee(){
   const el=document.getElementById('dirMarqueeTrack');
   if(!el) return;
   const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
@@ -2134,7 +2134,7 @@ function loadRecentlyClaimed(){
     return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
   };
   el.innerHTML=brands.map(mk).join('')+brands.map(mk).join('');
-})();
+}
 
 // ── Hero search — live dropdown suggestions ───────────────────────────────────
 (function(){
@@ -2328,6 +2328,7 @@ async function loadListings(){
       listings = d.listings||[];
     }
     allListings = listings;
+    buildMarquee();
     applyFilters();
     injectItemListSchema(allListings);
     loadPulseSections();
