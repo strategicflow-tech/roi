@@ -3340,6 +3340,7 @@ app.post('/api/directory/claim/verify', async (req, res) => {
         <p>You're now the verified owner of <strong>${name}</strong> on the Strategic Flow directory.</p>
         <p>You can now update your description and screenshot directly on your listing card. You'll also receive an email when your listing gets its first vote.</p>
         <p><a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">View your listing →</a></p>
+        <p style="margin-top:24px;padding-top:16px;border-top:1px solid #1e3a5f;font-size:13px;color:#7a9ab8;">P.S. Want more visibility for <strong>${name}</strong>? We offer Verified badges, the Founder Pack (unlimited relaunches + Premium placement), and Teardown Spotlights — <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#00d4c8;">see all options →</a></p>
       </div>`
     }).catch(() => {});
 
