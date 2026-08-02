@@ -1168,7 +1168,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
       var el=document.getElementById('dirTickerListings');if(!el)return;
       var badges=[
         {href:'https://turbo0.com/item/toolindex',src:'https://img.turbo0.com/badge-listed-dark.svg',alt:'Listed on Turbo0',h:54},
-        {href:'https://twelve.tools',src:'https://twelve.tools/badge0-dark.svg',alt:'Featured on Twelve Tools',h:54}
+        {href:'https://twelve.tools',src:'https://twelve.tools/badge0-dark.svg',alt:'Featured on Twelve Tools',h:54},
+        {href:'https://wired.business',src:'https://wired.business/badge0-dark.svg',alt:'Featured on Wired Business',h:54}
       ];
       var all=badges.concat(badges).concat(badges);
       el.innerHTML=all.map(function(b){return'<a href="'+b.href+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;flex-shrink:0;margin:0 16px;"><img src="'+b.src+'" alt="'+b.alt+'" height="'+b.h+'" style="max-height:'+b.h+'px;width:auto;display:block;" loading="lazy" /></a>';}).join('');
