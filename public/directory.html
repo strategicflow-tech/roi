@@ -514,6 +514,39 @@ a:hover{text-decoration:underline;}
 .dir-faq-q::after{content:'+';font-size:20px;font-weight:400;color:var(--teal);flex-shrink:0;transition:transform .2s;}
 details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-faq-a{font-size:14px;color:var(--muted);line-height:1.7;padding-top:12px;max-width:740px;}
+/* ─── VERIFIED BADGE ──────────────────────────────────────────── */
+.dir-verified-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;font-family:var(--mono);color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.28);border-radius:4px;padding:2px 7px;letter-spacing:.04em;}
+/* ─── LEVEL UP SECTION ────────────────────────────────────────── */
+.dir-levelup-section{padding:0 40px 64px;}
+.dir-levelup-inner{max-width:960px;margin:0 auto;}
+.dir-levelup-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);border:1px solid rgba(0,212,200,.3);padding:4px 12px;border-radius:20px;margin-bottom:16px;}
+.dir-levelup-title{font-size:clamp(20px,3.5vw,30px);font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-.02em;}
+.dir-levelup-sub{font-size:15px;color:var(--muted);margin-bottom:32px;max-width:540px;}
+.dir-levelup-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.dir-lu-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;position:relative;transition:border-color .2s,transform .2s;display:flex;flex-direction:column;}
+.dir-lu-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.dir-lu-card.lu-gold{border-color:rgba(245,158,11,.35);background:linear-gradient(135deg,rgba(245,158,11,.05),var(--bg2));}
+.dir-lu-card.lu-blue{border-color:rgba(96,165,250,.28);background:linear-gradient(135deg,rgba(96,165,250,.05),var(--bg2));}
+.dir-lu-card.lu-red{border-color:rgba(239,68,68,.25);background:linear-gradient(135deg,rgba(239,68,68,.04),var(--bg2));}
+.dir-lu-card.lu-purple{border-color:rgba(167,139,250,.32);background:linear-gradient(135deg,rgba(167,139,250,.06),var(--bg2));}
+.dir-lu-icon{font-size:22px;margin-bottom:10px;}
+.dir-lu-name{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px;}
+.dir-lu-price{font-size:30px;font-weight:800;font-family:var(--mono);margin-bottom:12px;}
+.dir-lu-card.lu-gold .dir-lu-price{color:var(--gold);}
+.dir-lu-card.lu-blue .dir-lu-price{color:#60a5fa;}
+.dir-lu-card.lu-red .dir-lu-price{color:#f87171;}
+.dir-lu-card.lu-purple .dir-lu-price{color:#a78bfa;}
+.dir-lu-desc{font-size:13px;color:var(--muted);line-height:1.58;margin-bottom:20px;flex:1;}
+.dir-lu-cta{display:block;width:100%;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:12px;cursor:pointer;transition:opacity .2s;font-family:var(--font);text-align:center;}
+.dir-lu-card.lu-gold .dir-lu-cta{background:var(--gold);color:#000;}
+.dir-lu-card.lu-blue .dir-lu-cta{background:#3b82f6;color:#fff;}
+.dir-lu-card.lu-red .dir-lu-cta{background:#ef4444;color:#fff;}
+.dir-lu-card.lu-purple .dir-lu-cta{background:#8b5cf6;color:#fff;}
+.dir-lu-cta:hover{opacity:.88;}
+.dir-lu-topbadge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 12px;border-radius:10px;white-space:nowrap;}
+.dir-lu-topbadge.tb-gold{background:var(--gold);color:#000;}
+.dir-lu-topbadge.tb-purple{background:#8b5cf6;color:#fff;}
+@media(max-width:640px){.dir-levelup-section{padding:0 20px 48px;}.dir-levelup-grid{grid-template-columns:1fr;}}
 /* ─── HOW IT WORKS ─────────────────────────────────────────── */
 .dir-how{padding:0 40px 60px;max-width:860px;margin:0 auto;}
 .dir-how-title{font-size:22px;font-weight:800;margin-bottom:8px;color:#fff;}
@@ -928,6 +961,57 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     </div>
     <p class="dir-pricing-note">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; No subscription &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a></p>
+  </div>
+</section>
+
+<!-- LEVEL UP SECTION -->
+<section class="dir-levelup-section" id="level-up">
+  <div class="dir-levelup-inner">
+    <div class="dir-levelup-tag">🚀 Level Up Your Listing</div>
+    <h2 class="dir-levelup-title">Go beyond visibility — build authority</h2>
+    <p class="dir-levelup-sub">Four growth levers, each with different fulfillment. One-time payments only.</p>
+    <div class="dir-levelup-grid">
+
+      <!-- Founder Pack -->
+      <div class="dir-lu-card lu-gold">
+        <span class="dir-lu-topbadge tb-gold">Best Value</span>
+        <div class="dir-lu-icon">🏆</div>
+        <div class="dir-lu-name">Founder Pack</div>
+        <div class="dir-lu-price">$49</div>
+        <div class="dir-lu-desc">The complete package: 30-day Premium visibility + <strong style="color:#fff;">unlimited relaunches</strong> (push to "New Today" any time, no 30-day wait) + priority logo placement in the brand carousel.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('founder_pack')">Get Founder Pack →</button>
+      </div>
+
+      <!-- Verified Badge -->
+      <div class="dir-lu-card lu-blue">
+        <div class="dir-lu-icon">✅</div>
+        <div class="dir-lu-name">Verified Badge</div>
+        <div class="dir-lu-price">$9</div>
+        <div class="dir-lu-desc">Show buyers this listing is real and actively maintained. A permanent <strong style="color:#60a5fa;">✓ Verified</strong> badge appears on your card and product page — no expiry, ever. Distinct from claimed-owner status.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('verified_badge')">Get Verified →</button>
+      </div>
+
+      <!-- Teardown Solo -->
+      <div class="dir-lu-card lu-red">
+        <div class="dir-lu-icon">✂️</div>
+        <div class="dir-lu-name">Teardown Spotlight Solo</div>
+        <div class="dir-lu-price">$19</div>
+        <div class="dir-lu-desc">Get your landing page or onboarding email professionally torn down and rebuilt — then published as a public case study on ToolIndex. Delivered within 48–72 hours by the Strategic Flow team.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('teardown_solo')">Get My Teardown →</button>
+      </div>
+
+      <!-- Teardown Pro -->
+      <div class="dir-lu-card lu-purple">
+        <span class="dir-lu-topbadge tb-purple">Includes LinkedIn</span>
+        <div class="dir-lu-icon">🔍</div>
+        <div class="dir-lu-name">Teardown Spotlight Pro</div>
+        <div class="dir-lu-price">$49</div>
+        <div class="dir-lu-desc">Everything in Solo, plus a LinkedIn feature to the Strategic Flow audience and guaranteed placement as <strong style="color:#a78bfa;">Startup of the Week</strong> on the ToolIndex homepage. Maximum exposure for your brand.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('teardown_pro')">Get Featured →</button>
+      </div>
+
+    </div>
+    <p class="dir-pricing-note" style="margin-top:24px;">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; Teardown orders delivered within 48–72h &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a></p>
   </div>
 </section>
 
@@ -1413,6 +1497,28 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </div>
 
+<!-- LEVEL UP CHECKOUT MODAL -->
+<div class="modal-overlay" id="luModal" onclick="if(event.target===this)closeLuModal()">
+  <div class="modal-box" style="max-width:400px;">
+    <button class="modal-close" onclick="closeLuModal()">&times;</button>
+    <div class="modal-tag">🚀 Level Up</div>
+    <div class="modal-title" id="luModalTitle" style="font-size:20px;">Founder Pack — $49</div>
+    <div class="modal-sub" style="margin-top:6px;">Listing: <strong id="luModalListing" style="color:#fff;"></strong></div>
+    <div style="margin-top:18px;">
+      <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;">Your email (for receipt)</label>
+      <input id="luModalEmail" type="email" placeholder="you@example.com"
+             style="width:100%;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:14px;font-family:var(--font);box-sizing:border-box;outline:none;"
+             onkeydown="if(event.key==='Enter')submitLevelUpCheckout()" />
+    </div>
+    <div id="luModalErr" style="font-size:12px;color:#f87171;margin-top:6px;min-height:16px;"></div>
+    <button id="luModalCta" onclick="submitLevelUpCheckout()"
+            style="display:block;width:100%;margin-top:14px;background:var(--teal);color:#041214;font-weight:700;font-size:14px;border:none;border-radius:10px;padding:13px;cursor:pointer;transition:opacity .2s;font-family:var(--font);">
+      Continue to payment →
+    </button>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;">Secure checkout via Stripe · One-time charge</p>
+  </div>
+</div>
+
 <!-- BOOST MODAL -->
 <div class="modal-overlay" id="boostModal" onclick="closeBoostModal(event)">
   <div class="modal-box">
@@ -1631,7 +1737,7 @@ function renderCard(l){
         <div style="min-width:0;">
           <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
-          ${featBadge}
+          ${featBadge}${l.verified?'<span class="dir-verified-badge">✓ Verified</span>':''}
         </div>
       </div>
     </div>
@@ -2728,6 +2834,63 @@ function scrollToPricing(id, name){
 }
 
 // Called from pricing section CTA buttons
+// ── Level Up checkout (Founder Pack / Verified Badge / Teardown tiers) ────────
+let levelUpTier = null;
+const LU_LABELS = {
+  founder_pack:   'Founder Pack — $49',
+  verified_badge: 'Verified Badge — $9',
+  teardown_solo:  'Teardown Spotlight Solo — $19',
+  teardown_pro:   'Teardown Spotlight Pro — $49',
+};
+
+function startLevelUpCheckout(tier) {
+  if (!pendingBoostId) {
+    showToast('First click ⚡ Boost on your listing card to select it, then try again.', 5000);
+    const grid = document.getElementById('dirGrid');
+    if (grid) setTimeout(() => grid.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+    return;
+  }
+  levelUpTier = tier;
+  document.getElementById('luModalTitle').textContent    = LU_LABELS[tier] || tier;
+  document.getElementById('luModalListing').textContent  = pendingBoostName || `Listing #${pendingBoostId}`;
+  document.getElementById('luModalEmail').value          = '';
+  document.getElementById('luModalErr').textContent      = '';
+  const cta = document.getElementById('luModalCta');
+  cta.disabled    = false;
+  cta.textContent = 'Continue to payment →';
+  document.getElementById('luModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLuModal() {
+  document.getElementById('luModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitLevelUpCheckout() {
+  const email = (document.getElementById('luModalEmail').value || '').trim();
+  const err   = document.getElementById('luModalErr');
+  if (!email || !email.includes('@')) { err.textContent = 'Enter a valid email address.'; return; }
+  const btn = document.getElementById('luModalCta');
+  btn.disabled    = true;
+  btn.textContent = 'Redirecting to Stripe…';
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/directory/checkout', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ listing_id: pendingBoostId, tier: levelUpTier, email }),
+    });
+    const d = await r.json();
+    if (d.url) window.location.href = d.url;
+    else throw new Error(d.error || 'checkout_failed');
+  } catch (e) {
+    err.textContent = 'Error: ' + e.message;
+    btn.disabled    = false;
+    btn.textContent = 'Continue to payment →';
+  }
+}
+
 function startBoostCheckout(tier){
   if(!pendingBoostId){
     showToast('Click ⚡ Boost on any listing card first, then pick a plan here.', 4000);

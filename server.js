@@ -1614,6 +1614,7 @@ app.get('/api/directory/listings', async (req, res) => {
     let q = `SELECT id, name, url, category, friction_score, score_pending,
                     is_seeded, is_auto_imported, source, source_url, submitted_at,
                     vote_count, featured_tier, featured_until,
+                    COALESCE(verified, FALSE) AS verified,
                     (claimed_by IS NOT NULL) AS is_claimed,
                     COALESCE(owner_description, description) AS description,
                     CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
@@ -2588,9 +2589,13 @@ app.get('/admin/score', async (req, res) => {
 
 // ── Directory: price IDs (created once, hardcoded) ────────────────────────────
 const DIR_PRICES = {
-  weekly_feature: { price_id: 'price_1TzK3ZDpTwoDeZJnUPgUplUe', days: 14, label: 'Weekly Feature',  amount: 19 },
-  premium:        { price_id: 'price_1TzK3ZDpTwoDeZJngzNRbNFx', days: 30, label: 'Premium Listing',  amount: 29 },
-  daily_top:      { price_id: 'price_1TzK3ZDpTwoDeZJnEVQvI4Cs', days: 1,  label: 'Daily Boost',      amount: 9  },
+  weekly_feature: { price_id: 'price_1TzK3ZDpTwoDeZJnUPgUplUe', days: 14, label: 'Weekly Feature',          amount: 19 },
+  premium:        { price_id: 'price_1TzK3ZDpTwoDeZJngzNRbNFx', days: 30, label: 'Premium Listing',          amount: 29 },
+  daily_top:      { price_id: 'price_1TzK3ZDpTwoDeZJnEVQvI4Cs', days: 1,  label: 'Daily Boost',             amount: 9  },
+  founder_pack:   { price_id: 'price_1U03OiDpTwoDeZJnG3owPeBt', days: 30, label: 'Founder Pack',            amount: 49 },
+  verified_badge: { price_id: 'price_1U03OrDpTwoDeZJn2xn1Wpd7', days: 0,  label: 'Verified Badge',          amount: 9  },
+  teardown_solo:  { price_id: 'price_1U03P3DpTwoDeZJnNMekJhpm', days: 0,  label: 'Teardown Spotlight Solo', amount: 19 },
+  teardown_pro:   { price_id: 'price_1U03PEDpTwoDeZJnUKHljkbM', days: 0,  label: 'Teardown Spotlight Pro',  amount: 49 },
 };
 
 // ── Sidebar sponsorship tiers (Stripe price IDs pre-created in live mode) ─────
@@ -2630,10 +2635,42 @@ async function expireFeaturedListings() {
 async function handleDirectoryPayment(session) {
   const { listing_id, tier } = session.metadata || {};
   if (!listing_id || !tier || !DIR_PRICES[tier]) return;
-  const email   = (session.customer_details?.email || session.customer_email || '').toLowerCase();
-  const days    = DIR_PRICES[tier].days;
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  const lid     = parseInt(listing_id, 10);
+  const email       = (session.customer_details?.email || session.customer_email || '').toLowerCase();
+  const lid         = parseInt(listing_id, 10);
+  const listingName = (session.metadata.listing_name || `listing #${lid}`);
+
+  // ── Teardown tiers: admin notification only — manual delivery within 48-72h ─
+  if (tier === 'teardown_solo' || tier === 'teardown_pro') {
+    const tierLabel = DIR_PRICES[tier].label;
+    resend.emails.send({
+      from:    SENDER,
+      to:      'alex@strategicflow.tech',
+      subject: `[Teardown Order] ${tierLabel} — ${listingName}`,
+      html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;">
+        <h2 style="color:#00d4c8;">New Teardown Order ✂️</h2>
+        <p><strong>Tier:</strong> ${tierLabel}</p>
+        <p><strong>Listing:</strong> ${listingName} (ID: ${lid})</p>
+        <p><strong>Buyer:</strong> ${email || '—'}</p>
+        <p><strong>Stripe Session:</strong> <code>${session.id}</code></p>
+        <p style="background:#fff3cd;padding:12px;border-radius:8px;color:#856404;font-weight:600;margin-top:16px;">⏰ Deliver within 48–72 hours</p>
+        ${tier === 'teardown_pro' ? '<p><strong>Pro deliverables:</strong> LinkedIn feature + Startup of the Week placement</p>' : ''}
+      </div>`
+    }).catch(() => {});
+    console.log(`[dir-teardown] ${tier} ordered for listing ${lid} by ${email}`);
+    return;
+  }
+
+  // ── Verified Badge: permanent flag, no expiry, no dir_featured row ───────────
+  if (tier === 'verified_badge') {
+    await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
+    console.log(`[dir-verified] listing ${lid} verified permanently by ${email}`);
+    return;
+  }
+
+  // ── Founder Pack + standard tiers: featured placement in dir_featured ─────────
+  const days         = DIR_PRICES[tier].days;
+  const expires      = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const featuredTier = tier === 'founder_pack' ? 'premium' : tier; // show premium badge
   await pool.query(
     `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT (stripe_session_id) DO NOTHING`,
@@ -2641,8 +2678,15 @@ async function handleDirectoryPayment(session) {
   );
   await pool.query(
     `UPDATE directory_listings SET featured_tier=$1, featured_until=$2 WHERE id=$3`,
-    [tier, expires, lid]
+    [featuredTier, expires, lid]
   );
+  if (tier === 'founder_pack') {
+    await pool.query(
+      `UPDATE directory_listings SET relaunch_unlimited=TRUE, priority_marquee=TRUE WHERE id=$1`,
+      [lid]
+    );
+    console.log(`[dir-founder] relaunch_unlimited + priority_marquee set for listing ${lid}`);
+  }
   console.log(`[dir-payment] ${tier} applied to listing ${lid} until ${expires.toISOString()}`);
 }
 
@@ -3414,13 +3458,13 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
     if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
 
     const lr = await pool.query(
-      `SELECT submitted_at, name FROM directory_listings WHERE id=$1 AND status='active'`,
+      `SELECT submitted_at, name, relaunch_unlimited FROM directory_listings WHERE id=$1 AND status='active'`,
       [listing_id]
     );
     if (!lr.rows.length) return res.status(404).json({ error: 'not_found' });
 
     const daysSince = Math.floor((Date.now() - new Date(lr.rows[0].submitted_at).getTime()) / 86400000);
-    if (daysSince < 30) {
+    if (daysSince < 30 && !lr.rows[0].relaunch_unlimited) {
       return res.status(429).json({ error: 'too_soon', days_remaining: 30 - daysSince });
     }
 
@@ -4666,6 +4710,10 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS platform            TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pricing_model       TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS launch_date         DATE`).catch(()=>{});
+  // Level-up package columns
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee   BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verified           BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
