@@ -3401,6 +3401,38 @@ app.post('/api/directory/claim/edit', async (req, res) => {
   }
 });
 
+// ── POST /api/directory/claim/relaunch ───────────────────────────────────────
+app.post('/api/directory/claim/relaunch', async (req, res) => {
+  const { listing_id, email, edit_token } = req.body || {};
+  if (!listing_id || !email || !edit_token)
+    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+  try {
+    const claim = await pool.query(
+      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
+      [listing_id, email.toLowerCase(), edit_token]
+    );
+    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+
+    const lr = await pool.query(
+      `SELECT submitted_at, name FROM directory_listings WHERE id=$1 AND status='active'`,
+      [listing_id]
+    );
+    if (!lr.rows.length) return res.status(404).json({ error: 'not_found' });
+
+    const daysSince = Math.floor((Date.now() - new Date(lr.rows[0].submitted_at).getTime()) / 86400000);
+    if (daysSince < 30) {
+      return res.status(429).json({ error: 'too_soon', days_remaining: 30 - daysSince });
+    }
+
+    await pool.query(`UPDATE directory_listings SET submitted_at=NOW() WHERE id=$1`, [listing_id]);
+    console.log(`[dir-relaunch] listing ${listing_id} relaunched by ${email}`);
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-claim/relaunch]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── GET /api/directory/listing-logo/:id — serve owner-uploaded logo from DB ───
 app.get('/api/directory/listing-logo/:id', async (req, res) => {
   try {

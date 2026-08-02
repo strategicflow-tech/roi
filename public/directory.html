@@ -514,6 +514,19 @@ a:hover{text-decoration:underline;}
 .dir-faq-q::after{content:'+';font-size:20px;font-weight:400;color:var(--teal);flex-shrink:0;transition:transform .2s;}
 details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-faq-a{font-size:14px;color:var(--muted);line-height:1.7;padding-top:12px;max-width:740px;}
+/* ─── HOW IT WORKS ─────────────────────────────────────────── */
+.dir-how{padding:0 40px 60px;max-width:860px;margin:0 auto;}
+.dir-how-title{font-size:22px;font-weight:800;margin-bottom:8px;color:#fff;}
+.dir-how-sub{font-size:14px;color:var(--muted);margin-bottom:28px;}
+.dir-how-step{display:grid;grid-template-columns:52px 1fr;gap:0 16px;padding:20px 0;border-top:1px solid var(--border);}
+.dir-how-step:last-child{border-bottom:1px solid var(--border);}
+.dir-how-num{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--teal);opacity:.65;padding-top:3px;letter-spacing:.1em;}
+.dir-how-step-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;}
+.dir-how-step-body{font-size:14px;color:var(--muted);line-height:1.65;}
+/* ─── RELAUNCH BUTTON ──────────────────────────────────────── */
+.claim-relaunch-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:rgba(0,212,200,0.07);border:1px solid rgba(0,212,200,0.28);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);cursor:pointer;transition:background .2s,border-color .2s;letter-spacing:.04em;}
+.claim-relaunch-btn:hover:not(:disabled){background:rgba(0,212,200,0.13);border-color:rgba(0,212,200,0.55);}
+.claim-relaunch-btn:disabled{opacity:.4;cursor:not-allowed;}
 
 /* ── HAMBURGER BUTTON ─────────────────────────────────────────────────────── */
 .dir-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;background:transparent;border:none;cursor:pointer;padding:8px;border-radius:8px;transition:background .2s;}
@@ -640,6 +653,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     ToolIndex
   </a>
   <div class="dir-nav-links">
+    <a href="#how-it-works">How it Works</a>
     <a href="#submit">Submit</a>
     <a href="#leaderboard">Leaderboard</a>
     <a href="#pricing" class="dir-nav-pricing">⚡ Pricing</a>
@@ -680,6 +694,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
   <div class="dir-nav-panel-section">
     <div class="dir-nav-panel-section-label">Info</div>
+    <a href="#how-it-works" class="dir-nav-panel-link" onclick="closeNavPanel()">How it Works <span class="dir-nav-panel-arrow">→</span></a>
     <a href="mailto:alex@strategicflow.tech" class="dir-nav-panel-link">Contact <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#" class="dir-nav-panel-link" onclick="closeNavPanel();setTimeout(openReportModal,200)">Report a listing <span class="dir-nav-panel-arrow">→</span></a>
     <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" class="dir-nav-panel-link">Terms <span class="dir-nav-panel-arrow">→</span></a>
@@ -917,8 +932,59 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 </section>
 
 <!-- FAQ SECTION -->
+<!-- HOW IT WORKS SECTION -->
+<section class="dir-how" id="how-it-works" aria-label="How ToolIndex works">
+  <h2 class="dir-how-title">How ToolIndex works</h2>
+  <p class="dir-how-sub">Five steps — from free listing to full visibility.</p>
+
+  <div class="dir-how-step">
+    <div class="dir-how-num">01</div>
+    <div>
+      <div class="dir-how-step-title">Submit your product</div>
+      <div class="dir-how-step-body">Fill in your product name, URL, category, and description. Your listing goes live immediately with a permanent dofollow backlink from a DR 86 domain. No account required, no review queue, no cost.</div>
+    </div>
+  </div>
+
+  <div class="dir-how-step">
+    <div class="dir-how-num">02</div>
+    <div>
+      <div class="dir-how-step-title">Get discovered &amp; collect upvotes</div>
+      <div class="dir-how-step-body">Any visitor can upvote your product once. Votes accumulate permanently and push your listing higher in the default sort. The <strong style="color:#fff;">Leaderboard</strong> tabs (Daily, Weekly, All-time, Biggest Climber) surface the most upvoted products each period.</div>
+    </div>
+  </div>
+
+  <div class="dir-how-step">
+    <div class="dir-how-num">03</div>
+    <div>
+      <div class="dir-how-step-title">Claim ownership</div>
+      <div class="dir-how-step-body">Find your product and click <strong style="color:#fff;">Claim</strong>. Verify with a one-time code sent to your email. As the verified owner you can edit your description (up to 500 characters), upload a logo, add screenshots, track real traffic, and receive vote notifications. Claimed listings show a ✓ Verified Owner badge.</div>
+    </div>
+  </div>
+
+  <div class="dir-how-step">
+    <div class="dir-how-num">04</div>
+    <div>
+      <div class="dir-how-step-title">Relaunch <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:var(--mono);letter-spacing:.04em;">claimed owners only</span></div>
+      <div class="dir-how-step-body">Once claimed, you can Relaunch your listing once every 30 days — directly from the owner panel. Relaunching refreshes your timestamp and pushes your listing back to the top of the <strong style="color:#fff;">New Today</strong> tab, giving you a fresh wave of visibility at no cost.</div>
+    </div>
+  </div>
+
+  <div class="dir-how-step">
+    <div class="dir-how-num">05</div>
+    <div>
+      <div class="dir-how-step-title">Featured placement <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:var(--mono);letter-spacing:.04em;">optional · from $9</span></div>
+      <div class="dir-how-step-body">Need more visibility fast? Click <strong style="color:#fff;">⚡ Boost</strong> on your listing card. <strong style="color:#fff;">Daily Boost</strong> ($9) pins you at #1 for 24 hours. <strong style="color:#fff;">Weekly Feature</strong> ($19) gives you 14 days in the Featured Spotlight with a gold badge. <strong style="color:#fff;">Premium Listing</strong> ($29) runs for 30 days with a purple badge and top-3 placement.</div>
+    </div>
+  </div>
+</section>
+
 <section class="dir-faq" id="faq" aria-label="Frequently asked questions about ToolIndex">
   <h2 class="dir-faq-title">Frequently asked questions</h2>
+
+  <details class="dir-faq-item">
+    <summary class="dir-faq-q">How do I use ToolIndex as a founder?</summary>
+    <p class="dir-faq-a">See the full <a href="#how-it-works" style="color:var(--teal);">step-by-step guide →</a> for founders: submitting your product, collecting upvotes, claiming ownership, relaunching to stay visible in "New Today", and optional featured placements from $9.</p>
+  </details>
 
   <details class="dir-faq-item">
     <summary class="dir-faq-q">How do I submit my SaaS tool to ToolIndex?</summary>
@@ -1180,7 +1246,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     </script>
 
     <div class="dir-footer-copy">
-      <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a></span>
+      <span>ToolIndex © 2026 &nbsp;·&nbsp; <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank">Terms</a> &nbsp;·&nbsp; <a href="#how-it-works">How it Works</a></span>
       <span style="font-family:var(--mono);font-size:11px;color:var(--muted);">Also by the team: <a href="/why.html" style="color:var(--muted);">WHY Audit™</a> · <a href="/blink-test" style="color:var(--muted);">Blink Test</a> · <a href="https://strategicflow.tech" target="_blank" rel="noopener" style="color:var(--muted);">strategicflow.tech ↗</a></span>
     </div>
   </div>
@@ -1246,6 +1312,12 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <div class="claim-success-icon">✅</div>
         <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Listing claimed!</div>
         <div style="font-size:13px;color:var(--muted);">You'll be notified when your listing gets its first vote. Optionally update your description and screenshot below.</div>
+      </div>
+      <div style="margin-bottom:4px;">
+        <button id="claimRelaunchBtn" class="claim-relaunch-btn" onclick="claimRelaunch()">
+          🔄 Relaunch — push back to "New Today"
+        </button>
+        <div id="claimRelaunchMsg" style="font-size:11px;text-align:center;margin-top:5px;display:none;"></div>
       </div>
       <div style="margin-bottom:4px;">
         <a id="claimBadgeLink" href="/badge-kit" target="_blank"
@@ -2354,6 +2426,48 @@ async function claimVerifyOTP() {
     }
   } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
   btn.disabled = false; btn.textContent = 'Verify and claim →';
+}
+
+async function claimRelaunch() {
+  const btn = document.getElementById('claimRelaunchBtn');
+  const msg = document.getElementById('claimRelaunchMsg');
+  if (!claimEditToken || !claimOwnerEmail || !claimListingId) return;
+  btn.disabled = true;
+  btn.textContent = 'Relaunching…';
+  msg.style.display = 'none';
+  try {
+    const r = await fetch('/api/directory/claim/relaunch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      btn.style.display = 'none';
+      msg.textContent = '✅ Relaunched! Your listing is now featured in New Today.';
+      msg.style.color = 'var(--teal)';
+      msg.style.display = 'block';
+    } else if (d.error === 'too_soon') {
+      btn.disabled = true;
+      btn.style.opacity = '0.45';
+      btn.style.cursor = 'not-allowed';
+      msg.textContent = `🔄 Available again in ${d.days_remaining} day${d.days_remaining !== 1 ? 's' : ''}`;
+      msg.style.color = 'var(--muted)';
+      msg.style.display = 'block';
+    } else {
+      btn.disabled = false;
+      btn.textContent = '🔄 Relaunch — push back to "New Today"';
+      msg.textContent = 'Error — please try again.';
+      msg.style.color = '#f87171';
+      msg.style.display = 'block';
+    }
+  } catch {
+    btn.disabled = false;
+    btn.textContent = '🔄 Relaunch — push back to "New Today"';
+    msg.textContent = 'Network error — please try again.';
+    msg.style.color = '#f87171';
+    msg.style.display = 'block';
+  }
 }
 
 async function claimSaveEdit() {
