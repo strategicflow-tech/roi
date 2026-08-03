@@ -37,3 +37,10 @@ uri = "file://toolindex_contacts.csv"
 type = "table"
 title = "ToolIndex Contacts — 305 fondatori"
 description = "228 emailuri + 162 LinkedIn (85 au ambele). Sortat: email-urile găsite primele."
+
+[[outputs]]
+id = "0sa327xtLNce8fGqO-ioO"
+uri = "file://.agents/outputs/toolindex-listings-export.json"
+type = "unspecified"
+title = "ToolIndex — 521 listări active (fără branduri mari)"
+description = "Array JSON cu id, name, page, cat, email (dacă există), li (dacă există), big=false. 40 branduri mari excluse."
