@@ -113,20 +113,53 @@ const GLOBAL_BLOCKLIST = new RegExp([
   'poker\\s+online','bet\\b','betting','jackpot.*spin','gacor\\s+maxwin','slot.*maxwin',
   // Adult / escort
   'escort','porn','adult.?content','xxx','onlyfans\\s+clone','nsfw',
-  // Physical retail unrelated to software
+  // Physical retail — general
   'interior.?door','flooring.?store','furniture.?store','mattress.?store',
   'cigar.?deal','cigar.?coupon','cheap.?cigar','tobacco.?shop',
   'luxury.?watch.?store','jewellery.?shop','jewelry.?store',
+  // Physical retail — hair & beauty supply
+  'hair.?extension','lace.?wig','human.?hair.?wig','wig.?store','hair.?wig',
+  'braiding.?hair','clip.?in.?hair','remy.?hair','virgin.?hair',
+  'nail.?supply','beauty.?supply.?store','wholesale.?hair',
   // Predatory finance
   'forex.?signal','loan.?shark','payday.?loan','free.?money.?guaranteed',
   // Spam markers
   'vape.?shop','vaping.?store','free.?slots','play.?slots',
 ].join('|'), 'i');
 
+/**
+ * Returns true if the URL is a blog post, marketplace product listing,
+ * or hosted-storefront page rather than a SaaS product homepage.
+ */
+function isBlogOrMarketplaceUrl(url) {
+  try {
+    const u    = new URL(url);
+    const path = u.pathname.toLowerCase();
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+
+    // Blog / article / news post paths — e.g. /blog/my-post, /articles/foo, /news/bar
+    // Uses a word-boundary check: /blog/ must be a path segment, not part of a hostname.
+    if (/\/(blog|posts?|articles?|news|press|updates?|stories|story|insights?|learn|resources?)\/[a-z0-9]/.test(path)) return true;
+
+    // Marketplace product pages (not homepages)
+    if (host === 'amazon.com' || host.endsWith('.amazon.com')) return true;
+    if (host === 'etsy.com'   && /\/listing\//.test(path))      return true;
+    if (host === 'ebay.com'   || host.endsWith('.ebay.com'))    return true;
+    if (host === 'aliexpress.com' || host.endsWith('.aliexpress.com')) return true;
+    // Shopify storefront product pages (*.myshopify.com/products/…)
+    if (host.endsWith('.myshopify.com') && /\/products\//.test(path)) return true;
+    // Gumroad individual product pages (gumroad.com/l/xxx)
+    if (host === 'gumroad.com' && /^\/l\//.test(path)) return true;
+
+    return false;
+  } catch { return false; }
+}
+
 /** Returns true if this listing should be rejected from the directory */
 function isBlockedContent(name, description, url) {
   const text = `${name} ${description || ''} ${url || ''}`;
   if (GLOBAL_BLOCKLIST.test(text)) return true;
+  if (isBlogOrMarketplaceUrl(url)) return true;
   // Reject if description is predominantly non-Latin (Indonesian/Arabic slot spam, etc.)
   const nonLatin = (text.match(/[\u0600-\u06FF\u0E00-\u0E7F\u4E00-\u9FFF\u0400-\u04FF]/g) || []).length;
   if (nonLatin / Math.max(text.length, 1) > 0.15) return true;
@@ -159,7 +192,7 @@ async function fetchTurbo0(limit = 300) {
     for (const item of items) {
       if (results.length >= limit) break;
       if (!item.name || !item.link) continue;
-      if (TURBO0_BLOCKLIST.test(item.name + ' ' + (item.description || ''))) continue;
+      if (isBlockedContent(item.name, item.description || '', item.link || '')) continue;
       if (!isEnglish(item.name + ' ' + (item.description || ''))) continue;
 
       let productUrl = item.link.trim();
@@ -200,7 +233,7 @@ async function fetchLaunchKiwi() {
   if (!Array.isArray(tools)) return [];
 
   return tools
-    .filter(t => t.name && t.url && t.status === 'active')
+    .filter(t => t.name && t.url && t.status === 'active' && !isBlockedContent(t.name, t.tagline || '', t.url))
     .map(t => {
       // Prefer tagline (1 line) over full HTML long description
       const rawDesc = t.tagline || stripHtml(t.longDescription || '').slice(0, 300);
