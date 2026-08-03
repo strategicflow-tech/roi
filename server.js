@@ -3033,6 +3033,73 @@ async function checkSponsorRenewals() {
   } catch(e) { console.error('[sponsor] renewal check error:', e.message); }
 }
 
+// ── Relaunch window notifications — email owners when 30-day window reopens ──────
+async function checkRelaunchWindows() {
+  try {
+    // Find claimed listings whose 30-day relaunch window just opened:
+    //   submitted_at <= 30 days ago (window is open)
+    //   AND we haven't already sent a notification for this cycle
+    //   (relaunch_notified_at IS NULL  → never notified
+    //    OR relaunch_notified_at < submitted_at → notified before last relaunch, need a fresh one)
+    const r = await pool.query(
+      `SELECT dl.id, dl.name, dl.url, dl.claimed_by
+       FROM directory_listings dl
+       WHERE dl.status = 'active'
+         AND dl.claimed_by IS NOT NULL
+         AND dl.claimed_by != ''
+         AND dl.submitted_at <= NOW() - INTERVAL '30 days'
+         AND (dl.relaunch_notified_at IS NULL OR dl.relaunch_notified_at < dl.submitted_at)
+       ORDER BY dl.submitted_at ASC`
+    );
+
+    if (!r.rows.length) {
+      console.log('[relaunch-notify] No owners to notify today.');
+      return;
+    }
+
+    console.log(`[relaunch-notify] ${r.rows.length} listing(s) to notify.`);
+
+    for (const row of r.rows) {
+      // Skip internal/owner emails
+      if (BYPASS_EMAILS.has((row.claimed_by || '').toLowerCase())) continue;
+
+      const slug    = toListingSlug(row.name, row.id);
+      const pageUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+
+      try {
+        await resend.emails.send({
+          from:    SENDER,
+          to:      row.claimed_by,
+          subject: `Your free Relaunch for "${row.name}" is ready 🔄`,
+          html: `<div style="font-family:sans-serif;max-width:520px;margin:auto;color:#0a1628;">
+            <div style="background:#0a1628;padding:28px 32px 20px;border-radius:12px 12px 0 0;">
+              <p style="font-family:monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin:0 0 12px;">ToolIndex · Relaunch ready</p>
+              <h2 style="color:#ffffff;margin:0 0 8px;font-size:20px;line-height:1.25;">Your 30-day Relaunch window is open 🔄</h2>
+              <p style="color:#7a9ab8;margin:0;font-size:14px;line-height:1.55;">It's been 30 days since <strong style="color:#fff;">${row.name}</strong> was last listed in "New Today". Push it back to the top — free, no purchase needed.</p>
+            </div>
+            <div style="background:#f0f7ff;padding:24px 32px;border-radius:0 0 12px 12px;">
+              <p style="margin:0 0 18px;font-size:14px;color:#1e3a5f;line-height:1.6;">Relaunching resets your listing to the top of the <strong>New Today</strong> feed, giving fresh visitors a first look at your product.</p>
+              <a href="${pageUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:12px 26px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:.02em;">Relaunch ${row.name} now →</a>
+              <p style="margin:20px 0 0;font-size:12px;color:#7a9ab8;line-height:1.5;">You'll see the Relaunch button on your listing page once you verify ownership. Your next window opens 30 days after you relaunch.</p>
+              <p style="margin:12px 0 0;font-size:11px;color:#aabdd0;">Want unlimited relaunches with no 30-day wait? <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#0ea5e9;">Upgrade to Founder Pack →</a></p>
+            </div>
+          </div>`
+        });
+
+        await pool.query(
+          `UPDATE directory_listings SET relaunch_notified_at = NOW() WHERE id = $1`,
+          [row.id]
+        );
+        console.log(`[relaunch-notify] → ${row.claimed_by} (${row.name})`);
+      } catch (emailErr) {
+        console.error(`[relaunch-notify] email failed for listing ${row.id}:`, emailErr.message);
+      }
+    }
+  } catch (e) {
+    console.error('[relaunch-notify] error:', e.message);
+  }
+}
+
 // ── Sponsor self-serve management routes (Task #37) ────────────────────────────
 
 // POST /api/sponsor/manage/send-otp
@@ -4976,9 +5043,10 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pricing_model       TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS launch_date         DATE`).catch(()=>{});
   // Level-up package columns
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited BOOLEAN DEFAULT FALSE`).catch(()=>{});
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee   BOOLEAN DEFAULT FALSE`).catch(()=>{});
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verified           BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited    BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee      BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verified              BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_notified_at  TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS redirects_to       INTEGER REFERENCES directory_listings(id)`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pinned_in_leaderboard BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
@@ -16219,6 +16287,9 @@ ${content}
       console.log(`[cron] Aggregation done. New: ${stats.new}, Sources:`, stats.sources);
     } catch(e) { console.error('[cron] Aggregation error:', e.message); }
   });
+
+  // ── Daily 10:00: notify claimed owners whose 30-day relaunch window just opened ──
+  cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
 
   // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
   cron.schedule('0 4 * * *', async () => {
