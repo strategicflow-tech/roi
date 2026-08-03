@@ -1499,7 +1499,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .sim-card:hover{border-color:rgba(0,212,200,.35);text-decoration:none}
 .sim-logo{position:relative;width:36px;height:36px;border-radius:8px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .sim-init{font-size:13px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
-.sim-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;z-index:2}
+.sim-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;border-radius:8px;z-index:2;padding:3px;}
 .sim-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sim-meta{font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:2px}
 .similar-all{font-size:12px;font-family:var(--mono);color:var(--muted)}
@@ -1518,7 +1518,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .sponsor-item:hover{border-color:rgba(0,212,200,.3);text-decoration:none}
 .sp-logo{position:relative;width:34px;height:34px;border-radius:8px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .sp-init{font-size:12px;font-weight:800;color:#fff;font-family:var(--mono);position:absolute;z-index:1}
-.sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;z-index:2}
+.sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;border-radius:8px;z-index:2;padding:3px;}
 .sp-name{font-size:13px;font-weight:600;color:var(--text)}
 .sp-tag{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Premium badge */
