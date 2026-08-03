@@ -12186,14 +12186,17 @@ function renderAiVisIndexHtml(companies) {
     const safeName = escapeHtml(c.name);
     const safeSlug = escapeHtml(c.slug);
     const safeCategory = escapeHtml(c.category);
-    const scoreDisplay = c.visibility_score !== null ? Number(c.visibility_score).toFixed(1) : '—';
+    const scoreRaw = c.visibility_score !== null ? Number(c.visibility_score) : null;
+    const scoreDisplay = scoreRaw !== null ? scoreRaw.toFixed(1) : '—';
     const partialTag = c.partial_coverage ? ' <span class="partial-tag" title="Partial coverage — not all 4 models succeeded">partial</span>' : '';
+    // Stagger first 5 rows only; rest are hidden until Show More
+    const delayAttr = i < 5 ? ` style="animation-delay:${i * 80}ms"` : '';
     return `
-      <tr>
+      <tr${delayAttr}>
         <td class="rank">${i + 1}</td>
         <td class="logo-cell"><img src="https://logo.clearbit.com/${safeDomain}" alt="${safeName} logo" loading="lazy" onerror="this.style.display='none'"></td>
         <td class="name-cell"><a href="/ai-visibility-index/${safeSlug}">${safeName}</a>${partialTag}</td>
-        <td class="score-cell">${scoreDisplay}</td>
+        <td class="score-cell" data-score="${scoreRaw !== null ? scoreRaw : ''}">${scoreDisplay}</td>
         <td class="type-cell">${safeCategory}</td>
       </tr>`;
   }).join('\n');
@@ -12255,69 +12258,277 @@ function renderAiVisIndexHtml(companies) {
   ]
 }).replace(/</g, '\\u003c')}</script>
 <style>
-  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
-  *{box-sizing:border-box;}
-  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
-  .wrap{max-width:1000px;margin:0 auto;padding:60px 24px;}
-  h1{font-size:36px;margin-bottom:8px;}
-  .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
-  .index-header-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-  .index-header-row h1{margin-bottom:8px;}
-  .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;transition:color 0.15s;}
-  .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
-  @media (max-width:480px){.index-header-row{flex-direction:column;align-items:flex-start;}}
-  .show-more-btn{display:block;margin:16px auto 0;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 20px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:color 0.15s,border-color 0.15s;}
-  .show-more-btn:hover{color:var(--teal);border-color:var(--teal);}
-  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
-  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
-  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
-  td.score-cell{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;}
-  td.name-cell a{color:#fff;text-decoration:none;font-weight:600;}
+  :root{
+    --bg:#070d1a;--card:#0c1526;--card2:#101d30;--card3:#132035;
+    --teal:#00e5ff;--teal-dim:rgba(0,229,255,0.12);--teal-glow:rgba(0,229,255,0.35);
+    --teal-soft:rgba(0,229,255,0.07);--muted:#6a8aaa;--hairline:#1a2e45;
+    --font:'Figtree',sans-serif;--mono:'DM Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+
+  /* ── Animated grid background ────────────────────────────── */
+  html{background:var(--bg);}
+  body{
+    background:var(--bg);color:#e8f0fa;font-family:var(--font);
+    position:relative;min-height:100vh;overflow-x:hidden;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,229,255,0.035) 1px,transparent 1px);
+    background-size:52px 52px;
+    animation:gridDrift 25s linear infinite;
+  }
+  body::after{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,180,255,0.07) 0%,transparent 70%);
+  }
+  @keyframes gridDrift{
+    from{background-position:0 0;}
+    to{background-position:52px 52px;}
+  }
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  .site-header{
+    position:relative;z-index:10;
+    display:flex;align-items:center;justify-content:space-between;
+    max-width:1060px;margin:0 auto;padding:18px 28px;
+    border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;
+  }
+  .site-header .wordmark{
+    font-family:var(--font);font-weight:700;font-size:16px;color:#fff;
+    text-decoration:none;letter-spacing:-.01em;
+  }
+  .site-header .wordmark span{color:var(--teal);}
+  .site-header nav{display:flex;gap:22px;flex-wrap:wrap;}
+  .site-header nav a{
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);text-decoration:none;transition:color .2s;
+  }
+  .site-header nav a:hover,.site-header nav a.current{color:var(--teal);}
+  @media(max-width:480px){.site-header nav{gap:14px;}}
+
+  .wrap{max-width:1060px;margin:0 auto;padding:52px 28px 80px;position:relative;z-index:1;}
+
+  /* ── Hero ────────────────────────────────────────────────── */
+  .hero-label{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--teal);border:1px solid rgba(0,229,255,0.25);
+    padding:5px 14px;border-radius:20px;margin-bottom:20px;
+  }
+  .hero-label-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:blink 2s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  h1.hero-title{
+    font-size:clamp(28px,4vw,44px);font-weight:800;line-height:1.1;
+    letter-spacing:-.025em;margin-bottom:12px;color:#fff;
+  }
+  .hero-sub{color:var(--muted);font-size:15px;line-height:1.65;max-width:620px;margin-bottom:32px;}
+
+  /* ── Stats bar ───────────────────────────────────────────── */
+  .stats-bar{
+    display:flex;gap:2px;margin-bottom:36px;flex-wrap:wrap;
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;overflow:hidden;
+  }
+  .stat-cell{
+    flex:1;min-width:140px;padding:20px 24px;
+    border-right:1px solid var(--hairline);
+  }
+  .stat-cell:last-child{border-right:none;}
+  .stat-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .stat-val{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--teal);line-height:1;text-shadow:0 0 20px rgba(0,229,255,0.5);}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  /* ── Table container ─────────────────────────────────────── */
+  .table-wrap{
+    background:var(--card);border:1px solid var(--hairline);
+    border-radius:14px;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(0,229,255,0.04),0 8px 40px rgba(0,0,0,0.4);
+    margin-bottom:6px;
+  }
+  table{width:100%;border-collapse:collapse;}
+  thead tr{border-bottom:1px solid rgba(0,229,255,0.15);}
+  th{
+    padding:14px 16px;text-align:left;
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);background:rgba(0,229,255,0.03);
+  }
+  tbody tr{
+    border-bottom:1px solid var(--hairline);
+    transition:background .15s,box-shadow .15s;
+    animation:rowReveal .45s ease both;
+  }
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{
+    background:rgba(0,229,255,0.045);
+    box-shadow:inset 0 0 0 1px rgba(0,229,255,0.12),0 0 24px rgba(0,229,255,0.04);
+  }
+  @keyframes rowReveal{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  td{padding:13px 16px;font-size:14px;color:#cde0f5;vertical-align:middle;}
+  td.rank{
+    color:var(--muted);font-family:var(--mono);font-size:12px;
+    width:36px;padding-right:4px;
+  }
+  td.logo-cell{width:36px;padding-right:4px;}
+  td.logo-cell img{width:24px;height:24px;border-radius:5px;object-fit:contain;background:#fff;display:block;}
+  td.name-cell a{color:#e8f0fa;text-decoration:none;font-weight:600;transition:color .2s;}
   td.name-cell a:hover{color:var(--teal);}
-  td.logo-cell img{width:24px;height:24px;border-radius:4px;object-fit:contain;background:#fff;}
-  .rank{color:var(--muted);font-family:'DM Mono',monospace;}
-  .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
-  .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
-  .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
-  .scan-form{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px;}
-  .scan-form input{background:var(--bg);color:#fff;border:1px solid var(--hairline);padding:12px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;flex:1;min-width:200px;}
+  td.score-cell{
+    font-family:var(--mono);font-size:18px;font-weight:700;
+    color:var(--teal);text-shadow:0 0 14px rgba(0,229,255,0.55);
+    width:72px;
+  }
+  td.type-cell{color:var(--muted);font-size:13px;}
+  .partial-tag{
+    display:inline-block;background:rgba(58,36,5,0.7);border:1px solid #b8860b;
+    color:#f0c14b;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.06em;padding:2px 5px;border-radius:4px;margin-left:6px;vertical-align:middle;
+  }
+  .empty-state{
+    padding:60px 24px;text-align:center;color:var(--muted);
+    background:var(--card);border-radius:12px;border:1px solid var(--hairline);
+  }
+
+  /* ── Show more ───────────────────────────────────────────── */
+  .show-more-wrap{text-align:center;padding:12px 0 4px;}
+  .show-more-btn{
+    background:transparent;color:var(--muted);border:1px solid var(--hairline);
+    padding:10px 22px;border-radius:8px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.06em;cursor:pointer;transition:color .2s,border-color .2s,box-shadow .2s;
+  }
+  .show-more-btn:hover{color:var(--teal);border-color:rgba(0,229,255,0.4);box-shadow:0 0 12px rgba(0,229,255,0.1);}
+
+  /* ── CTA banner / scan form ──────────────────────────────── */
+  .cta-banner{
+    margin-top:44px;padding:36px 32px;
+    background:var(--card2);border:1px solid var(--hairline);border-radius:14px;
+    text-align:center;
+    box-shadow:0 0 0 1px rgba(0,229,255,0.05),0 4px 30px rgba(0,0,0,0.3);
+  }
+  .cta-banner-eyebrow{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--teal);margin-bottom:10px;
+  }
+  .cta-banner h2{font-size:22px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.2;}
+  .cta-banner-sub{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+
+  .scan-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:12px;}
+  @media(max-width:760px){.scan-form{grid-template-columns:1fr;}}
+  .scan-form input{
+    background:var(--bg);color:#e8f0fa;
+    border:1px solid var(--hairline);padding:12px 14px;border-radius:8px;
+    font-family:var(--font);font-size:14px;width:100%;
+    transition:border-color .2s,box-shadow .2s;outline:none;
+  }
   .scan-form input::placeholder{color:var(--muted);}
-  .scan-form button{background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;font-family:'Figtree',sans-serif;}
-  .scan-form button:disabled{opacity:0.6;cursor:not-allowed;}
-  .scan-microcopy{margin-top:10px;font-size:12px;color:var(--muted);opacity:0.85;}
-  .scan-status{margin-top:14px;font-size:14px;color:var(--muted);min-height:20px;}
+  .scan-form input:focus{border-color:rgba(0,229,255,0.4);box-shadow:0 0 0 3px rgba(0,229,255,0.08);}
+  .scan-btn{
+    background:var(--teal);color:#050e1c;border:none;
+    padding:12px 22px;border-radius:8px;font-weight:700;font-size:14px;
+    cursor:pointer;white-space:nowrap;font-family:var(--font);
+    transition:box-shadow .2s,opacity .2s;
+    box-shadow:0 0 0 0 transparent;
+  }
+  .scan-btn:hover:not(:disabled){box-shadow:0 0 20px rgba(0,229,255,0.5),0 0 40px rgba(0,229,255,0.2);}
+  .scan-btn:disabled{opacity:0.5;cursor:not-allowed;}
+  .scan-microcopy{font-size:11px;color:var(--muted);margin-top:4px;opacity:.8;}
+  .scan-status{margin-top:12px;font-size:13px;color:var(--muted);min-height:18px;font-family:var(--mono);}
   .scan-status.error{color:#ff6b6b;}
   .scan-status.success{color:var(--teal);}
-  @media (max-width:480px){.scan-form{flex-direction:column;}}
-  .scan-upsell{margin-top:20px;text-align:left;background:var(--bg);border:1px solid var(--hairline);border-radius:12px;padding:24px;}
-  .scan-upsell h3{margin:0 0 8px;font-size:18px;color:#fff;}
-  .scan-upsell p{margin:0 0 10px;color:var(--muted);}
-  .scan-upsell ul{margin:0 0 18px;padding-left:20px;color:var(--muted);}
+
+  /* ── Radar / scanning animation ─────────────────────────── */
+  #scanAnimation{display:none;padding:28px 0 8px;text-align:center;}
+  .scan-radar-rings{
+    position:relative;width:72px;height:72px;margin:0 auto 18px;
+  }
+  .scan-ring{
+    position:absolute;inset:0;border-radius:50%;
+    border:2px solid var(--teal);
+    animation:ringExpand 2s ease-out infinite;
+  }
+  .scan-ring:nth-child(2){animation-delay:.65s;}
+  .scan-ring:nth-child(3){animation-delay:1.3s;}
+  @keyframes ringExpand{
+    0%{transform:scale(0.2);opacity:0.9;}
+    100%{transform:scale(1.8);opacity:0;}
+  }
+  .scan-ring-core{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:16px;height:16px;border-radius:50%;
+    background:var(--teal);box-shadow:0 0 0 3px rgba(0,229,255,0.2),0 0 18px rgba(0,229,255,0.7);
+    animation:corePulse 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes corePulse{
+    from{box-shadow:0 0 0 3px rgba(0,229,255,0.2),0 0 12px rgba(0,229,255,0.5);}
+    to{box-shadow:0 0 0 6px rgba(0,229,255,0.1),0 0 28px rgba(0,229,255,0.9),0 0 50px rgba(0,229,255,0.2);}
+  }
+  .scan-anim-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:6px;}
+  .scan-anim-sub{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;}
+
+  /* ── Upsell panel ────────────────────────────────────────── */
+  .scan-upsell{
+    margin-top:20px;text-align:left;
+    background:var(--bg);border:1px solid var(--hairline);border-radius:12px;padding:24px 28px;
+    display:none;
+  }
+  .scan-upsell h3{margin:0 0 8px;font-size:17px;color:#fff;font-weight:700;}
+  .scan-upsell p{margin:0 0 10px;color:var(--muted);font-size:14px;}
+  .scan-upsell ul{margin:0 0 18px;padding-left:20px;color:var(--muted);font-size:14px;}
   .scan-upsell li{margin-bottom:6px;}
-  .upsell-upgrade-btn{display:inline-block;background:var(--teal);color:var(--bg);border:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;font-family:'Figtree',sans-serif;text-decoration:none;}
-  .upsell-upgrade-status{margin-top:10px;font-size:13px;color:var(--muted);}
-  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
-  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
-  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
-  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
-  .site-header nav a:hover{color:var(--teal);}
-  .site-header nav a.current{color:var(--teal);}
-  .site-footer{max-width:1000px;margin:60px auto 0;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
-  .site-footer a{color:var(--muted);text-decoration:none;}
-  .site-footer a:hover{color:var(--teal);}
-  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
-  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
-  .faq-section{margin:48px 0 0;}
-  .faq-heading{font-size:13px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 20px;}
-  .faq-item{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px 24px;margin-bottom:10px;}
-  .faq-q{font-size:15px;font-weight:600;color:#fff;margin:0 0 8px;line-height:1.4;}
+  .upsell-upgrade-btn{
+    display:inline-block;background:var(--teal);color:#050e1c;
+    padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;
+    text-decoration:none;transition:box-shadow .2s;
+  }
+  .upsell-upgrade-btn:hover{box-shadow:0 0 18px rgba(0,229,255,0.5);}
+
+  /* ── FAQ ─────────────────────────────────────────────────── */
+  .faq-section{margin:52px 0 0;}
+  .faq-heading{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 20px;
+  }
+  .faq-item{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+    padding:20px 24px;margin-bottom:8px;
+    transition:border-color .2s;
+  }
+  .faq-item:hover{border-color:rgba(0,229,255,0.15);}
+  .faq-q{font-size:15px;font-weight:600;color:#e8f0fa;margin:0 0 8px;line-height:1.4;}
   .faq-a{font-size:14px;color:var(--muted);line-height:1.7;margin:0;}
   .faq-a a{color:var(--teal);}
+
+  /* ── Methodology btn ─────────────────────────────────────── */
+  .methodology-btn{
+    display:inline-block;background:transparent;color:var(--muted);
+    border:1px solid var(--hairline);padding:9px 14px;border-radius:8px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-decoration:none;
+    white-space:nowrap;transition:color .2s,border-color .2s,box-shadow .2s;
+  }
+  .methodology-btn:hover{color:var(--teal);border-color:rgba(0,229,255,0.35);box-shadow:0 0 10px rgba(0,229,255,0.1);}
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  .site-footer{
+    position:relative;z-index:1;
+    max-width:1060px;margin:0 auto;padding:32px 28px;
+    border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.9;
+  }
+  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-footer a:hover{color:var(--teal);}
+  .site-footer .footer-line3{margin-top:6px;opacity:.6;}
+
+  /* ── Header row ──────────────────────────────────────────── */
+  .index-header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+  @media(max-width:520px){.index-header-row{flex-direction:column;}}
 </style>
 </head>
 <body>
 <div class="site-header">
-  <a class="wordmark" href="/">Strategic Flow</a>
+  <a class="wordmark" href="/">Strategic<span>Flow</span></a>
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index">The Index</a>
@@ -12326,32 +12537,74 @@ function renderAiVisIndexHtml(companies) {
   </nav>
 </div>
 <div class="wrap">
+  <div class="hero-label"><span class="hero-label-dot"></span>Live Index</div>
   <div class="index-header-row">
-    <h1>The AI Visibility Index</h1>
+    <h1 class="hero-title">AI Visibility Index</h1>
     <a class="methodology-btn" href="/ai-visibility-index/methodology">How scores work →</a>
   </div>
-  <p class="subtitle">${escapeHtml(subtitleText)}</p>
+  <p class="hero-sub">${escapeHtml(subtitleText)}</p>
+
+  <div class="stats-bar">
+    <div class="stat-cell">
+      <div class="stat-label">Companies indexed</div>
+      <div class="stat-val" id="statCount">${count}</div>
+      <div class="stat-sub">SaaS products scored</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Avg visibility score</div>
+      <div class="stat-val" id="statAvg">${count ? avgScore.toFixed(1) : '—'}</div>
+      <div class="stat-sub">out of 10</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">AI models tested</div>
+      <div class="stat-val">4</div>
+      <div class="stat-sub">Claude · GPT · Perplexity · Gemini</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Questions per scan</div>
+      <div class="stat-val">5</div>
+      <div class="stat-sub">Buyer-intent queries</div>
+    </div>
+  </div>
+
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
-  <table>
-    <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Category</th></tr></thead>
-    <tbody id="avRows">
-      ${rows}
-    </tbody>
-  </table>
-  <div id="avShowMoreWrap" style="text-align:center;">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th></th><th>Company</th><th>Score /10</th><th>Category</th></tr></thead>
+      <tbody id="avRows">
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+  <div class="show-more-wrap" id="avShowMoreWrap">
     <button class="show-more-btn" id="avShowMoreBtn"></button>
   </div>`}
-  <div class="cta-banner">
-    <div>Want to know how AI assistants describe your company?</div>
-    <form class="scan-form" id="scanForm">
+
+  <div class="cta-banner" id="scanForm">
+    <div class="cta-banner-eyebrow">Free scan</div>
+    <h2>See how AI assistants describe your company</h2>
+    <p class="cta-banner-sub">We ask Claude, GPT, Perplexity, and Gemini 5 buyer-intent questions about your category. No card required.</p>
+    <form class="scan-form" id="scanFormEl">
       <input type="text" id="scanDomain" placeholder="yourcompany.com" autocomplete="off" required>
-      <input type="text" id="scanCategory" placeholder="e.g. email marketing platform, project management tool, CRM for startups" autocomplete="off" required>
+      <input type="text" id="scanCategory" placeholder="e.g. email marketing platform, CRM for startups" autocomplete="off" required>
       <input type="email" id="scanEmail" placeholder="you@company.com" autocomplete="off" required>
-      <button type="submit" id="scanBtn">Check my AI visibility — free</button>
+      <button type="submit" id="scanBtn" class="scan-btn">Check my AI visibility →</button>
     </form>
     <div class="scan-microcopy">We'll only use this to show you your results and follow up if you'd like a full readout.</div>
     <div class="scan-status" id="scanStatus"></div>
-    <div class="scan-upsell" id="scanUpsell" style="display:none;">
+
+    <div id="scanAnimation">
+      <div class="scan-radar-rings">
+        <div class="scan-ring"></div>
+        <div class="scan-ring"></div>
+        <div class="scan-ring"></div>
+        <div class="scan-ring-core"></div>
+      </div>
+      <div class="scan-anim-title">Scanning AI models…</div>
+      <div class="scan-anim-sub" id="scanAnimSub">Running 5 questions across Claude, GPT, Perplexity &amp; Gemini</div>
+    </div>
+
+    <div class="scan-upsell" id="scanUpsell">
       <h3>You've already used your free scan</h3>
       <p>Unlock AI Visibility Pro to keep monitoring:</p>
       <ul>
@@ -12363,6 +12616,7 @@ function renderAiVisIndexHtml(companies) {
       <a class="upsell-upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
     </div>
   </div>
+
   <div class="faq-section">
     <h2 class="faq-heading">Frequently asked questions</h2>
     <div class="faq-item">
@@ -12375,7 +12629,7 @@ function renderAiVisIndexHtml(companies) {
     </div>
     <div class="faq-item">
       <div class="faq-q">What's a good AI Visibility Score?</div>
-      <div class="faq-a">A score of 8 or above means an AI model can recommend the company accurately without a human correcting the description. The average across the 73 companies audited is 7.6/10, so scores below that indicate a real visibility gap, not just room for improvement.</div>
+      <div class="faq-a">A score of 8 or above means an AI model can recommend the company accurately without a human correcting the description. The average across the ${count} companies indexed is ${count ? avgScore.toFixed(1) : '—'}/10, so scores below that indicate a real visibility gap, not just room for improvement.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q">Is AI Visibility the same as SEO?</div>
@@ -12407,107 +12661,155 @@ function renderAiVisIndexHtml(companies) {
   </div>
   <div class="footer-line3">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a></div>
   <script>
-    (function(){
-      const form = document.getElementById('scanForm');
-      const statusEl = document.getElementById('scanStatus');
-      const btn = document.getElementById('scanBtn');
-      if (!form) return;
-      function setStatus(msg, cls) {
-        statusEl.textContent = msg;
-        statusEl.className = 'scan-status' + (cls ? ' ' + cls : '');
+  (function(){
+    // ── Score count-up animation ──────────────────────────────
+    function animateCountUp(el, target, duration) {
+      var start = 0, startTime = null;
+      var targetNum = parseFloat(target);
+      if (isNaN(targetNum)) return;
+      function step(ts) {
+        if (!startTime) startTime = ts;
+        var progress = Math.min((ts - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = (eased * targetNum).toFixed(1);
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = targetNum.toFixed(1);
       }
-      function isValidDomain(d) {
-        return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(d);
-      }
-      function pollJob(jobId) {
-        let attempts = 0;
-        const maxAttempts = 60;
-        const interval = setInterval(async function() {
-          attempts++;
-          try {
-            const r = await fetch('/api/ai-visibility-index/job/' + jobId);
-            const j = await r.json();
-            if (j.status === 'done') {
-              clearInterval(interval);
-              setStatus('Done! Redirecting to your results...', 'success');
-              const dest = j.private_scan_id
-                ? '/ai-visibility-index/my-scan/' + j.private_scan_id
-                : '/ai-visibility-index/' + j.result_slug;
-              setTimeout(function(){ window.location.href = dest; }, 900);
-            } else if (j.status === 'error' || j.status === 'failed') {
-              clearInterval(interval);
-              setStatus(j.error_message || 'Something went wrong while scanning. Please try again later.', 'error');
-              btn.disabled = false;
-            } else if (attempts >= maxAttempts) {
-              clearInterval(interval);
-              setStatus('This is taking longer than expected. We will email your results once ready.', '');
-              btn.disabled = false;
-            } else {
-              setStatus('Analyzing how AI describes your company... (' + attempts * 5 + 's)', '');
-            }
-          } catch (e) {
-            clearInterval(interval);
-            setStatus('Lost connection while checking status. Please try again.', 'error');
-            btn.disabled = false;
+      requestAnimationFrame(step);
+    }
+    var scoreCells = document.querySelectorAll('td.score-cell[data-score]');
+    if (scoreCells.length && 'IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var el = entry.target;
+            var score = el.getAttribute('data-score');
+            if (score) animateCountUp(el, score, 900);
+            io.unobserve(el);
           }
-        }, 5000);
-      }
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const domain = document.getElementById('scanDomain').value.trim().replace(/^https?:\\/\\//i, '').replace(/\\/.*$/, '').toLowerCase();
-        const email = document.getElementById('scanEmail').value.trim();
-        const category = document.getElementById('scanCategory').value.trim();
-        if (!isValidDomain(domain)) {
-          setStatus('Please enter a valid domain, like yourcompany.com', 'error');
-          return;
+        });
+      }, { threshold: 0.2 });
+      scoreCells.forEach(function(el) {
+        var score = el.getAttribute('data-score');
+        if (score) { el.textContent = '0.0'; io.observe(el); }
+      });
+    }
+
+    // ── Scan form ─────────────────────────────────────────────
+    var form    = document.getElementById('scanFormEl');
+    var statusEl= document.getElementById('scanStatus');
+    var btn     = document.getElementById('scanBtn');
+    var animEl  = document.getElementById('scanAnimation');
+    var animSub = document.getElementById('scanAnimSub');
+    if (!form) return;
+
+    function setStatus(msg, cls) {
+      statusEl.textContent = msg;
+      statusEl.className = 'scan-status' + (cls ? ' ' + cls : '');
+    }
+    function showAnim(show) {
+      if (!animEl) return;
+      animEl.style.display = show ? 'block' : 'none';
+      form.style.display   = show ? 'none'  : '';
+    }
+    function isValidDomain(d) {
+      return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(d);
+    }
+
+    var scanMessages = [
+      'Running 5 questions across Claude, GPT, Perplexity &amp; Gemini',
+      'Analyzing responses for your category…',
+      'Checking mention position and description accuracy…',
+      'Cross-referencing competitor mentions…',
+      'Computing your visibility score…'
+    ];
+
+    function pollJob(jobId) {
+      var attempts = 0, maxAttempts = 60, msgIdx = 0;
+      var interval = setInterval(async function() {
+        attempts++;
+        if (attempts % 3 === 0 && animSub) {
+          msgIdx = (msgIdx + 1) % scanMessages.length;
+          animSub.innerHTML = scanMessages[msgIdx];
         }
-        if (!category) {
-          setStatus('Please describe what your company does, e.g. "email marketing platform".', 'error');
-          return;
-        }
-        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
-          setStatus('Please enter a valid email address.', 'error');
-          return;
-        }
-        btn.disabled = true;
-        setStatus('Starting your free scan...', '');
         try {
-          const r = await fetch('/api/ai-visibility-index/scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ domain: domain, email: email, category: category })
-          });
-          const j = await r.json();
-          if (j.status === 'free_scan_used') {
-            form.style.display = 'none';
-            var upsell = document.getElementById('scanUpsell');
-            if (upsell) upsell.style.display = 'block';
-            setStatus('', '');
-            return;
-          }
-          if (r.status === 409 && j.company) {
-            setStatus('This company is already on the index. Redirecting...', 'success');
-            setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.company.slug; }, 900);
-            return;
-          }
-          if (r.status === 429) {
-            setStatus(j.error || 'This domain is currently being processed. Please try again in 24 hours.', '');
+          var r = await fetch('/api/ai-visibility-index/job/' + jobId);
+          var j = await r.json();
+          if (j.status === 'done') {
+            clearInterval(interval);
+            showAnim(false);
+            setStatus('Done! Redirecting to your results…', 'success');
+            var dest = j.private_scan_id
+              ? '/ai-visibility-index/my-scan/' + j.private_scan_id
+              : '/ai-visibility-index/' + j.result_slug;
+            setTimeout(function(){ window.location.href = dest; }, 800);
+          } else if (j.status === 'error' || j.status === 'failed') {
+            clearInterval(interval);
+            showAnim(false);
+            setStatus(j.error_message || 'Something went wrong. Please try again.', 'error');
             btn.disabled = false;
-            return;
-          }
-          if (!r.ok) {
-            setStatus(j.error || 'Something went wrong. Please try again.', 'error');
+          } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            showAnim(false);
+            setStatus('This is taking longer than expected. We will email your results once ready.', '');
             btn.disabled = false;
-            return;
           }
-          setStatus('Analyzing how AI describes your company...', '');
-          pollJob(j.job_id);
-        } catch (err) {
-          setStatus('Network error. Please try again.', 'error');
+        } catch (e) {
+          clearInterval(interval);
+          showAnim(false);
+          setStatus('Lost connection. Please try again.', 'error');
           btn.disabled = false;
         }
-      });
-    })();
+      }, 5000);
+    }
+
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var domain   = document.getElementById('scanDomain').value.trim().replace(/^https?:\\/\\//i,'').replace(/\\/.*$/,'').toLowerCase();
+      var email    = document.getElementById('scanEmail').value.trim();
+      var category = document.getElementById('scanCategory').value.trim();
+      if (!isValidDomain(domain)) { setStatus('Please enter a valid domain, like yourcompany.com','error'); return; }
+      if (!category) { setStatus('Please describe what your company does.','error'); return; }
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { setStatus('Please enter a valid email address.','error'); return; }
+      btn.disabled = true;
+      setStatus('','');
+      showAnim(true);
+      try {
+        var r = await fetch('/api/ai-visibility-index/scan', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ domain:domain, email:email, category:category })
+        });
+        var j = await r.json();
+        if (j.status === 'free_scan_used') {
+          showAnim(false);
+          var upsell = document.getElementById('scanUpsell');
+          if (upsell) upsell.style.display = 'block';
+          setStatus('',''); return;
+        }
+        if (r.status === 409 && j.company) {
+          showAnim(false);
+          setStatus('This company is already on the index. Redirecting…','success');
+          setTimeout(function(){ window.location.href = '/ai-visibility-index/' + j.company.slug; }, 900);
+          return;
+        }
+        if (r.status === 429) {
+          showAnim(false);
+          setStatus(j.error || 'This domain is currently being processed. Please try again in 24 hours.','');
+          btn.disabled = false; return;
+        }
+        if (!r.ok) {
+          showAnim(false);
+          setStatus(j.error || 'Something went wrong. Please try again.','error');
+          btn.disabled = false; return;
+        }
+        pollJob(j.job_id);
+      } catch (err) {
+        showAnim(false);
+        setStatus('Network error. Please try again.','error');
+        btn.disabled = false;
+      }
+    });
+  })();
   </script>
   <script>
   (function(){
@@ -15981,10 +16283,16 @@ setupDB().then(async () => {
     const companyCategory = category.trim();
     const slug = slugify(companyName);
 
+    // Internal bypass: BYPASS_EMAILS (strategicflow@proton.me, consultantcalatorii@gmail.com, etc.)
+    // skip ALL rate-limit and free-scan-used checks — they can scan unlimited times.
+    const isBypassEmail = BYPASS_EMAILS.has(email.toLowerCase().trim());
+
     try {
-      const existingLead = await pool.query('SELECT COUNT(*) FROM ai_visibility_leads WHERE email = $1', [email]);
-      if (parseInt(existingLead.rows[0].count, 10) > 0) {
-        return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+      if (!isBypassEmail) {
+        const existingLead = await pool.query('SELECT COUNT(*) FROM ai_visibility_leads WHERE email = $1', [email]);
+        if (parseInt(existingLead.rows[0].count, 10) > 0) {
+          return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+        }
       }
 
       const existing = await pool.query('SELECT slug, visibility_score, scored_at FROM ai_visibility_companies WHERE slug = $1', [slug]);
@@ -15992,16 +16300,18 @@ setupDB().then(async () => {
         return res.status(409).json({ error: 'already_scored', company: existing.rows[0] });
       }
 
-      const recent = await pool.query(
-        `SELECT id, input_email FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
-        [domain, email]
-      );
-      if (recent.rows.length > 0) {
-        const emailMatch = recent.rows.some(r => r.input_email === email);
-        if (emailMatch) {
-          return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+      if (!isBypassEmail) {
+        const recent = await pool.query(
+          `SELECT id, input_email FROM ai_visibility_jobs WHERE (input_domain = $1 OR input_email = $2) AND created_at > NOW() - INTERVAL '1 day'`,
+          [domain, email]
+        );
+        if (recent.rows.length > 0) {
+          const emailMatch = recent.rows.some(r => r.input_email === email);
+          if (emailMatch) {
+            return res.json({ status: 'free_scan_used', message: "You've already used your free AI Visibility scan." });
+          }
+          return res.status(429).json({ error: 'This domain is currently being processed. Please try again in 24 hours.' });
         }
-        return res.status(429).json({ error: 'This domain is currently being processed. Please try again in 24 hours.' });
       }
 
       const jobResult = await pool.query(
