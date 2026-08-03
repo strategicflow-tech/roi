@@ -22,6 +22,7 @@ const {
 const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
+const { runDailyPHDiscovery } = require('./ph-discovery');
 
 const multer = require('multer');
 const path   = require('path');
@@ -2701,6 +2702,63 @@ app.get('/admin/emails.csv', async (req, res) => {
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
   }
+});
+
+// ── GET /api/directory/outreach-queue?key=… ──────────────────────────────────
+// Returns all active PH-sourced listings with contact info for the outreach tracker.
+// Fields: id (string), name, page (ToolIndex listing URL), cat, email, li, big
+app.get('/api/directory/outreach-queue', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const base = 'https://strategic-flow-audit.replit.app';
+    const { rows } = await pool.query(`
+      SELECT id, name, category,
+             regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug,
+             contact_email, social_linkedin, source
+      FROM directory_listings
+      WHERE status='active'
+      ORDER BY id DESC
+    `);
+    const data = rows.map(r => ({
+      id:    String(r.id),
+      name:  r.name,
+      page:  `${base}/directory/${r.slug}`,
+      cat:   r.category || 'Other',
+      email: r.contact_email || '',
+      li:    r.social_linkedin || '',
+      big:   false,
+    }));
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(data);
+  } catch(e) {
+    console.error('[outreach-queue]', e.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── GET /admin/outreach?key=… — serve the outreach tracker HTML page ──────────
+app.get('/admin/outreach', (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
+  res.sendFile(path.join(__dirname, 'public', 'toolindex-outreach.html'));
+});
+
+// ── GET /admin/ph-import/run?key=… — manually trigger daily PH discovery ──────
+app.get('/admin/ph-import/run', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    const result = await runDailyPHDiscovery(pool, log);
+    log(`\nDone. Inserted: ${result.inserted}`);
+    if (result.listings?.length) {
+      result.listings.forEach(l => log(`  → id=${l.id}: ${l.name}`));
+    }
+  } catch(e) {
+    log(`ERROR: ${e.message}`);
+  }
+  res.end();
 });
 
 // GET /admin/seed-votes?key=… — seeds vote_count + dir_votes (safe to re-run on any env)
@@ -16385,6 +16443,15 @@ ${content}
   // Run once at startup too
   expireFeaturedListings().catch(()=>{});
   expireSponsors().catch(()=>{});
+
+  // ── Daily 08:00: Product Hunt auto-discovery (5 new listings/day) ────────
+  cron.schedule('0 8 * * *', async () => {
+    console.log('[cron] Daily PH discovery starting…');
+    try {
+      const result = await runDailyPHDiscovery(pool, m => console.log(m));
+      console.log(`[cron] PH discovery done. Inserted: ${result.inserted}`);
+    } catch(e) { console.error('[cron] PH discovery error:', e.message); }
+  });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
   cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));

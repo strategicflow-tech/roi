@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolIndex · Outreach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F6F7;
+    --paper:#FFFFFF;
+    --ink:#15222B;
+    --muted:#5C7078;
+    --line:#DFE6E8;
+    --teal:#1F7A6C;
+    --teal-soft:#E4F1EE;
+    --gold:#B9822E;
+    --gold-soft:#F5EAD8;
+    --danger:#B4472F;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:700;margin:0;}
+  ::selection{background:var(--teal-soft);}
+
+  /* ===== HEADER ===== */
+  .head{
+    position:sticky;top:0;z-index:20;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    padding:16px 16px 12px;
+  }
+  .head-top{display:flex;align-items:center;gap:14px;}
+  .ring-wrap{position:relative;width:56px;height:56px;flex:none;}
+  .ring-wrap svg{width:56px;height:56px;transform:rotate(-90deg);}
+  .ring-bg{fill:none;stroke:var(--line);stroke-width:5;}
+  .ring-fg{fill:none;stroke:var(--teal);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 400ms ease;}
+  .ring-num{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:0.72rem;color:var(--teal);
+  }
+  .head-title{flex:1;min-width:0;}
+  .head-title h1{font-size:1.15rem;line-height:1.2;}
+  .head-title p{margin:2px 0 0;font-size:0.82rem;color:var(--muted);}
+  .head-title p b{color:var(--ink);font-family:'JetBrains Mono',monospace;}
+
+  .search{
+    margin-top:12px;position:relative;
+  }
+  .search input{
+    width:100%;padding:10px 14px 10px 36px;border-radius:11px;
+    border:1px solid var(--line);background:var(--bg);
+    font-family:'Inter',sans-serif;font-size:0.95rem;color:var(--ink);
+  }
+  .search input:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  .search::before{
+    content:"⌕";position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-size:1.1rem;pointer-events:none;
+  }
+
+  .chips{display:flex;gap:7px;margin-top:11px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none;font-family:'Inter',sans-serif;font-weight:600;font-size:0.8rem;
+    padding:7px 13px;border-radius:999px;border:1px solid var(--line);
+    background:var(--paper);color:var(--muted);white-space:nowrap;cursor:pointer;
+  }
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff;}
+
+  /* ===== LIST ===== */
+  .list{padding:14px 12px 90px;max-width:640px;margin:0 auto;}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:0.95rem;}
+
+  .card{
+    background:var(--paper);border:1px solid var(--line);border-radius:16px;
+    padding:14px 15px;margin-bottom:10px;transition:opacity 200ms ease;
+  }
+  .card.done{opacity:0.46;}
+  .card-top{display:flex;align-items:flex-start;gap:10px;}
+  .card-info{flex:1;min-width:0;}
+  .card-name{font-family:'Fraunces',serif;font-weight:700;font-size:1.02rem;line-height:1.25;}
+  .card-name a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .meta-row{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;}
+  .badge{
+    font-family:'JetBrains Mono',monospace;font-size:0.68rem;font-weight:700;
+    padding:2px 8px;border-radius:6px;letter-spacing:0.02em;
+  }
+  .badge.cat{background:var(--bg);color:var(--muted);}
+  .badge.both{background:var(--gold-soft);color:var(--gold);}
+
+  .check{
+    flex:none;width:26px;height:26px;border-radius:8px;
+    border:2px solid var(--line);background:var(--paper);
+    display:grid;place-items:center;cursor:pointer;color:transparent;
+    font-size:0.95rem;font-weight:700;
+  }
+  .check.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+
+  .actions{margin-top:11px;display:grid;gap:7px;}
+  .arow{display:flex;gap:7px;}
+  .abtn{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:0.84rem;
+    padding:9px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--bg);color:var(--ink);text-decoration:none;cursor:pointer;
+  }
+  .abtn.primary{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);}
+  .abtn.copy{flex:0 0 auto;padding:9px 12px;}
+  .abtn.copy.copied{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .abtn svg{width:15px;height:15px;flex:none;}
+
+  .badge.big{background:#F6E7E2;color:var(--danger);}
+  .card.nocontact{opacity:0.55;}
+  .nocontact-note{
+    margin-top:10px;font-size:0.82rem;color:var(--muted);
+    font-style:italic;
+  }
+  .contact-line{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);margin-top:6px;word-break:break-all;}
+
+  /* Loading state */
+  .loading{
+    text-align:center;padding:60px 20px;color:var(--muted);font-size:0.9rem;
+  }
+  .loading-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--teal);margin:0 3px;animation:pulse 1.2s ease-in-out infinite;
+  }
+  .loading-dot:nth-child(2){animation-delay:0.2s;}
+  .loading-dot:nth-child(3){animation-delay:0.4s;}
+  @keyframes pulse{0%,80%,100%{opacity:0.2;transform:scale(0.8);}40%{opacity:1;transform:scale(1);}}
+
+  @media (prefers-reduced-motion: reduce){
+    .card{transition:none;} .ring-fg{transition:none;} .loading-dot{animation:none;opacity:1;}
+  }
+</style>
+</head>
+<body>
+
+<header class="head">
+  <div class="head-top">
+    <div class="ring-wrap">
+      <svg viewBox="0 0 56 56">
+        <circle class="ring-bg" cx="28" cy="28" r="24"></circle>
+        <circle class="ring-fg" id="ring" cx="28" cy="28" r="24" stroke-dasharray="151" stroke-dashoffset="151"></circle>
+      </svg>
+      <div class="ring-num" id="ringNum">0%</div>
+    </div>
+    <div class="head-title">
+      <h1>ToolIndex Outreach</h1>
+      <p><b id="doneCount">0</b> din <b id="totalCount">…</b> contactați</p>
+    </div>
+  </div>
+  <div class="search">
+    <input id="q" type="text" placeholder="Caută nume sau categorie…">
+  </div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-f="all">Toate</button>
+    <button class="chip" data-f="todo">Necontactate</button>
+    <button class="chip" data-f="done">Contactate</button>
+    <button class="chip" data-f="both">Email + LinkedIn</button>
+    <button class="chip" data-f="email">Doar email</button>
+    <button class="chip" data-f="li">Doar LinkedIn</button>
+    <button class="chip" data-f="skipbig">Fără companii mari</button>
+  </div>
+</header>
+
+<main class="list" id="list">
+  <div class="loading">
+    <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+    <p style="margin-top:14px;">Se încarcă listele…</p>
+  </div>
+</main>
+
+<script>
+(async function(){
+  const list       = document.getElementById('list');
+  const qInput     = document.getElementById('q');
+  const chips      = document.getElementById('chips');
+  const totalCountEl = document.getElementById('totalCount');
+  const doneCountEl  = document.getElementById('doneCount');
+  const ring         = document.getElementById('ring');
+  const ringNum      = document.getElementById('ringNum');
+  const RING_LEN     = 151;
+  const STORAGE_KEY  = 'ti_outreach_contacted_v2';
+
+  // ── Read key from URL (e.g. ?key=xxx) ──
+  const urlKey = new URLSearchParams(location.search).get('key') || '';
+
+  // ── Fetch data from live API ──
+  let DATA = [];
+  try {
+    const apiUrl = '/api/directory/outreach-queue' + (urlKey ? '?key=' + encodeURIComponent(urlKey) : '');
+    const resp = await fetch(apiUrl);
+    if (!resp.ok) {
+      list.innerHTML = '<div class="empty">Eroare la încărcare (' + resp.status + '). Verifică URL-ul și cheia.</div>';
+      return;
+    }
+    DATA = await resp.json();
+  } catch(e) {
+    list.innerHTML = '<div class="empty">Nu s-a putut conecta la server. Încearcă din nou.</div>';
+    return;
+  }
+
+  totalCountEl.textContent = DATA.length;
+
+  // ── Contacted state in localStorage ──
+  let contacted = new Set();
+  function loadContacted(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      contacted = new Set(raw ? JSON.parse(raw) : []);
+    } catch { contacted = new Set(); }
+  }
+  function saveContacted(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...contacted])); } catch {}
+  }
+
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function emailBody(id, name, page){
+    return `Bună ziua,
+
+Am văzut că ${name} este listat pe ToolIndex — directorul de produse AI și SaaS cu DA 86.
+
+Produsul tău apare la: ${page}
+
+Vrei să-ți crești vizibilitatea? ToolIndex oferă:
+• Dofollow backlink de la un domeniu DA 86
+• Placement în newsletter-ul săptămânal
+• Featured spot în topul categoriei
+
+Mai multe detalii: https://strategic-flow-audit.replit.app/directory
+
+Cu stimă,
+Echipa ToolIndex`;
+  }
+
+  function liMessage(id, name, page){
+    return `Bună!
+
+Am văzut ${name} pe ToolIndex (directorul nostru de produse AI/SaaS, DA 86) — listarea ta e la ${page}.
+
+Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? Mă bucur să-ți explic.`;
+  }
+
+  function copyText(text, btn){
+    navigator.clipboard.writeText(text).then(()=>{
+      const old = btn.textContent;
+      btn.textContent = 'Copiat ✓';
+      btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent = old; btn.classList.remove('copied'); }, 1400);
+    }).catch(()=>{
+      // Fallback for non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(ta);
+      btn.textContent = 'Copiat ✓'; btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent = btn.getAttribute('data-copy') === 'email' ? 'Copiază' : 'Copiază DM'; btn.classList.remove('copied'); }, 1400);
+    });
+  }
+
+  function cardHTML(item){
+    const isDone      = contacted.has(item.id);
+    const hasEmail    = !!item.email;
+    const hasLi       = !!item.li;
+    const noContact   = !hasEmail && !hasLi;
+    const hasBoth     = hasEmail && hasLi;
+
+    const eBody = emailBody(item.id, item.name, item.page);
+    const liMsg = liMessage(item.id, item.name, item.page);
+
+    let contactBadge = '';
+    if(hasBoth) contactBadge = '<span class="badge both">Email + LI</span>';
+
+    let contactActions = '';
+    if(hasEmail){
+      contactActions += '<div class="arow">' +
+        '<a class="abtn primary" href="mailto:' + esc(item.email) + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>' +
+        'Email</a>' +
+        '<button class="abtn copy" data-copy="email" data-id="' + esc(item.id) + '">Copiază</button>' +
+        '</div>';
+    }
+    if(hasLi){
+      contactActions += '<div class="arow">' +
+        '<a class="abtn" href="' + esc(item.li) + '" target="_blank" rel="noopener">' +
+        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>' +
+        'LinkedIn</a>' +
+        '<button class="abtn copy" data-copy="li" data-id="' + esc(item.id) + '">Copiază DM</button>' +
+        '</div>';
+    }
+
+    let contactLine = '';
+    if(hasEmail) contactLine += '<div class="contact-line">✉ ' + esc(item.email) + '</div>';
+    if(hasLi)    contactLine += '<div class="contact-line">in ' + esc(item.li) + '</div>';
+
+    return '<div class="card' + (isDone?' done':'') + (noContact?' nocontact':'') + '" data-id="' + esc(item.id) + '">' +
+      '<div class="card-top">' +
+        '<div class="card-info">' +
+          '<div class="card-name"><a href="' + esc(item.page) + '" target="_blank" rel="noopener">' + esc(item.name) + '</a></div>' +
+          '<div class="meta-row">' +
+            '<span class="badge cat">' + esc(item.cat) + '</span>' +
+            (item.big ? '<span class="badge big">Corp mare</span>' : '') +
+            contactBadge +
+          '</div>' +
+          contactLine +
+        '</div>' +
+        '<button class="check' + (isDone?' on':'') + '" data-toggle="' + esc(item.id) + '" title="Marchează contactat">' +
+          (isDone ? '✓' : '') +
+        '</button>' +
+      '</div>' +
+      (noContact
+        ? '<div class="nocontact-note">Niciun contact găsit public — verifică manual site-ul.</div>'
+        : '<div class="actions">' + contactActions + '</div>'
+      ) +
+    '</div>';
+  }
+
+  let filter = 'all';
+  let query  = '';
+
+  function render(){
+    let filtered = DATA.filter(item => {
+      if(filter === 'todo'    && contacted.has(item.id)) return false;
+      if(filter === 'done'    && !contacted.has(item.id)) return false;
+      if(filter === 'both'    && !(item.email && item.li)) return false;
+      if(filter === 'email'   && (!item.email || item.li)) return false;
+      if(filter === 'li'      && (!item.li || item.email)) return false;
+      if(filter === 'skipbig' && item.big) return false;
+      if(query){
+        const q = query.toLowerCase();
+        if(!(item.name||'').toLowerCase().includes(q) && !(item.cat||'').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
+    if(!filtered.length){
+      list.innerHTML = '<div class="empty">Nimic nu se potrivește. Încearcă alt filtru sau altă căutare.</div>';
+    } else {
+      list.innerHTML = filtered.map(cardHTML).join('');
+    }
+    doneCountEl.textContent = contacted.size;
+    const pct = DATA.length ? contacted.size / DATA.length : 0;
+    const offset = RING_LEN - pct * RING_LEN;
+    ring.style.strokeDashoffset = offset;
+    ringNum.textContent = Math.round(pct*100) + '%';
+  }
+
+  list.addEventListener('click', (e)=>{
+    const toggleId = e.target.closest('[data-toggle]');
+    if(toggleId){
+      const id = toggleId.getAttribute('data-toggle');
+      if(contacted.has(id)) contacted.delete(id); else contacted.add(id);
+      saveContacted();
+      render();
+      return;
+    }
+    const copyBtn = e.target.closest('[data-copy]');
+    if(copyBtn){
+      const id = copyBtn.getAttribute('data-id');
+      const item = DATA.find(d => d.id === id);
+      if(!item) return;
+      const kind = copyBtn.getAttribute('data-copy');
+      const text = kind === 'email' ? emailBody(item.id, item.name, item.page) : liMessage(item.id, item.name, item.page);
+      copyText(text, copyBtn);
+    }
+  });
+
+  chips.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip');
+    if(!btn) return;
+    filter = btn.getAttribute('data-f');
+    Array.from(chips.children).forEach(c=>c.classList.toggle('on', c===btn));
+    render();
+  });
+
+  let qTimer;
+  qInput.addEventListener('input', ()=>{
+    clearTimeout(qTimer);
+    qTimer = setTimeout(()=>{ query = qInput.value; render(); }, 120);
+  });
+
+  loadContacted();
+  render();
+})();
+</script>
+</body>
+</html>
