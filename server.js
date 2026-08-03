@@ -1467,7 +1467,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 @media(max-width:560px){.hero{flex-direction:column;gap:16px}}
 .logo-wrap{position:relative;width:72px;height:72px;border-radius:14px;background:#1a3050;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .logo-init{font-size:26px;font-weight:800;color:#fff;font-family:var(--mono);line-height:1;z-index:1;position:absolute}
-.logo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;z-index:2}
+.logo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;border-radius:14px;z-index:2;padding:4px;}
 .hero-body{flex:1;min-width:0}
 .cat-chip{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:2px 10px;margin-bottom:10px}
 .prod-name{font-size:26px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px;word-break:break-word}
