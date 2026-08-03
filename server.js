@@ -2293,36 +2293,67 @@ app.get('/admin/fix-wide-logos', async (req, res) => {
 
   setImmediate(async () => {
     try {
-      // Find listings with wide-format Sanity CDN images OR AI-generation CDN paths
+      // Fetch ALL active listings that have NOT been customised by a founder.
+      // claimed_by IS NOT NULL + owner_image_url IS NOT NULL  → founder has set their own logo → skip
+      // owner_image_url IS NOT NULL alone                     → owner uploaded logo → skip
+      // Everything else (claimed or not, null image or bad image) → process
       const rows = await pool.query(`
         SELECT id, url, image_url
         FROM directory_listings
         WHERE status = 'active'
           AND owner_image_url IS NULL
-          AND image_url IS NOT NULL
-          AND (
-            -- Sanity CDN screenshots: URL ends in -WxH.ext and W > H * 1.6
-            (
-              image_url ILIKE '%cdn.sanity.io%'
-              AND (regexp_match(image_url, E'-([0-9]+)x([0-9]+)\\.(png|jpg|jpeg|webp)$'))[1]::int
-                  > (regexp_match(image_url, E'-([0-9]+)x([0-9]+)\\.(png|jpg|jpeg|webp)$'))[2]::int * 1.6
-            )
-            -- AI generation CDN paths (clearly not logos)
-            OR image_url ~ '/generations/[a-f0-9-]{8}'
-          )
         ORDER BY id ASC
         LIMIT $1
       `, [limit]);
 
-      console.log(`[fix-wide-logos] ${dry?'DRY RUN — ':''}found ${rows.rowCount} listings with wide/generation images`);
+      // Bad-image detector (mirrors isUrlBad inside strict-logo-refresh)
+      const HERO_RE = [
+        /[/_-]og[-_]?image/i, /opengraph/i, /open[-_]?graph/i,
+        /[/_-]hero[-_.]/i, /screenshot/i, /social[-_]?(?:preview|share|image)/i,
+        /twitter[-_]?card/i, /share[-_]?image/i, /feature[-_]?image/i,
+        /banner[-_]?image/i, /cover[-_]?(?:image|photo)/i,
+        /wp-content\/themes/i, /placeholder/i, /default[-_]?(?:logo|avatar|img)/i,
+        /noimage/i, /no[-_]?img/i, /1x1/i, /pixel\.gif/i,
+      ];
+      const CDN_EXACT  = ['s3.amazonaws.com','cloudfront.net','cloudinary.com','imgix.net',
+                          'fastly.net','akamaihd.net','bunnycdn.com','b-cdn.net'];
+      const CDN_PREFIX = ['cdn.','static.','assets.','img.','images.','media.','files.','upload.','storage.'];
+      function isTrustedCDN(h) {
+        return CDN_EXACT.some(c => h.includes(c)) || CDN_PREFIX.some(p => h.startsWith(p));
+      }
+      function isBadImage(imageUrl, productUrl) {
+        if (!imageUrl) return true; // null → needs backfill
+        if (HERO_RE.some(re => re.test(imageUrl))) return true;
+        // Wide Sanity CDN screenshots (dimensions embedded in URL)
+        const sanityDim = imageUrl.match(/cdn\.sanity\.io.*-(\d+)x(\d+)\.(png|jpg|jpeg|webp)$/i);
+        if (sanityDim) {
+          const w = parseInt(sanityDim[1], 10), h = parseInt(sanityDim[2], 10);
+          if (h > 0 && w > h * 1.6) return true;
+        }
+        // AI generation CDN paths — not logos
+        if (/\/generations\/[a-f0-9-]{8}/.test(imageUrl)) return true;
+        try {
+          const imgHost  = new URL(imageUrl).hostname.replace(/^www\./, '');
+          const prodHost = new URL(productUrl).hostname.replace(/^www\./, '');
+          if (imgHost === prodHost) return false;
+          if (imgHost.endsWith('.' + prodHost) || prodHost.endsWith('.' + imgHost)) return false;
+          if (imgHost === 'logo.clearbit.com') return false;
+          if (isTrustedCDN(imgHost)) return false;
+          if (imgHost === 't0.gstatic.com' || imgHost.includes('google.com')) return false;
+          return true; // unrelated domain
+        } catch { return true; }
+      }
+
+      const toFix = rows.rows.filter(r => isBadImage(r.image_url, r.url));
+      console.log(`[fix-wide-logos] ${dry?'DRY RUN — ':''}${rows.rowCount} candidates scanned, ${toFix.length} need fixing`);
 
       let fixed = 0, remained_null = 0;
-      for (const row of rows.rows) {
+      for (const row of toFix) {
         if (dry) {
           console.log(`[fix-wide-logos] DRY id=${row.id} "${row.image_url ? row.image_url.slice(0,80) : '(null)'}" → would re-fetch`);
           continue;
         }
-        // Null out the bad image first
+        // Null out the bad/missing image first
         await pool.query('UPDATE directory_listings SET image_url=NULL WHERE id=$1', [row.id]).catch(() => {});
         // Re-fetch a real logo
         const fresh = await fetchProductLogo(row.url).catch(() => null);
@@ -2332,11 +2363,11 @@ app.get('/admin/fix-wide-logos', async (req, res) => {
           console.log(`[fix-wide-logos] FIXED id=${row.id} → ${fresh.slice(0, 80)}`);
         } else {
           remained_null++;
-          console.log(`[fix-wide-logos] NULL  id=${row.id} (fetchProductLogo returned nothing, client will fallback to Clearbit/favicon)`);
+          console.log(`[fix-wide-logos] NULL  id=${row.id} (no logo found — client will fall back to Clearbit/favicon)`);
         }
-        await new Promise(r => setTimeout(r, 2000)); // 2 s between fetches — polite to targets
+        await new Promise(r => setTimeout(r, 2000)); // 2 s between fetches
       }
-      console.log(`[fix-wide-logos] Done. fixed=${fixed}, remained_null=${remained_null}, total=${rows.rowCount}`);
+      console.log(`[fix-wide-logos] Done. fixed=${fixed}, remained_null=${remained_null}, needed=${toFix.length}`);
     } catch (e) {
       console.error('[fix-wide-logos] error:', e.message);
     }
