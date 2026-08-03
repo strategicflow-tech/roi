@@ -1196,6 +1196,20 @@ app.get('/directory/:slug', async (req, res) => {
   if (isNaN(id)) return res.redirect('/directory');
 
   try {
+    // First check for inactive-but-redirected duplicates so old URLs get 301'd
+    // Only redirect if the canonical target itself is active (guards against redirect chains)
+    const redirectR = await pool.query(
+      `SELECT dl.redirects_to, t.name AS target_name
+       FROM directory_listings dl
+       JOIN directory_listings t ON t.id = dl.redirects_to AND t.status = 'active'
+       WHERE dl.id=$1 AND dl.status='inactive' AND dl.redirects_to IS NOT NULL`,
+      [id]
+    );
+    if (redirectR.rows.length) {
+      const { redirects_to, target_name } = redirectR.rows[0];
+      return res.redirect(301, `/directory/${toListingSlug(target_name, redirects_to)}`);
+    }
+
     const mainR = await pool.query(
       `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
               CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
@@ -4844,6 +4858,7 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee   BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verified           BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS redirects_to       INTEGER REFERENCES directory_listings(id)`).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
@@ -4872,6 +4887,78 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_listing ON dir_votes(listing_id)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_voted_at ON dir_votes(voted_at)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_featured_active ON dir_featured(is_active, expires_at)`).catch(()=>{});
+
+  // ── Idempotent deduplication migration ───────────────────────────────────
+  // Runs after dir_votes + its indexes exist. Safe to re-run — the check
+  // on status='active' AND redirects_to IS NULL makes it a no-op once done.
+  {
+    const DEDUP_PAIRS = [
+      [68,  532],  // GPT Image 2 (gptimage2.im   → image2maker.com)
+      [533, 532],  // GPT Image 2 (gptimage-2.me  → image2maker.com)
+      [550, 547],  // Action Figure AI Generator  → actionfiguregenerator.org
+      [274, 584],  // Cohere (wrong findly.tools URL → real cohere.ai)
+      [56,  54 ],  // SeaGames sub-page            → seagames.com homepage
+      [10,  658],  // SocialKit (socialkit.so      → socialkit.dev)
+      [62,  556],  // Wplace Paint Tool (wplacepainttool.com → wplacetool.app)
+    ];
+    for (const [dupId, canId] of DEDUP_PAIRS) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Guard: only run if dup is still active and not yet redirected
+        const check = await client.query(
+          `SELECT d.id FROM directory_listings d
+           WHERE d.id=$1 AND d.status='active' AND d.redirects_to IS NULL
+             AND EXISTS (SELECT 1 FROM directory_listings WHERE id=$2 AND status='active')`,
+          [dupId, canId]
+        );
+        if (check.rows.length) {
+          // Capture stored counters before any changes (may exceed dir_votes rows
+          // for legacy/backfilled counts — we must not discard them)
+          const counters = await client.query(
+            `SELECT
+               (SELECT vote_count FROM directory_listings WHERE id=$1) AS dup_count,
+               (SELECT vote_count FROM directory_listings WHERE id=$2) AS can_count`,
+            [dupId, canId]
+          );
+          const dupCount = parseInt(counters.rows[0].dup_count, 10) || 0;
+          const canCount = parseInt(counters.rows[0].can_count, 10) || 0;
+          const storedMerged = canCount + dupCount;
+
+          // Move votes whose voter_hash isn't already on the canonical
+          await client.query(
+            `UPDATE dir_votes SET listing_id=$2
+             WHERE listing_id=$1
+               AND voter_hash NOT IN (SELECT voter_hash FROM dir_votes WHERE listing_id=$2)`,
+            [dupId, canId]
+          );
+          // Delete any remaining votes on duplicate (voter already counted on canonical)
+          await client.query(`DELETE FROM dir_votes WHERE listing_id=$1`, [dupId]);
+          // Set canonical vote_count to the greater of:
+          //   a) sum of both stored counters (preserves backfilled/legacy counts), or
+          //   b) actual dir_votes row count after merge (never undercount real rows)
+          await client.query(
+            `UPDATE directory_listings
+             SET vote_count = GREATEST($2, (SELECT COUNT(*) FROM dir_votes WHERE listing_id=$1))
+             WHERE id=$1`,
+            [canId, storedMerged]
+          );
+          // Soft-delete duplicate with redirect pointer
+          await client.query(
+            `UPDATE directory_listings SET status='inactive', redirects_to=$2 WHERE id=$1`,
+            [dupId, canId]
+          );
+          console.log(`[dedup] ${dupId} → ${canId} merged and redirected`);
+        }
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        console.error(`[dedup] pair ${dupId}→${canId} failed:`, e.message);
+      } finally {
+        client.release();
+      }
+    }
+  }
 
   // Sidebar sponsors table
   await pool.query(`
