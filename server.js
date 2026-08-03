@@ -2323,6 +2323,8 @@ app.get('/admin/fix-wide-logos', async (req, res) => {
       }
       function isBadImage(imageUrl, productUrl) {
         if (!imageUrl) return true; // null → needs backfill
+        // Relative URLs are local app assets — always keep
+        if (imageUrl.startsWith('/')) return false;
         if (HERO_RE.some(re => re.test(imageUrl))) return true;
         // Wide Sanity CDN screenshots (dimensions embedded in URL)
         const sanityDim = imageUrl.match(/cdn\.sanity\.io.*-(\d+)x(\d+)\.(png|jpg|jpeg|webp)$/i);
@@ -2340,6 +2342,8 @@ app.get('/admin/fix-wide-logos', async (req, res) => {
           if (imgHost === 'logo.clearbit.com') return false;
           if (isTrustedCDN(imgHost)) return false;
           if (imgHost === 't0.gstatic.com' || imgHost.includes('google.com')) return false;
+          // Supabase storage — founder-uploaded logos via submit form
+          if (imgHost.endsWith('.supabase.co')) return false;
           return true; // unrelated domain
         } catch { return true; }
       }
