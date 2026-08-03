@@ -2179,7 +2179,21 @@ function buildMarquee(){
   const el=document.getElementById('dirMarqueeTrack');
   const el2=document.getElementById('dirMarqueeTrack2');
   if(!el) return;
-  const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+  // Locally-cached favicons for the 18 hardcoded brands (served from /brand-favicons/).
+  // For dynamic priority_marquee entries (unknown domains) we still use Google's API.
+  const LOCAL_CACHED = new Set([
+    'canva.com','github.com','figma.com','notion.so','vercel.com',
+    'netlify.com','airtable.com','zapier.com','webflow.com','retool.com',
+    'linear.app','framer.com','loom.com','cursor.com','perplexity.ai',
+    'typeform.com','supabase.com','notebooklm.google.com',
+  ]);
+  const gfavUrl = d => 'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+  // Returns local path for cached brands; Google API for dynamic ones
+  const favSrc = d => LOCAL_CACHED.has(d) ? `/brand-favicons/${d}.png` : gfavUrl(d);
+  // onerror: if local file missing → try Google API → then hide
+  const favErr = d => LOCAL_CACHED.has(d)
+    ? `this.onerror=function(){this.style.display='none';};this.src='${gfavUrl(d)}';`
+    : `this.style.display='none';`;
 
   // Priority listings from allListings (priority_marquee=true) go in band 1
   const priorityItems = allListings
@@ -2207,7 +2221,7 @@ function buildMarquee(){
     const href=b.slug?`/directory/${b.slug}`:`/directory?q=${encodeURIComponent(b.n)}`;
     const star=b.priority?'<span style="color:var(--gold);font-size:10px;margin-right:2px;">★</span>':'';
     const cls=b.priority?'dir-marquee-item dir-marquee-priority':'dir-marquee-item';
-    return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
+    return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${favSrc(b.d)}" alt="${b.n}" loading="lazy" onerror="${favErr(b.d)}"/>${b.n}</a>`;
   };
   el.innerHTML=band1.map(mk).join('')+band1.map(mk).join('');
   if(el2) el2.innerHTML=band2.map(mk).join('')+band2.map(mk).join('');

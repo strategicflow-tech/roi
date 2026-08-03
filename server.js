@@ -13971,8 +13971,47 @@ email_html: complete standalone HTML email, inline styles only, no external CSS,
   }
 });
 
+// ── Brand favicon local cache ─────────────────────────────────────────────────
+// Fetches the 18 marquee brand favicons from Google once and stores them in
+// public/brand-favicons/ so the marquee works even if Google's CDN is blocked.
+const BRAND_FAVICON_DIR = path.join(__dirname, 'public', 'brand-favicons');
+const BRAND_MARQUEE_DOMAINS = [
+  'canva.com','github.com','figma.com','notion.so','vercel.com',
+  'netlify.com','airtable.com','zapier.com','webflow.com','retool.com',
+  'linear.app','framer.com','loom.com','cursor.com','perplexity.ai',
+  'typeform.com','supabase.com','notebooklm.google.com',
+];
+async function cacheBrandFavicons() {
+  try {
+    await fs.promises.mkdir(BRAND_FAVICON_DIR, { recursive: true });
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    for (const domain of BRAND_MARQUEE_DOMAINS) {
+      const filePath = path.join(BRAND_FAVICON_DIR, `${domain}.png`);
+      // Skip if already cached and less than 7 days old
+      try {
+        const stat = await fs.promises.stat(filePath);
+        if (Date.now() - stat.mtimeMs < SEVEN_DAYS) continue;
+      } catch { /* file missing — fetch it */ }
+      try {
+        const url = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+        if (resp.ok) {
+          const buf = Buffer.from(await resp.arrayBuffer());
+          await fs.promises.writeFile(filePath, buf);
+          console.log(`[brand-favicons] cached ${domain}`);
+        }
+      } catch (e) {
+        console.warn(`[brand-favicons] skipped ${domain}: ${e.message}`);
+      }
+    }
+  } catch (e) {
+    console.error('[brand-favicons] init error:', e.message);
+  }
+}
+
 setupDB().then(async () => {
   await runMonthlyAudit();
+  cacheBrandFavicons().catch(() => {}); // non-blocking; marquee degrades gracefully
 
   // Bootstrap TEARDOWN_COUNT from DB if not already set via env var
   if (!process.env.TEARDOWN_COUNT) {
