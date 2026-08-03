@@ -44,3 +44,10 @@ uri = "file://.agents/outputs/toolindex-listings-export.json"
 type = "unspecified"
 title = "ToolIndex — 521 listări active (fără branduri mari)"
 description = "Array JSON cu id, name, page, cat, email (dacă există), li (dacă există), big=false. 40 branduri mari excluse."
+
+[[outputs]]
+id = "qh1mRmPMn40CwEBv_DmT5"
+uri = "file://.agents/outputs/toolindex-listings-with-emails.json"
+type = "unspecified"
+title = "ToolIndex — 521 listări + emails reale extrase"
+description = "521 listări active, fără branduri mari. 108 emails reale confirmate, 75 LinkedIn URLs. Câmpurile email/li lipsesc acolo unde nu s-a găsit nimic real."
