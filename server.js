@@ -459,7 +459,7 @@ app.get('/directory', async (req, res) => {
     );
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
     res.send(html);
   } catch (err) {
     console.error('[dir-ssr] error:', err.message);

@@ -2165,7 +2165,8 @@ function buildPaidMarquee(){
     const slug   = toSlug(l.name, l.id);
     const tier   = l.priority_marquee ? 'founder_pack' : (l.featured_tier || (l.verified ? 'verified' : ''));
     const label  = TIER_LABELS[tier] || tier;
-    const logo   = domain ? `<img class="dir-paid-logo" src="${fav(domain)}" alt="" loading="lazy" onerror="this.style.display='none'"/>` : '';
+    const logoSrc = l.image_url || (domain ? fav(domain) : '');
+    const logo   = logoSrc ? `<img class="dir-paid-logo" src="${escHtml(logoSrc)}" alt="" loading="lazy" onerror="this.src='${domain ? fav(domain) : ''}';this.onerror=function(){this.style.display='none';}"/>` : '';
     return `<a class="dir-paid-item" href="/directory/${escHtml(slug)}" title="${escHtml(l.name)}">${logo}<span>${escHtml(l.name)}</span><span class="dir-paid-tier">${label}</span></a>`;
   };
 
