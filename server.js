@@ -8964,7 +8964,20 @@ app.post('/stripe/checkout', async (req, res) => {
 });
 
 // GET /stripe/success — post-payment redirect page
-app.get('/stripe/success', (req, res) => {
+app.get('/stripe/success', async (req, res) => {
+  const sessionId = req.query.session_id;
+  if (!sessionId) {
+    return res.redirect('https://strategicflow-tech.github.io/showcase/enterprise.html');
+  }
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== 'paid') {
+      return res.redirect('https://strategicflow-tech.github.io/showcase/enterprise.html');
+    }
+  } catch (err) {
+    console.error('[stripe/success] session verification failed:', err.message);
+    return res.redirect('https://strategicflow-tech.github.io/showcase/enterprise.html');
+  }
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13031,7 +13044,7 @@ app.get('/checkout', async (req, res) => {
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
-      success_url: 'https://strategic-flow-audit.replit.app/stripe/success',
+      success_url: 'https://strategic-flow-audit.replit.app/stripe/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://strategicflow-tech.github.io/showcase/enterprise.html',
     });
     res.redirect(303, session.url);
