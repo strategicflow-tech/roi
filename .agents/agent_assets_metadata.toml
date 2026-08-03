@@ -49,5 +49,5 @@ description = "Array JSON cu id, name, page, cat, email (dacă există), li (dac
 id = "qh1mRmPMn40CwEBv_DmT5"
 uri = "file://.agents/outputs/toolindex-listings-with-emails.json"
 type = "unspecified"
-title = "ToolIndex — 521 listări complete (id, name, page, cat, email, li, big)"
-description = "521 listări active fără branduri mari. 108 emails reale, 75 LinkedIn. Email/li lipsesc acolo unde nu s-a găsit nimic real."
+title = "toolindex-listings-with-emails.json — 521 listări complete"
+description = "Array JSON complet: id, name, page, cat, email (unde există), li (unde există), big. 96KB, 521 obiecte."
