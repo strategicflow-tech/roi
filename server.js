@@ -1216,6 +1216,8 @@ app.get('/directory/:slug', async (req, res) => {
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
               COALESCE(dl.verified, FALSE) AS verified,
               (dl.claimed_by IS NOT NULL) AS is_claimed,
+              dl.submitted_at,
+              COALESCE(dl.relaunch_unlimited, FALSE) AS relaunch_unlimited,
               dl.founder_name, dl.social_twitter, dl.social_linkedin,
               dl.screenshots, dl.tech_stack, dl.platform, dl.pricing_model, dl.launch_date,
               CASE WHEN dl.founder_avatar_url IS NOT NULL THEN '/api/directory/listing-founder-avatar/' || dl.id::text ELSE NULL END AS founder_avatar_url,
@@ -1315,6 +1317,12 @@ app.get('/directory/:slug', async (req, res) => {
 </div>` : '';
 
     // ── claim prompt ───────────────────────────────────────────────────────
+    // Cooldown: 30 days from submitted_at (relaunch bumps submitted_at to NOW())
+    const daysSinceSubmit = l.submitted_at
+      ? Math.floor((Date.now() - new Date(l.submitted_at).getTime()) / 86400000)
+      : 999;
+    const relaunchDaysRemaining = l.relaunch_unlimited ? 0 : Math.max(0, 30 - daysSinceSubmit);
+
     const claimHtml = (!l.is_claimed) ? `
 <div class="claim-banner">
   <div class="claim-text"><strong>Is this your product?</strong> Claim it free to edit description, update your logo, and track real traffic from ToolIndex.</div>
@@ -1324,6 +1332,21 @@ app.get('/directory/:slug', async (req, res) => {
   <span class="claimed-badge">✓ Verified owner</span>
   <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
   <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
+</div>
+<div class="pp-relaunch-wrap" id="ppRelaunchWrap">
+  <div class="pp-relaunch-header">
+    <span class="pp-relaunch-label">🔄 Relaunch</span>
+    <span class="pp-relaunch-sub">Push back to "New Today" for fresh visibility</span>
+  </div>
+  <button class="pp-relaunch-btn" id="ppRelaunchBtn"
+    onclick="ppRelaunch()"
+    ${relaunchDaysRemaining > 0 ? 'disabled' : ''}
+    data-days-remaining="${relaunchDaysRemaining}">
+    ${relaunchDaysRemaining > 0
+      ? `⏳ Available in ${relaunchDaysRemaining} day${relaunchDaysRemaining !== 1 ? 's' : ''}`
+      : '🔄 Relaunch — push back to "New Today"'}
+  </button>
+  <div class="pp-relaunch-msg" id="ppRelaunchMsg"></div>
 </div>`;
 
     // ── boost section (all 7 paid tiers, golden dropdown) ────────────────────
@@ -1519,9 +1542,18 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .claim-text{font-size:13px;color:var(--sub)}
 .claim-text strong{color:var(--text)}
 .claim-link{font-size:12px;font-family:var(--mono);color:var(--teal);white-space:nowrap;font-weight:600}
-.claimed-badge-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.claimed-badge-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .claimed-badge{font-size:11px;font-family:var(--mono);color:var(--teal);background:var(--teal-dim);border:1px solid rgba(0,212,200,.3);border-radius:20px;padding:3px 10px;letter-spacing:.04em}
 .badge-link{font-size:12px;color:var(--muted)}
+/* Relaunch panel */
+.pp-relaunch-wrap{background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.18);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.pp-relaunch-header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.pp-relaunch-label{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);letter-spacing:.04em}
+.pp-relaunch-sub{font-size:11px;color:var(--muted)}
+.pp-relaunch-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:rgba(0,212,200,.08);border:1px solid rgba(0,212,200,.3);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);cursor:pointer;transition:background .2s,border-color .2s;letter-spacing:.03em}
+.pp-relaunch-btn:hover:not(:disabled){background:rgba(0,212,200,.16);border-color:rgba(0,212,200,.55)}
+.pp-relaunch-btn:disabled{opacity:.45;cursor:not-allowed}
+.pp-relaunch-msg{font-size:12px;font-family:var(--mono);margin-top:8px;min-height:16px}
 /* Similar tools */
 .similar-section{margin-bottom:24px}
 .similar-title{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
@@ -1702,6 +1734,68 @@ function openSsLb(src){
   lb.addEventListener('click',function(e){if(e.target===lb)lb.remove();});
   document.body.appendChild(lb);
 }
+// ── Relaunch ────────────────────────────────────────────────────────────
+async function ppRelaunch(){
+  var btn=document.getElementById('ppRelaunchBtn');
+  var msg=document.getElementById('ppRelaunchMsg');
+  if(!btn||btn.disabled)return;
+  // Read claim session from localStorage
+  var saved=null;try{saved=JSON.parse(localStorage.getItem('claim_'+PAGE.id)||'null');}catch(e){}
+  if(!saved||!saved.email||!saved.token){
+    // No session — send to claim flow
+    msg.textContent='Please verify ownership first.';
+    msg.style.color='var(--muted)';
+    window.location.href='/directory?claim='+PAGE.id;
+    return;
+  }
+  btn.disabled=true;btn.textContent='Relaunching…';msg.style.display='none';msg.textContent='';
+  try{
+    var r=await fetch('/api/directory/claim/relaunch',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({listing_id:PAGE.id,email:saved.email,edit_token:saved.token})});
+    var d=await r.json();
+    if(d.ok){
+      btn.style.display='none';
+      msg.textContent='✅ Relaunched! Your listing is now featured in New Today.';
+      msg.style.color='var(--teal)';
+    }else if(d.error==='too_soon'){
+      var dR=d.days_remaining||1;
+      btn.textContent='⏳ Available in '+dR+' day'+(dR!==1?'s':'');
+      msg.textContent='Relaunch window opens in '+dR+' day'+(dR!==1?'s':'')+'.';
+      msg.style.color='var(--muted)';
+    }else if(d.error==='unauthorized'){
+      btn.disabled=false;btn.textContent='🔄 Relaunch — push back to "New Today"';
+      msg.textContent='Session expired — verify ownership again.';
+      msg.style.color='#f87171';
+      setTimeout(function(){window.location.href='/directory?claim='+PAGE.id;},1500);
+    }else{
+      btn.disabled=false;btn.textContent='🔄 Relaunch — push back to "New Today"';
+      msg.textContent='Error — please try again.';
+      msg.style.color='#f87171';
+    }
+  }catch(e){
+    btn.disabled=false;btn.textContent='🔄 Relaunch — push back to "New Today"';
+    msg.textContent='Network error. Try again.';
+    msg.style.color='#f87171';
+  }
+}
+// Hydrate relaunch button from localStorage on page load
+(function(){
+  var wrap=document.getElementById('ppRelaunchWrap');
+  if(!wrap)return; // not claimed, nothing to hydrate
+  var saved=null;try{saved=JSON.parse(localStorage.getItem('claim_'+PAGE.id)||'null');}catch(e){}
+  var btn=document.getElementById('ppRelaunchBtn');
+  var daysR=parseInt(btn.dataset.daysRemaining||'0',10);
+  if(!saved||!saved.email||!saved.token){
+    // Owner not verified in this browser — swap to a verify prompt
+    if(daysR===0){
+      btn.textContent='Verify ownership to relaunch →';
+      btn.disabled=false;
+      btn.onclick=function(){window.location.href='/directory?claim='+PAGE.id;};
+    }
+  }
+  // If cooldown active, button is already disabled by server-rendered HTML
+})();
+
 var btn = document.getElementById('voteBtn');
 if(getVotedIds().includes(PAGE.id)){btn.classList.add('voted');btn.disabled=true;}
 btn.addEventListener('click',function(){
