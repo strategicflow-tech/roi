@@ -173,6 +173,28 @@ async function queryPerplexityForVisibility(question) {
   return text;
 }
 
+async function queryGeminiForVisibility(question) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY not set');
+  const apiResp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: question }] }],
+        generationConfig: { maxOutputTokens: 1000 }
+      }),
+      signal: AbortSignal.timeout(25000)
+    }
+  );
+  if (!apiResp.ok) throw new Error(`gemini_http_${apiResp.status}`);
+  const data = await apiResp.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('gemini_empty_response');
+  return text;
+}
+
 async function analyzeVisibilityAnswers(companyName, domain, category, knownPositioning, modelAnswers) {
   const answersBlock = modelAnswers.map((a, i) => `Answer ${i + 1}:\n${a}`).join('\n\n');
   const prompt = `Given these 5 AI assistant answers to buyer questions in ${category}, determine
@@ -11839,7 +11861,7 @@ function renderCompanyPageHtml(company, samples, hasAiVisibilityEntry) {
   const sampleCount = sampleRows.length;
   const aiVisCrossLinkBanner = hasAiVisibilityEntry ? `
   <div class="cross-link-banner">
-    ${name} is also on <a href="/ai-visibility-index/${escapeHtml(company.slug)}">The AI Visibility Index</a> — see how Claude, GPT, and Perplexity describe it too.
+    ${name} is also on <a href="/ai-visibility-index/${escapeHtml(company.slug)}">The AI Visibility Index</a> — see how Claude, GPT, Perplexity, and Gemini describe it too.
   </div>` : '';
 
   const samplesHtml = sampleCount > 1 ? `
@@ -12150,7 +12172,7 @@ function renderMethodologyHtml() {
 
 // ─── AI VISIBILITY INDEX — page renderers ───────────────────────────────────
 
-const AI_VIS_MODEL_LABELS = { claude: 'Claude', gpt: 'GPT-4o mini', perplexity: 'Perplexity' };
+const AI_VIS_MODEL_LABELS = { claude: 'Claude', gpt: 'GPT-4o mini', perplexity: 'Perplexity', gemini: 'Gemini 2.0 Flash' };
 const AI_VIS_POSITION_LABELS = { '1st': '1st mention', '2nd': '2nd mention', '3rd_plus': '3rd+ mention', absent: 'Not mentioned' };
 
 function renderAiVisIndexHtml(companies) {
@@ -12165,7 +12187,7 @@ function renderAiVisIndexHtml(companies) {
     const safeSlug = escapeHtml(c.slug);
     const safeCategory = escapeHtml(c.category);
     const scoreDisplay = c.visibility_score !== null ? Number(c.visibility_score).toFixed(1) : '—';
-    const partialTag = c.partial_coverage ? ' <span class="partial-tag" title="Partial coverage — not all 3 models succeeded">partial</span>' : '';
+    const partialTag = c.partial_coverage ? ' <span class="partial-tag" title="Partial coverage — not all 4 models succeeded">partial</span>' : '';
     return `
       <tr>
         <td class="rank">${i + 1}</td>
@@ -12180,7 +12202,7 @@ function renderAiVisIndexHtml(companies) {
     '@context': 'https://schema.org',
     '@type': 'Dataset',
     name: 'The AI Visibility Index',
-    description: `${count} SaaS companies scored on how Claude, GPT, and Perplexity describe them when asked buyer-style category questions.`,
+    description: `${count} SaaS companies scored on how Claude, GPT, Perplexity, and Gemini describe them when asked buyer-style category questions.`,
     creator: { '@type': 'Organization', name: 'Strategic Flow' },
     publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
     license: 'https://strategic-flow-pro.replit.app/terms.html',
@@ -12200,7 +12222,7 @@ function renderAiVisIndexHtml(companies) {
     }
   };
 
-  const subtitleText = `${count} SaaS companies scored on whether Claude, GPT, and Perplexity mention them — and describe them accurately — when buyers ask category questions.${count ? ` Average visibility score: ${avgScore}/10.` : ''}`;
+  const subtitleText = `${count} SaaS companies scored on whether Claude, GPT, Perplexity, and Gemini mention them — and describe them accurately — when buyers ask category questions.${count ? ` Average visibility score: ${avgScore}/10.` : ''}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -12333,7 +12355,7 @@ function renderAiVisIndexHtml(companies) {
       <h3>You've already used your free scan</h3>
       <p>Unlock AI Visibility Pro to keep monitoring:</p>
       <ul>
-        <li>Ongoing monitoring across Claude, GPT, and Perplexity</li>
+        <li>Ongoing monitoring across Claude, GPT, Perplexity, and Gemini</li>
         <li>Score history chart over time</li>
         <li>Shareable AI Visibility badge for your site</li>
         <li>Competitor watch — see who shows up alongside you</li>
@@ -12374,7 +12396,7 @@ function renderAiVisIndexHtml(companies) {
   </div>
 </div>
 <footer class="site-footer">
-  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, Perplexity, and Gemini describe SaaS companies to buyers.</div>
   <div>
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
@@ -12532,7 +12554,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
     : '';
   const okModelCount = (modelResults || []).filter(r => r.status === 'ok').length;
   const partialCoverageBanner = company.partial_coverage ? `
-  <div class="partial-coverage-banner">Partial coverage — ${okModelCount} of 3 models. One or more model queries failed and could not be retried successfully; this score is not directly comparable to fully-verified 3-model scores.</div>` : '';
+  <div class="partial-coverage-banner">Partial coverage — ${okModelCount} of 4 models. One or more model queries failed and could not be retried successfully; this score is not directly comparable to fully-verified 4-model scores.</div>` : '';
 
   const modelRows = (modelResults || []).map(r => {
     const modelLabel = escapeHtml(AI_VIS_MODEL_LABELS[r.model] || r.model);
@@ -12660,7 +12682,7 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${name} AI Visibility Score: ${score}/10 | The AI Visibility Index</title>
-<meta name="description" content="How Claude, GPT, and Perplexity describe ${name} when buyers ask ${category} category questions.">
+<meta name="description" content="How Claude, GPT, Perplexity, and Gemini describe ${name} when buyers ask ${category} category questions.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 ${isPrivate ? '' : `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`}
@@ -12776,7 +12798,7 @@ ${isPrivate ? '<meta name="robots" content="noindex, nofollow">' : ''}
   <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
 </div>
 <footer class="site-footer">
-  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, Perplexity, and Gemini describe SaaS companies to buyers.</div>
   <div>
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
@@ -12798,7 +12820,7 @@ function renderAiVisIndexMethodologyHtml() {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: 'How scores are produced — The AI Visibility Index Methodology',
-    description: 'How Strategic Flow scores SaaS companies on visibility across Claude, GPT, and Perplexity using a deterministic position + accuracy formula.',
+    description: 'How Strategic Flow scores SaaS companies on visibility across Claude, GPT, Perplexity, and Gemini using a deterministic position + accuracy formula.',
     publisher: { '@type': 'Organization', name: 'Strategic Flow', url: 'https://strategicflow.tech' },
     author: { '@type': 'Organization', name: 'Strategic Flow' }
   };
@@ -12809,7 +12831,7 @@ function renderAiVisIndexMethodologyHtml() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Methodology — How the AI Visibility Index Scores Companies | Strategic Flow</title>
-<meta name="description" content="How Strategic Flow scores SaaS companies on AI visibility across Claude, GPT, and Perplexity using a deterministic, hand-recomputable formula.">
+<meta name="description" content="How Strategic Flow scores SaaS companies on AI visibility across Claude, GPT, Perplexity, and Gemini using a deterministic, hand-recomputable formula.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
@@ -12861,7 +12883,7 @@ function renderAiVisIndexMethodologyHtml() {
   <p class="subtitle">How scores on the AI Visibility Index are produced.</p>
 
   <h2>The 3-model approach</h2>
-  <p>Each company is evaluated by generating 5 realistic buyer questions for its category — questions a prospective customer would ask an AI assistant BEFORE knowing which vendors exist, never mentioning the company by name. Those exact 5 questions are then sent as-is to three different AI models: Claude (Anthropic), GPT-4o mini (OpenAI), and Perplexity Sonar Pro (web-grounded search). Perplexity is included specifically because it grounds its answers in live web results, which is the mechanism most likely to reflect real-world current visibility.</p>
+  <p>Each company is evaluated by generating 5 realistic buyer questions for its category — questions a prospective customer would ask an AI assistant BEFORE knowing which vendors exist, never mentioning the company by name. Those exact 5 questions are then sent as-is to four different AI models: Claude (Anthropic), GPT-4o mini (OpenAI), Perplexity Sonar (web-grounded search), and Gemini 2.0 Flash Lite (Google). Perplexity is included specifically because it grounds its answers in live web results, which is the mechanism most likely to reflect real-world current visibility. Gemini is included to capture the growing share of AI-assisted search driven by Google's AI Overviews and the Gemini app.</p>
 
   <h2>How each model's answers are scored</h2>
   <p>For each model, the 5 raw answers are analyzed to determine: whether the company was mentioned at all, what position it appeared in across mentions, and whether its description (if any) was accurate. A deterministic formula — not a model's own self-assessment — converts this into a 0–10 score per model:</p>
@@ -12920,7 +12942,7 @@ function renderAiVisIndexMethodologyHtml() {
   <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
 </div>
 <footer class="site-footer">
-  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, and Perplexity describe SaaS companies to buyers.</div>
+  <div>The AI Visibility Index is published by Strategic Flow — tracking how Claude, GPT, Perplexity, and Gemini describe SaaS companies to buyers.</div>
   <div>
     <a href="https://strategicflow.tech">Strategic Flow</a> ·
     <a href="/why">WHY. Diagnostic</a> ·
@@ -15656,13 +15678,15 @@ setupDB().then(async () => {
     const modelQueryFns = {
       claude: queryClaudeForVisibility,
       gpt: queryGPTForVisibility,
-      perplexity: queryPerplexityForVisibility
+      perplexity: queryPerplexityForVisibility,
+      gemini: queryGeminiForVisibility,
     };
 
-    // The 3 models are fully independent of each other — run them in parallel.
+    // The 4 models are fully independent of each other — run them in parallel.
     // Within each model, the 5 questions also run with limited concurrency (see scoreOneModel).
+    // Gemini is skipped gracefully if GEMINI_API_KEY is not set (status becomes needs_manual).
     const modelResults = await Promise.all(
-      ['claude', 'gpt', 'perplexity'].map(model =>
+      ['claude', 'gpt', 'perplexity', 'gemini'].map(model =>
         scoreOneModel(model, modelQueryFns[model], name, domain, category, questions)
       )
     );
@@ -15715,15 +15739,18 @@ setupDB().then(async () => {
   }
 
   function buildAiVisScanSummary(name, modelResults) {
+    const MODEL_DISPLAY = { claude: 'Claude', gpt: 'GPT-4o', perplexity: 'Perplexity', gemini: 'Gemini' };
     const ok = modelResults.filter(r => r.status === 'ok');
     const mentioned = ok.filter(r => r.mentioned);
     if (!mentioned.length) return `None of the ${ok.length} AI models mentioned ${name} when asked buyer-style questions.`;
     const best = mentioned.reduce((b, r) => (r.position && r.position < (b.position || 999) ? r : b), mentioned[0]);
-    const label = { claude: 'Claude', gpt: 'GPT-4o', perplexity: 'Perplexity' }[best.model] || best.model;
-    if (mentioned.length === ok.length && ok.length === 3) {
-      return `Claude, GPT-4o, and Perplexity all mentioned ${name}${best.position ? ` — your best position was #${best.position} on ${label}` : ''}.`;
+    const label = MODEL_DISPLAY[best.model] || best.model;
+    const allNames = ok.map(r => MODEL_DISPLAY[r.model] || r.model);
+    if (mentioned.length === ok.length && ok.length >= 3) {
+      const joined = allNames.slice(0, -1).join(', ') + ', and ' + allNames[allNames.length - 1];
+      return `${joined} all mentioned ${name}${best.position ? ` — your best position was #${best.position} on ${label}` : ''}.`;
     }
-    const missing = ok.filter(r => !r.mentioned).map(r => ({ claude: 'Claude', gpt: 'GPT-4o', perplexity: 'Perplexity' }[r.model] || r.model));
+    const missing = ok.filter(r => !r.mentioned).map(r => MODEL_DISPLAY[r.model] || r.model);
     return `${name} was mentioned by ${mentioned.length} out of ${ok.length} AI model${ok.length !== 1 ? 's' : ''}${missing.length ? ` — not yet visible on ${missing.join(' or ')}` : ''}.`;
   }
 
@@ -15844,13 +15871,14 @@ setupDB().then(async () => {
           const modelQueryFns = {
             claude: queryClaudeForVisibility,
             gpt: queryGPTForVisibility,
-            perplexity: queryPerplexityForVisibility
+            perplexity: queryPerplexityForVisibility,
+            gemini: queryGeminiForVisibility,
           };
           const retried = await Promise.all(
             models.map(model => scoreOneModel(model, modelQueryFns[model], company.name, company.domain, company.category, questions))
           );
           const retriedByModel = Object.fromEntries(retried.map(r => [r.model, r]));
-          const mergedResults = ['claude', 'gpt', 'perplexity'].map(m => retriedByModel[m] || existingResults.find(r => r.model === m));
+          const mergedResults = ['claude', 'gpt', 'perplexity', 'gemini'].map(m => retriedByModel[m] || existingResults.find(r => r.model === m)).filter(Boolean);
 
           const okScores = mergedResults
             .filter(r => r.status === 'ok')
@@ -16108,7 +16136,7 @@ setupDB().then(async () => {
       <li>Score history chart — track your AI visibility over time</li>
       <li>Competitor watch — see who shows up alongside you</li>
       <li>Embeddable badge for your website</li>
-      <li>Ongoing rescoring across Claude, GPT, and Perplexity</li>
+      <li>Ongoing rescoring across Claude, GPT, Perplexity, and Gemini</li>
     </ul>
   </div>
   <a class="cta" href="/ai-visibility-index">Browse the AI Visibility Index →</a>
