@@ -3579,7 +3579,9 @@ app.get('/api/directory/featured', async (req, res) => {
     await expireFeaturedListings(); // lazy expiry
     const r = await pool.query(
       `SELECT dl.id, dl.name, dl.url, dl.category, dl.description, dl.friction_score,
-              dl.score_pending, dl.image_url, dl.source, dl.source_url, dl.vote_count,
+              dl.score_pending,
+              CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
+              dl.source, dl.source_url, dl.vote_count,
               dl.featured_tier, dl.featured_until
        FROM directory_listings dl
        WHERE dl.status='active' AND dl.featured_tier IS NOT NULL AND dl.featured_until > NOW()
