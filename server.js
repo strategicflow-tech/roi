@@ -3208,66 +3208,72 @@ app.get('/api/directory/leaderboard', async (req, res) => {
     if (period === 'daily') {
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
-                  dl.featured_tier, dl.vote_count,
+                  dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
+                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'weekly') {
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
-                  dl.featured_tier, dl.vote_count,
+                  dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
+                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'trending') {
-      // Biggest vote velocity in the last 24 hours (must have at least 1 vote in window)
+      // Biggest vote velocity in the last 24 hours. Pinned listings always appear
+      // at the top even if they have no recent activity; unpinned need ≥1 vote.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
-                  dl.featured_tier, dl.vote_count,
+                  dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes
            FROM directory_listings dl
-           JOIN dir_votes dv ON dv.listing_id = dl.id
+           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= NOW() - INTERVAL '24 hours'
            WHERE dl.status='active'
            GROUP BY dl.id
-           HAVING COUNT(dv.id) > 0
-           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           HAVING dl.pinned_in_leaderboard = TRUE OR COUNT(dv.id) > 0
+           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
+                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'new') {
       // Most recently submitted active listings
       q = `SELECT id, name, url, category, description,
                   friction_score, score_pending, image_url, source, source_url,
-                  featured_tier, vote_count, 0 AS period_votes,
+                  featured_tier, vote_count, pinned_in_leaderboard, 0 AS period_votes,
                   submitted_at
            FROM directory_listings
            WHERE status='active'
-           ORDER BY submitted_at DESC LIMIT 25`;
+           ORDER BY pinned_in_leaderboard DESC NULLS LAST, submitted_at DESC LIMIT 25`;
     } else if (period === 'clicked') {
-      // Highest outbound click count (real tracking data only)
+      // Highest outbound click count. Pinned listings always appear at top
+      // even with zero clicks; unpinned need ≥1 tracked click.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
-                  dl.featured_tier, dl.vote_count,
+                  dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dc.id)::int AS period_votes
            FROM directory_listings dl
-           JOIN dir_listing_clicks dc ON dc.listing_id = dl.id
+           LEFT JOIN dir_listing_clicks dc ON dc.listing_id = dl.id
            WHERE dl.status='active'
            GROUP BY dl.id
-           HAVING COUNT(dc.id) > 0
-           ORDER BY period_votes DESC LIMIT 25`;
+           HAVING dl.pinned_in_leaderboard = TRUE OR COUNT(dc.id) > 0
+           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST, period_votes DESC LIMIT 25`;
     } else {
       q = `SELECT id, name, url, category, description,
                   friction_score, score_pending, image_url, source, source_url,
-                  featured_tier, vote_count, vote_count AS period_votes
+                  featured_tier, vote_count, pinned_in_leaderboard,
+                  vote_count AS period_votes
            FROM directory_listings
            WHERE status='active'
-           ORDER BY vote_count DESC LIMIT 25`;
+           ORDER BY pinned_in_leaderboard DESC NULLS LAST, vote_count DESC LIMIT 25`;
     }
     const r = await pool.query(q);
     res.json({ period, listings: r.rows });
@@ -4859,6 +4865,14 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee   BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verified           BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS redirects_to       INTEGER REFERENCES directory_listings(id)`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pinned_in_leaderboard BOOLEAN DEFAULT FALSE`).catch(()=>{});
+
+  // ── Pin first-party listings at top of leaderboard ───────────────────────
+  // WHY Audit™ (199) and Strategic Flow Audit (203) are the platform owner's
+  // products and should always appear #1 / #2 across all leaderboard periods.
+  await pool.query(
+    `UPDATE directory_listings SET pinned_in_leaderboard=TRUE WHERE id IN (199,203)`
+  ).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
