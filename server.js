@@ -1274,7 +1274,8 @@ app.get('/directory/:slug', async (req, res) => {
     const simCards = similar.map(s => {
       const sSlug  = toListingSlug(s.name, s.id);
       const sDomain = (() => { try { return new URL(s.url).hostname.replace(/^www\./,''); } catch { return ''; } })();
-      const sImg   = sDomain ? `https://www.google.com/s2/favicons?domain=${sDomain}&sz=128` : '';
+      const sFavicon = sDomain ? `https://www.google.com/s2/favicons?domain=${sDomain}&sz=128` : '';
+      const sImg   = s.image_url || sFavicon;
       const sInit  = (s.name || '?').replace(/[^a-zA-Z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'?';
       return `<a href="/directory/${he(sSlug)}" class="sim-card">
   <div class="sim-logo"><span class="sim-init">${he(sInit)}</span><img src="${he(sImg)}" alt="" onerror="this.style.display='none'"/></div>
