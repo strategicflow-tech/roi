@@ -11649,12 +11649,14 @@ function renderFrictionIndexHtml(companies) {
     const safeName = escapeHtml(c.name);
     const safeSlug = escapeHtml(c.slug);
     const safeContentType = escapeHtml(c.content_type);
+    const scoreRaw = Number(c.score);
+    const delayAttr = i < 5 ? ` style="animation-delay:${i * 80}ms"` : '';
     return `
-      <tr data-content-type="${safeContentType}">
+      <tr data-content-type="${safeContentType}"${delayAttr}>
         <td class="rank">${i + 1}</td>
         <td class="logo-cell"><img src="https://logo.clearbit.com/${safeDomain}" alt="${safeName} logo" loading="lazy" onerror="this.style.display='none'"></td>
         <td class="name-cell"><a href="/friction-index/${safeSlug}">${safeName}</a></td>
-        <td class="score-cell">${Number(c.score).toFixed(1)}</td>
+        <td class="score-cell" data-score="${scoreRaw.toFixed(1)}">${scoreRaw.toFixed(1)}</td>
         <td class="pattern-cell">${topPatternForRow}</td>
         <td class="type-cell">${typeLabel}</td>
       </tr>`;
@@ -11697,47 +11699,84 @@ function renderFrictionIndexHtml(companies) {
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
 <style>
-  :root{--bg:#0a1628;--card:#0f2035;--card2:#122440;--teal:#00d4c8;--teal-dim:#00a89e;--muted:#7a9ab8;--hairline:#1a3050;}
-  *{box-sizing:border-box;}
-  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;}
-  .wrap{max-width:1000px;margin:0 auto;padding:60px 24px;}
-  h1{font-size:36px;margin-bottom:8px;}
-  .subtitle{color:var(--muted);font-size:16px;margin-bottom:32px;}
-  select{background:var(--card);color:#fff;border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;margin-bottom:24px;}
-  .filter-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:0;}
-  .filter-row select{margin-bottom:24px;}
-  .methodology-btn{display:inline-block;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 14px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;text-decoration:none;margin-bottom:24px;white-space:nowrap;transition:color 0.15s;}
-  .methodology-btn:hover{color:var(--teal);border-color:var(--teal);}
-  @media (max-width:480px){.filter-row{flex-direction:column;align-items:stretch;}.filter-row select{margin-bottom:0;}}
-  .show-more-btn{display:block;margin:16px auto 0;background:var(--card2);color:var(--muted);border:1px solid var(--hairline);padding:10px 20px;border-radius:8px;font-family:'Figtree',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:color 0.15s,border-color 0.15s;}
-  .show-more-btn:hover{color:var(--teal);border-color:var(--teal);}
-  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;}
-  th,td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--hairline);font-size:14px;}
-  th{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;}
-  td.score-cell{font-family:'DM Mono',monospace;color:var(--teal);font-weight:600;}
-  td.name-cell a{color:#fff;text-decoration:none;font-weight:600;}
+  :root{
+    --bg:#070d1a;--card:#0c1526;--card2:#101d30;--card3:#132035;
+    --teal:#00e5ff;--teal-dim:rgba(0,229,255,0.12);--teal-glow:rgba(0,229,255,0.35);
+    --muted:#6a8aaa;--hairline:#1a2e45;
+    --font:'Figtree',sans-serif;--mono:'DM Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{background:var(--bg);}
+  body{background:var(--bg);color:#e8f0fa;font-family:var(--font);position:relative;min-height:100vh;overflow-x:hidden;}
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);
+    background-size:52px 52px;animation:gridDrift 25s linear infinite;
+  }
+  body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,180,255,0.065) 0%,transparent 70%);}
+  @keyframes gridDrift{from{background-position:0 0;}to{background-position:52px 52px;}}
+  .site-header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;max-width:1060px;margin:0 auto;padding:18px 28px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
+  .site-header .wordmark{font-family:var(--font);font-weight:700;font-size:16px;color:#fff;text-decoration:none;}
+  .site-header .wordmark span{color:var(--teal);}
+  .site-header nav{display:flex;gap:22px;flex-wrap:wrap;}
+  .site-header nav a{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color .2s;}
+  .site-header nav a:hover,.site-header nav a.current{color:var(--teal);}
+  @media(max-width:480px){.site-header nav{gap:14px;}}
+  .wrap{max-width:1060px;margin:0 auto;padding:52px 28px 80px;position:relative;z-index:1;}
+  .hero-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);border:1px solid rgba(0,229,255,0.25);padding:5px 14px;border-radius:20px;margin-bottom:20px;}
+  .hero-label-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:blink 2s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  h1.hero-title{font-size:clamp(28px,4vw,44px);font-weight:800;line-height:1.1;letter-spacing:-.025em;margin-bottom:12px;color:#fff;}
+  .hero-sub{color:var(--muted);font-size:15px;line-height:1.65;max-width:680px;margin-bottom:32px;}
+  .stats-bar{display:flex;gap:2px;margin-bottom:36px;flex-wrap:wrap;background:var(--card);border:1px solid var(--hairline);border-radius:12px;overflow:hidden;}
+  .stat-cell{flex:1;min-width:140px;padding:20px 24px;border-right:1px solid var(--hairline);}
+  .stat-cell:last-child{border-right:none;}
+  .stat-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .stat-val{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--teal);line-height:1;text-shadow:0 0 20px rgba(0,229,255,0.5);}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+  .filter-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .filter-select{background:var(--card);color:#e8f0fa;border:1px solid var(--hairline);padding:10px 36px 10px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a8aaa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+  .filter-select:focus{border-color:rgba(0,229,255,0.4);box-shadow:0 0 0 3px rgba(0,229,255,0.08);}
+  .filter-select option{background:var(--card);}
+  .methodology-btn{display:inline-block;background:transparent;color:var(--muted);border:1px solid var(--hairline);padding:9px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-decoration:none;white-space:nowrap;transition:color .2s,border-color .2s,box-shadow .2s;}
+  .methodology-btn:hover{color:var(--teal);border-color:rgba(0,229,255,0.35);box-shadow:0 0 10px rgba(0,229,255,0.1);}
+  @media(max-width:520px){.filter-bar{flex-direction:column;align-items:stretch;}}
+  .table-wrap{background:var(--card);border:1px solid var(--hairline);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,229,255,0.04),0 8px 40px rgba(0,0,0,0.4);margin-bottom:6px;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{border-bottom:1px solid rgba(0,229,255,0.15);}
+  th{padding:14px 16px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:rgba(0,229,255,0.03);}
+  tbody tr{border-bottom:1px solid var(--hairline);transition:background .15s,box-shadow .15s;animation:rowReveal .45s ease both;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:rgba(0,229,255,0.045);box-shadow:inset 0 0 0 1px rgba(0,229,255,0.12),0 0 24px rgba(0,229,255,0.04);}
+  @keyframes rowReveal{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  td{padding:13px 16px;font-size:14px;color:#cde0f5;vertical-align:middle;}
+  td.rank{color:var(--muted);font-family:var(--mono);font-size:12px;width:36px;padding-right:4px;}
+  td.logo-cell{width:36px;padding-right:4px;}
+  td.logo-cell img{width:24px;height:24px;border-radius:5px;object-fit:contain;background:#fff;display:block;}
+  td.name-cell a{color:#e8f0fa;text-decoration:none;font-weight:600;transition:color .2s;}
   td.name-cell a:hover{color:var(--teal);}
-  td.logo-cell img{width:24px;height:24px;border-radius:4px;object-fit:contain;background:#fff;}
-  .rank{color:var(--muted);font-family:'DM Mono',monospace;}
-  .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;}
-  .cta-banner{margin-top:40px;padding:32px;background:var(--card2);border-radius:12px;text-align:center;}
-  .cta-banner a{display:inline-block;margin-top:16px;background:var(--teal);color:var(--bg);padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;}
-  .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;}
-  .site-header .wordmark{font-family:'Figtree',sans-serif;font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
-  .site-header nav{display:flex;gap:24px;flex-wrap:wrap;}
-  .site-header nav a{font-family:'Figtree',sans-serif;font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
-  .site-header nav a:hover{color:var(--teal);}
-  .site-header nav a.current{color:var(--teal);}
-  .site-footer{max-width:1000px;margin:60px auto 0;padding:32px 24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.8;}
+  td.score-cell{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--teal);text-shadow:0 0 14px rgba(0,229,255,0.55);width:72px;}
+  td.pattern-cell{color:var(--muted);font-size:12px;font-family:var(--mono);}
+  td.type-cell{color:var(--muted);font-size:12px;}
+  .empty-state{padding:60px 24px;text-align:center;color:var(--muted);background:var(--card);border-radius:12px;border:1px solid var(--hairline);}
+  .show-more-wrap{text-align:center;padding:12px 0 4px;}
+  .show-more-btn{background:transparent;color:var(--muted);border:1px solid var(--hairline);padding:10px 22px;border-radius:8px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;cursor:pointer;transition:color .2s,border-color .2s,box-shadow .2s;}
+  .show-more-btn:hover{color:var(--teal);border-color:rgba(0,229,255,0.4);box-shadow:0 0 12px rgba(0,229,255,0.1);}
+  .cta-banner{margin-top:44px;padding:36px 32px;background:var(--card2);border:1px solid var(--hairline);border-radius:14px;text-align:center;box-shadow:0 0 0 1px rgba(0,229,255,0.05),0 4px 30px rgba(0,0,0,0.3);}
+  .cta-banner-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:10px;}
+  .cta-banner h2{font-size:22px;font-weight:700;color:#fff;margin-bottom:6px;}
+  .cta-banner p{font-size:14px;color:var(--muted);margin-bottom:22px;line-height:1.6;}
+  .cta-btn{display:inline-block;background:var(--teal);color:#050e1c;padding:13px 28px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;transition:box-shadow .2s;}
+  .cta-btn:hover{box-shadow:0 0 24px rgba(0,229,255,0.55),0 0 48px rgba(0,229,255,0.2);}
+  .site-footer{position:relative;z-index:1;max-width:1060px;margin:0 auto;padding:32px 28px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;line-height:1.9;}
   .site-footer a{color:var(--muted);text-decoration:none;}
   .site-footer a:hover{color:var(--teal);}
-  .site-footer .footer-line3{margin-top:8px;opacity:0.7;}
-  @media (max-width:480px){.site-header nav{gap:14px;}.site-header nav a{font-size:13px;}}
+  .site-footer .footer-line3{margin-top:6px;opacity:.6;}
 </style>
 </head>
 <body>
 <div class="site-header">
-  <a class="wordmark" href="/">Strategic Flow</a>
+  <a class="wordmark" href="/">Strategic<span>Flow</span></a>
   <nav>
     <a href="/why">WHY. Diagnostic</a>
     <a href="/friction-index" class="current">The Index</a>
@@ -11746,11 +11785,36 @@ function renderFrictionIndexHtml(companies) {
   </nav>
 </div>
 <div class="wrap">
-  <h1>The Decision Friction Index</h1>
-  <p class="subtitle">${escapeHtml(subtitleText)}</p>
+  <div class="hero-label"><span class="hero-label-dot"></span>Live Index</div>
+  <h1 class="hero-title">The Decision Friction Index</h1>
+  <p class="hero-sub">${escapeHtml(subtitleText)}</p>
+
+  <div class="stats-bar">
+    <div class="stat-cell">
+      <div class="stat-label">Companies scored</div>
+      <div class="stat-val">${count}</div>
+      <div class="stat-sub">SaaS products analyzed</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Most common failure</div>
+      <div class="stat-val" style="font-size:13px;line-height:1.3;padding-top:4px;">${topPattern ? escapeHtml(topPattern) : '—'}</div>
+      <div class="stat-sub">Across all samples</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Diagnostic checks</div>
+      <div class="stat-val">7</div>
+      <div class="stat-sub">Structural signals per piece</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Content types</div>
+      <div class="stat-val">7</div>
+      <div class="stat-sub">Email · Blog · LP · More</div>
+    </div>
+  </div>
+
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
-  <div class="filter-row">
-    <select id="filter" onchange="filterTable()">
+  <div class="filter-bar">
+    <select id="filter" class="filter-select" onchange="filterTable()">
       <option value="all">All content types</option>
       <option value="email">Email</option>
       <option value="product_update_blog">Product Update</option>
@@ -11762,18 +11826,23 @@ function renderFrictionIndexHtml(companies) {
     </select>
     <a class="methodology-btn" href="/friction-index/methodology">How scores work →</a>
   </div>
-  <table>
-    <thead><tr><th>#</th><th></th><th>Company</th><th>Score</th><th>Top Pattern</th><th>Type</th></tr></thead>
-    <tbody id="rows">
-      ${rows}
-    </tbody>
-  </table>
-  <div id="showMoreWrap" style="text-align:center;">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th></th><th>Company</th><th>Score /10</th><th>Top Failure Pattern</th><th>Type</th></tr></thead>
+      <tbody id="rows">
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+  <div class="show-more-wrap" id="showMoreWrap">
     <button class="show-more-btn" id="showMoreBtn"></button>
   </div>`}
+
   <div class="cta-banner">
-    <div>Wondering how your own content holds up?</div>
-    <a href="/why">Find the friction in your own content — free</a>
+    <div class="cta-banner-eyebrow">Free diagnostic</div>
+    <h2>Does your content have hidden friction?</h2>
+    <p>Paste any SaaS email, landing page, or product update.<br>Get a 7-point structural breakdown in under 90 seconds.</p>
+    <a class="cta-btn" href="/why">Find the friction in your content — free →</a>
   </div>
 </div>
 <footer class="site-footer">
@@ -11790,16 +11859,47 @@ function renderFrictionIndexHtml(companies) {
 </footer>
 <script>
 (function(){
+  // ── Score count-up ──
+  function animateCountUp(el, target, duration) {
+    var startTime = null, targetNum = parseFloat(target);
+    if (isNaN(targetNum)) return;
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      var progress = Math.min((ts - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = (eased * targetNum).toFixed(1);
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = targetNum.toFixed(1);
+    }
+    requestAnimationFrame(step);
+  }
+  var scoreCells = document.querySelectorAll('td.score-cell[data-score]');
+  if (scoreCells.length && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var el = entry.target, score = el.getAttribute('data-score');
+          if (score) animateCountUp(el, score, 900);
+          io.unobserve(el);
+        }
+      });
+    }, { threshold: 0.2 });
+    scoreCells.forEach(function(el) {
+      var score = el.getAttribute('data-score');
+      if (score) { el.textContent = '0.0'; io.observe(el); }
+    });
+  }
+  // ── Filter + show-more ──
   var INIT = 5, BATCH = 10, shown = INIT;
   function getMatchingRows() {
-    var val = document.getElementById('filter').value;
+    var val = document.getElementById('filter') ? document.getElementById('filter').value : 'all';
     return Array.from(document.querySelectorAll('#rows tr')).filter(function(tr){
       return val === 'all' || tr.dataset.contentType === val;
     });
   }
   function renderRows() {
     var all = Array.from(document.querySelectorAll('#rows tr'));
-    var val = document.getElementById('filter').value;
+    var val = document.getElementById('filter') ? document.getElementById('filter').value : 'all';
     all.forEach(function(tr){
       tr.style.display = (val === 'all' || tr.dataset.contentType === val) ? '' : 'none';
     });
@@ -11818,14 +11918,9 @@ function renderFrictionIndexHtml(companies) {
         : 'Show 10 more (' + remaining + ' remaining)';
     }
   }
-  window.filterTable = function(){
-    shown = INIT;
-    renderRows();
-  };
-  document.getElementById('showMoreBtn').addEventListener('click', function(){
-    shown += BATCH;
-    renderRows();
-  });
+  window.filterTable = function(){ shown = INIT; renderRows(); };
+  var sbtn = document.getElementById('showMoreBtn');
+  if (sbtn) sbtn.addEventListener('click', function(){ shown += BATCH; renderRows(); });
   renderRows();
 })();
 </script>
@@ -16271,6 +16366,103 @@ setupDB().then(async () => {
       console.error('[ai-visibility-index leads]', err.message);
       res.status(500).json({ error: 'Failed to load leads' });
     }
+  });
+
+  // ─── Gemini backfill: score existing companies that pre-date Gemini ──────────
+  // POST /api/ai-visibility-index/backfill-gemini  (requires x-admin-key header)
+  // Fetches all companies with no gemini result, runs queryGeminiForVisibility on
+  // their stored questions, inserts result rows, recomputes visibility_score.
+  // Rate-limited to 1 company per 3 seconds to avoid hammering the Gemini API.
+  app.post('/api/ai-visibility-index/backfill-gemini', async (req, res) => {
+    if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Respond immediately — processing happens in background
+    res.json({ status: 'started', message: 'Backfill running in background. Check server logs for progress.' });
+
+    (async () => {
+      const summary = { processed: 0, skipped: 0, errors: [] };
+      try {
+        // Companies that have no gemini row in model_results
+        const { rows: companies } = await pool.query(`
+          SELECT c.slug, c.name, c.domain, c.category
+          FROM ai_visibility_companies c
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ai_visibility_model_results r
+            WHERE r.company_slug = c.slug AND r.model = 'gemini'
+          )
+          ORDER BY c.scored_at ASC
+        `);
+
+        console.log(`[gemini-backfill] ${companies.length} companies need Gemini scores`);
+
+        for (const company of companies) {
+          try {
+            // Fetch stored questions
+            const { rows: qRows } = await pool.query(
+              'SELECT question FROM ai_visibility_questions WHERE company_slug = $1 ORDER BY id',
+              [company.slug]
+            );
+            if (!qRows.length) {
+              console.log(`[gemini-backfill] SKIP ${company.slug} — no stored questions`);
+              summary.skipped++;
+              continue;
+            }
+            const questions = qRows.map(r => r.question);
+
+            // Score via Gemini
+            const geminiResult = await scoreOneModel('gemini', queryGeminiForVisibility, company.name, company.domain, company.category, questions);
+
+            // Insert gemini result row
+            await pool.query(
+              `INSERT INTO ai_visibility_model_results
+                (company_slug, model, status, mentioned, position, description_accuracy, competitors_shown, raw_answer_excerpt)
+               VALUES ($1,'gemini',$2,$3,$4,$5,$6,$7)
+               ON CONFLICT (company_slug, model) DO UPDATE
+                 SET status=$2, mentioned=$3, position=$4, description_accuracy=$5,
+                     competitors_shown=$6, raw_answer_excerpt=$7`,
+              [company.slug, geminiResult.status, geminiResult.mentioned, geminiResult.position,
+               geminiResult.description_accuracy, JSON.stringify(geminiResult.competitors_shown || []),
+               geminiResult.raw_answer_excerpt]
+            );
+
+            // Recompute visibility_score across all 4 models now
+            const { rows: allResults } = await pool.query(
+              `SELECT status, mentioned, position, description_accuracy
+               FROM ai_visibility_model_results WHERE company_slug = $1`,
+              [company.slug]
+            );
+            const okScores = allResults
+              .filter(r => r.status === 'ok')
+              .map(r => computeVisibilityModelScore(r.mentioned, r.position, r.description_accuracy));
+            const newScore = okScores.length
+              ? Math.round((okScores.reduce((a, b) => a + b, 0) / okScores.length) * 10) / 10
+              : null;
+            const partialCoverage = allResults.some(r => r.status !== 'ok');
+
+            await pool.query(
+              `UPDATE ai_visibility_companies
+               SET visibility_score=$1, partial_coverage=$2, scored_at=scored_at
+               WHERE slug=$3`,
+              [newScore, partialCoverage, company.slug]
+            );
+
+            console.log(`[gemini-backfill] OK ${company.slug} → Gemini status=${geminiResult.status}, new score=${newScore}`);
+            summary.processed++;
+
+            // Rate limit: 3 seconds between companies
+            await new Promise(r => setTimeout(r, 3000));
+          } catch (err) {
+            console.error(`[gemini-backfill] ERROR ${company.slug}:`, err.message);
+            summary.errors.push({ slug: company.slug, error: err.message });
+          }
+        }
+        console.log('[gemini-backfill] DONE', JSON.stringify(summary));
+      } catch (outerErr) {
+        console.error('[gemini-backfill] FATAL:', outerErr.message);
+      }
+    })();
   });
 
   app.post('/api/ai-visibility-index/scan', async (req, res) => {
