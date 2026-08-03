@@ -1420,6 +1420,22 @@ app.get('/directory/:slug', async (req, res) => {
   <a href="/directory?cat=${encodeURIComponent(cat)}" class="similar-all">View all ${he(catLabel)} →</a>
 </section>` : '';
 
+    // ── SEO comparison page link — internal link for Google authority ──────
+    const SEO_CATEGORY_MAP = {
+      'Design':          { slug: 'best-design-tools',      label: 'Best Design Tools' },
+      'AI Tools':        { slug: 'best-ai-marketing-tools', label: 'Best AI Marketing Tools' },
+      'Marketing':       { slug: 'best-ai-marketing-tools', label: 'Best AI Marketing Tools' },
+      'Developer Tools': { slug: 'best-developer-tools',   label: 'Best Developer Tools' },
+      'Productivity':    { slug: 'best-productivity-saas',  label: 'Best Productivity SaaS' },
+      'Directories':     { slug: 'best-saas-directories',  label: 'Best SaaS Directories' },
+    };
+    const seoPageMatch = SEO_CATEGORY_MAP[cat];
+    const seoLinkHtml = seoPageMatch ? `
+<div class="seo-cat-link">
+  <span class="seo-cat-link-label">Browse similar</span>
+  <a href="/directory/${seoPageMatch.slug}" class="seo-cat-link-anchor">${he(seoPageMatch.label)} →</a>
+</div>` : '';
+
     // ── sponsors section (shown only when active sponsors exist) ───────────
     const sponsorHtml = activeSponsors.length > 0 ? `
 <section class="sponsor-section">
@@ -1519,6 +1535,10 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .sim-meta{font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:2px}
 .similar-all{font-size:12px;font-family:var(--mono);color:var(--muted)}
 .similar-all:hover{color:var(--teal)}
+.seo-cat-link{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:24px}
+.seo-cat-link-label{font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0}
+.seo-cat-link-anchor{font-size:13px;font-weight:600;color:var(--teal)}
+.seo-cat-link-anchor:hover{text-decoration:underline}
 /* Attribution */
 .attribution{font-size:12px;color:var(--muted);text-align:center;padding-top:24px;border-top:1px solid var(--border)}
 .attribution a{color:var(--muted)}
@@ -1633,6 +1653,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${claimHtml}
   ${boostHtml}
   ${similarHtml}
+  ${seoLinkHtml}
   ${sponsorHtml}
 
   <div class="attribution">
