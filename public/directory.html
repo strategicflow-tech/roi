@@ -206,6 +206,9 @@ a:hover{text-decoration:underline;}
 .dir-marquee-track{display:flex;align-items:center;gap:12px;width:max-content;animation:marqueeScroll 32s linear infinite;}
 .dir-marquee-track:hover{animation-play-state:paused;}
 @keyframes marqueeScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+@keyframes marqueeScrollReverse{0%{transform:translateX(-50%);}100%{transform:translateX(0);}}
+.dir-marquee-track-rev{display:flex;align-items:center;gap:12px;width:max-content;animation:marqueeScrollReverse 36s linear infinite;}
+.dir-marquee-track-rev:hover{animation-play-state:paused;}
 .dir-marquee-item{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:7px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:#8a9ab0;font-size:12px;font-weight:500;transition:border-color .2s,color .2s;white-space:nowrap;}
 .dir-marquee-item:hover{border-color:var(--teal);color:var(--text);text-decoration:none;}
 .dir-marquee-priority{border-color:rgba(245,158,11,.35);color:var(--text);}
@@ -1106,6 +1109,14 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <summary class="dir-faq-q">How do I get my product featured at the top?</summary>
     <p class="dir-faq-a">Click the <strong>⚡ Boost</strong> button on any listing card. Options: <strong>Daily Boost</strong> ($9 — 24 hours as #1 in the grid, activates instantly, no review queue), <strong>Weekly Feature</strong> ($19 — 14 days in the Featured Spotlight with a gold badge), or <strong>Premium Listing</strong> ($29 — 30 days with a purple badge and top-3 placement).</p>
   </details>
+
+  <details class="dir-faq-item">
+    <summary class="dir-faq-q">What are all the paid options available for my listing?</summary>
+    <p class="dir-faq-a">There are 7 paid options across two categories:<br><br>
+    <strong>Visibility boosts</strong> — <strong>Daily Boost</strong> ($9, 24 h at #1), <strong>Weekly Feature</strong> ($19, 14 days with gold badge), <strong>Premium Listing</strong> ($29, 30 days with purple badge + top-3 placement).<br><br>
+    <strong>Ownership upgrades</strong> — <strong>Founder Pack</strong> ($49, 30-day Premium + unlimited Relaunches + priority brand carousel placement), <strong>Verified Badge</strong> ($9, permanent ✓ Verified badge on card and product page, no expiry), <strong>Teardown Spotlight Solo</strong> ($19, professional teardown of your landing page or email, published on ToolIndex within 48–72 h), <strong>Teardown Spotlight Pro</strong> ($49, everything in Solo + LinkedIn feature + Startup of the Week on the ToolIndex homepage).<br><br>
+    Click <strong>⚡ Boost from $9</strong> on any listing card, or the <strong>✨ Boost This Listing</strong> panel on any individual product page, to access all options.</p>
+  </details>
 </section>
 
 <!-- TRUST / ABOUT SECTION -->
@@ -1238,7 +1249,12 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <div class="dir-marquee-label">Products already listed on ToolIndex</div>
   <div class="dir-marquee-outer">
     <div class="dir-marquee-track" id="dirMarqueeTrack">
-      <!-- JS-generated: duplicated for infinite loop -->
+      <!-- JS-generated: priority items + first 9 brands, right-to-left -->
+    </div>
+  </div>
+  <div class="dir-marquee-outer" style="margin-top:8px;">
+    <div class="dir-marquee-track-rev" id="dirMarqueeTrack2">
+      <!-- JS-generated: last 9 brands, left-to-right -->
     </div>
   </div>
 </div>
@@ -2105,10 +2121,11 @@ function loadRecentlyClaimed(){
 // ── Brand marquee — 18 real listed brands ────────────────────────────────────
 function buildMarquee(){
   const el=document.getElementById('dirMarqueeTrack');
+  const el2=document.getElementById('dirMarqueeTrack2');
   if(!el) return;
   const fav=d=>'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
 
-  // Priority listings from allListings (priority_marquee=true) come first
+  // Priority listings from allListings (priority_marquee=true) go in band 1
   const priorityItems = allListings
     .filter(l=>l.priority_marquee && l.url)
     .map(l=>{
@@ -2125,7 +2142,10 @@ function buildMarquee(){
     {n:'Typeform',d:'typeform.com'},{n:'Supabase',d:'supabase.com'},{n:'NotebookLM',d:'notebooklm.google.com'},
   ];
 
-  const brands=[...priorityItems, ...fallback];
+  // Band 1 (right-to-left): priority items + first 9 fallback brands
+  const band1=[...priorityItems, ...fallback.slice(0,9)];
+  // Band 2 (left-to-right): last 9 fallback brands
+  const band2=fallback.slice(9);
 
   const mk=b=>{
     const href=b.slug?`/directory/${b.slug}`:`/directory?q=${encodeURIComponent(b.n)}`;
@@ -2133,7 +2153,8 @@ function buildMarquee(){
     const cls=b.priority?'dir-marquee-item dir-marquee-priority':'dir-marquee-item';
     return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${fav(b.d)}" alt="${b.n}" loading="lazy" onerror="this.style.display='none'"/>${b.n}</a>`;
   };
-  el.innerHTML=brands.map(mk).join('')+brands.map(mk).join('');
+  el.innerHTML=band1.map(mk).join('')+band1.map(mk).join('');
+  if(el2) el2.innerHTML=band2.map(mk).join('')+band2.map(mk).join('');
 }
 
 // ── Hero search — live dropdown suggestions ───────────────────────────────────

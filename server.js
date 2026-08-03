@@ -1311,6 +1311,35 @@ app.get('/directory/:slug', async (req, res) => {
   <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
 </div>`;
 
+    // ── boost section (all 7 paid tiers, golden dropdown) ────────────────────
+    const boostHtml = `
+<div class="pp-boost-section">
+  <button class="pp-boost-toggle" onclick="toggleBoost()" id="ppBoostToggle">
+    <span>✨ Boost This Listing</span>
+    <span class="pp-boost-arrow" id="ppBoostArrow">▼</span>
+  </button>
+  <div class="pp-boost-body" id="ppBoostBody" style="display:none;">
+    <div class="pp-boost-grid">
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🔥 Daily Boost</span><span class="pp-boost-card-price">$9</span></div><div class="pp-boost-card-desc">24 hours as #1 in the grid. Activates instantly, no review queue.</div><button class="pp-boost-card-btn" onclick="ppCheckout('daily_top')">Get Daily Boost →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">⚡ Weekly Feature</span><span class="pp-boost-card-price">$19</span></div><div class="pp-boost-card-desc">14 days in the Featured Spotlight with a gold badge.</div><button class="pp-boost-card-btn" onclick="ppCheckout('weekly_feature')">Get Weekly Feature →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">💎 Premium Listing</span><span class="pp-boost-card-price">$29</span></div><div class="pp-boost-card-desc">30 days with a purple Premium badge and top-3 placement.</div><button class="pp-boost-card-btn" onclick="ppCheckout('premium')">Get Premium →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🏆 Founder Pack</span><span class="pp-boost-card-price">$49</span></div><div class="pp-boost-card-desc">30-day Premium + unlimited Relaunches + priority brand carousel placement.</div><button class="pp-boost-card-btn" onclick="ppCheckout('founder_pack')">Get Founder Pack →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">✅ Verified Badge</span><span class="pp-boost-card-price">$9</span></div><div class="pp-boost-card-desc">Permanent ✓ Verified badge on card &amp; product page. No expiry, ever.</div><button class="pp-boost-card-btn" onclick="ppCheckout('verified_badge')">Get Verified →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">✂️ Teardown Solo</span><span class="pp-boost-card-price">$19</span></div><div class="pp-boost-card-desc">Pro teardown of your landing page or email, published on ToolIndex. 48–72 h delivery.</div><button class="pp-boost-card-btn" onclick="ppCheckout('teardown_solo')">Order Solo →</button></div>
+      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🔍 Teardown Pro</span><span class="pp-boost-card-price">$49</span></div><div class="pp-boost-card-desc">Everything in Solo + LinkedIn feature + Startup of the Week on ToolIndex.</div><button class="pp-boost-card-btn" onclick="ppCheckout('teardown_pro')">Order Pro →</button></div>
+    </div>
+  </div>
+</div>
+<div class="pp-boost-overlay" id="ppBoostOverlay" style="display:none;" onclick="if(event.target===this)closeBoostModal()">
+  <div class="pp-boost-modal">
+    <div class="pp-boost-modal-title" id="ppBoostModalTitle">✨ Boost This Listing</div>
+    <div class="pp-boost-modal-sub">Enter your email to proceed to Stripe checkout. You'll be redirected instantly.</div>
+    <input class="pp-boost-modal-input" type="email" id="ppBoostEmail" placeholder="your@email.com" />
+    <button class="pp-boost-modal-btn" id="ppBoostModalBtn" onclick="submitBoostCheckout()">Continue to Checkout →</button>
+    <button class="pp-boost-modal-cancel" onclick="closeBoostModal()">Cancel</button>
+  </div>
+</div>`;
+
     // ── premium badge ─────────────────────────────────────────────────────────
     const premiumBadge = l.featured_tier === 'premium'
       ? ' <span class="pp-premium-badge">💎 Premium</span>' : '';
@@ -1523,6 +1552,33 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .ss-lb img{max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain;}
 .ss-lb-x{position:absolute;top:14px;right:18px;color:#fff;font-size:28px;cursor:pointer;opacity:.7;line-height:1;background:none;border:none;}
 .ss-lb-x:hover{opacity:1;}
+/* ── Boost section ── */
+.pp-boost-section{margin-bottom:16px;}
+.pp-boost-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(251,191,36,.04));border:1px solid rgba(245,158,11,.45);border-radius:12px;cursor:pointer;font-size:14px;font-weight:700;color:#f59e0b;font-family:var(--mono);letter-spacing:.02em;transition:border-color .2s,background .2s;}
+.pp-boost-toggle:hover{border-color:rgba(245,158,11,.7);background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.08));}
+.pp-boost-arrow{font-size:11px;transition:transform .2s;font-weight:400;}
+.pp-boost-body{padding:14px 0 4px;}
+.pp-boost-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:520px){.pp-boost-grid{grid-template-columns:1fr;}}
+.pp-boost-card{background:var(--card);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;}
+.pp-boost-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.pp-boost-card-name{font-size:13px;font-weight:700;color:var(--text);flex:1;}
+.pp-boost-card-price{font-size:14px;font-weight:800;color:#f59e0b;font-family:var(--mono);white-space:nowrap;}
+.pp-boost-card-desc{font-size:11px;color:var(--muted);line-height:1.5;flex:1;}
+.pp-boost-card-btn{margin-top:6px;padding:8px 12px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(251,191,36,.08));border:1px solid rgba(245,158,11,.4);border-radius:7px;color:#f59e0b;font-size:11px;font-family:var(--mono);font-weight:700;cursor:pointer;transition:all .2s;text-align:center;width:100%;}
+.pp-boost-card-btn:hover{background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(251,191,36,.15));border-color:rgba(245,158,11,.7);}
+.pp-boost-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
+.pp-boost-modal{background:var(--card);border:1px solid rgba(245,158,11,.4);border-radius:16px;padding:28px 28px 22px;max-width:380px;width:100%;box-shadow:0 24px 48px rgba(0,0,0,.5);}
+.pp-boost-modal-title{font-size:16px;font-weight:800;color:#f59e0b;font-family:var(--mono);margin-bottom:8px;}
+.pp-boost-modal-sub{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.pp-boost-modal-input{width:100%;padding:10px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(245,158,11,.3);border-radius:8px;color:var(--text);font-size:14px;outline:none;margin-bottom:12px;font-family:var(--font);}
+.pp-boost-modal-input:focus{border-color:rgba(245,158,11,.6);}
+.pp-boost-modal-input::placeholder{color:var(--muted);}
+.pp-boost-modal-btn{width:100%;padding:11px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:8px;color:#0a1628;font-size:14px;font-weight:800;font-family:var(--mono);cursor:pointer;transition:opacity .2s;}
+.pp-boost-modal-btn:hover{opacity:.9;}
+.pp-boost-modal-btn:disabled{opacity:.6;cursor:default;}
+.pp-boost-modal-cancel{width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px;font-family:var(--font);}
+.pp-boost-modal-cancel:hover{color:var(--text);}
 </style>
 </head>
 <body>
@@ -1560,6 +1616,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${techHtml}
   ${screenshotsHtml}
   ${claimHtml}
+  ${boostHtml}
   ${similarHtml}
   ${sponsorHtml}
 
@@ -1571,6 +1628,36 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 <script>
 var PAGE = ${JSON.stringify({ id: l.id, votes: votes })};
 var VOTE_KEY = 'dir_voted_v2';
+// ── Boost section ──────────────────────────────────────────────────────
+var ppBoostTier = null;
+function toggleBoost(){
+  var body=document.getElementById('ppBoostBody');
+  var arrow=document.getElementById('ppBoostArrow');
+  var open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  arrow.style.transform=open?'':'rotate(180deg)';
+}
+function ppCheckout(tier){
+  ppBoostTier=tier;
+  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Badge — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
+  document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost This Listing';
+  document.getElementById('ppBoostEmail').value='';
+  var btn=document.getElementById('ppBoostModalBtn');
+  btn.textContent='Continue to Checkout →';btn.disabled=false;
+  document.getElementById('ppBoostOverlay').style.display='flex';
+  setTimeout(function(){document.getElementById('ppBoostEmail').focus();},80);
+}
+function closeBoostModal(){document.getElementById('ppBoostOverlay').style.display='none';}
+function submitBoostCheckout(){
+  var email=document.getElementById('ppBoostEmail').value.trim();
+  if(!email||!email.includes('@')){alert('Please enter a valid email.');return;}
+  var btn=document.getElementById('ppBoostModalBtn');
+  btn.textContent='Redirecting…';btn.disabled=true;
+  fetch('/api/directory/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:ppBoostTier,listing_id:PAGE.id,email:email})})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.url){window.location.href=d.url;}else{alert(d.error||'Checkout failed.');btn.textContent='Continue to Checkout →';btn.disabled=false;}})
+    .catch(function(){alert('Network error. Please try again.');btn.textContent='Continue to Checkout →';btn.disabled=false;});
+}
 function getVotedIds(){try{return JSON.parse(localStorage.getItem(VOTE_KEY)||'[]');}catch{return[];}}
 function saveVotedId(id){var ids=getVotedIds();if(!ids.includes(id)){ids.push(id);localStorage.setItem(VOTE_KEY,JSON.stringify(ids));}}
 function openSsLb(src){
@@ -3613,9 +3700,9 @@ const DIR_BADGE = {
   <circle cx="20" cy="22" r="4" fill="#00d4c8"/>
   <line x1="34" y1="12" x2="34" y2="32" stroke="#00d4c8" stroke-width="0.8" stroke-opacity="0.25"/>
   <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7.5" font-weight="400" fill="#7a9ab8" letter-spacing="1.8">LISTED ON</text>
-  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="500" fill="#ffffff" letter-spacing="0.2">Strategic Flow</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="500" fill="#ffffff" letter-spacing="0.2">ToolIndex</text>
 </svg>`,
-  light: (title = 'Listed on Strategic Flow') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
+  light: (title = 'Listed on ToolIndex') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
   <title>${title}</title>
   <rect width="200" height="44" rx="22" fill="#f8fafc"/>
   <rect x="0.5" y="0.5" width="199" height="43" rx="21.5" fill="none" stroke="#e2e8f0" stroke-width="1"/>
@@ -3628,29 +3715,65 @@ const DIR_BADGE = {
   <circle cx="20" cy="22" r="4" fill="#00b4aa"/>
   <line x1="34" y1="12" x2="34" y2="32" stroke="#00b4aa" stroke-width="0.8" stroke-opacity="0.28"/>
   <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7.5" font-weight="400" fill="#94a3b8" letter-spacing="1.8">LISTED ON</text>
-  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="600" fill="#0a1628" letter-spacing="0.2">Strategic Flow</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="600" fill="#0a1628" letter-spacing="0.2">ToolIndex</text>
+</svg>`,
+  featured_dark: (title = 'Featured on ToolIndex') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
+  <title>${title}</title>
+  <defs>
+    <linearGradient id="fibgd" x1="0" y1="0" x2="200" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a1200"/>
+      <stop offset="100%" stop-color="#0a1628"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="44" rx="22" fill="#f59e0b" fill-opacity="0.09"/>
+  <rect x="1" y="1" width="198" height="42" rx="21" fill="url(#fibgd)"/>
+  <rect x="1" y="1" width="198" height="42" rx="21" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-opacity="0.55"/>
+  <rect x="8" y="1.6" width="80" height="0.8" rx="0.4" fill="#f59e0b" fill-opacity="0.2"/>
+  <text x="20" y="27" font-family="serif" font-size="16" text-anchor="middle" fill="#f59e0b">★</text>
+  <line x1="34" y1="12" x2="34" y2="32" stroke="#f59e0b" stroke-width="0.8" stroke-opacity="0.3"/>
+  <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7" font-weight="400" fill="#d97706" letter-spacing="1.5">FEATURED ON</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="500" fill="#ffffff" letter-spacing="0.2">ToolIndex</text>
+</svg>`,
+  featured_light: (title = 'Featured on ToolIndex') => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44" role="img" aria-label="${title}">
+  <title>${title}</title>
+  <rect width="200" height="44" rx="22" fill="#fffbeb"/>
+  <rect x="0.5" y="0.5" width="199" height="43" rx="21.5" fill="none" stroke="#fde68a" stroke-width="1"/>
+  <rect x="0.5" y="0.5" width="199" height="43" rx="21.5" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-opacity="0.5"/>
+  <rect x="7" y="1.6" width="72" height="0.8" rx="0.4" fill="#f59e0b" fill-opacity="0.3"/>
+  <text x="20" y="27" font-family="serif" font-size="16" text-anchor="middle" fill="#d97706">★</text>
+  <line x1="34" y1="12" x2="34" y2="32" stroke="#f59e0b" stroke-width="0.8" stroke-opacity="0.35"/>
+  <text x="44" y="18.5" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="7" font-weight="400" fill="#b45309" letter-spacing="1.5">FEATURED ON</text>
+  <text x="44" y="33" font-family="'DM Mono','Courier New','Lucida Console',monospace" font-size="12.5" font-weight="600" fill="#0a1628" letter-spacing="0.2">ToolIndex</text>
 </svg>`,
 };
 
 app.get('/api/directory/badge/:variant.svg', (req, res) => {
-  const variant = req.params.variant === 'light' ? 'light' : 'dark';
-  const title   = (req.query.name ? `${req.query.name} — Listed on Strategic Flow` : 'Listed on Strategic Flow').replace(/[<>&"]/g, '');
+  const v = req.params.variant;
+  const validVariants = { dark:1, light:1, 'featured-dark':1, 'featured-light':1 };
+  if (!validVariants[v]) return res.status(404).end();
+  const key   = v === 'dark' ? 'dark' : v === 'light' ? 'light' : v === 'featured-dark' ? 'featured_dark' : 'featured_light';
+  const def   = v.startsWith('featured') ? 'Featured on ToolIndex' : 'Listed on ToolIndex';
+  const title = (req.query.name ? `${req.query.name} — ${def}` : def).replace(/[<>&"]/g, '');
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.send(DIR_BADGE[variant](title));
+  res.send(DIR_BADGE[key](title));
 });
 
 // Per-listing badge (same SVG but looks up the product name)
 app.get('/api/directory/badge/:id/:variant.svg', async (req, res) => {
-  const variant = req.params.variant === 'light' ? 'light' : 'dark';
-  let title = 'Listed on Strategic Flow';
+  const v = req.params.variant;
+  const validVariants = { dark:1, light:1, 'featured-dark':1, 'featured-light':1 };
+  if (!validVariants[v]) return res.status(404).end();
+  const key  = v === 'dark' ? 'dark' : v === 'light' ? 'light' : v === 'featured-dark' ? 'featured_dark' : 'featured_light';
+  const isFeat = v.startsWith('featured');
+  let title = isFeat ? 'Featured on ToolIndex' : 'Listed on ToolIndex';
   try {
     const r = await pool.query('SELECT name FROM directory_listings WHERE id=$1', [parseInt(req.params.id, 10)]);
-    if (r.rows[0]?.name) title = `${r.rows[0].name} — Listed on Strategic Flow`;
+    if (r.rows[0]?.name) title = `${r.rows[0].name} — ${isFeat ? 'Featured on ToolIndex' : 'Listed on ToolIndex'}`;
   } catch {}
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=3600');
-  res.send(DIR_BADGE[variant](title.replace(/[<>&"]/g, '')));
+  res.send(DIR_BADGE[key](title.replace(/[<>&"]/g, '')));
 });
 
 app.get('/badge-kit', (req, res) => res.sendFile(path.join(__dirname, 'public/badge-kit.html')));
