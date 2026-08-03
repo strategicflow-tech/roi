@@ -212,6 +212,18 @@ a:hover{text-decoration:underline;}
 .dir-marquee-item{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:7px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:#8a9ab0;font-size:12px;font-weight:500;transition:border-color .2s,color .2s;white-space:nowrap;}
 .dir-marquee-item:hover{border-color:var(--teal);color:var(--text);text-decoration:none;}
 .dir-marquee-priority{border-color:rgba(245,158,11,.35);color:var(--text);}
+
+/* ── Golden paid-proof marquee ── */
+.dir-paid-section{border-top:1px solid rgba(245,158,11,.2);border-bottom:1px solid rgba(245,158,11,.15);padding:22px 0 20px;overflow:hidden;background:linear-gradient(180deg,rgba(245,158,11,.06) 0%,rgba(245,158,11,.02) 100%);}
+.dir-paid-label{font-size:10px;font-family:var(--mono);letter-spacing:.16em;text-transform:uppercase;color:rgba(245,158,11,.75);text-align:center;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.dir-paid-label::before,.dir-paid-label::after{content:'';flex:1;max-width:60px;height:1px;background:rgba(245,158,11,.25);}
+.dir-paid-outer{overflow:hidden;width:100%;}
+.dir-paid-track{display:flex;align-items:center;gap:10px;width:max-content;animation:marqueeScroll 30s linear infinite;}
+.dir-paid-track:hover{animation-play-state:paused;}
+.dir-paid-item{display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:9px 14px 9px 10px;background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(251,191,36,.05));border:1px solid rgba(245,158,11,.35);border-radius:11px;text-decoration:none;color:var(--text);font-size:12px;font-weight:600;white-space:nowrap;transition:border-color .2s,background .2s;}
+.dir-paid-item:hover{border-color:rgba(245,158,11,.65);background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(251,191,36,.1));color:#fff;text-decoration:none;}
+.dir-paid-logo{width:20px;height:20px;border-radius:4px;object-fit:contain;flex-shrink:0;}
+.dir-paid-tier{font-size:10px;font-weight:800;font-family:var(--mono);color:#f59e0b;background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.28);border-radius:5px;padding:2px 7px;margin-left:3px;letter-spacing:.02em;}
 .dir-marquee-logo{width:20px;height:20px;border-radius:4px;object-fit:contain;flex-shrink:0;}
 @media(max-width:600px){.dir-herosearch-wrap{padding:0 20px 20px;}.dir-claimed-section{padding:0 20px 20px;}}
 
@@ -1243,6 +1255,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </section>
 
+<!-- PAID PROOF MARQUEE — golden, shows listings that bought packages -->
+<div class="dir-paid-section" id="dirPaidSection" style="display:none;">
+  <div class="dir-paid-label">⭐ Brands that boosted their visibility on ToolIndex</div>
+  <div class="dir-paid-outer">
+    <div class="dir-paid-track" id="dirPaidTrack">
+      <!-- JS-generated -->
+    </div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <!-- BRAND MARQUEE — real listed brands -->
 <div class="dir-marquee-section">
@@ -2118,6 +2140,40 @@ function loadRecentlyClaimed(){
     }).catch(()=>{});
 }
 
+// ── Golden paid-proof marquee — listings that bought packages ─────────────────
+function buildPaidMarquee(){
+  const section = document.getElementById('dirPaidSection');
+  const track   = document.getElementById('dirPaidTrack');
+  if(!section || !track) return;
+
+  const TIER_LABELS = {
+    founder_pack:   '🏆 Founder Pack',
+    premium:        '💎 Premium',
+    weekly_feature: '⚡ Weekly Feature',
+    daily_top:      '🔥 Daily Boost',
+    verified:       '✅ Verified',
+  };
+
+  const fav = d => 'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
+
+  const paid = allListings.filter(l => l.priority_marquee || l.featured_tier || l.verified);
+  if(!paid.length){ section.style.display='none'; return; }
+  section.style.display='';
+
+  const mk = l => {
+    const domain = (()=>{ try{ return new URL(l.url||'').hostname.replace(/^www\./,''); }catch{return '';} })();
+    const slug   = toSlug(l.name, l.id);
+    const tier   = l.priority_marquee ? 'founder_pack' : (l.featured_tier || (l.verified ? 'verified' : ''));
+    const label  = TIER_LABELS[tier] || tier;
+    const logo   = domain ? `<img class="dir-paid-logo" src="${fav(domain)}" alt="" loading="lazy" onerror="this.style.display='none'"/>` : '';
+    return `<a class="dir-paid-item" href="/directory/${escHtml(slug)}" title="${escHtml(l.name)}">${logo}<span>${escHtml(l.name)}</span><span class="dir-paid-tier">${label}</span></a>`;
+  };
+
+  // Duplicate for seamless infinite loop
+  const html = paid.map(mk).join('');
+  track.innerHTML = html + html;
+}
+
 // ── Brand marquee — 18 real listed brands ────────────────────────────────────
 function buildMarquee(){
   const el=document.getElementById('dirMarqueeTrack');
@@ -2350,6 +2406,7 @@ async function loadListings(){
     }
     allListings = listings;
     buildMarquee();
+    buildPaidMarquee();
     applyFilters();
     injectItemListSchema(allListings);
     loadPulseSections();
