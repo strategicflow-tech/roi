@@ -23,6 +23,7 @@ const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
 const { runDailyPHDiscovery } = require('./ph-discovery');
+const { enrichListingWithAI } = require('./listing-enricher');
 
 const multer = require('multer');
 const path   = require('path');
@@ -34,6 +35,21 @@ const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MODEL          = 'claude-sonnet-5';
+
+// ── Cached active listing count (refreshes every 5 minutes) ──────────────────
+let _cachedListingCount = null;
+let _cachedListingCountAt = 0;
+async function getActiveListingCount() {
+  if (_cachedListingCount && Date.now() - _cachedListingCountAt < 5 * 60 * 1000) {
+    return _cachedListingCount;
+  }
+  try {
+    const r = await pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active'`);
+    _cachedListingCount = r.rows[0].n;
+    _cachedListingCountAt = Date.now();
+  } catch {}
+  return _cachedListingCount || 548;
+}
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com', 'alex@strategicflow.tech']);
@@ -446,6 +462,12 @@ app.get('/directory', async (req, res) => {
 
     // Pre-render first 30 cards so bots get real HTML without executing JS
     const ssrHtml = listings.slice(0, 30).map(l => ssrCard(l, clickMap)).join('\n');
+
+    // Inject live product count into all hardcoded "500+" / "544+" / "566+" occurrences
+    // (meta tags, JSON-LD, FAQ text, search placeholder — JS-hydrated spans are updated by client)
+    const liveCount = await getActiveListingCount();
+    const countStr = liveCount + '+';
+    html = html.replace(/\b500\+/g, countStr).replace(/\b544\+/g, countStr).replace(/\b566\+/g, countStr);
 
     // Inject SSR payload so the client JS skips the /api/directory/listings fetch
     const safeListings = JSON.stringify(listings).replace(/<\/script>/gi, '<\\/script>');
@@ -1222,6 +1244,7 @@ app.get('/directory/:slug', async (req, res) => {
               dl.founder_name, dl.social_twitter, dl.social_linkedin,
               dl.screenshots, dl.tech_stack, dl.platform, dl.pricing_model, dl.launch_date,
               CASE WHEN dl.founder_avatar_url IS NOT NULL THEN '/api/directory/listing-founder-avatar/' || dl.id::text ELSE NULL END AS founder_avatar_url,
+              dl.ai_insights, dl.ai_enriched_at, dl.ai_enriched_from,
               (SELECT COUNT(*)::int FROM dir_listing_views  WHERE listing_id=dl.id
                AND viewed_at  >= NOW()-INTERVAL '30 days') AS views_30d,
               (SELECT COUNT(*)::int FROM dir_listing_clicks WHERE listing_id=dl.id
@@ -1433,6 +1456,116 @@ app.get('/directory/:slug', async (req, res) => {
   <div class="screenshots-strip">
     ${screenshotsArr.map((_,i) => `<img class="screenshot-thumb" src="/api/directory/listing-screenshot/${l.id}/${i}" alt="Screenshot ${i+1}" loading="lazy" onclick="openSsLb(this.src)"/>`).join('')}
   </div>
+</div>` : '';
+
+    // ── AI insights sections ───────────────────────────────────────────────
+    const ins = (typeof l.ai_insights === 'object' && l.ai_insights) ? l.ai_insights : null;
+    const enrichedDate = l.ai_enriched_at
+      ? new Date(l.ai_enriched_at).toISOString().slice(0, 10) : null;
+    const enrichedFrom = l.ai_enriched_from || l.url;
+
+    const aiSummaryHtml = ins?.summary ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">About</span>
+    <span class="ai-badge">AI-generated</span>
+  </div>
+  <div class="ai-card">
+    <p class="ai-summary-text">${he(ins.summary)}</p>
+  </div>
+</section>` : '';
+
+    const aiFeaturesHtml = (ins?.features?.length > 0) ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Key Features</span>
+    <span class="ai-badge">AI-inferred</span>
+  </div>
+  <div class="ai-card">
+    <ul class="ai-features-list">
+      ${ins.features.map(f => `<li><span class="ai-feat-dot"></span><span>${he(f)}</span></li>`).join('')}
+    </ul>
+  </div>
+</section>` : '';
+
+    const aiAudienceHtml = (ins?.audience?.target || ins?.audience?.best_for) ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Who Is It For</span>
+    <span class="ai-badge">AI-inferred</span>
+  </div>
+  <div class="ai-audience-grid">
+    ${ins.audience.target ? `<div class="ai-aud-item"><div class="ai-aud-label">Target audience</div><div class="ai-aud-val">${he(ins.audience.target)}</div></div>` : ''}
+    ${ins.audience.best_for ? `<div class="ai-aud-item"><div class="ai-aud-label">Best for</div><div class="ai-aud-val">${he(ins.audience.best_for)}</div></div>` : ''}
+    ${ins.audience.not_for ? `<div class="ai-aud-item"><div class="ai-aud-label">Not ideal for</div><div class="ai-aud-val">${he(ins.audience.not_for)}</div></div>` : ''}
+  </div>
+</section>` : '';
+
+    const aiStrengthsHtml = (ins?.strength || ins?.weakness) ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Strengths &amp; Weaknesses</span>
+    <span class="ai-badge">AI-inferred — founders can correct</span>
+  </div>
+  <div class="ai-sw-grid">
+    ${ins.strength ? `<div class="ai-sw-card"><div class="ai-sw-icon">💪</div><div class="ai-sw-label">Strength</div><div class="ai-sw-text">${he(ins.strength)}</div></div>` : ''}
+    ${ins.weakness ? `<div class="ai-sw-card"><div class="ai-sw-icon">⚠️</div><div class="ai-sw-label">Weakness</div><div class="ai-sw-text">${he(ins.weakness)}</div></div>` : ''}
+  </div>
+</section>` : '';
+
+    const aiCompetitorsHtml = (ins?.competitors?.length > 0) ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Likely Alternatives</span>
+    <span class="ai-badge">AI-inferred</span>
+  </div>
+  <div class="ai-comp-row">
+    ${ins.competitors.map(c => {
+      const cSlug = c.toLowerCase().replace(/\s+/g, '+');
+      return `<a href="https://www.google.com/search?q=${encodeURIComponent(c + ' vs ' + l.name)}" class="ai-comp-chip" target="_blank" rel="noopener">${he(c)}</a>`;
+    }).join('')}
+  </div>
+</section>` : '';
+
+    const facts = ins?.facts || {};
+    const factRows = [
+      facts.free_trial !== null && facts.free_trial !== undefined
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Free trial</span><span class="ai-fact-val ${facts.free_trial ? 'yes' : 'no'}">${facts.free_trial ? '✓ Yes' : '✗ No'}</span></div>` : '',
+      facts.starting_price
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Starting price</span><span class="ai-fact-val">${he(String(facts.starting_price))}</span></div>` : '',
+      facts.pricing_transparency
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Pricing info</span><span class="ai-fact-val">${he({ high: 'Publicly listed', medium: 'Pricing page exists', low: 'Contact for pricing' }[facts.pricing_transparency] || facts.pricing_transparency)}</span></div>` : '',
+      (facts.platforms?.length > 0)
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Platforms</span><span class="ai-fact-val">${he(facts.platforms.join(', '))}</span></div>` : '',
+      (facts.languages?.length > 1)
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Languages</span><span class="ai-fact-val">${he(facts.languages.join(', '))}</span></div>` : '',
+      (facts.integrations?.length > 0)
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">Integrations</span><span class="ai-fact-val">${he(facts.integrations.join(', '))}</span></div>` : '',
+      facts.social_github
+        ? `<div class="ai-fact-row"><span class="ai-fact-label">GitHub</span><span class="ai-fact-val"><a href="${he(facts.social_github)}" target="_blank" rel="noopener" style="color:var(--teal)">${he(facts.social_github.replace('https://github.com/', ''))}</a></span></div>` : '',
+    ].filter(Boolean).join('');
+
+    const aiFactsHtml = factRows ? `
+<section class="ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Verified Facts</span>
+    <span class="ai-badge">Crawled from homepage</span>
+  </div>
+  <div class="ai-card">
+    ${factRows}
+  </div>
+</section>` : '';
+
+    const aiTransparencyHtml = ins ? `
+<div class="ai-transparency">
+  <p class="ai-transparency-text">
+    <strong>Sourcing transparency:</strong> Observed fields (pricing, platforms, integrations, GitHub) were crawled from
+    <a href="${he(enrichedFrom)}" target="_blank" rel="noopener">${he((() => { try { return new URL(enrichedFrom).hostname; } catch { return enrichedFrom; } })())}</a>
+    and stated as observed fact. AI-inferred fields (summary, features, audience, strengths &amp; weaknesses, alternatives)
+    were generated by Claude and are always labeled — never presented as measured fact.
+    ${enrichedDate ? `Last updated: ${enrichedDate}.` : ''}
+    Founders can <a href="/directory?claim=${l.id}">claim this listing</a> to correct any inaccuracies.
+  </p>
 </div>` : '';
 
     // ── similar tools section ──────────────────────────────────────────────
@@ -1647,6 +1780,41 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .pp-boost-modal-btn:disabled{opacity:.6;cursor:default;}
 .pp-boost-modal-cancel{width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px;font-family:var(--font);}
 .pp-boost-modal-cancel:hover{color:var(--text);}
+/* ── AI Insights sections ── */
+.ai-section{margin-bottom:16px;}
+.ai-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;}
+.ai-section-title{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.ai-badge{font-size:9px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:10px;border:1px solid rgba(167,139,250,.35);color:rgba(167,139,250,.85);background:rgba(167,139,250,.06);white-space:nowrap;}
+.ai-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+.ai-summary-text{font-size:14px;color:var(--sub);line-height:1.7;}
+.ai-features-list{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.ai-features-list li{font-size:13px;color:var(--text);display:flex;align-items:flex-start;gap:10px;line-height:1.5;}
+.ai-feat-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:6px;}
+.ai-audience-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+.ai-aud-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.ai-aud-label{font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+.ai-aud-val{font-size:12px;color:var(--text);line-height:1.5;}
+.ai-sw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:480px){.ai-sw-grid{grid-template-columns:1fr;}}
+.ai-sw-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.ai-sw-icon{font-size:16px;margin-bottom:6px;}
+.ai-sw-label{font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.ai-sw-text{font-size:12px;color:var(--text);line-height:1.5;}
+.ai-comp-row{display:flex;flex-wrap:wrap;gap:8px;}
+.ai-comp-chip{font-size:12px;font-family:var(--mono);padding:5px 12px;border:1px solid var(--border);border-radius:8px;color:var(--muted);background:var(--card);transition:border-color .2s,color .2s;}
+.ai-comp-chip:hover{border-color:var(--teal);color:var(--teal);text-decoration:none;}
+.ai-facts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.ai-fact-row{display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.ai-fact-row:last-child{border-bottom:none;padding-bottom:0;}
+.ai-fact-label{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase;min-width:110px;flex-shrink:0;}
+.ai-fact-val{font-size:13px;color:var(--text);font-weight:500;word-break:break-word;}
+.ai-fact-val.yes{color:#4ade80;}
+.ai-fact-val.no{color:#f87171;}
+.ai-fact-val.muted{color:var(--muted);}
+.ai-transparency{margin-top:24px;padding:16px 18px;background:rgba(122,154,184,.05);border:1px solid rgba(122,154,184,.15);border-radius:10px;margin-bottom:16px;}
+.ai-transparency-text{font-size:11px;color:var(--muted);line-height:1.7;}
+.ai-transparency-text a{color:var(--muted);text-decoration:underline;}
+.ai-transparency-text strong{color:var(--sub);}
 </style>
 </head>
 <body>
@@ -1678,6 +1846,12 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   </div>
 
   ${statsHtml}
+  ${aiSummaryHtml}
+  ${aiFeaturesHtml}
+  ${aiAudienceHtml}
+  ${aiStrengthsHtml}
+  ${aiCompetitorsHtml}
+  ${aiFactsHtml}
   ${founderHtml}
   ${socialsHtml}
   ${metaHtml}
@@ -1688,9 +1862,10 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${similarHtml}
   ${seoLinkHtml}
   ${sponsorHtml}
+  ${aiTransparencyHtml}
 
   <div class="attribution">
-    Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink · 500+ products
+    Listed on <a href="/directory">ToolIndex</a> — free SaaS directory · DR 86 dofollow backlink
   </div>
 </main>
 
@@ -2750,13 +2925,56 @@ app.get('/admin/ph-import/run', async (req, res) => {
   res.flushHeaders();
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
-    const result = await runDailyPHDiscovery(pool, log);
+    const result = await runDailyPHDiscovery(pool, log, {
+      enrichFn: enrichListingWithAI,
+      claudeJsonFn: claudeJSON,
+    });
     log(`\nDone. Inserted: ${result.inserted}`);
     if (result.listings?.length) {
       result.listings.forEach(l => log(`  → id=${l.id}: ${l.name}`));
     }
   } catch(e) {
     log(`ERROR: ${e.message}`);
+  }
+  res.end();
+});
+
+// ── GET /admin/enrich-listings?key=…&batch=20 — backfill AI insights ─────────
+// Processes listings that have no ai_insights yet, oldest first, up to `batch` at a time.
+app.get('/admin/enrich-listings', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const batchSize = Math.min(parseInt(req.query.batch || '10', 10), 30);
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+
+  try {
+    const r = await pool.query(
+      `SELECT id, name, url, category, COALESCE(owner_description, description) AS description
+       FROM directory_listings
+       WHERE status='active' AND ai_insights IS NULL
+       ORDER BY submitted_at DESC
+       LIMIT $1`,
+      [batchSize]
+    );
+    log(`[enrich] Found ${r.rows.length} listings without AI insights (batch=${batchSize})`);
+
+    let done = 0, failed = 0;
+    for (const row of r.rows) {
+      log(`[enrich] (${done + 1}/${r.rows.length}) ${row.name} — ${row.url}`);
+      const result = await enrichListingWithAI(row, pool, claudeJSON);
+      if (result) done++;
+      else failed++;
+      await new Promise(r => setTimeout(r, 2500)); // rate-limit Claude calls
+    }
+
+    log(`\n[enrich] Done. Enriched: ${done}  Failed: ${failed}`);
+    // Invalidate cached count so the updated data shows immediately
+    _cachedListingCountAt = 0;
+  } catch (e) {
+    log(`[enrich] ERROR: ${e.message}`);
   }
   res.end();
 });
@@ -3429,6 +3647,10 @@ app.get('/sponsor', async (req, res) => {
     const safe = s => JSON.stringify(s).replace(/<\/script>/gi, '<\\/script>');
     html = html.replace('</head>',
       `<script>window.__SSR_SPONSORS__=${safe(sponsors)};window.__SSR_SLOTS__=${slots_available};</script>\n</head>`);
+    // Inject live count into sponsor page hero + meta
+    const sponsorCount = await getActiveListingCount();
+    const sponsorCountStr = sponsorCount + '+';
+    html = html.replace(/\b500\+/g, sponsorCountStr).replace(/\b544\+/g, sponsorCountStr).replace(/\b566\+/g, sponsorCountStr);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch(err) {
@@ -16448,7 +16670,10 @@ ${content}
   cron.schedule('0 8 * * *', async () => {
     console.log('[cron] Daily PH discovery starting…');
     try {
-      const result = await runDailyPHDiscovery(pool, m => console.log(m));
+      const result = await runDailyPHDiscovery(pool, m => console.log(m), {
+        enrichFn: enrichListingWithAI,
+        claudeJsonFn: claudeJSON,
+      });
       console.log(`[cron] PH discovery done. Inserted: ${result.inserted}`);
     } catch(e) { console.error('[cron] PH discovery error:', e.message); }
   });

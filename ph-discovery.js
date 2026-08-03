@@ -407,7 +407,7 @@ async function extractContact(productUrl) {
 }
 
 // ── Main pipeline function — call this from the cron job ──────────────────────
-async function runDailyPHDiscovery(pool, log = console.log) {
+async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   log('[ph-discovery] Starting daily Product Hunt discovery…');
 
   // 1. Fetch today's PH posts
@@ -521,7 +521,7 @@ async function runDailyPHDiscovery(pool, log = console.log) {
         ]
       );
       if (r.rows.length) {
-        inserted.push({ id: r.rows[0].id, name: r.rows[0].name });
+        inserted.push({ id: r.rows[0].id, name: r.rows[0].name, url: post.website, category, description: desc });
         log(`[ph-discovery]   → Inserted id=${r.rows[0].id}: ${r.rows[0].name}`);
       } else {
         log(`[ph-discovery]   → Skipped (ON CONFLICT): ${post.name}`);
@@ -534,6 +534,21 @@ async function runDailyPHDiscovery(pool, log = console.log) {
   }
 
   log(`[ph-discovery] Done. Inserted ${inserted.length} new listings.`);
+
+  // 8. AI enrichment for newly inserted listings (optional — only if enrichFn provided)
+  if (inserted.length > 0 && typeof opts.enrichFn === 'function') {
+    log(`[ph-discovery] Starting AI enrichment for ${inserted.length} new listings…`);
+    for (const listing of inserted) {
+      await sleep(2000);
+      try {
+        await opts.enrichFn(listing, pool, opts.claudeJsonFn);
+        log(`[ph-discovery]   → AI insights stored for: ${listing.name}`);
+      } catch (e) {
+        log(`[ph-discovery]   → AI enrichment failed for ${listing.name}: ${e.message}`);
+      }
+    }
+  }
+
   return { inserted: inserted.length, listings: inserted };
 }
 
