@@ -2282,13 +2282,17 @@ app.post('/api/directory/submit', async (req, res) => {
         if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
       }).catch(()=>{});
     }
-    // ── Instant Daily boost: seed 4–7 votes so listing appears in Daily tab today ─
+    // ── Gradual Daily boost: spread 4–7 votes over the next 2–6 hours ───────────
+    // voted_at is set in the future so they trickle into Daily naturally.
+    // The leaderboard query caps at <= NOW() so users see them appear one by one.
     try {
-      const initVotes = 4 + Math.floor(Math.random() * 4); // 4–7
-      const dateTag   = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const voteRows  = Array.from({ length: initVotes }, (_, i) =>
-        `(${id}, 'submit_boost_${id}_${dateTag}_${i}', NOW())`
-      ).join(',');
+      const initVotes   = 4 + Math.floor(Math.random() * 4); // 4–7
+      const dateTag     = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const spreadMs    = (2 + Math.random() * 4) * 60 * 60 * 1000; // 2–6 h in ms
+      const voteRows    = Array.from({ length: initVotes }, (_, i) => {
+        const offsetMs  = Math.floor((i / initVotes) * spreadMs + Math.random() * (spreadMs / initVotes));
+        return `(${id}, 'submit_boost_${id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
+      }).join(',');
       await pool.query(
         `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
       );
@@ -2296,7 +2300,7 @@ app.post('/api/directory/submit', async (req, res) => {
         `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
         [initVotes, id]
       );
-      console.log(`[submit] instant boost: +${initVotes} votes → listing #${id} (${name})`);
+      console.log(`[submit] gradual boost: +${initVotes} votes spread over ~${Math.round(spreadMs/3600000)}h → listing #${id} (${name})`);
     } catch(e) {
       console.error(`[submit] boost error:`, e.message);
     }
@@ -3874,6 +3878,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
            ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
@@ -3886,6 +3891,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
+             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
            ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
@@ -3900,6 +3906,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= NOW() - INTERVAL '24 hours'
+             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
            HAVING dl.pinned_in_leaderboard = TRUE OR COUNT(dv.id) > 0
@@ -4093,14 +4100,17 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       [email.toLowerCase(), listing_id]
     );
 
-    // ── Instant vote boost on first claim only (task #88) ──────────────────
+    // ── Gradual vote boost on first claim only (task #88) ─────────────────
+    // Votes spread over 2–5 hours so they trickle into Daily naturally.
     if (!c.is_verified) {
       try {
         const claimBoostCount = 5 + Math.floor(Math.random() * 3); // 5–7
-        const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const voteRows = Array.from({ length: claimBoostCount }, (_, i) =>
-          `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW())`
-        ).join(',');
+        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const spreadMs = (2 + Math.random() * 3) * 60 * 60 * 1000; // 2–5 h
+        const voteRows = Array.from({ length: claimBoostCount }, (_, i) => {
+          const offsetMs = Math.floor((i / claimBoostCount) * spreadMs + Math.random() * (spreadMs / claimBoostCount));
+          return `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
+        }).join(',');
         await pool.query(
           `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
         );
@@ -4108,7 +4118,7 @@ app.post('/api/directory/claim/verify', async (req, res) => {
           `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
           [claimBoostCount, listing_id]
         );
-        console.log(`[dir-claim] instant boost: +${claimBoostCount} votes → listing ${listing_id}`);
+        console.log(`[dir-claim] gradual boost: +${claimBoostCount} votes spread ~${Math.round(spreadMs/3600000)}h → listing ${listing_id}`);
       } catch(e) {
         console.error(`[dir-claim] boost error:`, e.message);
       }
