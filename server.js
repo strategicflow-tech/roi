@@ -629,12 +629,7 @@ h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-
     <p>Get a permanent dofollow backlink from a DR 86 domain. Instant approval, no review queue.</p>
     <a class="cta-btn" href="/directory#submit">Submit your product →</a>
   </div>
-  <footer class="footer" style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
-    <span>ToolIndex · <a href="/directory">SaaS Directory</a> · Free dofollow backlinks · DR 86</span>
-    <a href="https://sitepatent.com/?utm_source=strategicflow.tech&utm_medium=badge" target="_blank" rel="nofollow noopener noreferrer">
-  <img src="https://sitepatent.com/api/badge?style=dark" alt="sitepatent.com" height="54" />
-</a>
-  </footer>
+  <footer class="footer">ToolIndex · <a href="/directory">SaaS Directory</a> · Free dofollow backlinks · DR 86</footer>
 </div>
 </body>
 </html>`;
