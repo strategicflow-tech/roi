@@ -2967,6 +2967,48 @@ app.get('/admin/ph-import/run', async (req, res) => {
   res.end();
 });
 
+// ── GET /admin/run-vote-growth?key=… — manually trigger daily vote growth cron ─
+app.get('/admin/run-vote-growth', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, vote_count FROM directory_listings
+       WHERE is_auto_imported = TRUE AND status = 'active'
+         AND vote_count < 12
+         AND submitted_at >= NOW() - INTERVAL '10 days'
+       ORDER BY submitted_at DESC`
+    );
+    log(`[vote-growth] ${rows.length} listings eligible`);
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let grown = 0;
+    for (const listing of rows) {
+      const toAdd = listing.vote_count >= 10 ? 1 : 2;
+      const actual = Math.min(toAdd, 12 - listing.vote_count);
+      if (actual <= 0) continue;
+      const voteRows = Array.from({ length: actual }, (_, i) =>
+        `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
+      ).join(',');
+      await pool.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+      );
+      const r = await pool.query(
+        `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
+        [actual, listing.id]
+      );
+      log(`[vote-growth] +${actual} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
+      grown++;
+    }
+    log(`[vote-growth] Done. Grew ${grown} listings.`);
+  } catch (e) {
+    log(`[vote-growth] ERROR: ${e.message}`);
+  }
+  res.end();
+});
+
 // ── GET /admin/enrich-listings?key=…&batch=20 — backfill AI insights ─────────
 // Processes listings that have no ai_insights yet, oldest first, up to `batch` at a time.
 app.get('/admin/enrich-listings', async (req, res) => {
