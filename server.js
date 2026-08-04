@@ -3881,8 +3881,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
-                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'weekly') {
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
@@ -3894,8 +3893,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
-                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'trending') {
       // Biggest vote velocity in the last 24 hours. Pinned listings always appear
       // at the top even if they have no recent activity; unpinned need ≥1 vote.
@@ -3909,9 +3907,8 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
-           HAVING dl.pinned_in_leaderboard = TRUE OR COUNT(dv.id) > 0
-           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST,
-                    period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           HAVING COUNT(dv.id) > 0
+           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
     } else if (period === 'new') {
       // Most recently submitted active listings
       q = `SELECT id, name, url, category, description,
@@ -3920,7 +3917,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                   submitted_at
            FROM directory_listings
            WHERE status='active'
-           ORDER BY pinned_in_leaderboard DESC NULLS LAST, submitted_at DESC LIMIT 25`;
+           ORDER BY submitted_at DESC LIMIT 25`;
     } else if (period === 'clicked') {
       // Highest outbound click count. Pinned listings always appear at top
       // even with zero clicks; unpinned need ≥1 tracked click.
@@ -3932,8 +3929,8 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            LEFT JOIN dir_listing_clicks dc ON dc.listing_id = dl.id
            WHERE dl.status='active'
            GROUP BY dl.id
-           HAVING dl.pinned_in_leaderboard = TRUE OR COUNT(dc.id) > 0
-           ORDER BY dl.pinned_in_leaderboard DESC NULLS LAST, period_votes DESC LIMIT 25`;
+           HAVING COUNT(dc.id) > 0
+           ORDER BY period_votes DESC LIMIT 25`;
     } else {
       q = `SELECT id, name, url, category, description,
                   friction_score, score_pending, image_url, source, source_url,
@@ -3941,7 +3938,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                   vote_count AS period_votes
            FROM directory_listings
            WHERE status='active'
-           ORDER BY pinned_in_leaderboard DESC NULLS LAST, vote_count DESC LIMIT 25`;
+           ORDER BY vote_count DESC LIMIT 25`;
     }
     const r = await pool.query(q);
     res.json({ period, listings: r.rows });
@@ -5693,7 +5690,7 @@ async function setupDB() {
   // WHY Audit™ (199) and Strategic Flow Audit (203) are the platform owner's
   // products and should always appear #1 / #2 across all leaderboard periods.
   await pool.query(
-    `UPDATE directory_listings SET pinned_in_leaderboard=TRUE WHERE id IN (199,203)`
+    `UPDATE directory_listings SET pinned_in_leaderboard=FALSE WHERE id IN (199,203)`
   ).catch(()=>{});
 
   // ── Voting + featured placements tables ──────────────────────────────────
@@ -5887,6 +5884,8 @@ async function setupDB() {
   }
 
   // ── Fairness enforcement: clear any permanently-hardcoded featured placements ─
+  // Fix WHY Audit™ logo — Clearbit can't resolve Replit subdomains → use local file
+  await pool.query(`UPDATE directory_listings SET image_url='/why-logo.png' WHERE id=199 AND image_url NOT LIKE '/why-logo%'`).catch(()=>{});
   console.log('[DB] All tables ready');
 }
 

@@ -1656,7 +1656,7 @@ const CAT_COLORS = {
   'Other':          ['rgba(100,116,139,0.15)','#64748b'],
 };
 
-const BADGE_LABELS = { weekly_feature:'⭐ Weekly Feature', premium:'💎 Premium', daily_top:'🔥 Daily Top' };
+const BADGE_LABELS = { weekly_feature:'⚡ Weekly Feature', premium:'⭐ Founder Pack', daily_top:'🔥 Daily Top' };
 
 // Per-session vote tracking (server enforces uniqueness; this just updates UI optimistically)
 const votedIds = new Set(JSON.parse(localStorage.getItem('dir_voted')||'[]'));
@@ -1933,7 +1933,7 @@ async function loadLeaderboard(period){
         <a class="dir-lb-row-link" href="${escHtml(l.url)}" target="_blank" rel="noopener noreferrer" onclick="trackClick(${l.id})">
           ${lbThumbFor(l.name, l.category||'General', l.image_url, l.url||'')}
           <div class="dir-lb-info">
-            <div class="dir-lb-name">${escHtml(l.name)}</div>
+            <div class="dir-lb-name">${escHtml(l.name)}${l.featured_tier?` <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}" style="font-size:8px;padding:2px 6px;vertical-align:middle;">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>`:''}</div>
             <div class="dir-lb-cat">${escHtml(l.category||'General')} · ${escHtml(domain)}</div>
           </div>
         </a>
