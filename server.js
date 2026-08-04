@@ -4075,6 +4075,27 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       [email.toLowerCase(), listing_id]
     );
 
+    // ── Instant vote boost on first claim only (task #88) ──────────────────
+    if (!c.is_verified) {
+      try {
+        const claimBoostCount = 5 + Math.floor(Math.random() * 3); // 5–7
+        const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const voteRows = Array.from({ length: claimBoostCount }, (_, i) =>
+          `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW())`
+        ).join(',');
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+        );
+        await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+          [claimBoostCount, listing_id]
+        );
+        console.log(`[dir-claim] instant boost: +${claimBoostCount} votes → listing ${listing_id}`);
+      } catch(e) {
+        console.error(`[dir-claim] boost error:`, e.message);
+      }
+    }
+
     const listing = await pool.query(
       `SELECT name, description, image_url, founder_name, founder_avatar_url,
               social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
