@@ -2282,6 +2282,24 @@ app.post('/api/directory/submit', async (req, res) => {
         if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
       }).catch(()=>{});
     }
+    // ── Instant Daily boost: seed 4–7 votes so listing appears in Daily tab today ─
+    try {
+      const initVotes = 4 + Math.floor(Math.random() * 4); // 4–7
+      const dateTag   = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const voteRows  = Array.from({ length: initVotes }, (_, i) =>
+        `(${id}, 'submit_boost_${id}_${dateTag}_${i}', NOW())`
+      ).join(',');
+      await pool.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+      );
+      await pool.query(
+        `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+        [initVotes, id]
+      );
+      console.log(`[submit] instant boost: +${initVotes} votes → listing #${id} (${name})`);
+    } catch(e) {
+      console.error(`[submit] boost error:`, e.message);
+    }
     res.json({ success: true, id });
   } catch (err) {
     console.error('[directory] submit error:', err.message);
