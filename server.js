@@ -2807,7 +2807,7 @@ app.get('/admin/emails', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, name, url, category,
              contact_email, contact_email_status, contact_email_source,
-             contact_email_fetched_at
+             contact_email_fetched_at, outreach_emailed_at
       FROM directory_listings
       WHERE status='active'
       ORDER BY
@@ -2832,6 +2832,7 @@ app.get('/admin/emails', async (req, res) => {
         <td><a href="${esc(r.contact_email_source||'')}" target="_blank" style="font-size:11px;color:#6b7280;word-break:break-all">${esc((r.contact_email_source||'').replace(/^https?:\/\//,'').slice(0,50))||'—'}</a></td>
         <td><span style="color:${statusColor};font-weight:600;font-size:11px">${esc(r.contact_email_status||'pending')}</span></td>
         <td style="font-size:11px;color:#6b7280">${r.contact_email_fetched_at ? new Date(r.contact_email_fetched_at).toISOString().slice(0,16).replace('T',' ') : '—'}</td>
+        <td style="font-size:11px;">${r.outreach_emailed_at ? `<span style="color:#22c55e;font-weight:600;">✓ sent</span><br><span style="color:#6b7280;">${new Date(r.outreach_emailed_at).toISOString().slice(0,16).replace('T',' ')}</span>` : '<span style="color:#475569;">—</span>'}</td>
       </tr>`;
     }).join('');
 
@@ -2874,7 +2875,7 @@ a{color:#94a3b8}
 </div>
 <div class="progress" id="prog"></div>
 <table>
-<thead><tr><th>Product</th><th>ToolIndex Link</th><th>Email</th><th>Source Page</th><th>Status</th><th>Fetched</th></tr></thead>
+<thead><tr><th>Product</th><th>ToolIndex Link</th><th>Email</th><th>Source Page</th><th>Status</th><th>Fetched</th><th>Claim Outreach</th></tr></thead>
 <tbody>${rows_html}</tbody>
 </table>
 <script>
@@ -5668,6 +5669,7 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_emailed_at     TIMESTAMPTZ`).catch(()=>{});
   // Rich profile fields (founder, socials, screenshots, tech)
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_name        TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_avatar_url  TEXT`).catch(()=>{});
@@ -17473,6 +17475,96 @@ ${content}
             console.log(`[cron] Seeded ${initialVotes} initial votes for: ${listing.name}`);
           } catch(e) {
             console.error(`[cron] Vote seed error for ${listing.name}:`, e.message);
+          }
+        }
+      }
+
+      // ── Contact discovery + claim outreach email for today's new imports ───
+      if (result.listings?.length) {
+        const newIds = result.listings.map(l => l.id);
+        let newWithUrl = [];
+        try {
+          const { rows: freshRows } = await pool.query(
+            `SELECT id, name, url FROM directory_listings WHERE id = ANY($1::int[])`,
+            [newIds]
+          );
+          newWithUrl = freshRows;
+        } catch(e) {
+          console.error('[cron-outreach] Failed to fetch URLs for new listings:', e.message);
+        }
+
+        for (const listing of newWithUrl) {
+          try {
+            console.log(`[cron-outreach] Discovering contact for: ${listing.name}`);
+            const cr = await extractContactEmail(listing.url);
+
+            // Save contact discovery result regardless
+            if (cr.status === 'found' && cr.email) {
+              await pool.query(`
+                UPDATE directory_listings
+                SET contact_email=$1, contact_email_status='found',
+                    contact_email_source=$2, contact_email_fetched_at=NOW()
+                WHERE id=$3
+              `, [cr.email, cr.source || null, listing.id]);
+
+              // Build public listing URL
+              const slug = toListingSlug(listing.name, listing.id);
+              const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+              const name = listing.name;
+
+              const htmlBody = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>We already built <strong>${name}'s ToolIndex listing</strong> — claiming it makes it real.</p>
+<p>ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from <strong>strategicflow.tech</strong>, no review queue, most listings go live instantly.</p>
+<p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
+<p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
+<p>— The Strategic Flow / ToolIndex team</p>
+<p style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Strategic Flow, strategicflow.tech &mdash; reply and let us know if you&rsquo;d rather not hear from us again.</p>
+</div>`;
+
+              const textBody = `Hi,
+
+We already built ${name}'s ToolIndex listing — claiming it makes it real.
+
+ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.
+
+Your listing is already live here: ${listingUrl}
+
+Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.
+
+Claim it free: ${listingUrl}
+
+— The Strategic Flow / ToolIndex team
+
+---
+Strategic Flow, strategicflow.tech — reply and let us know if you'd rather not hear from us again.`;
+
+              await resend.emails.send({
+                from:     SENDER,
+                to:       cr.email,
+                replyTo:  'strategicflow@proton.me',
+                subject:  `We already built ${name}'s ToolIndex page`,
+                html:     htmlBody,
+                text:     textBody,
+              });
+
+              await pool.query(
+                `UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`,
+                [listing.id]
+              );
+              console.log(`[cron-outreach] ✓ Claim email sent → ${cr.email} (${name})`);
+
+            } else {
+              await pool.query(`
+                UPDATE directory_listings
+                SET contact_email_status=$1, contact_email_fetched_at=NOW()
+                WHERE id=$2
+              `, [cr.status || 'not_found', listing.id]);
+              console.log(`[cron-outreach] No email for ${name} (${cr.status}) — skipping outreach`);
+            }
+          } catch(e) {
+            console.error(`[cron-outreach] Error for ${listing.name}:`, e.message);
           }
         }
       }
