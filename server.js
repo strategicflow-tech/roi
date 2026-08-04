@@ -5247,6 +5247,101 @@ async function setupDB() {
       scored_at         TIMESTAMPTZ DEFAULT now()
     )
   `).catch(e => console.error('[DB] index_content_samples:', e.message));
+
+  // ── SEED: manually-researched teardowns (ON CONFLICT DO NOTHING = safe to re-run) ──
+  const INDEX_SEED_COMPANIES = [
+    {
+      slug: 'vercel', name: 'Vercel', domain: 'vercel.com', content_type: 'changelog',
+      score: 7.8, scored_at: '2026-05-07',
+      patterns: ['Zero/Buried Social Proof'],
+      diagnosis_summary: "The entry states its news plainly in the headline and lead, and backs the claim with a concrete before/after code example rather than abstract description — the kind of structural clarity most changelogs lack. Its only real gap is the complete absence of any adoption signal or user validation, leaving the feature's real-world impact unstated.",
+      input_excerpt: "You can now store JSON values in Vercel Flags, extending the existing support for boolean, string, and number values. This allows you to collapse what used to take several related flags into a single feature flag. For example, to A/B test how a different model performs, you can now define a single `model` flag. Use Vercel Flags to progressively route traffic to a new model, A/B test, or quickly switch models in case a provider is having issues.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'pass', note: '"Vercel Flags now supports JSON values" states the specific shipped capability directly, not a vague label.' },
+        { check: 'Lead construction', verdict: 'pass', note: 'First sentence states the news immediately: "You can now store JSON values in Vercel Flags, extending the existing support for boolean, string, and number values."' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'Directly states the outcome: "This allows you to collapse what used to take several related flags into a single feature flag," followed by a concrete A/B model-switching example.' },
+        { check: 'Visual hierarchy', verdict: 'weak', note: 'Short entry with no subheadings breaking up the explanation from the code example; relies on a single flowing block before the code sample.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'pass', note: 'Shows literal before ("used to take several related flags") vs after (single JSON flag) plus an actual code sample with Variant A and Variant B configurations.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No user quote, adoption number, or case study reference anywhere in the entry.' },
+        { check: 'CTA language', verdict: 'pass', note: '"Try it out or learn more about Vercel Flags" with direct links.' }
+      ]
+    },
+    {
+      slug: 'github', name: 'GitHub', domain: 'github.blog', content_type: 'product_update_blog',
+      score: 5.7, scored_at: '2026-07-14',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "The headline reduces six distinct, meaningfully different features to an undifferentiated monthly label, forcing readers to scan the full bullet list to find what's relevant to them. Once inside, the bulleted structure and clear feature-to-outcome pairing work well, but nothing anchors these features in real usage or validates them with a customer signal.",
+      input_excerpt: "June 2026 is about visibility and trust with a clearer view of your GitHub Copilot usage, a new trust layer for MCP servers, and the first C++ scenarios for the modernization agent reaching general availability. Copilot usage tracking and alerts: The refreshed Copilot Usage window reflects GitHub Copilot's usage-based billing model with real-time updates. Trust validation for MCP servers: Visual Studio now compares an MCP server's configuration and asset fingerprint against a trusted baseline at startup.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"GitHub Copilot in Visual Studio — June update" is a filing label for a monthly digest, not a headline announcing the single most important change.' },
+        { check: 'Lead construction', verdict: 'weak', note: '"June 2026 is about visibility and trust..." bundles three unrelated features into one sentence without prioritizing which matters most.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'Each bullet pairs the feature with its concrete benefit, e.g. "proactive alerts let you know when you\'re approaching your limit" and "a trust dialog asks you to review and approve the change before the server runs."' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Clean bulleted "Highlights" section with bolded feature names, a table of contents, and clear section breaks.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: 'Gives exact menu paths for where to find each feature but rarely states the prior pain point explicitly before describing the fix.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No user quote, adoption number, or customer story anywhere in the update.' },
+        { check: 'CTA language', verdict: 'pass', note: '"Download Visual Studio 2026 to experience all the new Copilot features today" is direct and actionable.' }
+      ]
+    },
+    {
+      slug: 'postman', name: 'Postman', domain: 'blog.postman.com', content_type: 'product_update_blog',
+      score: 7.1, scored_at: '2026-01-27',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "This is one of the stronger structural performers in the index — a real problem-first lead, consistent before/after framing on every feature, and clean visual hierarchy throughout. It loses points only on the filing-label headline and the total absence of any social proof to validate real-world impact.",
+      input_excerpt: "Developers are expected to ship faster than ever. But too often, that speed comes from shortcuts like skipped tests and late performance checks that create technical debt and slow teams down later. This month's updates focus on making speed sustainable. Most teams discover performance issues too late. Load testing typically happens after features ship, when changes are expensive.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"Postman Product Update: January 2026" is a dated filing label, not a headline naming the actual news.' },
+        { check: 'Lead construction', verdict: 'pass', note: 'Opens with a real problem before the pitch: "Developers are expected to ship faster than ever. But too often, that speed comes from shortcuts like skipped tests..."' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'Every section follows problem-statement then concrete outcome, e.g. "Catch concurrency bugs earlier, reduce late-cycle rework, and ship APIs that behave predictably under real-world traffic."' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Consistent H2 section headers per feature, bullet lists, embedded screenshots/videos, bolded feature names in the closing "Additional improvements" list.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'pass', note: 'Nearly every section is explicitly structured as "here\'s the problem today" then "here\'s what changed," e.g. the Errors tab section and the BYOM section.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption figure, or named company example anywhere in the post.' },
+        { check: 'CTA language', verdict: 'pass', note: 'Specific contextual "Learn more about X →" link under every section plus a closing call to explore features and share feedback in the community.' }
+      ]
+    },
+    {
+      slug: 'retool', name: 'Retool', domain: 'retool.com', content_type: 'blog_article',
+      score: 7.6, scored_at: '2026-05-08',
+      patterns: ['Zero/Buried Social Proof'],
+      diagnosis_summary: "The piece earns trust by naming the real organizational risk (tech debt from ungoverned AI coding agents) before pitching the fix, and follows through with a concrete platform-level before/after. It reads as dense narrative prose rather than a scannable structure, and offers no validation that any team has actually adopted this yet.",
+      input_excerpt: "Retool's MCP server lets you manage apps, workflows, and users directly from Claude, Cursor, Codex, or Kiro—without leaving your AI coding environment. You can prompt 'enforce SSO for my app' and 'create an audit log feature within the admin dashboard,' but what happens when you ship multiple apps like this? Your team feels productive, but what you're actually doing is adding tech debt and security risk. Guardrails like access controls, audit trails, and data permissions aren't configured per app or per prompt. Instead, they're enforced at the platform level.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'pass', note: '"Introducing Retool\'s MCP Server" names the specific shipped product directly.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"Retool\'s MCP server lets you manage apps, workflows, and users directly from Claude, Cursor, Codex, or Kiro—without leaving your AI coding environment" states the capability and outcome immediately.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'Walks through a realistic multi-builder scenario ("Your team feels productive, but what you\'re actually doing is adding tech debt and security risk") then ties directly to the fix: "A data connection updated for one app is updated for all."' },
+        { check: 'Visual hierarchy', verdict: 'weak', note: 'Reads as continuous narrative prose in the opening section rather than being broken into scannable subsections.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'pass', note: 'Explicit before ("adding tech debt and security risk") vs after ("Guardrails... are enforced at the platform level").' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or named company example anywhere in the piece.' },
+        { check: 'CTA language', verdict: 'pass', note: 'Clear setup instructions and links for connecting the MCP server across Claude, Cursor, Codex, ChatGPT, and Kiro.' }
+      ]
+    },
+    {
+      slug: 'twilio', name: 'Twilio', domain: 'twilio.com', content_type: 'changelog',
+      score: 5.7, scored_at: '2026-05-05',
+      patterns: ['Feature-First Bias'],
+      diagnosis_summary: "A features-first list that never establishes what was broken or painful about the old console before describing the new one, and offers no validation that customers actually benefit in practice — a pattern common across large-platform changelogs that document shipped features without building the case for why they matter.",
+      input_excerpt: "The new Twilio Console acts as a hub for all of your communication channels, sender compliance documentation, and billing. With smart recommendations, centralized compliance and brand information, and a simplified billing and account model, you can scale multi-channel experiences with less friction. Redesigned user interface to make your workflows more accessible. Unified sender onboarding is a centralized checklist experience designed to simplify selecting, purchasing, and configuring senders.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'weak', note: '"New Twilio Console is now Generally Available" names the shipped thing and its GA status but doesn\'t hint at reader benefit or consequence.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"The new Twilio Console acts as a hub for all of your communication channels, sender compliance documentation, and billing" states directly what it is.' },
+        { check: 'Feature-to-outcome translation', verdict: 'weak', note: 'Bullets describe features with generic outcome language ("more accessible," "simplify") rather than concrete, specific reader outcomes.' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Clean 5-item bullet list of distinct features.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No explicit prior pain point stated before any feature; purely additive feature listing.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study.' },
+        { check: 'CTA language', verdict: 'pass', note: '"Customers can opt-in to the new Twilio Console starting today" with a clear self-service action and links to blog/docs.' }
+      ]
+    }
+  ];
+  for (const c of INDEX_SEED_COMPANIES) {
+    await pool.query(
+      `INSERT INTO index_companies (slug, name, domain, content_type, score, patterns, diagnosis_summary, input_excerpt, checks, content_length, scored_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (slug) DO NOTHING`,
+      [c.slug, c.name, c.domain, c.content_type, c.score,
+       JSON.stringify(c.patterns), c.diagnosis_summary, c.input_excerpt,
+       JSON.stringify(c.checks), c.input_excerpt.length, c.scored_at]
+    ).catch(e => console.error(`[DB] seed index_companies ${c.slug}:`, e.message));
+  }
+
   await pool.query(`
     INSERT INTO index_content_samples (company_slug, content_type, score, patterns, checks, diagnosis_summary, input_excerpt, content_length, scored_at)
     SELECT c.slug, c.content_type, c.score, c.patterns, c.checks, c.diagnosis_summary, c.input_excerpt, c.content_length, c.scored_at
