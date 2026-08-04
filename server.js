@@ -2986,9 +2986,12 @@ app.get('/admin/run-vote-growth', async (req, res) => {
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     let grown = 0;
     for (const listing of rows) {
-      const toAdd = listing.vote_count >= 10 ? 1 : 2;
-      const actual = Math.min(toAdd, 12 - listing.vote_count);
-      if (actual <= 0) continue;
+      const remaining = 12 - listing.vote_count;
+      if (remaining <= 0) continue;
+      // Random 1–3 per day, slowing near cap, never the same for each listing
+      const maxToday = listing.vote_count >= 10 ? 1 : 3;
+      const toAdd = 1 + Math.floor(Math.random() * maxToday);
+      const actual = Math.min(toAdd, remaining);
       const voteRows = Array.from({ length: actual }, (_, i) =>
         `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
       ).join(',');
@@ -17445,11 +17448,14 @@ ${content}
       );
       console.log(`[cron] Vote growth: ${rows.length} listings to grow`);
       for (const listing of rows) {
-        const toAdd = listing.vote_count >= 10 ? 1 : 2; // slow down near cap
-        const cap   = 12;
-        const actual = Math.min(toAdd, cap - listing.vote_count);
-        if (actual <= 0) continue;
-        const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const cap       = 12;
+        const remaining = cap - listing.vote_count;
+        if (remaining <= 0) continue;
+        // Random 1–3 per day, slowing near cap — different per listing each run
+        const maxToday = listing.vote_count >= 10 ? 1 : 3;
+        const toAdd    = 1 + Math.floor(Math.random() * maxToday);
+        const actual   = Math.min(toAdd, remaining);
+        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const voteRows = [];
         for (let i = 0; i < actual; i++) {
           voteRows.push(`(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`);
@@ -17471,6 +17477,54 @@ ${content}
       }
       console.log('[cron] Daily vote growth done.');
     } catch(e) { console.error('[cron] Vote growth error:', e.message); }
+  });
+
+  // ── Daily 02:05 UTC: Premium listing vote boost (WHY Audit™ #199, Strategic Flow Audit #203) ─
+  cron.schedule('5 2 * * *', async () => {
+    const PREMIUM_IDS = [199, 203];
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    for (const id of PREMIUM_IDS) {
+      try {
+        const toAdd = 4 + Math.floor(Math.random() * 4); // 4–7, different each day
+        const voteRows = Array.from({ length: toAdd }, (_, i) =>
+          `(${id}, 'premium_boost_${id}_${dateTag}_${i}', NOW())`
+        ).join(',');
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+        );
+        await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+          [toAdd, id]
+        );
+        console.log(`[cron] Premium boost: +${toAdd} votes → listing #${id}`);
+      } catch(e) { console.error(`[cron] Premium boost error for #${id}:`, e.message); }
+    }
+  });
+
+  // ── Daily 02:10 UTC: Vote boost for claimed listings (5–7/day) ───────────
+  cron.schedule('10 2 * * *', async () => {
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, name FROM directory_listings
+         WHERE claimed_by IS NOT NULL AND status = 'active'`
+      );
+      console.log(`[cron] Claimed boost: ${rows.length} listings`);
+      for (const listing of rows) {
+        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7, different per listing
+        const voteRows = Array.from({ length: toAdd }, (_, i) =>
+          `(${listing.id}, 'claimed_boost_${listing.id}_${dateTag}_${i}', NOW())`
+        ).join(',');
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+        );
+        await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+          [toAdd, listing.id]
+        );
+        console.log(`[cron] Claimed boost: +${toAdd} → ${listing.name}`);
+      }
+    } catch(e) { console.error('[cron] Claimed boost error:', e.message); }
   });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
