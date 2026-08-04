@@ -17346,8 +17346,8 @@ ${content}
   expireFeaturedListings().catch(()=>{});
   expireSponsors().catch(()=>{});
 
-  // ── Daily 08:00: Product Hunt auto-discovery (5 new listings/day) ────────
-  cron.schedule('0 8 * * *', async () => {
+  // ── Daily 01:00 UTC (02:00 Tenerife WEST): Product Hunt auto-discovery ───────
+  cron.schedule('0 1 * * *', async () => {
     console.log('[cron] Daily PH discovery starting…');
     try {
       const result = await runDailyPHDiscovery(pool, m => console.log(m), {
@@ -17355,7 +17355,80 @@ ${content}
         claudeJsonFn: claudeJSON,
       });
       console.log(`[cron] PH discovery done. Inserted: ${result.inserted}`);
+
+      // Seed initial votes for newly imported listings so they appear at top
+      // of the Daily leaderboard tab from day one.
+      if (result.listings?.length) {
+        for (const listing of result.listings) {
+          const initialVotes = 5 + Math.floor(Math.random() * 4); // 5–8
+          const rows = [];
+          for (let i = 0; i < initialVotes; i++) {
+            rows.push(`(${listing.id}, 'ph_init_${listing.id}_${i}', NOW())`);
+          }
+          try {
+            await pool.query(
+              `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+               VALUES ${rows.join(',')}
+               ON CONFLICT DO NOTHING`
+            );
+            await pool.query(
+              `UPDATE directory_listings
+               SET vote_count = vote_count + $1
+               WHERE id = $2`,
+              [initialVotes, listing.id]
+            );
+            console.log(`[cron] Seeded ${initialVotes} initial votes for: ${listing.name}`);
+          } catch(e) {
+            console.error(`[cron] Vote seed error for ${listing.name}:`, e.message);
+          }
+        }
+      }
     } catch(e) { console.error('[cron] PH discovery error:', e.message); }
+  });
+
+  // ── Daily 02:00 UTC: Gradual vote growth for recent auto-imports (Task #84) ─
+  // Adds 1-2 votes/day to PH-imported listings until they reach 10-12 total,
+  // keeping them visible in the Daily leaderboard tab for several days post-import.
+  cron.schedule('0 2 * * *', async () => {
+    console.log('[cron] Daily vote growth starting…');
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, name, vote_count
+         FROM directory_listings
+         WHERE is_auto_imported = TRUE
+           AND status = 'active'
+           AND vote_count < 12
+           AND submitted_at >= NOW() - INTERVAL '10 days'
+         ORDER BY submitted_at DESC`
+      );
+      console.log(`[cron] Vote growth: ${rows.length} listings to grow`);
+      for (const listing of rows) {
+        const toAdd = listing.vote_count >= 10 ? 1 : 2; // slow down near cap
+        const cap   = 12;
+        const actual = Math.min(toAdd, cap - listing.vote_count);
+        if (actual <= 0) continue;
+        const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const voteRows = [];
+        for (let i = 0; i < actual; i++) {
+          voteRows.push(`(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`);
+        }
+        try {
+          await pool.query(
+            `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+             VALUES ${voteRows.join(',')}
+             ON CONFLICT DO NOTHING`
+          );
+          await pool.query(
+            `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+            [actual, listing.id]
+          );
+          console.log(`[cron] +${actual} votes → ${listing.name} (total: ${listing.vote_count + actual})`);
+        } catch(e) {
+          console.error(`[cron] Vote growth error for ${listing.name}:`, e.message);
+        }
+      }
+      console.log('[cron] Daily vote growth done.');
+    } catch(e) { console.error('[cron] Vote growth error:', e.message); }
   });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
