@@ -176,7 +176,7 @@ async function queryPerplexityForVisibility(question) {
 async function queryGeminiForVisibility(question) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY not set');
-  const apiResp = await fetch(
+  const doRequest = async () => fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(key)}`,
     {
       method: 'POST',
@@ -188,6 +188,12 @@ async function queryGeminiForVisibility(question) {
       signal: AbortSignal.timeout(25000)
     }
   );
+  let apiResp = await doRequest();
+  // Retry once on 429 after 15s to ride out transient quota bursts
+  if (apiResp.status === 429) {
+    await new Promise(r => setTimeout(r, 15000));
+    apiResp = await doRequest();
+  }
   if (!apiResp.ok) throw new Error(`gemini_http_${apiResp.status}`);
   const data = await apiResp.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -5328,6 +5334,38 @@ async function setupDB() {
         { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No explicit prior pain point stated before any feature; purely additive feature listing.' },
         { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study.' },
         { check: 'CTA language', verdict: 'pass', note: '"Customers can opt-in to the new Twilio Console starting today" with a clear self-service action and links to blog/docs.' }
+      ]
+    },
+    {
+      slug: 'docusign', name: 'Docusign', domain: 'docusign.com', content_type: 'product_update_blog',
+      score: 5.0, scored_at: '2026-03-25',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "The lead does real work by naming a genuine pain point before the pitch, but the headline retreats into aspirational brand language (\"Reimagine\") instead of stating what actually shipped, and nothing in the release is grounded in a specific number, example, or customer validation.",
+      input_excerpt: "Wave goodbye to the bottlenecks of manual review and redlining. We're transforming Docusign AI-Assisted Review into a flexible, AI-powered agreement assistant, powered by Docusign Iris. Whether you're working from an existing contract review playbook or starting from scratch, now you have a partner designed to help you review faster, more efficiently, and more confidently—no matter your workflow or process.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"Reimagine how you negotiate with AI and the IAM platform" is an aspirational brand-philosophy phrase, not a headline stating the actual news (an AI-Assisted Review product transformation).' },
+        { check: 'Lead construction', verdict: 'pass', note: '"Wave goodbye to the bottlenecks of manual review and redlining" names the reader\'s real pain point immediately and vividly.' },
+        { check: 'Feature-to-outcome translation', verdict: 'weak', note: '"help you review faster, more efficiently, and more confidently" is a generic outcome triplet rather than a specific, concrete benefit.' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Image, headline, paragraph, then a clean short bulleted "In this release" list.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: 'Implies a before (bottlenecks) and after (AI assistant) but never gets concrete or specific about either state.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study anywhere in the release.' },
+        { check: 'CTA language', verdict: 'weak', note: 'Just "Explore Release," generic rather than specific to what the reader would see.' }
+      ]
+    },
+    {
+      slug: 'coda', name: 'Coda', domain: 'coda.io', content_type: 'changelog',
+      score: 5.7, scored_at: '2026-06-11',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "Once past the headline and an oddly chatty opening, the actual feature write-up is a model of consistent structure — labeled sections, a concrete before/after, and a direct outcome statement. The entry point undermines it: neither the post title nor its opening line gives any reason to read further if you don't already know what shipped.",
+      input_excerpt: "Here's what we shipped in June 2026. Happy Pride Month to all who celebrate! Product Feature: ChatGPT App Directory. What changed: Coda is now an official, verified connector in the ChatGPT App Directory. What we did: Partnered with OpenAI to get Coda listed as a verified connector, and reduced setup to a single click. Why it matters: If you've wanted to connect Coda to ChatGPT but never got around to the manual setup, that barrier is gone.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"Changelog: June 2026" is a pure filing label with no indication of what actually shipped.' },
+        { check: 'Lead construction', verdict: 'fail', note: 'Opens with unrelated chit-chat ("Happy Pride Month... World Cup soccer action, Knicks mania in NYC...") before any product content, actively delaying the news.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'The "Why it matters" section states the outcome directly: "If you\'ve wanted to connect Coda to ChatGPT but never got around to the manual setup, that barrier is gone."' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Consistent labeled structure per feature (Product Feature / What changed / What we did / Why it matters) plus bullets.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'pass', note: '"No more pasting tokens, enabling developer mode, or hunting down API URLs" vs. one-click setup is a concrete, specific contrast.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study in the authored content.' },
+        { check: 'CTA language', verdict: 'pass', note: 'Multiple specific links (Connect via ChatGPT App Directory, Help Center article, Live webinar with date).' }
       ]
     }
   ];
@@ -16129,7 +16167,17 @@ setupDB().then(async () => {
     try {
       // Up to 3 questions in flight at once per model — keeps each API's
       // own rate limit respected while cutting wall-clock time vs sequential.
-      answers = await mapWithConcurrency(questions, 3, (q) => queryFn(q));
+      // Gemini free tier is strict — run its questions sequentially with 3s gaps.
+      // All other models keep concurrency=3 for speed.
+      if (model === 'gemini') {
+        answers = [];
+        for (const q of questions) {
+          answers.push(await queryFn(q));
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      } else {
+        answers = await mapWithConcurrency(questions, 3, (q) => queryFn(q));
+      }
     } catch (err) {
       console.error(`[ai-visibility-index] ${model} query failed:`, err.message);
       return { model, status: 'needs_manual', mentioned: false, position: null, description_accuracy: null, competitors_shown: [], raw_answer_excerpt: null };
@@ -16467,25 +16515,30 @@ setupDB().then(async () => {
   // POST /api/ai-visibility-index/backfill-gemini  (requires x-admin-key header)
   // Fetches all companies with no gemini result, runs queryGeminiForVisibility on
   // their stored questions, inserts result rows, recomputes visibility_score.
-  // Rate-limited to 1 company per 3 seconds to avoid hammering the Gemini API.
+  // Rate-limited to 1 company per 6 seconds; mutex prevents concurrent runs.
+  let geminiBackfillRunning = false;
   app.post('/api/ai-visibility-index/backfill-gemini', async (req, res) => {
     if (req.headers['x-admin-key'] !== process.env.INDEX_ADMIN_KEY) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (geminiBackfillRunning) {
+      return res.json({ status: 'already_running', message: 'Backfill already in progress — check server logs.' });
     }
 
     // Respond immediately — processing happens in background
     res.json({ status: 'started', message: 'Backfill running in background. Check server logs for progress.' });
 
+    geminiBackfillRunning = true;
     (async () => {
       const summary = { processed: 0, skipped: 0, errors: [] };
       try {
-        // Companies that have no gemini row in model_results
+        // Companies with no gemini row OR a needs_manual gemini row (failed/quota)
         const { rows: companies } = await pool.query(`
           SELECT c.slug, c.name, c.domain, c.category
           FROM ai_visibility_companies c
           WHERE NOT EXISTS (
             SELECT 1 FROM ai_visibility_model_results r
-            WHERE r.company_slug = c.slug AND r.model = 'gemini'
+            WHERE r.company_slug = c.slug AND r.model = 'gemini' AND r.status = 'ok'
           )
           ORDER BY c.scored_at ASC
         `);
@@ -16546,8 +16599,8 @@ setupDB().then(async () => {
             console.log(`[gemini-backfill] OK ${company.slug} → Gemini status=${geminiResult.status}, new score=${newScore}`);
             summary.processed++;
 
-            // Rate limit: 3 seconds between companies
-            await new Promise(r => setTimeout(r, 3000));
+            // Rate limit: 6 seconds between companies to avoid Gemini quota
+            await new Promise(r => setTimeout(r, 6000));
           } catch (err) {
             console.error(`[gemini-backfill] ERROR ${company.slug}:`, err.message);
             summary.errors.push({ slug: company.slug, error: err.message });
@@ -16556,6 +16609,8 @@ setupDB().then(async () => {
         console.log('[gemini-backfill] DONE', JSON.stringify(summary));
       } catch (outerErr) {
         console.error('[gemini-backfill] FATAL:', outerErr.message);
+      } finally {
+        geminiBackfillRunning = false;
       }
     })();
   });
