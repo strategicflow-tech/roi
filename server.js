@@ -17527,6 +17527,38 @@ ${content}
     } catch(e) { console.error('[cron] Claimed boost error:', e.message); }
   });
 
+  // ── GET /admin/run-claimed-boost?key=… — manually trigger claimed listing vote boost ─
+  app.get('/admin/run-claimed-boost', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.flushHeaders();
+    const log = m => { console.log(m); res.write(m + '\n'); };
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, name FROM directory_listings WHERE claimed_by IS NOT NULL AND status = 'active'`
+      );
+      log(`[claimed-boost] ${rows.length} claimed listings found`);
+      for (const listing of rows) {
+        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
+        const voteRows = Array.from({ length: toAdd }, (_, i) =>
+          `(${listing.id}, 'claimed_boost_${listing.id}_${dateTag}_${i}', NOW())`
+        ).join(',');
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+        );
+        const r = await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
+          [toAdd, listing.id]
+        );
+        log(`[claimed-boost] +${toAdd} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
+      }
+      log(`[claimed-boost] Done.`);
+    } catch(e) { log(`[claimed-boost] ERROR: ${e.message}`); }
+    res.end();
+  });
+
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
   cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));
 
