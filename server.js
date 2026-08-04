@@ -2937,7 +2937,7 @@ app.get('/admin/emails.csv', async (req, res) => {
 
 // ── GET /api/directory/outreach-queue?key=… ──────────────────────────────────
 // Returns all active PH-sourced listings with contact info for the outreach tracker.
-// Fields: id (string), name, page (ToolIndex listing URL), cat, email, li, big
+// Fields: id (string), name, page (ToolIndex listing URL), cat, email, li, big, emailed_at
 app.get('/api/directory/outreach-queue', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
@@ -2945,25 +2945,74 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, name, category,
              regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug,
-             contact_email, social_linkedin, source
+             contact_email, social_linkedin, source, outreach_emailed_at
       FROM directory_listings
       WHERE status='active'
       ORDER BY id DESC
     `);
     const data = rows.map(r => ({
-      id:    String(r.id),
-      name:  r.name,
-      page:  `${base}/directory/${r.slug}`,
-      cat:   r.category || 'Other',
-      email: r.contact_email || '',
-      li:    r.social_linkedin || '',
-      big:   false,
+      id:        String(r.id),
+      name:      r.name,
+      page:      `${base}/directory/${r.slug}`,
+      cat:       r.category || 'Other',
+      email:     r.contact_email || '',
+      li:        r.social_linkedin || '',
+      big:       false,
+      emailed_at: r.outreach_emailed_at ? r.outreach_emailed_at.toISOString() : null,
     }));
     res.setHeader('Cache-Control', 'no-store');
     res.json(data);
   } catch(e) {
     console.error('[outreach-queue]', e.message);
     res.status(500).json({ error: 'db_error' });
+  }
+});
+
+// ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
+app.post('/admin/send-claim-outreach', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const listingId = parseInt(req.query.id || (req.body && req.body.id));
+  if (!listingId || isNaN(listingId)) return res.status(400).json({ error: 'missing_id' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, url, contact_email, outreach_emailed_at
+       FROM directory_listings WHERE id=$1 AND status='active'`,
+      [listingId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'not_found' });
+    const listing = rows[0];
+    if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
+    if (listing.outreach_emailed_at) {
+      return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
+    }
+    const slug = toListingSlug(listing.name, listing.id);
+    const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+    const name = listing.name;
+    const htmlBody = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>We already built <strong>${name}'s ToolIndex listing</strong> — claiming it makes it real.</p>
+<p>ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from <strong>strategicflow.tech</strong>, no review queue, most listings go live instantly.</p>
+<p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
+<p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
+<p>— The Strategic Flow / ToolIndex team</p>
+<p style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Strategic Flow, strategicflow.tech &mdash; reply and let us know if you&rsquo;d rather not hear from us again.</p>
+</div>`;
+    const textBody = `Hi,\n\nWe already built ${name}'s ToolIndex listing — claiming it makes it real.\n\nToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.\n\nYour listing is already live here: ${listingUrl}\n\nClaiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.\n\nClaim it free: ${listingUrl}\n\n— The Strategic Flow / ToolIndex team\n\n---\nStrategic Flow, strategicflow.tech — reply and let us know if you'd rather not hear from us again.`;
+    await resend.emails.send({
+      from:    SENDER,
+      to:      listing.contact_email,
+      replyTo: 'strategicflow@proton.me',
+      subject: `We already built ${name}'s ToolIndex page`,
+      html:    htmlBody,
+      text:    textBody,
+    });
+    await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listingId]);
+    console.log(`[outreach] ✓ Claim email → ${listing.contact_email} (${name})`);
+    res.json({ ok: true, listing_id: listingId, email: listing.contact_email, sent_at: new Date().toISOString() });
+  } catch(e) {
+    console.error('[outreach] Send error:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 

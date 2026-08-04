@@ -19,6 +19,8 @@
     --gold:#B9822E;
     --gold-soft:#F5EAD8;
     --danger:#B4472F;
+    --green:#15803d;
+    --green-soft:#dcfce7;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;}
@@ -46,6 +48,15 @@
   .head-title p{margin:2px 0 0;font-size:0.82rem;color:var(--muted);}
   .head-title p b{color:var(--ink);font-family:'JetBrains Mono',monospace;}
 
+  .batch-btn{
+    flex:none;
+    font-family:'Inter',sans-serif;font-weight:700;font-size:0.82rem;
+    padding:9px 14px;border-radius:10px;border:none;cursor:pointer;
+    background:var(--teal);color:#fff;
+    white-space:nowrap;
+  }
+  .batch-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
   .search{
     margin-top:12px;position:relative;
   }
@@ -72,12 +83,18 @@
   /* ===== LIST ===== */
   .list{padding:14px 12px 90px;max-width:640px;margin:0 auto;}
   .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:0.95rem;}
+  .loading{text-align:center;color:var(--muted);padding:60px 20px;}
+  .loading-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--teal);margin:0 3px;animation:pulse 1.2s ease-in-out infinite;}
+  .loading-dot:nth-child(2){animation-delay:.2s;}
+  .loading-dot:nth-child(3){animation-delay:.4s;}
+  @keyframes pulse{0%,80%,100%{opacity:.2}40%{opacity:1}}
 
   .card{
     background:var(--paper);border:1px solid var(--line);border-radius:16px;
     padding:14px 15px;margin-bottom:10px;transition:opacity 200ms ease;
   }
   .card.done{opacity:0.46;}
+  .card.sent{border-color:#86efac;}
   .card-top{display:flex;align-items:flex-start;gap:10px;}
   .card-info{flex:1;min-width:0;}
   .card-name{font-family:'Fraunces',serif;font-weight:700;font-size:1.02rem;line-height:1.25;}
@@ -89,6 +106,8 @@
   }
   .badge.cat{background:var(--bg);color:var(--muted);}
   .badge.both{background:var(--gold-soft);color:var(--gold);}
+  .badge.big{background:#F6E7E2;color:var(--danger);}
+  .badge.sent-badge{background:var(--green-soft);color:var(--green);}
 
   .check{
     flex:none;width:26px;height:26px;border-radius:8px;
@@ -107,32 +126,31 @@
     background:var(--bg);color:var(--ink);text-decoration:none;cursor:pointer;
   }
   .abtn.primary{background:var(--teal-soft);border-color:var(--teal);color:var(--teal);}
+  .abtn.resend{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .abtn.resend:disabled{opacity:0.5;cursor:not-allowed;}
+  .abtn.resend.sending{opacity:0.7;cursor:not-allowed;}
+  .abtn.resend.ok{background:var(--green-soft);border-color:#86efac;color:var(--green);cursor:default;}
   .abtn.copy{flex:0 0 auto;padding:9px 12px;}
   .abtn.copy.copied{background:var(--teal);color:#fff;border-color:var(--teal);}
   .abtn svg{width:15px;height:15px;flex:none;}
 
-  .badge.big{background:#F6E7E2;color:var(--danger);}
   .card.nocontact{opacity:0.55;}
   .nocontact-note{
     margin-top:10px;font-size:0.82rem;color:var(--muted);
     font-style:italic;
   }
   .contact-line{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);margin-top:6px;word-break:break-all;}
+  .sent-line{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--green);margin-top:6px;}
 
-  /* Loading state */
-  .loading{
-    text-align:center;padding:60px 20px;color:var(--muted);font-size:0.9rem;
+  .batch-log{
+    max-width:640px;margin:0 auto 14px;padding:12px 15px;
+    background:#f0fdf4;border:1px solid #86efac;border-radius:12px;
+    font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--green);
+    white-space:pre-wrap;display:none;max-height:160px;overflow-y:auto;
   }
-  .loading-dot{
-    display:inline-block;width:8px;height:8px;border-radius:50%;
-    background:var(--teal);margin:0 3px;animation:pulse 1.2s ease-in-out infinite;
-  }
-  .loading-dot:nth-child(2){animation-delay:0.2s;}
-  .loading-dot:nth-child(3){animation-delay:0.4s;}
-  @keyframes pulse{0%,80%,100%{opacity:0.2;transform:scale(0.8);}40%{opacity:1;transform:scale(1);}}
 
   @media (prefers-reduced-motion: reduce){
-    .card{transition:none;} .ring-fg{transition:none;} .loading-dot{animation:none;opacity:1;}
+    .card{transition:none;} .ring-fg{transition:none;}
   }
 </style>
 </head>
@@ -149,8 +167,9 @@
     </div>
     <div class="head-title">
       <h1>ToolIndex Outreach</h1>
-      <p><b id="doneCount">0</b> din <b id="totalCount">…</b> contactați</p>
+      <p><b id="sentCount">0</b> trimise via Resend · <b id="doneCount">0</b> marcate manual / <b id="totalCount">…</b></p>
     </div>
+    <button class="batch-btn" id="batchBtn" title="Trimite automat la next 25 cu email găsit și netrimis">⚡ Trimite 25</button>
   </div>
   <div class="search">
     <input id="q" type="text" placeholder="Caută nume sau categorie…">
@@ -158,13 +177,17 @@
   <div class="chips" id="chips">
     <button class="chip on" data-f="all">Toate</button>
     <button class="chip" data-f="todo">Necontactate</button>
-    <button class="chip" data-f="done">Contactate</button>
+    <button class="chip" data-f="done">Marcate</button>
+    <button class="chip" data-f="unsent">Nesent Resend</button>
+    <button class="chip" data-f="sent">Trimise Resend</button>
     <button class="chip" data-f="both">Email + LinkedIn</button>
     <button class="chip" data-f="email">Doar email</button>
     <button class="chip" data-f="li">Doar LinkedIn</button>
     <button class="chip" data-f="skipbig">Fără companii mari</button>
   </div>
 </header>
+
+<div class="batch-log" id="batchLog"></div>
 
 <main class="list" id="list">
   <div class="loading">
@@ -175,20 +198,22 @@
 
 <script>
 (async function(){
-  const list       = document.getElementById('list');
-  const qInput     = document.getElementById('q');
-  const chips      = document.getElementById('chips');
+  const list         = document.getElementById('list');
+  const qInput       = document.getElementById('q');
+  const chips        = document.getElementById('chips');
   const totalCountEl = document.getElementById('totalCount');
   const doneCountEl  = document.getElementById('doneCount');
+  const sentCountEl  = document.getElementById('sentCount');
   const ring         = document.getElementById('ring');
   const ringNum      = document.getElementById('ringNum');
+  const batchBtn     = document.getElementById('batchBtn');
+  const batchLog     = document.getElementById('batchLog');
   const RING_LEN     = 151;
   const STORAGE_KEY  = 'ti_outreach_contacted_v2';
 
-  // ── Read key from URL (e.g. ?key=xxx) ──
   const urlKey = new URLSearchParams(location.search).get('key') || '';
 
-  // ── Fetch data from live API ──
+  // ── Fetch data ──
   let DATA = [];
   try {
     const apiUrl = '/api/directory/outreach-queue' + (urlKey ? '?key=' + encodeURIComponent(urlKey) : '');
@@ -205,7 +230,7 @@
 
   totalCountEl.textContent = DATA.length;
 
-  // ── Contacted state in localStorage ──
+  // ── Manual "contacted" state in localStorage ──
   let contacted = new Set();
   function loadContacted(){
     try {
@@ -217,7 +242,14 @@
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...contacted])); } catch {}
   }
 
+  // ── Helpers ──
   function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function fmtDate(iso){
+    if(!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});
+  }
 
   function emailBody(id, name, page){
     return `Bună ziua,
@@ -245,52 +277,100 @@ Am văzut ${name} pe ToolIndex (directorul nostru de produse AI/SaaS, DA 86) —
 Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? Mă bucur să-ți explic.`;
   }
 
-  function copyText(text, btn){
+  function copyText(text, btn, labelReset){
     navigator.clipboard.writeText(text).then(()=>{
-      const old = btn.textContent;
+      const old = labelReset || btn.textContent;
       btn.textContent = 'Copiat ✓';
       btn.classList.add('copied');
       setTimeout(()=>{ btn.textContent = old; btn.classList.remove('copied'); }, 1400);
     }).catch(()=>{
-      // Fallback for non-secure contexts
       const ta = document.createElement('textarea');
       ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
       document.body.appendChild(ta); ta.select();
       try { document.execCommand('copy'); } catch {}
       document.body.removeChild(ta);
       btn.textContent = 'Copiat ✓'; btn.classList.add('copied');
-      setTimeout(()=>{ btn.textContent = btn.getAttribute('data-copy') === 'email' ? 'Copiază' : 'Copiază DM'; btn.classList.remove('copied'); }, 1400);
+      setTimeout(()=>{ btn.textContent = labelReset || btn.textContent; btn.classList.remove('copied'); }, 1400);
     });
   }
 
-  function cardHTML(item){
-    const isDone      = contacted.has(item.id);
-    const hasEmail    = !!item.email;
-    const hasLi       = !!item.li;
-    const noContact   = !hasEmail && !hasLi;
-    const hasBoth     = hasEmail && hasLi;
+  // ── Send via Resend (single listing) ──
+  async function sendViaResend(id, btn){
+    if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
+    btn.disabled = true;
+    btn.classList.add('sending');
+    btn.textContent = '⏳ Se trimite…';
+    try {
+      const r = await fetch('/admin/send-claim-outreach?key=' + encodeURIComponent(urlKey) + '&id=' + id, { method: 'POST' });
+      const d = await r.json();
+      if(d.ok){
+        // Update local data
+        const item = DATA.find(x => x.id === String(id));
+        if(item) item.emailed_at = d.sent_at;
+        btn.classList.remove('sending');
+        btn.classList.add('ok');
+        btn.textContent = '✓ Trimis';
+        updateStats();
+        // Update sent line on card
+        const card = btn.closest('.card');
+        if(card){
+          let sl = card.querySelector('.sent-line');
+          if(!sl){ sl = document.createElement('div'); sl.className='sent-line'; card.appendChild(sl); }
+          sl.textContent = '✉ trimis via Resend · ' + fmtDate(d.sent_at);
+        }
+      } else if(d.error === 'already_sent'){
+        btn.classList.remove('sending');
+        btn.classList.add('ok');
+        btn.textContent = '✓ Deja trimis';
+      } else {
+        btn.classList.remove('sending');
+        btn.disabled = false;
+        btn.textContent = '⚡ Trimite Resend';
+        alert('Eroare: ' + (d.error || 'unknown'));
+      }
+    } catch(e){
+      btn.classList.remove('sending');
+      btn.disabled = false;
+      btn.textContent = '⚡ Trimite Resend';
+      alert('Eroare de rețea: ' + e.message);
+    }
+  }
 
-    const eBody = emailBody(item.id, item.name, item.page);
-    const liMsg = liMessage(item.id, item.name, item.page);
+  function cardHTML(item){
+    const isDone    = contacted.has(item.id);
+    const hasEmail  = !!item.email;
+    const hasLi     = !!item.li;
+    const noContact = !hasEmail && !hasLi;
+    const hasBoth   = hasEmail && hasLi;
+    const isSent    = !!item.emailed_at;
 
     let contactBadge = '';
     if(hasBoth) contactBadge = '<span class="badge both">Email + LI</span>';
+    if(isSent)  contactBadge += '<span class="badge sent-badge">✉ Trimis Resend</span>';
 
     let contactActions = '';
     if(hasEmail){
-      contactActions += '<div class="arow">' +
-        '<a class="abtn primary" href="mailto:' + esc(item.email) + '">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>' +
-        'Email</a>' +
-        '<button class="abtn copy" data-copy="email" data-id="' + esc(item.id) + '">Copiază</button>' +
+      const sentDisabled = isSent ? ' disabled' : '';
+      const sentCls      = isSent ? ' ok' : '';
+      const sentLabel    = isSent ? '✓ Trimis' : '⚡ Trimite Resend';
+      contactActions +=
+        '<div class="arow">' +
+          '<button class="abtn resend' + sentCls + '" data-send="' + esc(item.id) + '"' + sentDisabled + '>' + sentLabel + '</button>' +
+        '</div>' +
+        '<div class="arow">' +
+          '<a class="abtn primary" href="mailto:' + esc(item.email) + '">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>' +
+            'Email manual</a>' +
+          '<button class="abtn copy" data-copy="email" data-id="' + esc(item.id) + '">Copiază</button>' +
         '</div>';
     }
     if(hasLi){
-      contactActions += '<div class="arow">' +
-        '<a class="abtn" href="' + esc(item.li) + '" target="_blank" rel="noopener">' +
-        '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>' +
-        'LinkedIn</a>' +
-        '<button class="abtn copy" data-copy="li" data-id="' + esc(item.id) + '">Copiază DM</button>' +
+      contactActions +=
+        '<div class="arow">' +
+          '<a class="abtn" href="' + esc(item.li) + '" target="_blank" rel="noopener">' +
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>' +
+            'LinkedIn</a>' +
+          '<button class="abtn copy" data-copy="li" data-id="' + esc(item.id) + '">Copiază DM</button>' +
         '</div>';
     }
 
@@ -298,7 +378,10 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     if(hasEmail) contactLine += '<div class="contact-line">✉ ' + esc(item.email) + '</div>';
     if(hasLi)    contactLine += '<div class="contact-line">in ' + esc(item.li) + '</div>';
 
-    return '<div class="card' + (isDone?' done':'') + (noContact?' nocontact':'') + '" data-id="' + esc(item.id) + '">' +
+    let sentLine = '';
+    if(isSent) sentLine = '<div class="sent-line">✉ trimis via Resend · ' + esc(fmtDate(item.emailed_at)) + '</div>';
+
+    return '<div class="card' + (isDone?' done':'') + (noContact?' nocontact':'') + (isSent?' sent':'') + '" data-id="' + esc(item.id) + '">' +
       '<div class="card-top">' +
         '<div class="card-info">' +
           '<div class="card-name"><a href="' + esc(item.page) + '" target="_blank" rel="noopener">' + esc(item.name) + '</a></div>' +
@@ -308,6 +391,7 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
             contactBadge +
           '</div>' +
           contactLine +
+          sentLine +
         '</div>' +
         '<button class="check' + (isDone?' on':'') + '" data-toggle="' + esc(item.id) + '" title="Marchează contactat">' +
           (isDone ? '✓' : '') +
@@ -323,13 +407,29 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
   let filter = 'all';
   let query  = '';
 
+  function updateStats(){
+    const sentN = DATA.filter(d => !!d.emailed_at).length;
+    sentCountEl.textContent = sentN;
+    doneCountEl.textContent = contacted.size;
+    // Ring tracks total reached (sent OR manually marked)
+    const reached = DATA.filter(d => !!d.emailed_at || contacted.has(d.id)).length;
+    const pct = DATA.length ? reached / DATA.length : 0;
+    ring.style.strokeDashoffset = RING_LEN - pct * RING_LEN;
+    ringNum.textContent = Math.round(pct * 100) + '%';
+  }
+
   function render(){
     let filtered = DATA.filter(item => {
-      if(filter === 'todo'    && contacted.has(item.id)) return false;
-      if(filter === 'done'    && !contacted.has(item.id)) return false;
-      if(filter === 'both'    && !(item.email && item.li)) return false;
-      if(filter === 'email'   && (!item.email || item.li)) return false;
-      if(filter === 'li'      && (!item.li || item.email)) return false;
+      const has_e = !!item.email, has_l = !!item.li;
+      const isDone = contacted.has(item.id);
+      const isSent = !!item.emailed_at;
+      if(filter === 'todo'    && (isDone || isSent)) return false;
+      if(filter === 'done'    && !isDone) return false;
+      if(filter === 'unsent'  && (!has_e || isSent)) return false;
+      if(filter === 'sent'    && !isSent) return false;
+      if(filter === 'both'    && !(has_e && has_l)) return false;
+      if(filter === 'email'   && (!has_e || has_l)) return false;
+      if(filter === 'li'      && (!has_l || has_e)) return false;
       if(filter === 'skipbig' && item.big) return false;
       if(query){
         const q = query.toLowerCase();
@@ -343,33 +443,77 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     } else {
       list.innerHTML = filtered.map(cardHTML).join('');
     }
-    doneCountEl.textContent = contacted.size;
-    const pct = DATA.length ? contacted.size / DATA.length : 0;
-    const offset = RING_LEN - pct * RING_LEN;
-    ring.style.strokeDashoffset = offset;
-    ringNum.textContent = Math.round(pct*100) + '%';
+    updateStats();
   }
 
-  list.addEventListener('click', (e)=>{
-    const toggleId = e.target.closest('[data-toggle]');
-    if(toggleId){
-      const id = toggleId.getAttribute('data-toggle');
+  // ── Click handler (toggle, copy, send) ──
+  list.addEventListener('click', async (e)=>{
+    // Toggle manual contacted
+    const toggleEl = e.target.closest('[data-toggle]');
+    if(toggleEl){
+      const id = toggleEl.getAttribute('data-toggle');
       if(contacted.has(id)) contacted.delete(id); else contacted.add(id);
       saveContacted();
       render();
       return;
     }
+    // Copy
     const copyBtn = e.target.closest('[data-copy]');
     if(copyBtn){
-      const id = copyBtn.getAttribute('data-id');
+      const id   = copyBtn.getAttribute('data-id');
       const item = DATA.find(d => d.id === id);
       if(!item) return;
       const kind = copyBtn.getAttribute('data-copy');
       const text = kind === 'email' ? emailBody(item.id, item.name, item.page) : liMessage(item.id, item.name, item.page);
-      copyText(text, copyBtn);
+      copyText(text, copyBtn, kind === 'email' ? 'Copiază' : 'Copiază DM');
+      return;
+    }
+    // Send via Resend
+    const sendBtn = e.target.closest('[data-send]');
+    if(sendBtn && !sendBtn.disabled){
+      const id = sendBtn.getAttribute('data-send');
+      await sendViaResend(id, sendBtn);
     }
   });
 
+  // ── Batch send (25 at a time) ──
+  batchBtn.addEventListener('click', async ()=>{
+    if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
+    const queue = DATA.filter(d => d.email && !d.emailed_at);
+    if(!queue.length){ alert('Nicio listare cu email nerămasă de trimis.'); return; }
+    const batch = queue.slice(0, 25);
+    batchBtn.disabled = true;
+    batchLog.style.display = 'block';
+    batchLog.textContent = `Trimit ${batch.length} emailuri…\n`;
+
+    let ok = 0, fail = 0;
+    for(const item of batch){
+      try {
+        const r = await fetch('/admin/send-claim-outreach?key=' + encodeURIComponent(urlKey) + '&id=' + item.id, { method: 'POST' });
+        const d = await r.json();
+        if(d.ok || d.error === 'already_sent'){
+          item.emailed_at = d.sent_at || new Date().toISOString();
+          ok++;
+          batchLog.textContent += `✓ ${item.name} → ${item.email}\n`;
+        } else {
+          fail++;
+          batchLog.textContent += `✗ ${item.name} — ${d.error}\n`;
+        }
+      } catch(e){
+        fail++;
+        batchLog.textContent += `✗ ${item.name} — eroare rețea\n`;
+      }
+      batchLog.scrollTop = batchLog.scrollHeight;
+      // Small delay between sends to be polite
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    batchLog.textContent += `\nGata: ${ok} trimise, ${fail} erori.`;
+    batchBtn.disabled = false;
+    render();
+  });
+
+  // ── Filter chips ──
   chips.addEventListener('click', (e)=>{
     const btn = e.target.closest('.chip');
     if(!btn) return;
@@ -378,6 +522,7 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     render();
   });
 
+  // ── Search ──
   let qTimer;
   qInput.addEventListener('input', ()=>{
     clearTimeout(qTimer);
