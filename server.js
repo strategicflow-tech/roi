@@ -1273,6 +1273,8 @@ app.get('/directory/:slug', async (req, res) => {
               dl.screenshots, dl.tech_stack, dl.platform, dl.pricing_model, dl.launch_date,
               CASE WHEN dl.founder_avatar_url IS NOT NULL THEN '/api/directory/listing-founder-avatar/' || dl.id::text ELSE NULL END AS founder_avatar_url,
               dl.ai_insights, dl.ai_enriched_at, dl.ai_enriched_from,
+              COALESCE(dl.editors_pick, FALSE) AS editors_pick,
+              dl.award_label,
               (SELECT COUNT(*)::int FROM dir_listing_views  WHERE listing_id=dl.id
                AND viewed_at  >= NOW()-INTERVAL '30 days') AS views_30d,
               (SELECT COUNT(*)::int FROM dir_listing_clicks WHERE listing_id=dl.id
@@ -1307,6 +1309,21 @@ app.get('/directory/:slug', async (req, res) => {
       [l.category || 'General', l.id]
     );
     const similar = simR.rows;
+
+    // ── Live badge data for this listing ────────────────────────────────────
+    const [winners, trending] = await Promise.all([computeWinners(), computeTrending()]);
+    const isWinnerDay   = l.id === winners.day;
+    const isWinnerWeek  = l.id === winners.week;
+    const isWinnerMonth = l.id === winners.month;
+    const trendEntry    = trending.find(t => t.id === l.id);
+    const trendingPct   = trendEntry ? trendEntry.pct : null;
+
+    // ── Winner history from directory_winners ─────────────────────────────
+    const histR = await pool.query(
+      `SELECT period_type, period_start FROM directory_winners
+       WHERE listing_id=$1 ORDER BY period_start DESC LIMIT 12`,
+      [l.id]
+    );
 
     // ── helpers ────────────────────────────────────────────────────────────
     const BASE = 'https://strategic-flow-audit.replit.app';
@@ -1361,6 +1378,40 @@ app.get('/directory/:slug', async (req, res) => {
   <img class="logo-img" src="${he(logoImg)}" alt="${he(l.name)} logo"
        onerror="this.onerror=null;this.src='${he(favImg)}';"/>
 </div>`;
+
+    // ── Distinctions section (badge strip under hero) ──────────────────────
+    const distBadges = [];
+    if (isWinnerDay)         distBadges.push({ emoji:'🏆', label:'Winner of the Day',   cls:'dist-winner-day',   title:'Most votes in the last 24 hours' });
+    else if (isWinnerWeek)   distBadges.push({ emoji:'🏆', label:'Winner of the Week',  cls:'dist-winner-week',  title:'Most votes this week' });
+    else if (isWinnerMonth)  distBadges.push({ emoji:'🏆', label:'Winner of the Month', cls:'dist-winner-month', title:'Most votes this month' });
+    if (trendingPct !== null) distBadges.push({ emoji:'🔥', label:`Trending +${trendingPct}%`, cls:'dist-trending', title:`${trendingPct}% more votes in the last 24h vs previous 24h` });
+    if (l.editors_pick)      distBadges.push({ emoji:'⭐', label:"Editor's Pick",        cls:'dist-editors-pick', title:'Handpicked by the ToolIndex team' });
+    if (l.award_label)       distBadges.push({ emoji:'🎖', label:l.award_label,          cls:'dist-award',        title:`Award: ${l.award_label}` });
+    if (l.verified && l.is_claimed) distBadges.push({ emoji:'✓', label:'Verified Founder', cls:'dist-verified', title:'Owner identity verified by ToolIndex' });
+
+    const distinctionsHtml = distBadges.length > 0 ? `
+<div class="distinctions-section">
+  <div class="distinctions-label">Distinctions</div>
+  <div class="distinctions-badges">
+    ${distBadges.map(b => `<span class="dist-badge ${b.cls}" title="${he(b.title)}">${b.emoji} ${he(b.label)}</span>`).join('')}
+  </div>
+</div>` : '';
+
+    // ── Achievement history timeline ───────────────────────────────────────
+    const PERIOD_LABELS_MAP = { day: 'Winner of the Day', week: 'Winner of the Week', month: 'Winner of the Month' };
+    const timelineHtml = histR.rows.length > 0 ? `
+<div class="timeline-section">
+  <div class="timeline-label">Achievement History</div>
+  <div class="timeline-list">
+    ${histR.rows.map(w => {
+      const d = new Date(w.period_start);
+      const monthStr = d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      const dayStr   = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      const dateStr  = w.period_type === 'day' ? dayStr : monthStr;
+      return `<div class="timeline-item"><span class="timeline-emoji">🏆</span><span class="timeline-text">${he(dateStr)} — ${he(PERIOD_LABELS_MAP[w.period_type] || w.period_type)}</span></div>`;
+    }).join('')}
+  </div>
+</div>` : '';
 
     // ── stats row (only shown when real data exists) ────────────────────────
     const statsHtml = votes > 0 ? `
@@ -1843,6 +1894,23 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .ai-transparency-text{font-size:11px;color:var(--muted);line-height:1.7;}
 .ai-transparency-text a{color:var(--muted);text-decoration:underline;}
 .ai-transparency-text strong{color:var(--sub);}
+/* ── Distinctions section ─────────────────────────────────────────────── */
+.distinctions-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;}
+.distinctions-label{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.distinctions-badges{display:flex;flex-wrap:wrap;gap:8px;}
+.dist-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-family:var(--mono);font-weight:700;letter-spacing:.04em;padding:5px 14px;border-radius:20px;white-space:nowrap;}
+.dist-winner-day,.dist-winner-week,.dist-winner-month{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.35);}
+.dist-trending{background:rgba(239,68,68,.13);color:#f87171;border:1px solid rgba(239,68,68,.28);}
+.dist-editors-pick{background:rgba(0,212,200,.12);color:#00d4c8;border:1px solid rgba(0,212,200,.3);}
+.dist-award{background:rgba(167,139,250,.13);color:#a78bfa;border:1px solid rgba(167,139,250,.3);}
+.dist-verified{background:rgba(96,165,250,.12);color:#60a5fa;border:1px solid rgba(96,165,250,.28);}
+/* ── Achievement history timeline ─────────────────────────────────────── */
+.timeline-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px;}
+.timeline-label{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.timeline-list{display:flex;flex-direction:column;gap:8px;}
+.timeline-item{display:flex;align-items:center;gap:10px;font-size:13px;}
+.timeline-emoji{font-size:14px;flex-shrink:0;}
+.timeline-text{color:var(--text);}
 </style>
 </head>
 <body>
@@ -1873,6 +1941,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
     </div>
   </div>
 
+  ${distinctionsHtml}
   ${statsHtml}
   ${aiSummaryHtml}
   ${aiFeaturesHtml}
@@ -1886,6 +1955,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${techHtml}
   ${screenshotsHtml}
   ${claimHtml}
+  ${timelineHtml}
   ${boostHtml}
   ${similarHtml}
   ${seoLinkHtml}
@@ -2041,6 +2111,8 @@ app.get('/api/directory/listings', async (req, res) => {
                     vote_count, featured_tier, featured_until,
                     COALESCE(verified, FALSE) AS verified,
                     COALESCE(priority_marquee, FALSE) AS priority_marquee,
+                    COALESCE(editors_pick, FALSE) AS editors_pick,
+                    award_label,
                     (claimed_by IS NOT NULL) AS is_claimed,
                     COALESCE(owner_description, description) AS description,
                     CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
@@ -2049,7 +2121,18 @@ app.get('/api/directory/listings', async (req, res) => {
     if (category && category !== 'All') { q += ' AND category=$1'; params.push(category); }
     q += ' ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC, vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 1000';
     const r = await pool.query(q, params);
-    res.json({ listings: r.rows });
+
+    // ── Merge live badge data (winners + trending) ─────────────────────────
+    const [winners, trending] = await Promise.all([computeWinners(), computeTrending()]);
+    const trendingMap = new Map(trending.map(t => [t.id, t.pct]));
+    const listings = r.rows.map(l => ({
+      ...l,
+      is_winner_day:   l.id === winners.day,
+      is_winner_week:  l.id === winners.week,
+      is_winner_month: l.id === winners.month,
+      trending_pct:    trendingMap.has(l.id) ? trendingMap.get(l.id) : null,
+    }));
+    res.json({ listings });
   } catch (err) {
     console.error('[directory] listings error:', err.message);
     res.status(500).json({ error: 'db_error' });
@@ -3360,6 +3443,62 @@ const SPONSOR_TIERS = {
   '12mo': { price_id: 'price_1TzP12DpTwoDeZJnpKg4X13m',  days: 365, label: '12 Months',  amount: 129 },
 };
 const SPONSOR_MAX_SLOTS = 3;
+
+// ── Directory: compute current period winners from dir_votes ─────────────────
+// Returns { day: id|null, week: id|null, month: id|null }
+// Called at request-time, never cached — always reflects live votes.
+async function computeWinners() {
+  try {
+    const r = await pool.query(`
+      SELECT
+        (SELECT listing_id FROM dir_votes
+         WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS day_winner,
+        (SELECT listing_id FROM dir_votes
+         WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
+         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS week_winner,
+        (SELECT listing_id FROM dir_votes
+         WHERE voted_at >= date_trunc('month', NOW() AT TIME ZONE 'UTC')
+         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS month_winner
+    `);
+    const row = r.rows[0] || {};
+    return { day: row.day_winner || null, week: row.week_winner || null, month: row.month_winner || null };
+  } catch(e) {
+    console.error('[computeWinners]', e.message);
+    return { day: null, week: null, month: null };
+  }
+}
+
+// ── Directory: compute trending listings ──────────────────────────────────────
+// Eligible: ≥3 votes in last 24h AND more than previous 24h.
+// Returns array of { id, cur, prev, pct } sorted by pct desc.
+async function computeTrending() {
+  try {
+    const r = await pool.query(`
+      SELECT
+        listing_id AS id,
+        COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours')::int  AS cur,
+        COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '48 hours'
+                           AND voted_at <  NOW() - INTERVAL '24 hours')::int  AS prev
+      FROM dir_votes
+      WHERE voted_at >= NOW() - INTERVAL '48 hours'
+      GROUP BY listing_id
+      HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours') >= 3
+    `);
+    return r.rows
+      .filter(row => row.cur > row.prev)
+      .map(row => ({
+        id:   row.id,
+        cur:  row.cur,
+        prev: row.prev,
+        pct:  row.prev > 0 ? Math.round(((row.cur - row.prev) / row.prev) * 100) : 100,
+      }))
+      .sort((a, b) => b.pct - a.pct);
+  } catch(e) {
+    console.error('[computeTrending]', e.message);
+    return [];
+  }
+}
 
 // ── Directory: expire stale featured placements ───────────────────────────────
 async function expireFeaturedListings() {
@@ -5891,6 +6030,23 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_notified_at  TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS redirects_to       INTEGER REFERENCES directory_listings(id)`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pinned_in_leaderboard BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS editors_pick  BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS award_label   TEXT`).catch(()=>{});
+
+  // ── directory_winners: permanent record of badge winners per period ───────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_winners (
+      id           SERIAL PRIMARY KEY,
+      listing_id   INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      period_type  TEXT    NOT NULL CHECK (period_type IN ('day','week','month')),
+      period_start TIMESTAMPTZ NOT NULL,
+      period_end   TIMESTAMPTZ NOT NULL,
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (listing_id, period_type, period_start)
+    )
+  `).catch(e => console.error('[DB] directory_winners:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_winners_listing ON directory_winners(listing_id)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_winners_period  ON directory_winners(period_type, period_start DESC)`).catch(()=>{});
 
   // ── Pin first-party listings at top of leaderboard ───────────────────────
   // WHY Audit™ (199) and Strategic Flow Audit (203) are the platform owner's
@@ -17991,6 +18147,95 @@ Reply to let us know if you'd rather not hear from us again.`;
       log(`[claimed-boost] Done.`);
     } catch(e) { log(`[claimed-boost] ERROR: ${e.message}`); }
     res.end();
+  });
+
+  // ── Admin: editors-pick — set/unset (max 3 simultaneous) ────────────────
+  app.post('/admin/directory/editors-pick', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    const { listing_id, value } = req.body || {};
+    if (!listing_id) return res.status(400).json({ error: 'listing_id required' });
+    const val = value === true || value === 'true' || value === 1 || value === '1';
+    if (val) {
+      const { rows } = await pool.query(`SELECT COUNT(*)::int AS cnt FROM directory_listings WHERE editors_pick=TRUE`);
+      if (rows[0].cnt >= 3) return res.status(400).json({ error: 'Max 3 editors_pick listings. Unset one first.', current_count: rows[0].cnt });
+    }
+    await pool.query(`UPDATE directory_listings SET editors_pick=$1 WHERE id=$2`, [val, parseInt(listing_id)]);
+    res.json({ ok: true, listing_id: parseInt(listing_id), editors_pick: val });
+  });
+
+  // ── Admin: award-label — set or clear custom award label ─────────────────
+  app.post('/admin/directory/award-label', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    const { listing_id, label } = req.body || {};
+    if (!listing_id) return res.status(400).json({ error: 'listing_id required' });
+    const val = label && label.trim() ? label.trim() : null;
+    await pool.query(`UPDATE directory_listings SET award_label=$1 WHERE id=$2`, [val, parseInt(listing_id)]);
+    res.json({ ok: true, listing_id: parseInt(listing_id), award_label: val });
+  });
+
+  // ── Admin: compute winners preview ───────────────────────────────────────
+  app.get('/admin/directory/winners/compute', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    const [winners, trending] = await Promise.all([computeWinners(), computeTrending()]);
+    const nameFor = async id => {
+      if (!id) return null;
+      const r = await pool.query(`SELECT name FROM directory_listings WHERE id=$1`, [id]);
+      return r.rows[0] ? { id, name: r.rows[0].name } : { id, name: 'unknown' };
+    };
+    const [day, week, month] = await Promise.all([nameFor(winners.day), nameFor(winners.week), nameFor(winners.month)]);
+    res.json({ winners: { day, week, month }, trending: trending.slice(0, 10) });
+  });
+
+  // ── Cron 23:55 daily: save "Winner of the Day" to directory_winners ───────
+  cron.schedule('55 23 * * *', async () => {
+    try {
+      const w = await computeWinners();
+      if (!w.day) return;
+      const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd   = new Date(); dayEnd.setUTCHours(23, 59, 59, 999);
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'day',$2,$3) ON CONFLICT DO NOTHING`,
+        [w.day, dayStart.toISOString(), dayEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of day: listing #${w.day}`);
+    } catch(e) { console.error('[cron] day-winner error:', e.message); }
+  });
+
+  // ── Cron Sunday 23:50: save "Winner of the Week" to directory_winners ─────
+  cron.schedule('50 23 * * 0', async () => {
+    try {
+      const w = await computeWinners();
+      if (!w.week) return;
+      const now = new Date();
+      const weekStart = new Date(now); weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); weekStart.setUTCHours(0, 0, 0, 0);
+      const weekEnd   = new Date(now); weekEnd.setUTCHours(23, 59, 59, 999);
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'week',$2,$3) ON CONFLICT DO NOTHING`,
+        [w.week, weekStart.toISOString(), weekEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of week: listing #${w.week}`);
+    } catch(e) { console.error('[cron] week-winner error:', e.message); }
+  });
+
+  // ── Cron 23:45 on days 28-31: save "Winner of the Month" (last day only) ──
+  cron.schedule('45 23 28-31 * *', async () => {
+    try {
+      const now = new Date();
+      const tomorrow = new Date(now.getTime() + 86_400_000);
+      if (tomorrow.getUTCDate() !== 1) return; // not the last day of the month
+      const w = await computeWinners();
+      if (!w.month) return;
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const monthEnd   = new Date(now); monthEnd.setUTCHours(23, 59, 59, 999);
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'month',$2,$3) ON CONFLICT DO NOTHING`,
+        [w.month, monthStart.toISOString(), monthEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of month: listing #${w.month}`);
+    } catch(e) { console.error('[cron] month-winner error:', e.message); }
   });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────

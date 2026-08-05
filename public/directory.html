@@ -541,6 +541,14 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-faq-a{font-size:14px;color:var(--muted);line-height:1.7;padding-top:12px;max-width:740px;}
 /* ─── VERIFIED BADGE ──────────────────────────────────────────── */
 .dir-verified-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;font-family:var(--mono);color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.28);border-radius:4px;padding:2px 7px;letter-spacing:.04em;}
+/* ── Social proof badges on cards ─────────────────────────────────────── */
+.dir-badge-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.dir-sp-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:10px;white-space:nowrap;line-height:1.4;}
+.dir-sp-badge.sp-winner{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}
+.dir-sp-badge.sp-trending{background:rgba(239,68,68,.13);color:#f87171;border:1px solid rgba(239,68,68,.25);}
+.dir-sp-badge.sp-editors-pick{background:rgba(0,212,200,.12);color:#00d4c8;border:1px solid rgba(0,212,200,.28);}
+.dir-sp-badge.sp-award{background:rgba(167,139,250,.13);color:#a78bfa;border:1px solid rgba(167,139,250,.28);}
+.dir-sp-badge.sp-verified-founder{background:rgba(96,165,250,.12);color:#60a5fa;border:1px solid rgba(96,165,250,.28);}
 /* ─── LEVEL UP SECTION ────────────────────────────────────────── */
 .dir-levelup-section{padding:0 40px 64px;}
 .dir-levelup-inner{max-width:960px;margin:0 auto;}
@@ -1809,6 +1817,18 @@ function renderCard(l){
 
   let featBadge = isFeat ? `<span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>` : '';
 
+  // Social proof badge row
+  const spBadges = [];
+  if(l.is_winner_day)          spBadges.push(`<span class="dir-sp-badge sp-winner" title="Most votes today">🏆 Winner Today</span>`);
+  else if(l.is_winner_week)    spBadges.push(`<span class="dir-sp-badge sp-winner" title="Most votes this week">🏆 This Week's Winner</span>`);
+  else if(l.is_winner_month)   spBadges.push(`<span class="dir-sp-badge sp-winner" title="Most votes this month">🏆 This Month's Winner</span>`);
+  if(l.trending_pct !== null && l.trending_pct !== undefined)
+    spBadges.push(`<span class="dir-sp-badge sp-trending" title="${l.trending_pct}% more votes vs yesterday">🔥 Trending +${l.trending_pct}%</span>`);
+  if(l.editors_pick)           spBadges.push(`<span class="dir-sp-badge sp-editors-pick" title="Handpicked by ToolIndex">⭐ Editor's Pick</span>`);
+  if(l.award_label)            spBadges.push(`<span class="dir-sp-badge sp-award" title="Award">🎖 ${escHtml(l.award_label)}</span>`);
+  if(l.verified && l.is_claimed) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Owner identity verified">✓ Verified Founder</span>`);
+  const spBadgeRow = spBadges.length ? `<div class="dir-badge-row">${spBadges.join('')}</div>` : '';
+
   return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
     <div class="dir-card-top">
       <div class="dir-card-left">
@@ -1816,7 +1836,7 @@ function renderCard(l){
         <div style="min-width:0;">
           <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
-          ${featBadge}${l.verified?'<span class="dir-verified-badge">✓ Verified</span>':''}
+          ${featBadge}${!l.is_claimed && l.verified ? '<span class="dir-verified-badge">✓ Verified</span>' : ''}${spBadgeRow}
         </div>
       </div>
     </div>
