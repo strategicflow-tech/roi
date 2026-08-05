@@ -4878,6 +4878,22 @@ app.get('/badge-kit', (req, res) => res.sendFile(path.join(__dirname, 'public/ba
 // ── GET /api/directory/click-counts ──────────────────────────────────────────
 // Returns real 30-day outbound click counts per listing. Only includes listings
 // with at least 1 click — zeros are omitted so callers can gate display on presence.
+app.get('/api/directory/category-counts', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT category, COUNT(*)::int AS cnt
+      FROM directory_listings
+      WHERE status = 'active' AND category IS NOT NULL AND category <> 'Other'
+      GROUP BY category
+      ORDER BY cnt DESC
+    `);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/directory/click-counts', async (req, res) => {
   try {
     const r = await pool.query(`

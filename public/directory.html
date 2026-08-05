@@ -2433,21 +2433,21 @@ function loadPulseSections(){
     });
 }
 
-// ── Collections sidebar: categories from real allListings data ────────────────
+// ── Collections sidebar: real counts from DB ─────────────────────────────────
 function loadCollections(){
   const el=document.getElementById('dirCollections');
-  if(!el||!allListings.length) return;
-  const cats={};
-  allListings.forEach(l=>{cats[l.category]=(cats[l.category]||0)+1;});
-  const sorted=Object.entries(cats)
-    .filter(([c])=>c&&c!=='Other')
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,7);
-  el.innerHTML=sorted.map(([cat,cnt])=>
-    `<a class="dir-collection-item" href="/directory?category=${encodeURIComponent(cat)}" onclick="document.querySelector('[data-cat=\\''+${JSON.stringify(cat)}+'\\']')?.click();return false;">
-      <span class="dir-collection-name">${escHtml(cat)}</span>
-      <span class="dir-collection-count">${cnt}</span>
-    </a>`).join('');
+  if(!el) return;
+  fetch('/api/directory/category-counts')
+    .then(r=>r.json())
+    .then(rows=>{
+      if(!rows.length){el.innerHTML='';return;}
+      el.innerHTML=rows.map(({category:cat,cnt})=>
+        `<a class="dir-collection-item" href="/directory?category=${encodeURIComponent(cat)}" onclick="document.querySelector('[data-cat=\\''+${JSON.stringify(cat)}+'\\']')?.click();return false;">
+          <span class="dir-collection-name">${escHtml(cat)}</span>
+          <span class="dir-collection-count">${cnt}</span>
+        </a>`).join('');
+    })
+    .catch(()=>{el.innerHTML='';});
 }
 
 function applyFilters(){
