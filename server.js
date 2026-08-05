@@ -3453,19 +3453,43 @@ async function computeWinners() {
       SELECT
         (SELECT listing_id FROM dir_votes
          WHERE voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS day_winner,
+           AND voted_at <= NOW() AT TIME ZONE 'UTC'
+         GROUP BY listing_id ORDER BY COUNT(*) DESC, listing_id ASC LIMIT 1) AS day_winner,
         (SELECT listing_id FROM dir_votes
          WHERE voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
-         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS week_winner,
+           AND voted_at <= NOW() AT TIME ZONE 'UTC'
+         GROUP BY listing_id ORDER BY COUNT(*) DESC, listing_id ASC LIMIT 1) AS week_winner,
         (SELECT listing_id FROM dir_votes
          WHERE voted_at >= date_trunc('month', NOW() AT TIME ZONE 'UTC')
-         GROUP BY listing_id ORDER BY COUNT(*) DESC LIMIT 1) AS month_winner
+           AND voted_at <= NOW() AT TIME ZONE 'UTC'
+         GROUP BY listing_id ORDER BY COUNT(*) DESC, listing_id ASC LIMIT 1) AS month_winner
     `);
     const row = r.rows[0] || {};
     return { day: row.day_winner || null, week: row.week_winner || null, month: row.month_winner || null };
   } catch(e) {
     console.error('[computeWinners]', e.message);
     return { day: null, week: null, month: null };
+  }
+}
+
+// ── Directory: compute winner for a fully-closed explicit time range ────────────
+// Used by archival crons that run AFTER the period ends so the interval is exact.
+// Returns listing_id | null. Tie-break: lower id wins (stable across runs).
+async function computeWinnerForRange(start, end) {
+  try {
+    const r = await pool.query(
+      `SELECT listing_id, COUNT(*)::int AS cnt
+       FROM dir_votes
+       WHERE voted_at >= $1 AND voted_at <= $2
+       GROUP BY listing_id
+       ORDER BY cnt DESC, listing_id ASC
+       LIMIT 1`,
+      [start.toISOString(), end.toISOString()]
+    );
+    return r.rows.length > 0 ? r.rows[0].listing_id : null;
+  } catch(e) {
+    console.error('[computeWinnerForRange]', e.message);
+    return null;
   }
 }
 
@@ -3477,13 +3501,16 @@ async function computeTrending() {
     const r = await pool.query(`
       SELECT
         listing_id AS id,
-        COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours')::int  AS cur,
+        COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours'
+                           AND voted_at <= NOW())::int  AS cur,
         COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '48 hours'
                            AND voted_at <  NOW() - INTERVAL '24 hours')::int  AS prev
       FROM dir_votes
       WHERE voted_at >= NOW() - INTERVAL '48 hours'
+        AND voted_at <= NOW()
       GROUP BY listing_id
-      HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours') >= 3
+      HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours'
+                                AND voted_at <= NOW()) >= 3
     `);
     return r.rows
       .filter(row => row.cur > row.prev)
@@ -4065,7 +4092,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
     let q;
     if (period === 'daily') {
       // Founder Pack IDs (199,203) sorted last so they don't occupy top spots.
-      // Listings claimed today float above the organic pack — FOMO for other makers.
+      // Listings sorted strictly by period_votes then all-time vote_count.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
@@ -4081,13 +4108,12 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            GROUP BY dl.id
            ORDER BY
              (dl.id = ANY(ARRAY[199,203])) ASC,
-             (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND dl.claimed_by IS NOT NULL) DESC,
              period_votes DESC,
              dl.vote_count DESC
            LIMIT 25`;
     } else if (period === 'weekly') {
-      // Same logic for weekly: Founder Pack shown at bottom without numbered rank,
-      // listings claimed this week get a modest priority lift.
+      // Same logic for weekly: Founder Pack shown at bottom without numbered rank.
+      // Listings sorted strictly by period_votes then all-time vote_count.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
@@ -4103,7 +4129,6 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            GROUP BY dl.id
            ORDER BY
              (dl.id = ANY(ARRAY[199,203])) ASC,
-             (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND dl.claimed_by IS NOT NULL) DESC,
              period_votes DESC,
              dl.vote_count DESC
            LIMIT 25`;
@@ -18186,57 +18211,66 @@ Reply to let us know if you'd rather not hear from us again.`;
     res.json({ winners: { day, week, month }, trending: trending.slice(0, 10) });
   });
 
-  // ── Cron 23:55 daily: save "Winner of the Day" to directory_winners ───────
-  cron.schedule('55 23 * * *', async () => {
+  // ── 00:05 UTC daily: archive "Winner of the Day" for the just-closed UTC day ─
+  // Runs 5 min after midnight UTC so the entire prior day [00:00–23:59:59.999] is
+  // complete before querying. Uses computeWinnerForRange with explicit boundaries.
+  cron.schedule('5 0 * * *', async () => {
     try {
-      const w = await computeWinners();
-      if (!w.day) return;
-      const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd   = new Date(); dayEnd.setUTCHours(23, 59, 59, 999);
+      const now = new Date(); // ~00:05 UTC
+      // Yesterday in UTC: subtract one full day from today's midnight
+      const todayMidnight  = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const periodStart    = new Date(todayMidnight - 86_400_000);          // yesterday 00:00:00.000 UTC
+      const periodEnd      = new Date(todayMidnight - 1);                   // yesterday 23:59:59.999 UTC
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
       await pool.query(
         `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
          VALUES ($1,'day',$2,$3) ON CONFLICT DO NOTHING`,
-        [w.day, dayStart.toISOString(), dayEnd.toISOString()]
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
       );
-      console.log(`[cron] Winner of day: listing #${w.day}`);
+      console.log(`[cron] Winner of day ${periodStart.toISOString().slice(0,10)}: listing #${winner}`);
     } catch(e) { console.error('[cron] day-winner error:', e.message); }
-  });
+  }, { timezone: 'UTC' });
 
-  // ── Cron Sunday 23:50: save "Winner of the Week" to directory_winners ─────
-  cron.schedule('50 23 * * 0', async () => {
+  // ── Monday 00:05 UTC: archive "Winner of the Week" for the just-closed Mon–Sun ─
+  // Runs 5 min into the new ISO week (Monday), so the prior Mon 00:00 – Sun 23:59:59.999
+  // interval is fully closed. Uses computeWinnerForRange with exact boundaries.
+  cron.schedule('5 0 * * 1', async () => {
     try {
-      const w = await computeWinners();
-      if (!w.week) return;
-      const now = new Date();
-      const weekStart = new Date(now); weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); weekStart.setUTCHours(0, 0, 0, 0);
-      const weekEnd   = new Date(now); weekEnd.setUTCHours(23, 59, 59, 999);
+      const now = new Date(); // Monday ~00:05 UTC
+      const thisMondayMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const periodEnd   = new Date(thisMondayMidnight - 1);                 // last Sunday 23:59:59.999 UTC
+      const periodStart = new Date(thisMondayMidnight - 7 * 86_400_000);   // prev Monday 00:00:00.000 UTC
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
       await pool.query(
         `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
          VALUES ($1,'week',$2,$3) ON CONFLICT DO NOTHING`,
-        [w.week, weekStart.toISOString(), weekEnd.toISOString()]
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
       );
-      console.log(`[cron] Winner of week: listing #${w.week}`);
+      console.log(`[cron] Winner of week ${periodStart.toISOString().slice(0,10)}: listing #${winner}`);
     } catch(e) { console.error('[cron] week-winner error:', e.message); }
-  });
+  }, { timezone: 'UTC' });
 
-  // ── Cron 23:45 on days 28-31: save "Winner of the Month" (last day only) ──
-  cron.schedule('45 23 28-31 * *', async () => {
+  // ── 1st of month 00:05 UTC: archive "Winner of the Month" for the prior month ─
+  // Runs 5 min into the 1st of the new month, so the entire prior calendar month
+  // [1st 00:00 – last-day 23:59:59.999] is fully closed before querying.
+  cron.schedule('5 0 1 * *', async () => {
     try {
-      const now = new Date();
-      const tomorrow = new Date(now.getTime() + 86_400_000);
-      if (tomorrow.getUTCDate() !== 1) return; // not the last day of the month
-      const w = await computeWinners();
-      if (!w.month) return;
-      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-      const monthEnd   = new Date(now); monthEnd.setUTCHours(23, 59, 59, 999);
+      const now = new Date(); // 1st of month ~00:05 UTC
+      const firstOfThisMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+      const periodEnd   = new Date(firstOfThisMonth - 1);                   // last day of prev month 23:59:59.999 UTC
+      const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)); // 1st of prev month
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
       await pool.query(
         `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
          VALUES ($1,'month',$2,$3) ON CONFLICT DO NOTHING`,
-        [w.month, monthStart.toISOString(), monthEnd.toISOString()]
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
       );
-      console.log(`[cron] Winner of month: listing #${w.month}`);
+      console.log(`[cron] Winner of month ${periodStart.toISOString().slice(0,7)}: listing #${winner}`);
     } catch(e) { console.error('[cron] month-winner error:', e.message); }
-  });
+  }, { timezone: 'UTC' });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
   cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));
