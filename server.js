@@ -12067,6 +12067,13 @@ function renderFrictionIndexHtml(companies) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Strategic Flow","url":"https://strategicflow.tech","founder":{"@type":"Person","name":"Alex Iliescu","url":"https://strategicflow.tech","jobTitle":"Founder, Strategic Flow","sameAs":["https://www.linkedin.com/in/alexiliescu/"]},"description":"Strategic Flow builds the Decision Friction Model — a 7-point behavioral framework for SaaS email conversion, based on 59 real email teardowns.","address":{"@type":"PostalAddress","addressLocality":"Tenerife","addressCountry":"ES"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://strategicflow.tech"},{"@type":"ListItem","position":2,"name":"The Decision Friction Index","item":"https://strategic-flow-audit.replit.app/friction-index"}]}</script>
+<meta name="author" content="Alex Iliescu, Strategic Flow">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/friction-index">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Strategic Flow">
 <style>
   :root{
     --bg:#070d1a;--card:#0c1526;--card2:#101d30;--card3:#132035;
@@ -12721,6 +12728,13 @@ function renderAiVisIndexHtml(companies) {
       acceptedAnswer: { '@type': 'Answer', text: 'Yes \u2014 use the free check form at the top of this page to see how AI assistants currently describe your company.' }}
   ]
 }).replace(/</g, '\\u003c')}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Strategic Flow","url":"https://strategicflow.tech","founder":{"@type":"Person","name":"Alex Iliescu","url":"https://strategicflow.tech","jobTitle":"Founder, Strategic Flow","sameAs":["https://www.linkedin.com/in/alexiliescu/"]},"description":"Strategic Flow builds the Decision Friction Model — a 7-point behavioral framework for SaaS email conversion, based on 59 real email teardowns.","address":{"@type":"PostalAddress","addressLocality":"Tenerife","addressCountry":"ES"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://strategicflow.tech"},{"@type":"ListItem","position":2,"name":"The AI Visibility Index","item":"https://strategic-flow-audit.replit.app/ai-visibility-index"}]}</script>
+<meta name="author" content="Alex Iliescu, Strategic Flow">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/ai-visibility-index">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Strategic Flow">
 <style>
   :root{
     --bg:#070d1a;--card:#0c1526;--card2:#101d30;--card3:#132035;
