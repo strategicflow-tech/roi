@@ -5708,12 +5708,11 @@ async function setupDB() {
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
 
-  // Premium showcase listings — match by stable seeded IDs (199, 203) to avoid ™ encoding issues
+  // Premium showcase listings — always force-set on startup so production stays in sync
   await pool.query(`
     UPDATE directory_listings
     SET featured_tier='premium', featured_until='2099-12-31'
     WHERE id IN (199, 203)
-    AND (featured_tier IS NULL OR featured_tier != 'premium')
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
