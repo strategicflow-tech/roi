@@ -4674,6 +4674,31 @@ app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(_
 app.get('/saas-changelog-email-architecture', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-changelog-email-architecture.html')));
 
 // ── Decision Friction Model lead-magnet funnel ────────────────────────────────
+// ── GET /admin/friction-leads — friction model lead list (admin only) ────────
+app.get('/admin/friction-leads', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
+  try {
+    const { rows } = await pool.query(
+      `SELECT email, created_at, delivered_at FROM friction_model_leads ORDER BY created_at DESC`
+    );
+    const rows_html = rows.map((r, i) => {
+      const created = new Date(r.created_at).toISOString().replace('T', ' ').slice(0, 19);
+      const delivered = r.delivered_at
+        ? `<span style="color:#3CE7A6">${new Date(r.delivered_at).toISOString().replace('T', ' ').slice(0, 19)}</span>`
+        : `<span style="color:#FF6B6B">pending</span>`;
+      return `<tr><td style="color:#8B93A7;font-family:monospace;font-size:12px;padding:8px 12px">${i + 1}</td><td style="padding:8px 16px">${r.email}</td><td style="padding:8px 16px;font-family:monospace;font-size:12px;color:#8B93A7">${created}</td><td style="padding:8px 16px;font-family:monospace;font-size:12px">${delivered}</td></tr>`;
+    }).join('');
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Friction Model Leads</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#05070D;color:#F1F3F8;font-family:Inter,sans-serif;padding:40px 24px;}.wrap{max-width:860px;margin:0 auto;}h1{font-size:22px;font-weight:800;margin-bottom:6px;}.sub{color:#8B93A7;font-family:monospace;font-size:13px;margin-bottom:32px;}.count{display:inline-block;background:rgba(60,231,166,0.1);border:1px solid rgba(60,231,166,0.3);color:#3CE7A6;font-family:monospace;font-size:13px;padding:3px 10px;border-radius:6px;margin-left:10px;}table{width:100%;border-collapse:collapse;background:#0B0F1A;border:1px solid #1C2536;border-radius:10px;overflow:hidden;}th{text-align:left;padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#8B93A7;font-family:monospace;border-bottom:1px solid #1C2536;}tr:not(:last-child) td{border-bottom:1px solid #1C2536;}tr:hover td{background:rgba(255,255,255,0.02);}td{font-size:14px;}</style></head>
+<body><div class="wrap"><h1>Friction Model Leads <span class="count">${rows.length} total</span></h1>
+<p class="sub">Decision Friction Model signups — sorted newest first</p>
+<table><thead><tr><th>#</th><th>Email</th><th>Signed up</th><th>Guide delivered</th></tr></thead><tbody>${rows_html || '<tr><td colspan="4" style="padding:24px;text-align:center;color:#8B93A7">No signups yet</td></tr>'}</tbody></table>
+</div></body></html>`);
+  } catch (e) {
+    res.status(500).send(`Error: ${e.message}`);
+  }
+});
+
 app.get('/friction-model', (req, res) =>
   res.sendFile(path.join(__dirname, 'public/friction-model/index.html')));
 
@@ -16312,6 +16337,8 @@ setupDB().then(async () => {
       { loc: `${base}/directory/best-productivity-saas`,        priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/directory/alternative-to-saashub`,        priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/directory/alternative-to-futurepedia`,    priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/friction-model`,                           priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/friction-model/guide`,                     priority: '0.7', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
