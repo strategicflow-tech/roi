@@ -5881,6 +5881,22 @@ async function setupDB() {
         { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study anywhere in the update.' },
         { check: 'CTA language', verdict: 'weak', note: '"Read the release notes" is functional but generic rather than specific to what the reader gets.' }
       ]
+    },
+    {
+      slug: 'airtable', name: 'Airtable', domain: 'community.airtable.com', content_type: 'product_update_blog',
+      score: 3.6, scored_at: '2026-07-01',
+      patterns: ['Feature-First Bias'],
+      diagnosis_summary: "Both the headline and the opening line announce the feature itself before establishing any reason to care, the exact same failure repeated twice at the top of the post. The bulleted use cases underneath recover some ground with concrete scenarios, but there's no proof anyone has used this yet and no quantified before/after anywhere.",
+      input_excerpt: "Today, we're excited to announce a new Airtable app for ChatGPT is now available. Users can now bring data and operational context from Airtable into the flow of your ChatGPT conversations. That means you can directly interact with your Airtable data, and make quick updates, without leaving the chat. What can you do with Airtable in ChatGPT? Reference Airtable data while generating content in ChatGPT: Pull the latest product roadmap updates as you prepare for a meeting, analyze patterns in customer feedback, or understand why your best marketing campaigns are overperforming.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"New: Bring Data from Airtable into ChatGPT" names the feature that shipped, not a reader consequence — a classic "New: X" filing label.' },
+        { check: 'Lead construction', verdict: 'fail', note: '"Today, we\'re excited to announce a new Airtable app for ChatGPT is now available" is a feature-announcement opener, not a stated reader outcome.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'The "What can you do" bullets translate the feature into concrete scenarios: "Pull the latest product roadmap updates as you prepare for a meeting... understand why your best marketing campaigns are overperforming."' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Clear bulleted list under a distinct subheading breaks up the use cases.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No before/after framing, no numbers, nothing quantified.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study.' },
+        { check: 'CTA language', verdict: 'weak', note: 'Generic link-style close typical of community posts, not specific to the reader\'s next action.' }
+      ]
     }
   ];
   for (const c of INDEX_SEED_COMPANIES) {
