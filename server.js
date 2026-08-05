@@ -5849,6 +5849,38 @@ async function setupDB() {
         { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study in the authored content.' },
         { check: 'CTA language', verdict: 'pass', note: 'Multiple specific links (Connect via ChatGPT App Directory, Help Center article, Live webinar with date).' }
       ]
+    },
+    {
+      slug: 'zendesk', name: 'Zendesk', domain: 'support.zendesk.com', content_type: 'changelog',
+      score: 5.0, scored_at: '2026-07-17',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "The lead and feature explanation both do real work stating outcomes directly, but the entry is buried in a running changelog with no visual separation, no concrete numbers, and no proof it actually helps — a pattern typical of large-platform release notes optimized for completeness over persuasion.",
+      input_excerpt: "We're updating the auto assist composer experience in the Agent Workspace to make AI suggestions feel like a natural part of replying to customers - without interrupting an agent's workflow. Auto assist can now generate suggestions based on content from external sources and internal knowledge articles. This allows you to broaden the pool of content available to auto assist so it can provide suggestions on even more topics and tickets.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"We\'re updating the auto assist composer experience in the Agent Workspace" names the update itself, not a reader consequence.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"to make AI suggestions feel like a natural part of replying to customers, without interrupting an agent\'s workflow" states the outcome directly.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"Auto assist can now generate suggestions based on content from external sources and internal knowledge articles... so it can provide suggestions on even more topics and tickets" ties the feature to a concrete capability gain.' },
+        { check: 'Visual hierarchy', verdict: 'weak', note: 'Runs as a continuous paragraph within a long dated list, no bullets or subheads separating this specific update from surrounding entries.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: '"even more topics and tickets" is vague, no concrete before/after numbers.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study.' },
+        { check: 'CTA language', verdict: 'pass', note: '"See Connecting external knowledge sources to your Zendesk account and Setting up a web crawler" links to specific, actionable documentation.' }
+      ]
+    },
+    {
+      slug: 'gitlab', name: 'GitLab', domain: 'about.gitlab.com', content_type: 'product_update_blog',
+      score: 7.1, scored_at: '2026-07-16',
+      patterns: ['Zero/Buried Social Proof'],
+      diagnosis_summary: "A well-constructed update that leads with a real consequence and backs it with a concrete feature-to-outcome explanation, losing points only for having no proof anyone has actually benefited and a generic closing CTA.",
+      input_excerpt: "Cut your security debt without pulling developers off the roadmap. With 19.2, your team can fix vulnerable dependencies automatically, use Security Review Flow to catch the logic flaws scanners miss, and run their agents straight from the terminal. When dependency scanning finds a vulnerable package, you get a merge request that updates it and uses AI to fix the build-breaking changes for you. Your existing approval gates and audit trail govern every change, so your team clears security debt without stopping feature work.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'pass', note: '"Cut your security debt without pulling developers off the roadmap" states a direct reader consequence, not a filing label.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"With 19.2, your team can fix vulnerable dependencies automatically, use Security Review Flow to catch the logic flaws scanners miss, and run their agents straight from the terminal" is concrete and specific.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"When dependency scanning finds a vulnerable package, you get a merge request that updates it and uses AI to fix the build-breaking changes for you" ties the feature directly to what happens for the reader.' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Clear separation between hook headline, feature summary, and a distinct "Read the release notes" CTA link.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: '"clears security debt without stopping feature work" implies a before/after but never gets concrete or quantified.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study anywhere in the update.' },
+        { check: 'CTA language', verdict: 'weak', note: '"Read the release notes" is functional but generic rather than specific to what the reader gets.' }
+      ]
     }
   ];
   for (const c of INDEX_SEED_COMPANIES) {
