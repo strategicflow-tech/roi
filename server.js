@@ -3050,6 +3050,88 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
   }
 });
 
+// ── Shared helper: build catchy claim outreach email with AI profile preview ──
+function buildClaimOutreachEmail(name, listingUrl, aiInsights) {
+  const ai = (typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights) || {};
+  const rawSummary   = (ai.summary || '').trim();
+  const snippet      = rawSummary.length > 230 ? rawSummary.slice(0, 230) + '…' : rawSummary;
+  const features     = Array.isArray(ai.features)     ? ai.features.slice(0, 3)     : [];
+  const competitors  = Array.isArray(ai.competitors)  ? ai.competitors.slice(0, 3)  : [];
+  const audience     = ai.audience || {};
+  const facts        = ai.facts    || {};
+  const priceLine    = facts.starting_price ? `Starting at <strong>${facts.starting_price}</strong>` : null;
+  const langsArr     = Array.isArray(facts.languages) ? facts.languages : [];
+  const langsLine    = langsArr.length ? langsArr.slice(0, 3).join(', ') + (langsArr.length > 3 ? ` +${langsArr.length - 3} more` : '') : null;
+
+  // ── Profile preview card (only shown when ai_insights present) ──
+  const previewParts = [];
+  if (snippet)          previewParts.push(`<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.6;font-style:italic;">"${snippet}"</p>`);
+  if (features.length)  previewParts.push(`<p style="margin:0 0 5px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9ca3af;">Key Features</p><ul style="margin:0 0 12px;padding-left:18px;font-size:13px;color:#374151;line-height:1.75;">${features.map(f => `<li>${f}</li>`).join('')}</ul>`);
+  if (audience.target)  previewParts.push(`<p style="margin:0 0 5px;font-size:13px;color:#374151;"><strong>For:</strong> ${audience.target}</p>`);
+  if (competitors.length) previewParts.push(`<p style="margin:0 0 5px;font-size:13px;color:#374151;"><strong>Vs:</strong> ${competitors.join(', ')}</p>`);
+  if (priceLine)        previewParts.push(`<p style="margin:0 0 5px;font-size:13px;color:#374151;">${priceLine}</p>`);
+  if (langsLine)        previewParts.push(`<p style="margin:0;font-size:13px;color:#374151;"><strong>Languages:</strong> ${langsLine}</p>`);
+
+  const previewCardHtml = previewParts.length ? `
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-left:3px solid #00d4c8;border-radius:6px;padding:18px 20px;margin:20px 0;">
+  <p style="margin:0 0 12px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#9ca3af;">AI-generated profile preview</p>
+  ${previewParts.join('\n  ')}
+</div>` : '';
+
+  const checkList = [
+    '✓&nbsp; About — AI summary from your homepage',
+    features.length   ? `✓&nbsp; Key Features — ${features.length} inferred`      : '✓&nbsp; Key Features',
+    audience.target   ? `✓&nbsp; Audience — ${audience.target}`                    : '✓&nbsp; Who It\'s For',
+    '✓&nbsp; Strengths &amp; Weaknesses',
+    competitors.length ? `✓&nbsp; ${competitors.length} Likely Alternatives`       : '✓&nbsp; Likely Alternatives',
+    '✓&nbsp; Verified Facts (pricing, platforms, languages)',
+  ].map(s => `<li style="margin-bottom:5px;">${s}</li>`).join('');
+
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>We already built <strong>${name}'s full ToolIndex profile</strong> — it's live now.</p>
+${previewCardHtml}
+<p style="margin:0 0 8px;">The listing already includes:</p>
+<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
+${checkList}
+</ul>
+<p>These are AI-inferred from ${name}'s homepage — accurate most of the time, but you can correct anything after claiming. Every listing also gets a permanent dofollow backlink from <strong>strategicflow.tech</strong> (DR&nbsp;86).</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">See the full profile + claim it free &rarr;</a></p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
+</div>`;
+
+  const textParts = [
+    'Hi,', '',
+    `We already built ${name}'s full ToolIndex profile — it's live now.`,
+  ];
+  if (snippet) textParts.push('', `"${snippet}"`);
+  textParts.push('', 'The listing already includes:');
+  textParts.push('  ✓ About (AI-generated from your homepage)');
+  if (features.length)   textParts.push(`  ✓ Key Features — ${features.length} listed`);
+  if (audience.target)   textParts.push(`  ✓ Audience — ${audience.target}`);
+  textParts.push('  ✓ Strengths & Weaknesses');
+  if (competitors.length) textParts.push(`  ✓ ${competitors.length} Likely Alternatives`);
+  textParts.push('  ✓ Verified Facts (pricing, platforms, languages)');
+  textParts.push(
+    '',
+    `These are AI-inferences from your homepage — claim it to correct anything. Every listing also gets a permanent dofollow backlink from strategicflow.tech (DR 86).`,
+    '', `See the full profile + claim it free: ${listingUrl}`,
+    '', '--', 'Alex Iliescu',
+    'Strategic Flow — strategicflow.tech',
+    'ToolIndex — https://strategic-flow-audit.replit.app/directory',
+    'LinkedIn: https://www.linkedin.com/in/strategic-flow-tech',
+    'Tenerife, Spain', '',
+    "Reply to let us know if you'd rather not hear from us again."
+  );
+
+  return {
+    subject: `We built ${name}'s full ToolIndex profile — it's live now`,
+    html,
+    text: textParts.join('\n'),
+  };
+}
+
 // ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
 app.post('/admin/send-claim-outreach', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -3057,7 +3139,7 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
   if (!listingId || isNaN(listingId)) return res.status(400).json({ error: 'missing_id' });
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, url, contact_email, outreach_emailed_at
+      `SELECT id, name, url, contact_email, outreach_emailed_at, ai_insights
        FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
       [listingId]
     );
@@ -3070,22 +3152,12 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     const slug = toListingSlug(listing.name, listing.id);
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
     const name = listing.name;
-    const htmlBody = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
-<p>Hi,</p>
-<p>We already built <strong>${name}'s ToolIndex listing</strong> — claiming it makes it real.</p>
-<p>ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from <strong>strategicflow.tech</strong>, no review queue, most listings go live instantly.</p>
-<p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
-<p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
-<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
-</div>`;
-    const textBody = `Hi,\n\nWe already built ${name}'s ToolIndex listing — claiming it makes it real.\n\nToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.\n\nYour listing is already live here: ${listingUrl}\n\nClaiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain\n\nReply to let us know if you'd rather not hear from us again.`;
+    const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(name, listingUrl, listing.ai_insights);
     await resend.emails.send({
       from:    SENDER,
       to:      listing.contact_email,
       replyTo: 'strategicflow@proton.me',
-      subject: `We already built ${name}'s ToolIndex page`,
+      subject,
       html:    htmlBody,
       text:    textBody,
     });
@@ -18041,7 +18113,7 @@ ${content}
         let newWithUrl = [];
         try {
           const { rows: freshRows } = await pool.query(
-            `SELECT id, name, url FROM directory_listings WHERE id = ANY($1::int[])`,
+            `SELECT id, name, url, ai_insights FROM directory_listings WHERE id = ANY($1::int[])`,
             [newIds]
           );
           newWithUrl = freshRows;
@@ -18068,43 +18140,14 @@ ${content}
               const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
               const name = listing.name;
 
-              const htmlBody = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
-<p>Hi,</p>
-<p>We already built <strong>${name}'s ToolIndex listing</strong> — claiming it makes it real.</p>
-<p>ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from <strong>strategicflow.tech</strong>, no review queue, most listings go live instantly.</p>
-<p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
-<p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
-<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
-</div>`;
-
-              const textBody = `Hi,
-
-We already built ${name}'s ToolIndex listing — claiming it makes it real.
-
-ToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.
-
-Your listing is already live here: ${listingUrl}
-
-Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.
-
-Claim it free: ${listingUrl}
-
---
-Alex Iliescu
-Strategic Flow — strategicflow.tech
-ToolIndex — https://strategic-flow-audit.replit.app/directory
-LinkedIn: https://www.linkedin.com/in/strategic-flow-tech
-Tenerife, Spain
-
-Reply to let us know if you'd rather not hear from us again.`;
+              const { subject: outreachSubject, html: htmlBody, text: textBody } =
+                buildClaimOutreachEmail(name, listingUrl, listing.ai_insights);
 
               await resend.emails.send({
                 from:     SENDER,
                 to:       cr.email,
                 replyTo:  'strategicflow@proton.me',
-                subject:  `We already built ${name}'s ToolIndex page`,
+                subject:  outreachSubject,
                 html:     htmlBody,
                 text:     textBody,
               });
