@@ -108,6 +108,9 @@
   .badge.both{background:var(--gold-soft);color:var(--gold);}
   .badge.big{background:#F6E7E2;color:var(--danger);}
   .badge.sent-badge{background:var(--green-soft);color:var(--green);}
+  .badge.draft-badge{background:#ede9fe;color:#6d28d9;}
+  .badge.claimed-badge{background:var(--green-soft);color:var(--green);}
+  .badge.followup-badge{background:#fef3c7;color:#92400e;}
 
   .check{
     flex:none;width:26px;height:26px;border-radius:8px;
@@ -167,7 +170,7 @@
     </div>
     <div class="head-title">
       <h1>ToolIndex Outreach</h1>
-      <p><b id="sentCount">0</b> trimise via Resend · <b id="doneCount">0</b> marcate manual / <b id="totalCount">…</b></p>
+      <p><b id="sentCount">0</b> sent · <b id="draftCount">0</b> drafts · <b id="claimedCount">0</b> claimed / <b id="totalCount">…</b> total</p>
     </div>
     <button class="batch-btn" id="batchBtn" title="Trimite automat la next 25 cu email găsit și netrimis">⚡ Trimite 25</button>
   </div>
@@ -175,16 +178,19 @@
     <input id="q" type="text" placeholder="Caută nume sau categorie…">
   </div>
   <div class="chips" id="chips">
-    <button class="chip on" data-f="all">Toate</button>
-    <button class="chip" data-f="todo">Necontactate</button>
-    <button class="chip" data-f="done">Marcate</button>
-    <button class="chip" data-f="unsent">Nesent Resend</button>
-    <button class="chip" data-f="sent">Trimise Resend</button>
+    <button class="chip on" data-f="all">All</button>
+    <button class="chip" data-f="draft">Draft — unclaimed</button>
+    <button class="chip" data-f="claimed">Claimed ✓</button>
+    <button class="chip" data-f="todo">Not contacted</button>
+    <button class="chip" data-f="done">Marked done</button>
+    <button class="chip" data-f="unsent">Unsent Resend</button>
+    <button class="chip" data-f="sent">Sent Resend</button>
+    <button class="chip" data-f="followup">Follow-up sent</button>
     <button class="chip" data-f="both">Email + LinkedIn</button>
-    <button class="chip" data-f="email">Doar email</button>
-    <button class="chip" data-f="li">Doar LinkedIn</button>
-    <button class="chip" data-f="skipbig">Fără companii mari</button>
-    <button class="chip" data-f="contact">Cu contact</button>
+    <button class="chip" data-f="email">Email only</button>
+    <button class="chip" data-f="li">LinkedIn only</button>
+    <button class="chip" data-f="skipbig">No big co.</button>
+    <button class="chip" data-f="contact">Has contact</button>
   </div>
 </header>
 
@@ -202,9 +208,11 @@
   const list         = document.getElementById('list');
   const qInput       = document.getElementById('q');
   const chips        = document.getElementById('chips');
-  const totalCountEl = document.getElementById('totalCount');
-  const doneCountEl  = document.getElementById('doneCount');
-  const sentCountEl  = document.getElementById('sentCount');
+  const totalCountEl   = document.getElementById('totalCount');
+  const doneCountEl    = document.getElementById('doneCount');
+  const sentCountEl    = document.getElementById('sentCount');
+  const draftCountEl   = document.getElementById('draftCount');
+  const claimedCountEl = document.getElementById('claimedCount');
   const ring         = document.getElementById('ring');
   const ringNum      = document.getElementById('ringNum');
   const batchBtn     = document.getElementById('batchBtn');
@@ -344,16 +352,22 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     const noContact = !hasEmail && !hasLi;
     const hasBoth   = hasEmail && hasLi;
     const isSent    = !!item.emailed_at;
+    const isDraft   = item.status === 'draft';
+    const isClaimed = !!item.claimed_at;
+    const hasFollowUp = !!item.follow_up_sent_at;
 
     let contactBadge = '';
-    if(hasBoth) contactBadge = '<span class="badge both">Email + LI</span>';
-    if(isSent)  contactBadge += '<span class="badge sent-badge">✉ Trimis Resend</span>';
+    if(isDraft && !isClaimed) contactBadge += '<span class="badge draft-badge">Draft — awaiting claim</span>';
+    if(isClaimed)             contactBadge += '<span class="badge claimed-badge">✓ Claimed ' + esc(fmtDate(item.claimed_at)) + '</span>';
+    if(hasBoth && !isClaimed) contactBadge += '<span class="badge both">Email + LI</span>';
+    if(isSent && !isClaimed)  contactBadge += '<span class="badge sent-badge">✉ Sent</span>';
+    if(hasFollowUp)           contactBadge += '<span class="badge followup-badge">↩ Follow-up sent ' + esc(fmtDate(item.follow_up_sent_at)) + '</span>';
 
     let contactActions = '';
     if(hasEmail){
       const sentDisabled = isSent ? ' disabled' : '';
       const sentCls      = isSent ? ' ok' : '';
-      const sentLabel    = isSent ? '✓ Trimis' : '⚡ Trimite Resend';
+      const sentLabel    = isSent ? '✓ Sent' : '⚡ Send Resend';
       contactActions +=
         '<div class="arow">' +
           '<button class="abtn resend' + sentCls + '" data-send="' + esc(item.id) + '"' + sentDisabled + '>' + sentLabel + '</button>' +
@@ -361,8 +375,8 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
         '<div class="arow">' +
           '<a class="abtn primary" href="mailto:' + esc(item.email) + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>' +
-            'Email manual</a>' +
-          '<button class="abtn copy" data-copy="email" data-id="' + esc(item.id) + '">Copiază</button>' +
+            'Manual email</a>' +
+          '<button class="abtn copy" data-copy="email" data-id="' + esc(item.id) + '">Copy</button>' +
         '</div>';
     }
     if(hasLi){
@@ -371,7 +385,7 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
           '<a class="abtn" href="' + esc(item.li) + '" target="_blank" rel="noopener">' +
             '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>' +
             'LinkedIn</a>' +
-          '<button class="abtn copy" data-copy="li" data-id="' + esc(item.id) + '">Copiază DM</button>' +
+          '<button class="abtn copy" data-copy="li" data-id="' + esc(item.id) + '">Copy DM</button>' +
         '</div>';
     }
 
@@ -380,26 +394,30 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     if(hasLi)    contactLine += '<div class="contact-line">in ' + esc(item.li) + '</div>';
 
     let sentLine = '';
-    if(isSent) sentLine = '<div class="sent-line">✉ trimis via Resend · ' + esc(fmtDate(item.emailed_at)) + '</div>';
+    if(isSent)    sentLine += '<div class="sent-line">✉ sent via Resend · ' + esc(fmtDate(item.emailed_at)) + '</div>';
+    if(isClaimed) sentLine += '<div class="sent-line" style="color:var(--green);">✓ Claimed · ' + esc(fmtDate(item.claimed_at)) + '</div>';
 
-    return '<div class="card' + (isDone?' done':'') + (noContact?' nocontact':'') + (isSent?' sent':'') + '" data-id="' + esc(item.id) + '">' +
+    // Border left accent for drafts
+    const cardStyle = isDraft && !isClaimed ? ' style="border-left:3px solid #6d28d9;"' : '';
+
+    return '<div class="card' + (isDone?' done':'') + (noContact?' nocontact':'') + (isSent?' sent':'') + '"' + cardStyle + ' data-id="' + esc(item.id) + '">' +
       '<div class="card-top">' +
         '<div class="card-info">' +
           '<div class="card-name"><a href="' + esc(item.page) + '" target="_blank" rel="noopener">' + esc(item.name) + '</a></div>' +
           '<div class="meta-row">' +
             '<span class="badge cat">' + esc(item.cat) + '</span>' +
-            (item.big ? '<span class="badge big">Corp mare</span>' : '') +
+            (item.big ? '<span class="badge big">Big co.</span>' : '') +
             contactBadge +
           '</div>' +
           contactLine +
           sentLine +
         '</div>' +
-        '<button class="check' + (isDone?' on':'') + '" data-toggle="' + esc(item.id) + '" title="Marchează contactat">' +
+        '<button class="check' + (isDone?' on':'') + '" data-toggle="' + esc(item.id) + '" title="Mark as contacted">' +
           (isDone ? '✓' : '') +
         '</button>' +
       '</div>' +
       (noContact
-        ? '<div class="nocontact-note">Niciun contact găsit public — verifică manual site-ul.</div>'
+        ? '<div class="nocontact-note">No public contact found — check the site manually.</div>'
         : '<div class="actions">' + contactActions + '</div>'
       ) +
     '</div>';
@@ -409,9 +427,13 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
   let query  = '';
 
   function updateStats(){
-    const sentN = DATA.filter(d => !!d.emailed_at).length;
-    sentCountEl.textContent = sentN;
-    doneCountEl.textContent = contacted.size;
+    const sentN    = DATA.filter(d => !!d.emailed_at).length;
+    const draftN   = DATA.filter(d => d.status === 'draft' && !d.claimed_at).length;
+    const claimedN = DATA.filter(d => !!d.claimed_at).length;
+    sentCountEl.textContent    = sentN;
+    draftCountEl.textContent   = draftN;
+    claimedCountEl.textContent = claimedN;
+    if(doneCountEl) doneCountEl.textContent = contacted.size;
     // Ring tracks total reached (sent OR manually marked)
     const reached = DATA.filter(d => !!d.emailed_at || contacted.has(d.id)).length;
     const pct = DATA.length ? reached / DATA.length : 0;
@@ -421,18 +443,24 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
 
   function render(){
     let filtered = DATA.filter(item => {
-      const has_e = !!item.email, has_l = !!item.li;
-      const isDone = contacted.has(item.id);
-      const isSent = !!item.emailed_at;
-      if(filter === 'todo'    && (isDone || isSent)) return false;
-      if(filter === 'done'    && !isDone) return false;
-      if(filter === 'unsent'  && (!has_e || isSent)) return false;
-      if(filter === 'sent'    && !isSent) return false;
-      if(filter === 'both'    && !(has_e && has_l)) return false;
-      if(filter === 'email'   && (!has_e || has_l)) return false;
-      if(filter === 'li'      && (!has_l || has_e)) return false;
-      if(filter === 'skipbig' && item.big) return false;
-      if(filter === 'contact' && !has_e && !has_l) return false;
+      const has_e   = !!item.email, has_l = !!item.li;
+      const isDone  = contacted.has(item.id);
+      const isSent  = !!item.emailed_at;
+      const isDraft = item.status === 'draft';
+      const isClaimed = !!item.claimed_at;
+      const hasFollowUp = !!item.follow_up_sent_at;
+      if(filter === 'draft'    && (isClaimed || !isDraft)) return false;
+      if(filter === 'claimed'  && !isClaimed) return false;
+      if(filter === 'followup' && !hasFollowUp) return false;
+      if(filter === 'todo'     && (isDone || isSent)) return false;
+      if(filter === 'done'     && !isDone) return false;
+      if(filter === 'unsent'   && (!has_e || isSent)) return false;
+      if(filter === 'sent'     && !isSent) return false;
+      if(filter === 'both'     && !(has_e && has_l)) return false;
+      if(filter === 'email'    && (!has_e || has_l)) return false;
+      if(filter === 'li'       && (!has_l || has_e)) return false;
+      if(filter === 'skipbig'  && item.big) return false;
+      if(filter === 'contact'  && !has_e && !has_l) return false;
       if(query){
         const q = query.toLowerCase();
         if(!(item.name||'').toLowerCase().includes(q) && !(item.cat||'').toLowerCase().includes(q)) return false;

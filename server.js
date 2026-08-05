@@ -22,7 +22,7 @@ const {
 const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
-const { runDailyPHDiscovery } = require('./ph-discovery');
+const { runDailyPHDiscovery, runDailyPHDraftDiscovery } = require('./ph-discovery');
 const { enrichListingWithAI } = require('./listing-enricher');
 
 const multer = require('multer');
@@ -2931,29 +2931,33 @@ app.get('/admin/emails.csv', async (req, res) => {
 });
 
 // ── GET /api/directory/outreach-queue?key=… ──────────────────────────────────
-// Returns all active PH-sourced listings with contact info for the outreach tracker.
-// Fields: id (string), name, page (ToolIndex listing URL), cat, email, li, big, emailed_at
+// Returns active + draft listings with contact info for the outreach tracker.
+// Fields: id, name, page, cat, email, li, big, emailed_at, status, claimed_at, follow_up_sent_at
 app.get('/api/directory/outreach-queue', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
     const base = 'https://strategic-flow-audit.replit.app';
     const { rows } = await pool.query(`
-      SELECT id, name, category,
+      SELECT id, name, category, status,
              regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug,
-             contact_email, social_linkedin, source, outreach_emailed_at
+             contact_email, social_linkedin, source,
+             outreach_emailed_at, claimed_at, follow_up_sent_at
       FROM directory_listings
-      WHERE status='active'
+      WHERE status IN ('active', 'draft')
       ORDER BY id DESC
     `);
     const data = rows.map(r => ({
-      id:        String(r.id),
-      name:      r.name,
-      page:      `${base}/directory/${r.slug}`,
-      cat:       r.category || 'Other',
-      email:     r.contact_email || '',
-      li:        r.social_linkedin || '',
-      big:       false,
-      emailed_at: r.outreach_emailed_at ? r.outreach_emailed_at.toISOString() : null,
+      id:               String(r.id),
+      name:             r.name,
+      page:             `${base}/directory/${r.slug}`,
+      cat:              r.category || 'Other',
+      email:            r.contact_email || '',
+      li:               r.social_linkedin || '',
+      big:              false,
+      status:           r.status || 'active',
+      emailed_at:       r.outreach_emailed_at ? r.outreach_emailed_at.toISOString() : null,
+      claimed_at:       r.claimed_at         ? r.claimed_at.toISOString()         : null,
+      follow_up_sent_at: r.follow_up_sent_at ? r.follow_up_sent_at.toISOString()  : null,
     }));
     res.setHeader('Cache-Control', 'no-store');
     res.json(data);
@@ -2971,7 +2975,7 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, url, contact_email, outreach_emailed_at
-       FROM directory_listings WHERE id=$1 AND status='active'`,
+       FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
       [listingId]
     );
     if (!rows.length) return res.status(404).json({ error: 'not_found' });
@@ -2990,10 +2994,10 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
 <p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
 <p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p>— The Strategic Flow / ToolIndex team</p>
-<p style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Strategic Flow, strategicflow.tech &mdash; reply and let us know if you&rsquo;d rather not hear from us again.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
 </div>`;
-    const textBody = `Hi,\n\nWe already built ${name}'s ToolIndex listing — claiming it makes it real.\n\nToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.\n\nYour listing is already live here: ${listingUrl}\n\nClaiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.\n\nClaim it free: ${listingUrl}\n\n— The Strategic Flow / ToolIndex team\n\n---\nStrategic Flow, strategicflow.tech — reply and let us know if you'd rather not hear from us again.`;
+    const textBody = `Hi,\n\nWe already built ${name}'s ToolIndex listing — claiming it makes it real.\n\nToolIndex is a free, publicly browsable directory of SaaS tools and AI products. Every listing gets a permanent dofollow backlink from strategicflow.tech, no review queue, most listings go live instantly.\n\nYour listing is already live here: ${listingUrl}\n\nClaiming it takes about a minute, and you can edit anything (description, logo, links) after. If it's not your product, no action needed — the listing just stays as-is.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain\n\nReply to let us know if you'd rather not hear from us again.`;
     await resend.emails.send({
       from:    SENDER,
       to:      listing.contact_email,
@@ -4143,7 +4147,7 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       [editToken, listing_id, email.toLowerCase()]
     );
     await pool.query(
-      `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW() WHERE id=$2`,
+      `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW(), status='active' WHERE id=$2`,
       [email.toLowerCase(), listing_id]
     );
 
@@ -5718,6 +5722,7 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_emailed_at     TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS follow_up_sent_at       TIMESTAMPTZ`).catch(()=>{});
   // Rich profile fields (founder, socials, screenshots, tech)
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_name        TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_avatar_url  TEXT`).catch(()=>{});
@@ -17567,8 +17572,8 @@ ${content}
 <p>Your listing is already live here:<br><a href="${listingUrl}" style="color:#00d4c8;">${listingUrl}</a></p>
 <p>Claiming it takes about a minute, and you can edit anything (description, logo, links) after. If it&rsquo;s not your product, no action needed — the listing just stays as-is.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p>— The Strategic Flow / ToolIndex team</p>
-<p style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Strategic Flow, strategicflow.tech &mdash; reply and let us know if you&rsquo;d rather not hear from us again.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
 </div>`;
 
               const textBody = `Hi,
@@ -17583,10 +17588,14 @@ Claiming it takes about a minute, and you can edit anything (description, logo, 
 
 Claim it free: ${listingUrl}
 
-— The Strategic Flow / ToolIndex team
+--
+Alex Iliescu
+Strategic Flow — strategicflow.tech
+ToolIndex — https://strategic-flow-audit.replit.app/directory
+LinkedIn: https://www.linkedin.com/in/strategic-flow-tech
+Tenerife, Spain
 
----
-Strategic Flow, strategicflow.tech — reply and let us know if you'd rather not hear from us again.`;
+Reply to let us know if you'd rather not hear from us again.`;
 
               await resend.emails.send({
                 from:     SENDER,
@@ -17617,6 +17626,66 @@ Strategic Flow, strategicflow.tech — reply and let us know if you'd rather not
         }
       }
     } catch(e) { console.error('[cron] PH discovery error:', e.message); }
+  });
+
+  // ── Daily 03:00 UTC: PH draft discovery — 15/day, email required before insert ─
+  cron.schedule('0 3 * * *', async () => {
+    console.log('[cron] Draft PH discovery starting…');
+    try {
+      const result = await runDailyPHDraftDiscovery(pool, m => console.log(m), resend, SENDER);
+      console.log(`[cron] Draft PH discovery done. Inserted: ${result.inserted}`);
+    } catch(e) { console.error('[cron] Draft PH discovery error:', e.message); }
+  });
+
+  // ── Daily 08:00 UTC: 7-day follow-up reminder for unclaimed drafts/actives ──
+  // Sends exactly ONE follow-up per listing, 7+ days after outreach_emailed_at,
+  // only if still unclaimed. Tracked via follow_up_sent_at — never repeats.
+  cron.schedule('0 8 * * *', async () => {
+    console.log('[cron] Follow-up reminder check starting…');
+    try {
+      const { rows: dueListings } = await pool.query(`
+        SELECT id, name, url, contact_email
+        FROM directory_listings
+        WHERE outreach_emailed_at IS NOT NULL
+          AND follow_up_sent_at IS NULL
+          AND claimed_at IS NULL
+          AND outreach_emailed_at < NOW() - INTERVAL '7 days'
+          AND contact_email IS NOT NULL
+        ORDER BY outreach_emailed_at ASC
+        LIMIT 50
+      `);
+      console.log(`[cron-followup] ${dueListings.length} listings due for follow-up`);
+      for (const listing of dueListings) {
+        try {
+          const slug = toListingSlug(listing.name, listing.id);
+          const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+          const name = listing.name;
+          const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p>
+<p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
+<p style="font-size:13px;color:#6b7280;">If it&rsquo;s not your product or you&rsquo;d rather not hear from us, just reply and we&rsquo;ll stop.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+</div>`;
+          const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\nIf it's not your product or you'd rather not hear from us, just reply and we'll stop.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+          await resend.emails.send({
+            from:    SENDER,
+            to:      listing.contact_email,
+            replyTo: 'strategicflow@proton.me',
+            subject: `Still unclaimed: ${name} on ToolIndex`,
+            html:    followUpHtml,
+            text:    followUpText,
+          });
+          await pool.query(`UPDATE directory_listings SET follow_up_sent_at=NOW() WHERE id=$1`, [listing.id]);
+          console.log(`[cron-followup] ✓ Follow-up sent → ${listing.contact_email} (${name})`);
+          await new Promise(r => setTimeout(r, 500)); // polite delay
+        } catch(e) {
+          console.error(`[cron-followup] Error for ${listing.name}:`, e.message);
+        }
+      }
+      console.log('[cron-followup] Done.');
+    } catch(e) { console.error('[cron] Follow-up reminder error:', e.message); }
   });
 
   // ── Daily 02:00 UTC: Gradual vote growth for recent auto-imports (Task #84) ─

@@ -552,4 +552,295 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   return { inserted: inserted.length, listings: inserted };
 }
 
-module.exports = { runDailyPHDiscovery };
+// ── Draft discovery helpers ───────────────────────────────────────────────────
+
+// Fetch PH posts from last N days via GraphQL
+async function fetchViaGraphQLDays(token, daysBack = 3) {
+  const now = new Date();
+  const start = new Date(now - daysBack * 24 * 60 * 60 * 1000);
+  const postedAfter  = start.toISOString().slice(0, 10);
+  const postedBefore = now.toISOString().slice(0, 10);
+
+  const query = `{
+    posts(order: VOTES, first: 60, postedAfter: "${postedAfter}T00:00:00Z", postedBefore: "${postedBefore}T23:59:59Z") {
+      edges {
+        node {
+          id name tagline url website votesCount
+          thumbnail { url }
+          topics { edges { node { name slug } } }
+        }
+      }
+    }
+  }`;
+
+  const r = await fetch('https://api.producthunt.com/v2/api/graphql', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!r.ok) throw new Error(`PH GraphQL ${r.status}`);
+  const data = await r.json();
+  const edges = data?.data?.posts?.edges || [];
+  return edges.map(e => ({
+    name:    e.node.name,
+    tagline: e.node.tagline || '',
+    phUrl:   e.node.url,
+    website: e.node.website || '',
+    logo:    e.node.thumbnail?.url || '',
+    votes:   e.node.votesCount || 0,
+    topics:  (e.node.topics?.edges || []).map(t => t.node.slug),
+  }));
+}
+
+// Fetch PH posts from Atom feed with extended lookback (up to N hours)
+async function fetchViaAtomExtended(daysBack = 3) {
+  const resp = await timedFetch('https://www.producthunt.com/feed', 15000, {
+    'Accept': 'application/atom+xml, application/xml, text/xml, */*',
+  });
+  if (!resp.ok) throw new Error(`PH Atom feed ${resp.status}`);
+  const xml = await resp.text();
+  const items = [];
+  const entryRE = /<entry>([\s\S]*?)<\/entry>/gi;
+  let m;
+  while ((m = entryRE.exec(xml)) !== null) {
+    const block = m[1];
+    const titleM = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(block);
+    const name = (titleM?.[1] || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+    const pubM = /<published[^>]*>([\s\S]*?)<\/published>/i.exec(block);
+    const pubDate = pubM?.[1]?.trim() || '';
+    const linkM = /<link\s[^>]*rel="alternate"[^>]*href="([^"]+)"/i.exec(block);
+    const phUrl = linkM?.[1] || '';
+    const idM = /Post\/(\d+)/.exec(block);
+    const postId = idM?.[1] || '';
+    const contentM = /<content[^>]*>([\s\S]*?)<\/content>/i.exec(block);
+    const contentRaw = contentM?.[1] || '';
+    const tagline = contentRaw
+      .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/&quot;/g,'"')
+      .replace(/<[^>]+>/g,' ').replace(/\s+/g,' ')
+      .split('Discussion')[0].trim().slice(0, 200);
+    if (!name || !phUrl || !postId) continue;
+    const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    try { if (pubDate && new Date(pubDate) < cutoff) continue; } catch {}
+    items.push({ name, tagline, phUrl, postId });
+  }
+  // Reuse Atom enrichment logic (scrape websites + logos)
+  const enriched = [];
+  for (const item of items.slice(0, 40)) {
+    await sleep(600);
+    let website = '', logo = '', topics = [];
+    try {
+      const redirectUrl = `https://www.producthunt.com/r/p/${item.postId}?app_id=339`;
+      const rr = await fetch(redirectUrl, {
+        redirect: 'manual',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      const loc = rr.headers.get('location') || '';
+      if (loc && !loc.includes('producthunt.com')) {
+        try { website = new URL(loc).origin + new URL(loc).pathname; } catch { website = loc.split('?')[0]; }
+      }
+    } catch {}
+    try {
+      const r = await timedFetch(item.phUrl, 12000);
+      if (r.ok) {
+        const html = await r.text();
+        const imgixM = /https:\/\/ph-files\.imgix\.net\/[a-f0-9-]+\.[a-z]+(?:\?[^"'\s]*)*/i.exec(html);
+        if (imgixM) logo = imgixM[0].split('"')[0];
+        if (!logo) {
+          const ogImgM = /property="og:image"\s+content="(https?:\/\/[^"]+)"/.exec(html)
+                      || /content="(https?:\/\/[^"]+)"\s+property="og:image"/.exec(html);
+          logo = ogImgM?.[1] || '';
+        }
+        if (!website) {
+          const visitRE = /href="(https?:\/\/(?!www\.producthunt\.com)[^"?]{10,150})(?:[^"]*)"[^>]*(?:rel="noopener|>Visit|>Launch|Go to site)/i;
+          const visitM = visitRE.exec(html);
+          if (visitM) website = visitM[1];
+        }
+        const topicRE = /\/topics\/([a-z0-9-]+)/g;
+        let tm; const seen = new Set();
+        while ((tm = topicRE.exec(html)) !== null) {
+          if (!seen.has(tm[1])) { topics.push(tm[1]); seen.add(tm[1]); }
+        }
+      }
+    } catch {}
+    if (website) enriched.push({ ...item, website, logo, topics, votes: 0 });
+  }
+  return enriched;
+}
+
+// Dedup against BOTH active and draft listings
+async function getExistingDomainsAll(pool) {
+  const { rows } = await pool.query(
+    `SELECT url, name, source_url FROM directory_listings WHERE status IN ('active','draft')`
+  );
+  const domains = new Set(), names = new Set(), phUrls = new Set();
+  for (const r of rows) {
+    const d = normaliseDomain(r.url || '');
+    if (d) domains.add(d);
+    if (r.name) names.add(r.name.toLowerCase().trim());
+    if (r.source_url) phUrls.add(r.source_url.toLowerCase().trim());
+  }
+  return { domains, names, phUrls };
+}
+
+// ── Draft discovery pipeline — 15/day, email required before insert ───────────
+async function runDailyPHDraftDiscovery(pool, log = console.log, resend, SENDER) {
+  log('[ph-draft] Starting daily draft discovery (last 3 days, 15 max)…');
+
+  // 1. Fetch PH posts from last 3 days
+  let posts = [];
+  const token = process.env.PRODUCT_HUNT_TOKEN;
+  try {
+    if (token) {
+      log('[ph-draft] Using PH GraphQL API (3-day window)');
+      posts = await fetchViaGraphQLDays(token, 3);
+    } else {
+      log('[ph-draft] No PRODUCT_HUNT_TOKEN — using Atom feed (3-day window)');
+      posts = await fetchViaAtomExtended(3);
+    }
+    log(`[ph-draft] Raw posts fetched: ${posts.length}`);
+  } catch(e) {
+    log(`[ph-draft] ERROR fetching PH data: ${e.message}`);
+    return { inserted: 0, error: e.message };
+  }
+
+  // 2. Filter by category
+  const categorised = posts.filter(p => {
+    if (shouldSkipTopics(p.topics || [])) return false;
+    p._category = mapCategory(p.topics || []);
+    return true;
+  });
+  log(`[ph-draft] After topic filter: ${categorised.length}`);
+
+  // 3. Exclude big companies
+  const indie = categorised.filter(p => !isBigCompany(p.website || ''));
+  log(`[ph-draft] After big company filter: ${indie.length}`);
+
+  // 4. Require real website
+  const withSite = indie.filter(p => {
+    const ws = (p.website || '').trim();
+    if (!ws || ws === p.phUrl) return false;
+    try { new URL(ws); return true; } catch { return false; }
+  });
+  log(`[ph-draft] After website filter: ${withSite.length}`);
+
+  // 5. Dedup against BOTH active and draft listings
+  const existing = await getExistingDomainsAll(pool);
+  const fresh = withSite.filter(p => !isDuplicate(p, existing));
+  log(`[ph-draft] After dedup: ${fresh.length}`);
+
+  // 6. Sort by votes + logo, take up to 30 candidates to attempt (pick best 15 with emails)
+  const sorted = fresh.sort((a, b) => {
+    const sA = (a.votes || 0) + (a.logo ? 10 : 0);
+    const sB = (b.votes || 0) + (b.logo ? 10 : 0);
+    return sB - sA;
+  });
+  const candidates = sorted.slice(0, 30);
+  log(`[ph-draft] Processing ${candidates.length} candidates to find emails…`);
+
+  // 7. Contact extraction BEFORE insert — skip if no email found
+  const inserted = [];
+  for (const post of candidates) {
+    if (inserted.length >= 15) break; // cap at 15 drafts per day
+
+    log(`[ph-draft] Extracting contact for: ${post.name} (${post.website})`);
+    let email = null, linkedin = null, emailStatus = 'not_found', emailSource = null;
+    try {
+      const contact = await extractContact(post.website);
+      email = contact.email || null;
+      linkedin = contact.linkedin || null;
+      emailStatus = contact.status || 'not_found';
+      emailSource = contact.source || null;
+      log(`[ph-draft]   → email: ${email||'—'} | linkedin: ${linkedin||'—'}`);
+    } catch(e) {
+      log(`[ph-draft]   → contact extraction failed: ${e.message}`);
+    }
+
+    // Skip if no email found — draft pipeline requires email
+    if (!email) {
+      log(`[ph-draft]   → No email found, skipping (not inserting as draft)`);
+      await sleep(1500);
+      continue;
+    }
+
+    const desc = (post.tagline || '').slice(0, 160).trim();
+    const category = post._category || 'Other';
+    const logo = post.logo || '';
+
+    // 8. Insert as draft
+    try {
+      const r = await pool.query(
+        `INSERT INTO directory_listings
+           (name, url, category, description, image_url,
+            source, source_url, status, vote_count, score_pending,
+            is_seeded, is_auto_imported,
+            contact_email, contact_email_status, contact_email_source, contact_email_fetched_at,
+            social_linkedin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'draft',0,true,false,true,$8,$9,$10,NOW(),$11)
+         ON CONFLICT DO NOTHING
+         RETURNING id, name`,
+        [
+          post.name, post.website, category, desc, logo,
+          'Product Hunt', post.phUrl,
+          email, emailStatus, emailSource,
+          linkedin,
+        ]
+      );
+      if (!r.rows.length) {
+        log(`[ph-draft]   → Skipped (ON CONFLICT): ${post.name}`);
+        await sleep(1500);
+        continue;
+      }
+
+      const newId = r.rows[0].id;
+      const name  = r.rows[0].name;
+      inserted.push({ id: newId, name, url: post.website });
+      log(`[ph-draft]   → Inserted draft id=${newId}: ${name}`);
+
+      // 9. Send draft claim email immediately
+      const slugStr = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + newId;
+      const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slugStr}`;
+      const draftHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Your app <strong>${name}</strong> is already in our ToolIndex database — but it&rsquo;s currently a private draft. Claiming it makes it public and gets you a permanent dofollow backlink from <strong>strategicflow.tech</strong>.</p>
+<p>It takes about a minute to claim, and you can edit the description, logo, and links after. If it&rsquo;s not your product, no action needed.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
+</div>`;
+      const draftText = `Hi,\n\nYour app ${name} is already in our ToolIndex database — but it's currently a private draft. Claiming it makes it public and gets you a permanent dofollow backlink from strategicflow.tech.\n\nIt takes about a minute to claim, and you can edit the description, logo, and links after. If it's not your product, no action needed.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain\n\nReply to let us know if you'd rather not hear from us again.`;
+
+      try {
+        await resend.emails.send({
+          from:    SENDER,
+          to:      email,
+          replyTo: 'strategicflow@proton.me',
+          subject: `Your ${name} listing on ToolIndex is ready — claim it to go live`,
+          html:    draftHtml,
+          text:    draftText,
+        });
+        await pool.query(
+          `UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`,
+          [newId]
+        );
+        log(`[ph-draft]   → Draft claim email sent → ${email} (${name})`);
+      } catch(emailErr) {
+        log(`[ph-draft]   → Email send failed for ${name}: ${emailErr.message}`);
+      }
+
+    } catch(e) {
+      log(`[ph-draft]   → DB insert error for ${post.name}: ${e.message}`);
+    }
+
+    await sleep(2000);
+  }
+
+  log(`[ph-draft] Done. Inserted ${inserted.length} draft listings.`);
+  return { inserted: inserted.length, listings: inserted };
+}
+
+module.exports = { runDailyPHDiscovery, runDailyPHDraftDiscovery };
