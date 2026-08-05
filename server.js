@@ -4673,6 +4673,59 @@ app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/a
 app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-email-architecture-study.html')));
 app.get('/saas-changelog-email-architecture', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-changelog-email-architecture.html')));
 
+// ── Decision Friction Model lead-magnet funnel ────────────────────────────────
+app.get('/friction-model', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public/friction-model/index.html')));
+
+app.get('/friction-model/guide', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public/friction-model/guide.html')));
+
+// POST /api/friction-model/subscribe — capture email, send guide link, redirect
+app.post('/api/friction-model/subscribe', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || typeof email !== 'string') return res.status(400).json({ error: 'Email required.' });
+  const trimmed = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed))
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+
+  try {
+    // Upsert — if already subscribed just re-send and redirect; don't error
+    await pool.query(
+      `INSERT INTO friction_model_leads (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`,
+      [trimmed]
+    );
+
+    const guideUrl = 'https://strategic-flow-audit.replit.app/friction-model/guide';
+    const htmlBody = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Here's your copy of <strong>The Decision Friction Model</strong> — the 7-point framework and 6 failure patterns behind 59 real SaaS email teardowns.</p>
+<p style="margin:28px 0;"><a href="${guideUrl}" style="display:inline-block;background:#34D399;color:#06231A;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Read the guide →</a></p>
+<p style="font-size:14px;color:#555;">Or copy this link: <a href="${guideUrl}" style="color:#22D3EE;">${guideUrl}</a></p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#22D3EE;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#22D3EE;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#22D3EE;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+</div>`;
+    const textBody = `Hi,\n\nHere's your copy of The Decision Friction Model — the 7-point framework and 6 failure patterns behind 59 real SaaS email teardowns.\n\nRead the guide here: ${guideUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+
+    await resend.emails.send({
+      from:    SENDER,
+      to:      trimmed,
+      replyTo: 'alex@strategicflow.tech',
+      subject: 'Your copy of the Decision Friction Model',
+      html:    htmlBody,
+      text:    textBody,
+    });
+
+    await pool.query(
+      `UPDATE friction_model_leads SET delivered_at=NOW() WHERE email=$1 AND delivered_at IS NULL`,
+      [trimmed]
+    );
+
+    console.log(`[friction-model] ✓ Guide link sent → ${trimmed}`);
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('[friction-model] subscribe error:', e.message);
+    res.status(500).json({ error: 'Server error — please try again.' });
+  }
+});
 
 async function callPerplexityVisibility(brand, domain, query) {
   const key = process.env.PERPLEXITY_API_KEY;
@@ -5747,6 +5800,16 @@ async function setupDB() {
   await pool.query(
     `UPDATE directory_listings SET pinned_in_leaderboard=FALSE WHERE id IN (199,203)`
   ).catch(()=>{});
+
+  // ── Decision Friction Model leads ────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS friction_model_leads (
+      id          SERIAL PRIMARY KEY,
+      email       TEXT NOT NULL UNIQUE,
+      created_at  TIMESTAMPTZ DEFAULT NOW(),
+      delivered_at TIMESTAMPTZ
+    )
+  `).catch(e => console.error('[DB] friction_model_leads:', e.message));
 
   // ── Voting + featured placements tables ──────────────────────────────────
   await pool.query(`
