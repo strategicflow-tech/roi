@@ -5897,6 +5897,70 @@ async function setupDB() {
         { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study.' },
         { check: 'CTA language', verdict: 'weak', note: 'Generic link-style close typical of community posts, not specific to the reader\'s next action.' }
       ]
+    },
+    {
+      slug: 'shopify', name: 'Shopify', domain: 'changelog.shopify.com', content_type: 'changelog',
+      score: 5.0, scored_at: '2026-07-10',
+      patterns: ['Missing Visual Hierarchy'],
+      diagnosis_summary: "The headline earns real credit for naming a business outcome instead of a feature, and the explanation ties the mechanism to a believable buyer benefit, but everything arrives as one unbroken paragraph with no visual hierarchy and nothing to prove it actually moves the needle.",
+      input_excerpt: "Shopify Managed Markets merchants can now use a managed pricing strategy across supported international markets. Pricing will account for cross-border costs like guaranteed duties and import taxes, transaction fees, and currency conversion in product prices, so international buyers can see stable, transparent pricing throughout their journey with no surprise fees at checkout or delivery.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'pass', note: '"Drive international conversion with automated duties-inclusive pricing" states a real reader outcome (conversion) tied to the mechanism, not just a feature name.' },
+        { check: 'Lead construction', verdict: 'weak', note: '"Shopify Managed Markets merchants can now use a managed pricing strategy across supported international markets" restates feature availability before getting to the outcome.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"so international buyers can see stable, transparent pricing throughout their journey with no surprise fees at checkout or delivery" ties the mechanism directly to a concrete buyer experience.' },
+        { check: 'Visual hierarchy', verdict: 'fail', note: 'Runs as one dense paragraph with no bullets, subheads, or breaks separating the mechanism from the benefit.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: 'Implies a before (surprise fees) and after (transparent pricing) but never quantifies either side.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No merchant quote, conversion lift number, or case study.' },
+        { check: 'CTA language', verdict: 'weak', note: 'No specific, actionable next step beyond the announcement itself.' }
+      ]
+    },
+    {
+      slug: 'asana', name: 'Asana', domain: 'forum.asana.com', content_type: 'changelog',
+      score: 2.9, scored_at: '2026-04-01',
+      patterns: ['Filing Label Subject'],
+      diagnosis_summary: "The one thing this entry does well is formatting consistency — every feature gets the same bolded-label treatment, which makes the list scannable. Everything else fails the same way large-platform release notes usually do: a headline that's just a filing label, a lead that spends its first sentence on pleasantries instead of substance, and mechanical descriptions with no stated reason to care.",
+      input_excerpt: "Hi Community, Happy Friday! Please find below our latest Release Notes. (Personal) Private task breadcrumb navigation: Click on a private parent task's breadcrumb to request access to it. (Personal) Desktop app minimum OS version update: Update to macOS 13 or later to continue using the Asana desktop app, which now displays a warning banner on unsupported versions.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: '"Asana Release Notes April 2026" is a pure filing label, naming the document type and date with zero reader consequence.' },
+        { check: 'Lead construction', verdict: 'fail', note: '"Hi Community, Happy Friday! Please find below our latest Release Notes" is purely social filler that delays any actual content.' },
+        { check: 'Feature-to-outcome translation', verdict: 'weak', note: 'Entries like "Click on a private parent task\'s breadcrumb to request access to it" describe the mechanic but never state why it matters to the reader\'s work.' },
+        { check: 'Visual hierarchy', verdict: 'pass', note: 'Consistent bolded feature-name-plus-colon format across every bullet in the list.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No before/after framing anywhere in the notes.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No adoption numbers, customer quotes, or case studies.' },
+        { check: 'CTA language', verdict: 'weak', note: '"If you have any questions or feedback, let us know in the comments!" is a community-engagement prompt, not an action tied to using the feature.' }
+      ]
+    },
+    {
+      slug: 'mailchimp', name: 'Mailchimp', domain: 'mailchimp.com', content_type: 'changelog',
+      score: 3.6, scored_at: '2026-05-18',
+      patterns: ['Missing Visual Hierarchy'],
+      diagnosis_summary: "The single sentence actually does real work translating a feature into a reader benefit (choice of AI), which is more than many changelogs manage. But it's buried as one undifferentiated line in a long scrolling list with zero visual hierarchy, no proof, and no CTA to act on it.",
+      input_excerpt: "With the new Claude Connector, Mailchimp supports both Claude and ChatGPT, so you can create email & SMS campaigns with your AI of choice. Available for Standard and Premium plans.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'weak', note: '"With the new Claude Connector, Mailchimp supports both Claude and ChatGPT" names the feature/connector before establishing why it matters.' },
+        { check: 'Lead construction', verdict: 'pass', note: 'Continues in the same sentence to "so you can create email & SMS campaigns with your AI of choice," stating a real reader benefit (choice).' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: 'Directly ties the connector to a concrete capability: creating campaigns with either AI model.' },
+        { check: 'Visual hierarchy', verdict: 'fail', note: 'One line in an undifferentiated running list of similar one-liners with no visual separation between entries.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No before/after framing or numbers.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No adoption figures, customer quotes, or case studies.' },
+        { check: 'CTA language', verdict: 'fail', note: 'No link or specific next action included in the entry itself.' }
+      ]
+    },
+    {
+      slug: 'braze', name: 'Braze', domain: 'braze.com', content_type: 'changelog',
+      score: 2.9, scored_at: '2026-07-23',
+      patterns: ['Missing Visual Hierarchy'],
+      diagnosis_summary: "A pure developer-documentation changelog with no marketing framing at all — most entries (including this one) read as internal engineering notes rather than communication designed to be understood or acted on quickly, which is common for developer-facing platforms but still costs real points on this framework.",
+      input_excerpt: "The CSV import flow for custom events now includes a mapper that lets you map event names and event property headers to Braze fields before import. This update brings the custom events experience in line with the custom attributes flow and reduces the need to reformat files before upload.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'fail', note: 'No headline at all — the entry opens directly with "The CSV import flow for custom events now includes a mapper," naming the feature rather than a reader consequence.' },
+        { check: 'Lead construction', verdict: 'weak', note: '"lets you map event names and event property headers to Braze fields before import" describes the mechanic before any stated benefit.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"This update brings the custom events experience in line with the custom attributes flow and reduces the need to reformat files before upload" states a real, if modest, benefit.' },
+        { check: 'Visual hierarchy', verdict: 'fail', note: 'Dense technical prose with no bullets or breaks, part of a huge undifferentiated running document of release notes.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: 'Implies less reformatting work but never quantifies it.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No adoption numbers or customer validation anywhere in the release notes.' },
+        { check: 'CTA language', verdict: 'fail', note: 'No link or specific action provided.' }
+      ]
     }
   ];
   for (const c of INDEX_SEED_COMPANIES) {
