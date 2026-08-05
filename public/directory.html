@@ -227,6 +227,8 @@ a:hover{text-decoration:underline;}
 .dir-paid-outer{overflow:hidden;width:100%;}
 .dir-paid-track{display:flex;align-items:center;gap:10px;width:max-content;animation:marqueeScroll 30s linear infinite;}
 .dir-paid-track:hover{animation-play-state:paused;}
+.dir-paid-track-rtl{animation-direction:reverse;}
+.dir-paid-section-top{margin-bottom:0;border-bottom:none;}
 .dir-paid-item{display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:9px 14px 9px 10px;background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(251,191,36,.05));border:1px solid rgba(245,158,11,.35);border-radius:11px;text-decoration:none;color:var(--text);font-size:12px;font-weight:600;white-space:nowrap;transition:border-color .2s,background .2s;}
 .dir-paid-item:hover{border-color:rgba(245,158,11,.65);background:linear-gradient(135deg,rgba(245,158,11,.18),rgba(251,191,36,.1));color:#fff;text-decoration:none;}
 .dir-paid-logo{width:20px;height:20px;border-radius:4px;object-fit:contain;flex-shrink:0;}
@@ -882,6 +884,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <div>
     <div class="dir-pulse-label">⭐ Startup of the week</div>
     <div id="startupOfWeek"><div class="dir-lb-empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- PAID PROOF MARQUEE TOP — above Recently Claimed, same data as bottom strip -->
+<div class="dir-paid-section dir-paid-section-top" id="dirPaidSectionTop" style="display:none;">
+  <div class="dir-paid-label">⭐ Brands that boosted their visibility on ToolIndex</div>
+  <div class="dir-paid-outer">
+    <div class="dir-paid-track dir-paid-track-rtl" id="dirPaidTrackTop">
+      <!-- JS-generated -->
+    </div>
   </div>
 </div>
 
@@ -1758,10 +1770,12 @@ function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&l
 
 // ── Avatar / thumbnail ────────────────────────────────────────────────────────
 function googleFavFor(siteUrl){
+  // DuckDuckGo returns 404 for domains without favicons (triggering onerror → initials).
+  // Google returns a globe placeholder (200 OK) — onerror never fires for globe domains.
   try {
     const domain = new URL(siteUrl).hostname.replace(/^www\./,'');
     if(!domain) return null;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
   } catch(e){ return null; }
 }
 
@@ -2207,7 +2221,7 @@ function loadRecentlyClaimed(){
       el.innerHTML=items.map((l,i)=>`
         <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
           <span class="dir-lb-rank">${i+1}</span>
-          <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
+          ${lbThumbFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
           <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
           <span style="font-size:9px;font-family:var(--mono);color:#22c55e;margin-left:auto;flex-shrink:0;">✓ Claimed</span>
         </a>`).join('');
@@ -2247,6 +2261,14 @@ function buildPaidMarquee(){
   // Duplicate for seamless infinite loop
   const html = paid.map(mk).join('');
   track.innerHTML = html + html;
+
+  // Also populate the top marquee strip (above Recently Claimed), scrolling RTL
+  const topSection = document.getElementById('dirPaidSectionTop');
+  const topTrack   = document.getElementById('dirPaidTrackTop');
+  if(topSection && topTrack){
+    topTrack.innerHTML = html + html;
+    topSection.style.display = '';
+  }
 }
 
 // ── Brand marquee — 18 real listed brands ────────────────────────────────────

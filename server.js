@@ -4073,7 +4073,11 @@ app.get('/api/directory/recent-launches', async (req, res) => {
 app.get('/api/directory/recently-claimed', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id, name, url, category, description, image_url, vote_count, claimed_at
+      `SELECT id, name, url, category, description,
+              CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text
+                   WHEN image_url NOT LIKE '%google.com/s2/favicons%' THEN image_url
+                   ELSE NULL END AS image_url,
+              vote_count, claimed_at
        FROM directory_listings
        WHERE status='active' AND claimed_by IS NOT NULL AND claimed_at IS NOT NULL
        ORDER BY claimed_at DESC LIMIT 8`
@@ -4094,7 +4098,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
       // Founder Pack IDs (199,203) sorted last so they don't occupy top spots.
       // Listings sorted strictly by period_votes then all-time vote_count.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.friction_score, dl.score_pending,
+                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                        WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes,
                   (dl.id = ANY(ARRAY[199,203]))                                          AS is_founder_pack,
@@ -4115,7 +4122,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
       // Same logic for weekly: Founder Pack shown at bottom without numbered rank.
       // Listings sorted strictly by period_votes then all-time vote_count.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.friction_score, dl.score_pending,
+                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                        WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes,
                   (dl.id = ANY(ARRAY[199,203]))                                          AS is_founder_pack,
@@ -4136,7 +4146,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
       // Biggest vote velocity in the last 24 hours. Pinned listings always appear
       // at the top even if they have no recent activity; unpinned need ≥1 vote.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.friction_score, dl.score_pending,
+                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                        WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes
            FROM directory_listings dl
@@ -4150,7 +4163,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
     } else if (period === 'new') {
       // Most recently submitted active listings
       q = `SELECT id, name, url, category, description,
-                  friction_score, score_pending, image_url, source, source_url,
+                  friction_score, score_pending,
+                   CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text
+                        WHEN image_url NOT LIKE '%google.com/s2/favicons%' THEN image_url
+                        ELSE NULL END AS image_url, source, source_url,
                   featured_tier, vote_count, pinned_in_leaderboard, 0 AS period_votes,
                   submitted_at
            FROM directory_listings
@@ -4160,7 +4176,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
       // Highest outbound click count. Pinned listings always appear at top
       // even with zero clicks; unpinned need ≥1 tracked click.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-                  dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
+                  dl.friction_score, dl.score_pending,
+                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                        WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dc.id)::int AS period_votes
            FROM directory_listings dl
@@ -4171,7 +4190,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            ORDER BY period_votes DESC LIMIT 25`;
     } else {
       q = `SELECT id, name, url, category, description,
-                  friction_score, score_pending, image_url, source, source_url,
+                  friction_score, score_pending,
+                   CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text
+                        WHEN image_url NOT LIKE '%google.com/s2/favicons%' THEN image_url
+                        ELSE NULL END AS image_url, source, source_url,
                   featured_tier, vote_count, pinned_in_leaderboard,
                   vote_count AS period_votes
            FROM directory_listings
