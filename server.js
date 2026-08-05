@@ -12502,9 +12502,15 @@ function renderFrictionIndexHtml(companies) {
   .filter-select{background:var(--card);color:#e8f0fa;border:1px solid var(--hairline);padding:10px 36px 10px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a8aaa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
   .filter-select:focus{border-color:rgba(0,229,255,0.4);box-shadow:0 0 0 3px rgba(0,229,255,0.08);}
   .filter-select option{background:var(--card);}
+  .search-wrap{position:relative;flex:1;min-width:160px;max-width:280px;}
+  .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:.45;}
+  .search-input{width:100%;background:var(--card);color:#e8f0fa;border:1px solid var(--hairline);padding:10px 14px 10px 34px;border-radius:8px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;outline:none;transition:border-color .2s,box-shadow .2s;}
+  .search-input::placeholder{color:var(--muted);}
+  .search-input:focus{border-color:rgba(0,229,255,0.4);box-shadow:0 0 0 3px rgba(0,229,255,0.08);}
+  .search-input::-webkit-search-cancel-button{-webkit-appearance:none;}
   .methodology-btn{display:inline-block;background:transparent;color:var(--muted);border:1px solid var(--hairline);padding:9px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-decoration:none;white-space:nowrap;transition:color .2s,border-color .2s,box-shadow .2s;}
   .methodology-btn:hover{color:var(--teal);border-color:rgba(0,229,255,0.35);box-shadow:0 0 10px rgba(0,229,255,0.1);}
-  @media(max-width:520px){.filter-bar{flex-direction:column;align-items:stretch;}}
+  @media(max-width:520px){.filter-bar{flex-direction:column;align-items:stretch;}.search-wrap{max-width:100%;}}
   .table-wrap{background:var(--card);border:1px solid var(--hairline);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,229,255,0.04),0 8px 40px rgba(0,0,0,0.4);margin-bottom:6px;}
   table{width:100%;border-collapse:collapse;}
   thead tr{border-bottom:1px solid rgba(0,229,255,0.15);}
@@ -12578,6 +12584,10 @@ function renderFrictionIndexHtml(companies) {
 
   ${count === 0 ? `<div class="empty-state">No companies scored yet. Check back soon.</div>` : `
   <div class="filter-bar">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="6" r="4.5" stroke="#e8f0fa" stroke-width="1.5"/><path d="M9.5 9.5L12.5 12.5" stroke="#e8f0fa" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input id="search" type="search" class="search-input" placeholder="Search company…" oninput="filterTable()" autocomplete="off">
+    </div>
     <select id="filter" class="filter-select" onchange="filterTable()">
       <option value="all">All content types</option>
       <option value="email">Email</option>
@@ -12653,20 +12663,21 @@ function renderFrictionIndexHtml(companies) {
       if (score) { el.textContent = '0.0'; io.observe(el); }
     });
   }
-  // ── Filter + show-more ──
+  // ── Filter + search + show-more ──
   var INIT = 5, BATCH = 10, shown = INIT;
   function getMatchingRows() {
-    var val = document.getElementById('filter') ? document.getElementById('filter').value : 'all';
+    var typeVal = document.getElementById('filter') ? document.getElementById('filter').value : 'all';
+    var q = (document.getElementById('search') ? document.getElementById('search').value : '').trim().toLowerCase();
     return Array.from(document.querySelectorAll('#rows tr')).filter(function(tr){
-      return val === 'all' || tr.dataset.contentType === val;
+      var typeOk = typeVal === 'all' || tr.dataset.contentType === typeVal;
+      var nameEl = tr.querySelector('td.name-cell a');
+      var nameOk = !q || (nameEl && nameEl.textContent.toLowerCase().includes(q));
+      return typeOk && nameOk;
     });
   }
   function renderRows() {
     var all = Array.from(document.querySelectorAll('#rows tr'));
-    var val = document.getElementById('filter') ? document.getElementById('filter').value : 'all';
-    all.forEach(function(tr){
-      tr.style.display = (val === 'all' || tr.dataset.contentType === val) ? '' : 'none';
-    });
+    all.forEach(function(tr){ tr.style.display = 'none'; });
     var matching = getMatchingRows();
     matching.forEach(function(tr, i){ tr.style.display = i < shown ? '' : 'none'; });
     var remaining = matching.length - shown;
