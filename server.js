@@ -6033,6 +6033,38 @@ async function setupDB() {
         { check: 'Social proof', verdict: 'fail', note: 'No adoption numbers or customer validation anywhere in the release notes.' },
         { check: 'CTA language', verdict: 'fail', note: 'No link or specific action provided.' }
       ]
+    },
+    {
+      slug: 'salesforce', name: 'Salesforce', domain: 'salesforce.com', content_type: 'blog_article',
+      score: 5.7, scored_at: '2026-05-15',
+      patterns: ['Zero/Buried Social Proof'],
+      diagnosis_summary: "A well-constructed lead that names a real, specific pain point before pitching the fix, and a feature-to-outcome translation that stays concrete about the business result. It loses points for sitting in a dense paragraph with no visual separation and offering no proof that any team has used it successfully yet.",
+      input_excerpt: "Marketing teams can be bogged down by slow campaign development cycles, a lack of personalization at scale, and an inability to manage promotions and offers centrally. To remove these bottlenecks, we are releasing Real-Time Offer Management, enabling brands to deliver personalized, channel-optimized offers based on dynamic customer behaviors and maximize promotional ROI.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'pass', note: '"Real-Time Offer Management — Amplify promotional ROI with personalized offers at scale" states a direct business outcome tied to the feature name.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"Marketing teams can be bogged down by slow campaign development cycles, a lack of personalization at scale, and an inability to manage promotions and offers centrally" names the reader\'s real pain before any pitch.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"enabling brands to deliver personalized, channel-optimized offers based on dynamic customer behaviors and maximize promotional ROI" ties the feature directly to a business result.' },
+        { check: 'Visual hierarchy', verdict: 'weak', note: 'Reads as continuous paragraph within a much longer multi-feature announcement page, no bullets or breaks specific to this item beyond the bolded title.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'weak', note: 'Implies before (bogged down, slow) and after (fast, personalized, centralized) but never quantifies either state.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No customer quote, adoption number, or case study anywhere in this section.' },
+        { check: 'CTA language', verdict: 'fail', note: 'No specific link or next action included in this excerpt.' }
+      ]
+    },
+    {
+      slug: 'miro', name: 'Miro', domain: 'miro.com', content_type: 'changelog',
+      score: 5.0, scored_at: '2026-06-22',
+      patterns: ['Zero/Buried Social Proof'],
+      diagnosis_summary: "The entry does real work connecting a feature to an end-to-end team workflow outcome, but like most changelog entries in this running list, it never gets concrete with numbers, offers no proof of adoption, and blends into a long undifferentiated stream of similar updates.",
+      input_excerpt: "Send a design from Claude Design straight onto a Miro board in one click. Your concepts land where the team already collaborates, so you can easily use Claude Design to generate first drafts, and use Miro as the place where your team adds context, aligns on a direction, and decides what to build.",
+      checks: [
+        { check: 'Subject line / headline construction', verdict: 'weak', note: '"Send a design from Claude Design straight onto a Miro board in one click" states the capability directly but is feature-first rather than outcome-first.' },
+        { check: 'Lead construction', verdict: 'pass', note: '"Your concepts land where the team already collaborates" ties the feature to existing reader context and workflow.' },
+        { check: 'Feature-to-outcome translation', verdict: 'pass', note: '"so you can easily use Claude Design to generate first drafts, and use Miro as the place where your team adds context, aligns on a direction, and decides what to build" states a clear end-to-end outcome.' },
+        { check: 'Visual hierarchy', verdict: 'weak', note: 'Sits among a long undifferentiated list of dated changelog entries with no structure specific to this item.' },
+        { check: 'Before/after contrast or concreteness', verdict: 'fail', note: 'No explicit before/after or quantified claim.' },
+        { check: 'Social proof', verdict: 'fail', note: 'No adoption numbers or customer validation attached to this specific feature.' },
+        { check: 'CTA language', verdict: 'weak', note: '"Included with Miro Prototypes" is a plan-availability tag, not an action-oriented CTA.' }
+      ]
     }
   ];
   for (const c of INDEX_SEED_COMPANIES) {
