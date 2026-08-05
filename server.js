@@ -17846,7 +17846,7 @@ Reply to let us know if you'd rather not hear from us again.`;
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     for (const id of PREMIUM_IDS) {
       try {
-        const toAdd = 4 + Math.floor(Math.random() * 4); // 4–7, different each day
+        const toAdd = 10 + Math.floor(Math.random() * 6); // 10–15, Founder Pack (WHY + SFA)
         const voteRows = Array.from({ length: toAdd }, (_, i) =>
           `(${id}, 'premium_boost_${id}_${dateTag}_${i}', NOW())`
         ).join(',');
@@ -17857,7 +17857,7 @@ Reply to let us know if you'd rather not hear from us again.`;
           `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
           [toAdd, id]
         );
-        console.log(`[cron] Premium boost: +${toAdd} votes → listing #${id}`);
+        console.log(`[cron] Premium boost (Founder Pack): +${toAdd} votes → listing #${id}`);
       } catch(e) { console.error(`[cron] Premium boost error for #${id}:`, e.message); }
     }
   });
