@@ -3925,29 +3925,49 @@ app.get('/api/directory/leaderboard', async (req, res) => {
   try {
     let q;
     if (period === 'daily') {
+      // Founder Pack IDs (199,203) sorted last so they don't occupy top spots.
+      // Listings claimed today float above the organic pack — FOMO for other makers.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                  COUNT(dv.id)::int AS period_votes
+                  COUNT(dv.id)::int AS period_votes,
+                  (dl.id = ANY(ARRAY[199,203]))                                          AS is_founder_pack,
+                  (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+                   AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY
+             (dl.id = ANY(ARRAY[199,203])) ASC,
+             (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC') AND dl.claimed_by IS NOT NULL) DESC,
+             period_votes DESC,
+             dl.vote_count DESC
+           LIMIT 25`;
     } else if (period === 'weekly') {
+      // Same logic for weekly: Founder Pack shown at bottom without numbered rank,
+      // listings claimed this week get a modest priority lift.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending, dl.image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                  COUNT(dv.id)::int AS period_votes
+                  COUNT(dv.id)::int AS period_votes,
+                  (dl.id = ANY(ARRAY[199,203]))                                          AS is_founder_pack,
+                  (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
+                   AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
            WHERE dl.status='active'
            GROUP BY dl.id
-           ORDER BY period_votes DESC, dl.vote_count DESC LIMIT 25`;
+           ORDER BY
+             (dl.id = ANY(ARRAY[199,203])) ASC,
+             (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') AND dl.claimed_by IS NOT NULL) DESC,
+             period_votes DESC,
+             dl.vote_count DESC
+           LIMIT 25`;
     } else if (period === 'trending') {
       // Biggest vote velocity in the last 24 hours. Pinned listings always appear
       // at the top even if they have no recent activity; unpinned need ≥1 vote.
@@ -4188,12 +4208,65 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       from:    SENDER,
       to:      email,
       subject: `You've claimed "${name}" on Strategic Flow Directory ✓`,
-      html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
-        <h2 style="color:#00d4c8;">Listing claimed!</h2>
-        <p>You're now the verified owner of <strong>${name}</strong> on the Strategic Flow directory.</p>
-        <p>You can now update your description and screenshot directly on your listing card. You'll also receive an email when your listing gets its first vote.</p>
-        <p><a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">View your listing →</a></p>
-        <p style="margin-top:24px;padding-top:16px;border-top:1px solid #1e3a5f;font-size:13px;color:#7a9ab8;">P.S. Want more visibility for <strong>${name}</strong>? We offer Verified badges, the Founder Pack (unlimited relaunches + Premium placement), and Teardown Spotlights — <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#00d4c8;">see all options →</a></p>
+      html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
+        <div style="margin-bottom:24px;">
+          <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">Strategic Flow Directory</div>
+          <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
+          <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
+          <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">You can edit your description and screenshot directly on your listing card. You'll also get an email when your first real vote comes in.</p>
+          <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
+        </div>
+
+        <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
+          <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
+          <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">Today your listing is visible — but the Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+            <tr>
+              <td width="32%" valign="top" style="padding-right:8px;">
+                <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:14px 12px;">
+                  <div style="font-size:10px;font-family:monospace;color:#7a9ab8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Daily Boost</div>
+                  <div style="font-size:24px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1;">$9</div>
+                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
+                    <li>24h #1 slot in grid</li>
+                    <li>Instant activation</li>
+                    <li>No subscription</li>
+                  </ul>
+                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#00d4c8;color:#041214;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Boost now →</a>
+                </div>
+              </td>
+              <td width="36%" valign="top" style="padding-right:8px;">
+                <div style="background:#0a1628;border:2px solid rgba(245,158,11,.55);border-radius:10px;padding:14px 12px;position:relative;">
+                  <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:9px;font-weight:800;font-family:monospace;padding:2px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.08em;">MOST POPULAR</div>
+                  <div style="font-size:10px;font-family:monospace;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Weekly Feature</div>
+                  <div style="font-size:24px;font-weight:800;color:#f59e0b;font-family:monospace;line-height:1;">$19</div>
+                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">14 days</div>
+                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
+                    <li>Featured spotlight section</li>
+                    <li>Gold badge on card</li>
+                    <li>Priority placement in grid</li>
+                  </ul>
+                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Feature my listing →</a>
+                </div>
+              </td>
+              <td width="32%" valign="top">
+                <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
+                  <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
+                  <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
+                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
+                    <li>10–15 votes/day automatic</li>
+                    <li>Premium badge + top placement</li>
+                    <li>Unlimited relaunches</li>
+                  </ul>
+                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
+                </div>
+              </td>
+            </tr>
+          </table>
+          <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
+        </div>
       </div>`
     }).catch(() => {});
 

@@ -296,6 +296,8 @@ a:hover{text-decoration:underline;}
 .dir-lb-rank.top1{color:var(--gold);}
 .dir-lb-rank.top2{color:#94a3b8;}
 .dir-lb-rank.top3{color:#cd7c2d;}
+.dir-lb-rank-promo{font-size:13px;color:rgba(167,139,250,0.65);min-width:22px;text-align:right;}
+.dir-lb-row-promo{opacity:0.82;border-top:1px dashed rgba(167,139,250,0.15);}
 .dir-lb-thumb{width:28px;height:28px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:var(--bg3);flex-shrink:0;}
 .dir-lb-avatar{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
 .dir-lb-info{flex:1;min-width:0;}
@@ -1936,17 +1938,32 @@ async function loadLeaderboard(period){
       return;
     }
     const scoreLabel = LB_SCORE_LABELS[lbPeriod] || (l => `▲ ${l.period_votes||0}`);
+    // In daily/weekly, Founder Pack listings come last (sorted by API) and show no rank number.
+    // Claimed-today listings appear first among organics, creating visible FOMO.
+    const isTimePeriod = lbPeriod === 'daily' || lbPeriod === 'weekly';
+    let realRank = 0;
     el.innerHTML = items.slice(0,10).map((l,i)=>{
-      const rankCls = i===0?'top1':i===1?'top2':i===2?'top3':'';
+      const isFounderPromo = isTimePeriod && l.is_founder_pack;
+      let rankEl;
+      if(isFounderPromo){
+        rankEl = `<span class="dir-lb-rank dir-lb-rank-promo" title="Founder Pack — promoted listing">⭐</span>`;
+      } else {
+        realRank++;
+        const rankCls = realRank===1?'top1':realRank===2?'top2':realRank===3?'top3':'';
+        rankEl = `<span class="dir-lb-rank ${rankCls}">#${realRank}</span>`;
+      }
       const domain = (()=>{try{return new URL(l.url).hostname.replace('www.','');}catch{return '';}})();
       const votes = l.period_votes||0;
       const isVoted = votedIds.has(l.id);
-      return `<div class="dir-lb-row">
-        <span class="dir-lb-rank ${rankCls}">#${i+1}</span>
+      const claimedTodayBadge = (isTimePeriod && l.claimed_today && !isFounderPromo)
+        ? `<span style="font-size:9px;font-family:var(--mono);color:#22c55e;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:middle;letter-spacing:.04em;">claimed today</span>`
+        : '';
+      return `<div class="dir-lb-row${isFounderPromo?' dir-lb-row-promo':''}">
+        ${rankEl}
         <a class="dir-lb-row-link" href="${escHtml(l.url)}" target="_blank" rel="noopener noreferrer" onclick="trackClick(${l.id})">
           ${lbThumbFor(l.name, l.category||'General', l.image_url, l.url||'')}
           <div class="dir-lb-info">
-            <div class="dir-lb-name">${escHtml(l.name)}${l.featured_tier?` <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}" style="font-size:8px;padding:2px 6px;vertical-align:middle;">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>`:''}</div>
+            <div class="dir-lb-name">${escHtml(l.name)}${l.featured_tier?` <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}" style="font-size:8px;padding:2px 6px;vertical-align:middle;">${escHtml(BADGE_LABELS[l.featured_tier]||l.featured_tier)}</span>`:''}${claimedTodayBadge}</div>
             <div class="dir-lb-cat">${escHtml(l.category||'General')} · ${escHtml(domain)}</div>
           </div>
         </a>
