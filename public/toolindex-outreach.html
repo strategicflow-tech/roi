@@ -184,6 +184,7 @@
     <button class="chip" data-f="email">Doar email</button>
     <button class="chip" data-f="li">Doar LinkedIn</button>
     <button class="chip" data-f="skipbig">Fără companii mari</button>
+    <button class="chip" data-f="contact">Cu contact</button>
   </div>
 </header>
 
@@ -431,6 +432,7 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
       if(filter === 'email'   && (!has_e || has_l)) return false;
       if(filter === 'li'      && (!has_l || has_e)) return false;
       if(filter === 'skipbig' && item.big) return false;
+      if(filter === 'contact' && !has_e && !has_l) return false;
       if(query){
         const q = query.toLowerCase();
         if(!(item.name||'').toLowerCase().includes(q) && !(item.cat||'').toLowerCase().includes(q)) return false;

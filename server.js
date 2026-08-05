@@ -2943,10 +2943,6 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
              contact_email, social_linkedin, source, outreach_emailed_at
       FROM directory_listings
       WHERE status='active'
-        AND (
-          (contact_email IS NOT NULL AND contact_email != '')
-          OR (social_linkedin IS NOT NULL AND social_linkedin != '')
-        )
       ORDER BY id DESC
     `);
     const data = rows.map(r => ({
