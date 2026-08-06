@@ -121,6 +121,31 @@ a:hover{text-decoration:underline;}
 .dir-dr-banner-sub{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:5px;opacity:.75;}
 @media(max-width:600px){.dir-dr-banner{padding:11px 20px;}}
 
+/* LIVE ACTIVITY FEED */
+.dir-activity-section{padding:0 40px 32px;max-width:1200px;margin:0 auto;}
+.dir-activity-inner{border:1px solid rgba(0,212,200,0.2);border-radius:14px;background:rgba(0,212,200,0.03);backdrop-filter:blur(6px);overflow:hidden;box-shadow:0 0 32px rgba(0,212,200,0.06);}
+.dir-activity-hdr{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid rgba(0,212,200,0.12);background:rgba(0,212,200,0.04);}
+.dir-activity-pulse-dot{width:8px;height:8px;border-radius:50%;background:#00d4c8;animation:pulse 1.8s ease-in-out infinite;box-shadow:0 0 6px rgba(0,212,200,0.8);flex-shrink:0;}
+.dir-activity-title{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#00d4c8;}
+.dir-activity-refresh{font-family:var(--mono);font-size:9px;color:#475569;margin-left:auto;}
+.dir-activity-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+.dir-activity-row{padding:13px 18px;border-right:1px solid rgba(0,212,200,0.07);border-bottom:1px solid rgba(0,212,200,0.07);min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:4px;transition:background .15s;}
+.dir-activity-row:nth-child(3n){border-right:none;}
+.dir-activity-row:nth-last-child(-n+3){border-bottom:none;}
+.dir-activity-row:hover{background:rgba(0,212,200,0.04);}
+.dir-activity-icon{font-size:13px;flex-shrink:0;}
+.dir-activity-text{font-size:12px;color:#cbd5e1;line-height:1.4;font-family:var(--mono);}
+.dir-activity-text strong{color:#eef1f7;}
+.dir-activity-time{font-size:10px;color:#475569;font-family:var(--mono);}
+.dir-activity-top3{grid-column:1/-1;border-top:1px solid rgba(0,212,200,0.12);background:rgba(0,212,200,0.025);padding:10px 18px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
+.dir-activity-top3-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#475569;margin-right:6px;}
+@media(max-width:760px){.dir-activity-section{padding:0 16px 24px;}.dir-activity-grid{grid-template-columns:1fr;}.dir-activity-row{border-right:none;}.dir-activity-row:nth-last-child(-n+3){border-bottom:1px solid rgba(0,212,200,0.07);}.dir-activity-row:last-child{border-bottom:none;}}
+/* CATEGORY LEADER BADGE */
+.dir-cat-leader{display:flex;align-items:center;gap:10px;padding:9px 14px;margin:8px 0 4px;background:rgba(0,212,200,0.06);border:1px solid rgba(0,212,200,0.18);border-radius:8px;font-size:12px;font-family:var(--mono);}
+.dir-cat-leader-label{color:#475569;font-size:10px;letter-spacing:.1em;text-transform:uppercase;}
+.dir-cat-leader-name{color:#00d4c8;font-weight:700;}
+.dir-cat-leader-votes{color:#475569;font-size:10px;}
+
 /* NAV */
 .dir-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,0.96);backdrop-filter:blur(12px);z-index:100;}
 .dir-nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);text-decoration:none;}
@@ -907,6 +932,18 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <div id="recentlyClaimedList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
 </div>
 
+<!-- LIVE ACTIVITY FEED -->
+<div class="dir-activity-section" id="dirActivitySection" style="display:none;">
+  <div class="dir-activity-inner">
+    <div class="dir-activity-hdr">
+      <span class="dir-activity-pulse-dot"></span>
+      <span class="dir-activity-title">LIVE ACTIVITY</span>
+      <span class="dir-activity-refresh" id="dirActivityAge"></span>
+    </div>
+    <div class="dir-activity-grid" id="dirActivityGrid"></div>
+  </div>
+</div>
+
 <div class="dir-body-wrap">
 <div class="dir-body-main">
 
@@ -927,6 +964,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   <button class="dir-filter-btn" data-cat="Design">Design</button>
   <button class="dir-filter-btn" data-cat="Analytics">Analytics</button>
 </div>
+<!-- CATEGORY LEADER BADGE -->
+<div id="dirCatLeader" style="display:none;"></div>
 
 <!-- LISTINGS GRID -->
 <div class="dir-grid" id="dirGrid">
@@ -1316,7 +1355,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 <!-- FOOTER -->
 <!-- BRAND MARQUEE — real listed brands -->
 <div class="dir-marquee-section">
-  <div class="dir-marquee-label">Products already listed on ToolIndex</div>
+  <div class="dir-marquee-label">Also indexed in our directory <span style="font-size:9px;opacity:0.5;font-style:normal;margin-left:6px;font-weight:400;">— auto-catalogued, not affiliated</span></div>
   <div class="dir-marquee-outer">
     <div class="dir-marquee-track" id="dirMarqueeTrack">
       <!-- JS-generated: priority items + first 9 brands, right-to-left -->
@@ -2407,6 +2446,75 @@ function buildMarquee(){
   });
 })();
 
+// ── Live Activity Feed ────────────────────────────────────────────────────────
+let _activityLoaded = false;
+function timeAgo(isoStr){
+  const s = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+  if(s < 60) return 'just now';
+  if(s < 3600) return Math.floor(s/60)+'m ago';
+  if(s < 86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function loadActivityFeed(){
+  const section = document.getElementById('dirActivitySection');
+  const grid    = document.getElementById('dirActivityGrid');
+  const age     = document.getElementById('dirActivityAge');
+  if(!section||!grid) return;
+  fetch('/api/directory/activity-feed')
+    .then(r=>r.json())
+    .then(({events=[],top3=[]})=>{
+      const medals=['🥇','🥈','🥉'];
+      const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡'};
+      const labels ={claimed:'claimed their listing',joined:'just joined ToolIndex',boosted:'boosted their listing'};
+      // Build up to 6 event rows (3 columns × ≤2 rows)
+      const rows = events.slice(0,6).map(e=>`
+        <div class="dir-activity-row">
+          <div class="dir-activity-text">${icons[e.type]||'→'} <strong>${escHtml(e.name)}</strong> ${labels[e.type]||'was updated'}</div>
+          <div class="dir-activity-time">${timeAgo(e.occurred_at)}</div>
+        </div>`).join('');
+      // Top-3 snapshot row
+      const top3Html = top3.length
+        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">Today's Top 3</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#475569;">${p.votes}v</span></span>`).join('')}</div>`
+        : '';
+      grid.innerHTML = rows + top3Html;
+      if(age) age.textContent = 'Updated just now';
+      section.style.display = '';
+      _activityLoaded = true;
+      // Auto-refresh every 60s
+      setTimeout(loadActivityFeed, 60000);
+    })
+    .catch(()=>{ if(!_activityLoaded) section.style.display='none'; });
+}
+
+// ── Category Leader Badge ─────────────────────────────────────────────────────
+let _catLeaders = {};
+function loadCategoryLeaders(){
+  fetch('/api/directory/category-leaders')
+    .then(r=>r.json())
+    .then(rows=>{
+      _catLeaders = {};
+      rows.forEach(r=>{ _catLeaders[r.category] = r; });
+    })
+    .catch(()=>{});
+}
+function updateCatLeaderBadge(cat){
+  const el = document.getElementById('dirCatLeader');
+  if(!el) return;
+  if(cat==='All'||!_catLeaders[cat]){
+    el.style.display='none';
+    el.innerHTML='';
+    return;
+  }
+  const leader = _catLeaders[cat];
+  const slug = (leader.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/,'')+'-'+leader.id;
+  el.style.display='';
+  el.innerHTML=`<div class="dir-cat-leader">
+    <span class="dir-cat-leader-label">Today's #1 in ${escHtml(cat)}</span>
+    <a href="/directory/${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(leader.name)}</a>
+    <span class="dir-cat-leader-votes">${leader.today_votes} vote${leader.today_votes!==1?'s':''} today</span>
+  </div>`;
+}
+
 // ── Pulse sections orchestrator ───────────────────────────────────────────────
 function loadPulseSections(){
   loadRecentLaunches('24h');
@@ -2536,6 +2644,8 @@ async function loadListings(){
     injectItemListSchema(allListings);
     loadPulseSections();
     loadCollections();
+    loadActivityFeed();
+    loadCategoryLeaders();
     document.dispatchEvent(new CustomEvent('listingsLoaded',{detail:allListings.length}));
     // Sync trust section total with real count
     const trustTotal = document.getElementById('trustTotal');
@@ -2562,6 +2672,7 @@ document.querySelectorAll('.dir-filter-btn').forEach(btn=>{
     btn.classList.add('active');
     activeCategory = btn.dataset.cat;
     applyFilters();
+    updateCatLeaderBadge(activeCategory);
   });
 });
 

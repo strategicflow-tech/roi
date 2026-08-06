@@ -1474,7 +1474,12 @@ app.get('/directory/:slug', async (req, res) => {
 <div class="pp-boost-overlay" id="ppBoostOverlay" style="display:none;" onclick="if(event.target===this)closeBoostModal()">
   <div class="pp-boost-modal">
     <div class="pp-boost-modal-title" id="ppBoostModalTitle">✨ Boost This Listing</div>
-    <div class="pp-boost-modal-sub">Enter your email to proceed to Stripe checkout. You'll be redirected instantly.</div>
+    <div class="pp-boost-modal-sub" id="ppBoostModalSub">Enter your email to proceed to Stripe checkout. You'll be redirected instantly.</div>
+    <div id="ppBoostDateWrap" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;color:#00d4c8;margin-bottom:8px;">📅 Pick a date — one product per day</div>
+      <div id="ppBoostCalendar" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+      <div id="ppBoostDateMsg" style="font-size:11px;color:#00d4c8;min-height:14px;font-family:monospace;"></div>
+    </div>
     <input class="pp-boost-modal-input" type="email" id="ppBoostEmail" placeholder="your@email.com" />
     <button class="pp-boost-modal-btn" id="ppBoostModalBtn" onclick="submitBoostCheckout()">Continue to Checkout →</button>
     <button class="pp-boost-modal-cancel" onclick="closeBoostModal()">Cancel</button>
@@ -1979,13 +1984,57 @@ function toggleBoost(){
   body.style.display=open?'none':'block';
   arrow.style.transform=open?'':'rotate(180deg)';
 }
+var ppBoostSelectedDate=null;
 function ppCheckout(tier){
   ppBoostTier=tier;
+  ppBoostSelectedDate=null;
   var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Badge — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
   document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost This Listing';
   document.getElementById('ppBoostEmail').value='';
   var btn=document.getElementById('ppBoostModalBtn');
-  btn.textContent='Continue to Checkout →';btn.disabled=false;
+  btn.textContent='Continue to Checkout →';
+  var dateWrap=document.getElementById('ppBoostDateWrap');
+  var sub=document.getElementById('ppBoostModalSub');
+  if(tier==='daily_top'&&dateWrap){
+    dateWrap.style.display='';
+    btn.disabled=true;
+    sub.textContent='Pick an available date below, then enter your email.';
+    document.getElementById('ppBoostDateMsg').textContent='';
+    document.getElementById('ppBoostCalendar').innerHTML='<span style="font-size:11px;color:#666;font-family:monospace;">Loading availability…</span>';
+    fetch('/api/directory/boost-dates').then(function(r){return r.json();}).then(function(d){
+      var booked=new Set((d.booked||[]).map(function(x){return x.date;}));
+      var bookedNames={};(d.booked||[]).forEach(function(x){bookedNames[x.date]=x.listing_name;});
+      var cal=document.getElementById('ppBoostCalendar');
+      cal.innerHTML='';
+      (d.available||[]).forEach(function(dateStr){
+        var isBooked=booked.has(dateStr);
+        var dt=new Date(dateStr+'T12:00:00Z');
+        var label=dt.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
+        var isToday=dateStr===new Date().toISOString().slice(0,10);
+        var b=document.createElement('button');
+        b.style.cssText='padding:5px 10px;border-radius:6px;font-size:11px;font-family:monospace;cursor:'+(isBooked?'not-allowed':'pointer')+';border:1px solid '+(isBooked?'rgba(255,255,255,0.08)':'rgba(0,212,200,0.35)')+';background:'+(isBooked?'rgba(255,255,255,0.04)':'rgba(0,212,200,0.08)')+';color:'+(isBooked?'#444':'#00d4c8')+';transition:all .15s;';
+        b.textContent=(isToday?'Today — ':'')+label;
+        b.disabled=isBooked;
+        b.title=isBooked?('Booked by '+bookedNames[dateStr]):'Available — click to select';
+        if(!isBooked){b.addEventListener('click',function(){
+          document.querySelectorAll('#ppBoostCalendar button.pp-date-sel').forEach(function(x){
+            x.classList.remove('pp-date-sel');
+            x.style.background='rgba(0,212,200,0.08)';x.style.borderColor='rgba(0,212,200,0.35)';x.style.fontWeight='';
+          });
+          b.classList.add('pp-date-sel');
+          b.style.background='rgba(0,212,200,0.22)';b.style.borderColor='#00d4c8';b.style.fontWeight='700';
+          ppBoostSelectedDate=dateStr;
+          document.getElementById('ppBoostDateMsg').textContent='✓ Slot reserved: '+label;
+          document.getElementById('ppBoostModalBtn').disabled=false;
+        });}
+        cal.appendChild(b);
+      });
+    }).catch(function(){dateWrap.style.display='none';btn.disabled=false;});
+  } else {
+    if(dateWrap)dateWrap.style.display='none';
+    btn.disabled=false;
+    sub.textContent='Enter your email to proceed to Stripe checkout. You\'ll be redirected instantly.';
+  }
   document.getElementById('ppBoostOverlay').style.display='flex';
   setTimeout(function(){document.getElementById('ppBoostEmail').focus();},80);
 }
@@ -1993,11 +2042,14 @@ function closeBoostModal(){document.getElementById('ppBoostOverlay').style.displ
 function submitBoostCheckout(){
   var email=document.getElementById('ppBoostEmail').value.trim();
   if(!email||!email.includes('@')){alert('Please enter a valid email.');return;}
+  if(ppBoostTier==='daily_top'&&!ppBoostSelectedDate){alert('Please pick a date first.');return;}
   var btn=document.getElementById('ppBoostModalBtn');
   btn.textContent='Redirecting…';btn.disabled=true;
-  fetch('/api/directory/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tier:ppBoostTier,listing_id:PAGE.id,email:email})})
+  var body={tier:ppBoostTier,listing_id:PAGE.id,email:email};
+  if(ppBoostSelectedDate)body.boost_date=ppBoostSelectedDate;
+  fetch('/api/directory/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
-    .then(function(d){if(d.url){window.location.href=d.url;}else{alert(d.error||'Checkout failed.');btn.textContent='Continue to Checkout →';btn.disabled=false;}})
+    .then(function(d){if(d.url){window.location.href=d.url;}else{alert(d.message||d.error||'Checkout failed.');btn.textContent='Continue to Checkout →';btn.disabled=false;}})
     .catch(function(){alert('Network error. Please try again.');btn.textContent='Continue to Checkout →';btn.disabled=false;});
 }
 function getVotedIds(){try{return JSON.parse(localStorage.getItem(VOTE_KEY)||'[]');}catch{return[];}}
@@ -3363,7 +3415,7 @@ app.get('/admin/seed-votes', async (req, res) => {
       {id:543, today:0, tw:5,  lw:4,  old:9},   // Twillot          total=18
       {id:165, today:0, tw:4,  lw:3,  old:9},   // Laike AI         total=16
       {id:248, today:0, tw:3,  lw:2,  old:9},   // Neon             total=14
-      {id:111, today:0, tw:3,  lw:2,  old:8},   // Deep Wave        total=13
+      // {id:111} Deep Wave removed — non-SaaS listing
       {id:55,  today:0, tw:3,  lw:2,  old:7},   // xaicreator       total=12
       {id:163, today:0, tw:3,  lw:2,  old:6},   // Canva            total=11
       {id:234, today:0, tw:2,  lw:1,  old:4},   // NotebookLM       total=7
@@ -3660,10 +3712,35 @@ async function handleDirectoryPayment(session) {
     return;
   }
 
-  // ── Founder Pack + standard tiers: featured placement in dir_featured ─────────
+  // ── Daily Boost: book a date slot; activate now only if today ────────────
+  if (tier === 'daily_top') {
+    const today     = new Date().toISOString().slice(0, 10);
+    const boostDate = session.metadata?.boost_date || today;
+    await pool.query(
+      `INSERT INTO dir_boost_schedule (boost_date, listing_id, listing_name, stripe_session_id, payer_email)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT (boost_date) DO NOTHING`,
+      [boostDate, lid, listingName, session.id, email]
+    ).catch(e => console.error('[dir-boost-schedule] insert failed:', e.message));
+    if (boostDate === today) {
+      const exp = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await pool.query(
+        `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
+         VALUES ($1,'daily_top',$2,$3,$4) ON CONFLICT (stripe_session_id) DO NOTHING`,
+        [lid, session.id, email, exp]
+      );
+      await pool.query(
+        `UPDATE directory_listings SET featured_tier='daily_top', featured_until=$1 WHERE id=$2`,
+        [exp, lid]
+      );
+      console.log(`[dir-boost] ${listingName} activated as #1 today until ${exp.toISOString()}`);
+    } else {
+      console.log(`[dir-boost-schedule] ${listingName} booked slot for ${boostDate} — cron will activate`);
+    }
+  } else {
+  // ── Founder Pack + other tiers: featured placement in dir_featured ─────────
   const days         = DIR_PRICES[tier].days;
   const expires      = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  const featuredTier = tier === 'founder_pack' ? 'premium' : tier; // show premium badge
+  const featuredTier = tier === 'founder_pack' ? 'premium' : tier;
   await pool.query(
     `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT (stripe_session_id) DO NOTHING`,
@@ -3681,6 +3758,92 @@ async function handleDirectoryPayment(session) {
     console.log(`[dir-founder] relaunch_unlimited + priority_marquee set for listing ${lid}`);
   }
   console.log(`[dir-payment] ${tier} applied to listing ${lid} until ${expires.toISOString()}`);
+  }
+
+  // ── Competitor Notification: alert same-category claimed owners ───────────
+  try {
+    const catRow = await pool.query(
+      `SELECT dl.name, dl.category, COUNT(*)::int+1 AS new_rank
+       FROM directory_listings dl
+       CROSS JOIN (
+         SELECT COUNT(*)::int + 1 AS rank
+         FROM directory_listings
+         WHERE status='active' AND category=(SELECT category FROM directory_listings WHERE id=$1)
+           AND vote_count > (SELECT vote_count FROM directory_listings WHERE id=$1)
+       ) rk
+       WHERE dl.id=$1 GROUP BY dl.name, dl.category`,
+      [lid]
+    );
+    const boostedName = catRow.rows[0]?.name || listingName;
+    const category    = catRow.rows[0]?.category || 'General';
+    const tierLabel   = DIR_PRICES[tier]?.label || tier;
+
+    const competitors = await pool.query(
+      `SELECT dl.id, dl.name, dc.owner_email,
+              (SELECT COUNT(*)::int + 1 FROM directory_listings
+               WHERE status='active' AND category=$2
+                 AND vote_count > dl.vote_count) AS cat_rank
+       FROM directory_listings dl
+       JOIN dir_claims dc ON dc.listing_id=dl.id AND dc.is_verified=TRUE
+       WHERE dl.status='active' AND dl.category=$2 AND dl.id!=$1
+         AND dc.owner_email IS NOT NULL`,
+      [lid, category]
+    );
+
+    for (const comp of competitors.rows) {
+      resend.emails.send({
+        from:    SENDER,
+        to:      comp.owner_email,
+        subject: `${boostedName} just boosted in ${category} — you're #${comp.cat_rank + 1}`,
+        html: `<div style="font-family:sans-serif;max-width:500px;margin:auto;background:#0a1628;color:#eef1f7;padding:24px;border-radius:12px;border:1px solid rgba(0,212,200,0.2);">
+          <p style="color:#00d4c8;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 16px;">ToolIndex — Competitor Alert</p>
+          <h2 style="font-size:18px;margin:0 0 12px;"><strong>${escHtml(boostedName)}</strong> just purchased a <em>${escHtml(tierLabel)}</em> in <strong>${escHtml(category)}</strong></h2>
+          <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 16px;">Your listing <strong>${escHtml(comp.name)}</strong> is now <strong>#${comp.cat_rank + 1}</strong> in the ${escHtml(category)} category.</p>
+          <p style="font-size:13px;color:#94a3b8;">Want to reclaim the top spot? A Daily Boost ($9) pins you to #1 for 24 hours.</p>
+          <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#00d4c8;color:#041214;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">View Directory →</a>
+          <p style="color:#475569;font-size:11px;margin-top:20px;">You're receiving this because you claimed ${escHtml(comp.name)} on ToolIndex.</p>
+        </div>`
+      }).catch(() => {});
+    }
+    if (competitors.rows.length > 0)
+      console.log(`[dir-competitor-notif] notified ${competitors.rows.length} owners in category "${category}"`);
+  } catch(e) {
+    console.error('[dir-competitor-notif]', e.message);
+  }
+
+  console.log(`[dir-payment] ${tier} processed for listing ${lid}`);
+}
+
+// ── Directory: activate scheduled Daily Boosts for today ─────────────────────
+async function activateScheduledBoosts() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const due = await pool.query(
+      `SELECT dbs.listing_id, dbs.listing_name, dbs.stripe_session_id, dbs.payer_email
+       FROM dir_boost_schedule dbs
+       WHERE dbs.boost_date = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM dir_featured df
+           WHERE df.stripe_session_id = dbs.stripe_session_id
+         )`,
+      [today]
+    );
+    for (const row of due.rows) {
+      const exp = new Date();
+      exp.setUTCHours(23, 59, 59, 999); // expires end of today
+      await pool.query(
+        `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
+         VALUES ($1,'daily_top',$2,$3,$4) ON CONFLICT (stripe_session_id) DO NOTHING`,
+        [row.listing_id, row.stripe_session_id, row.payer_email, exp]
+      );
+      await pool.query(
+        `UPDATE directory_listings SET featured_tier='daily_top', featured_until=$1 WHERE id=$2`,
+        [exp, row.listing_id]
+      );
+      console.log(`[dir-boost-schedule] Activated scheduled boost for ${row.listing_name} (listing #${row.listing_id}) today`);
+    }
+    if (due.rows.length > 0) console.log(`[dir-boost-schedule] Activated ${due.rows.length} scheduled boost(s) for ${today}`);
+  } catch(e) { console.error('[activateScheduledBoosts]', e.message); }
 }
 
 // ── Sponsorship: handle post-payment sponsor record creation ──────────────────
@@ -4048,13 +4211,28 @@ app.get('/sponsor', async (req, res) => {
 
 // ── POST /api/directory/checkout ──────────────────────────────────────────────
 app.post('/api/directory/checkout', async (req, res) => {
-  const { listing_id, tier, email } = req.body || {};
+  const { listing_id, tier, email, boost_date } = req.body || {};
   if (!listing_id || !DIR_PRICES[tier]) return res.status(400).json({ error: 'invalid_params' });
   const listingRow = await pool.query('SELECT id, name FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
   if (!listingRow?.rows?.length) return res.status(404).json({ error: 'listing_not_found' });
 
+  // ── Daily Boost: validate the requested date is not already booked ─────────
+  if (tier === 'daily_top') {
+    const targetDate = boost_date || new Date().toISOString().slice(0, 10);
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(targetDate)) return res.status(400).json({ error: 'invalid_date' });
+    if (targetDate < new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'date_in_past' });
+    const conflict = await pool.query(
+      `SELECT id FROM dir_boost_schedule WHERE boost_date=$1`, [targetDate]
+    ).catch(() => null);
+    if (conflict?.rows?.length) {
+      return res.status(409).json({ error: 'date_booked', message: 'That date is already taken.' });
+    }
+  }
+
   try {
     const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    const targetDate = (tier === 'daily_top' && boost_date) ? boost_date : new Date().toISOString().slice(0, 10);
     const sess = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -4062,12 +4240,94 @@ app.post('/api/directory/checkout', async (req, res) => {
       success_url: `${base}/directory?boosted=1&tier=${tier}&lid=${listing_id}`,
       cancel_url:  `${base}/directory`,
       customer_email: email?.includes('@') ? email.toLowerCase() : undefined,
-      metadata: { source: 'directory', listing_id: String(listing_id), tier, listing_name: listingRow.rows[0].name.slice(0,80) },
+      metadata: {
+        source: 'directory', listing_id: String(listing_id), tier,
+        listing_name: listingRow.rows[0].name.slice(0, 80),
+        ...(tier === 'daily_top' ? { boost_date: targetDate } : {}),
+      },
     });
     res.json({ url: sess.url });
   } catch(err) {
     console.error('[dir-checkout]', err.message);
     res.status(500).json({ error: 'checkout_failed' });
+  }
+});
+
+// ── GET /api/directory/activity-feed ─────────────────────────────────────────
+app.get('/api/directory/activity-feed', async (req, res) => {
+  try {
+    const [eventsRes, top3Res] = await Promise.all([
+      pool.query(`
+        (SELECT 'claimed' AS type, dl.name, dc.verified_at AS occurred_at, NULL::text AS detail, dl.id
+         FROM dir_claims dc JOIN directory_listings dl ON dl.id=dc.listing_id
+         WHERE dc.is_verified=TRUE AND dc.verified_at IS NOT NULL
+         ORDER BY dc.verified_at DESC LIMIT 8)
+        UNION ALL
+        (SELECT 'joined', dl.name, dl.submitted_at, NULL, dl.id
+         FROM directory_listings dl
+         WHERE dl.status='active' AND NOT dl.is_seeded
+           AND dl.submitted_at > NOW() - INTERVAL '30 days'
+         ORDER BY dl.submitted_at DESC LIMIT 8)
+        UNION ALL
+        (SELECT 'boosted', dl.name, df.starts_at, df.tier, dl.id
+         FROM dir_featured df JOIN directory_listings dl ON dl.id=df.listing_id
+         WHERE df.starts_at > NOW() - INTERVAL '14 days'
+         ORDER BY df.starts_at DESC LIMIT 6)
+        ORDER BY occurred_at DESC LIMIT 20
+      `),
+      pool.query(`
+        SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+        FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
+        WHERE dl.status='active'
+          AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+        GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
+      `),
+    ]);
+    res.json({ events: eventsRes.rows, top3: top3Res.rows });
+  } catch(e) {
+    console.error('[activity-feed]', e.message);
+    res.status(500).json({ events: [], top3: [] });
+  }
+});
+
+// ── GET /api/directory/category-leaders ───────────────────────────────────────
+app.get('/api/directory/category-leaders', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT DISTINCT ON (dl.category)
+             dl.category, dl.id, dl.name, COUNT(dv.id)::int AS today_votes
+      FROM directory_listings dl
+      JOIN dir_votes dv ON dv.listing_id=dl.id
+      WHERE dl.status='active'
+        AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+      GROUP BY dl.category, dl.id, dl.name
+      ORDER BY dl.category, today_votes DESC, dl.id ASC
+    `);
+    res.json(r.rows);
+  } catch(e) {
+    console.error('[category-leaders]', e.message);
+    res.status(500).json([]);
+  }
+});
+
+// ── GET /api/directory/boost-dates ───────────────────────────────────────────
+app.get('/api/directory/boost-dates', async (req, res) => {
+  try {
+    const available = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+    const booked = await pool.query(
+      `SELECT boost_date::text AS date, listing_name
+       FROM dir_boost_schedule
+       WHERE boost_date >= CURRENT_DATE AND boost_date < CURRENT_DATE + INTERVAL '14 days'
+       ORDER BY boost_date`
+    );
+    res.json({ available, booked: booked.rows });
+  } catch(e) {
+    console.error('[boost-dates]', e.message);
+    res.status(500).json({ available: [], booked: [] });
   }
 });
 
@@ -6371,6 +6631,19 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_listing ON dir_votes(listing_id)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_votes_voted_at ON dir_votes(voted_at)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS dir_featured_active ON dir_featured(is_active, expires_at)`).catch(()=>{});
+
+  // ── Scheduled Daily Boost — one slot per calendar date ───────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_boost_schedule (
+      id                SERIAL PRIMARY KEY,
+      boost_date        DATE    NOT NULL UNIQUE,
+      listing_id        INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      listing_name      TEXT,
+      stripe_session_id TEXT    UNIQUE,
+      payer_email       TEXT,
+      created_at        TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] dir_boost_schedule:', e.message));
 
   // ── Idempotent deduplication migration ───────────────────────────────────
   // Runs after dir_votes + its indexes exist. Safe to re-run — the check
@@ -18108,14 +18381,16 @@ ${content}
   server.timeout = 180000;
   server.keepAliveTimeout = 180000;
 
-  // ── Hourly: expire featured directory placements + sidebar sponsors ────
+  // ── Hourly: expire featured placements + sponsors + activate scheduled boosts
   cron.schedule('0 * * * *', () => {
     expireFeaturedListings().catch(()=>{});
     expireSponsors().catch(()=>{});
+    activateScheduledBoosts().catch(()=>{});
   });
   // Run once at startup too
   expireFeaturedListings().catch(()=>{});
   expireSponsors().catch(()=>{});
+  activateScheduledBoosts().catch(()=>{});
 
   // ── Daily 01:00 UTC (02:00 Tenerife WEST): Product Hunt auto-discovery ───────
   cron.schedule('0 1 * * *', async () => {
