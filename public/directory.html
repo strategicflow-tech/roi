@@ -3107,7 +3107,19 @@ function openClaimModal(id, name, domain) {
     // Fetch current listing data to pre-fill the form
     fetch(`/api/directory/claim/prefill/${id}?email=${encodeURIComponent(saved.email)}&token=${encodeURIComponent(saved.token)}`)
       .then(function(r){ return r.json(); })
-      .then(function(d){ if(d.ok && d.listing) prefillClaimForm(d.listing); })
+      .then(function(d){
+        if(d.ok && d.listing){
+          prefillClaimForm(d.listing);
+        } else {
+          // Stale or invalid token — clear localStorage and restart OTP flow cleanly
+          localStorage.removeItem('claim_' + id);
+          claimOwnerEmail = null; claimEditToken = null;
+          document.getElementById('claimModal').classList.remove('open');
+          document.body.style.overflow = '';
+          // Re-open in fresh mode after a tick
+          setTimeout(function(){ openClaimModal(id, name, domain); }, 50);
+        }
+      })
       .catch(function(){});
     loadClaimAnalytics();
     return;

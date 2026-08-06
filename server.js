@@ -7424,6 +7424,17 @@ async function setupDB() {
   await pool.query(`UPDATE directory_listings SET image_url='/why-logo.png' WHERE id=199 AND image_url NOT LIKE '/why-logo%'`).catch(()=>{});
   // Ensure WHY Audit™ and Strategic Flow Audit show Verified Founder badge
   await pool.query(`UPDATE directory_listings SET claimed_by='strategicflow@proton.me', verified=TRUE WHERE id IN (199,203) AND (claimed_by IS NULL OR verified IS NOT TRUE)`).catch(()=>{});
+  // Ensure dir_claims rows exist for these listings so "Edit listing" works
+  // Uses ON CONFLICT DO NOTHING — never overwrites a legitimately claimed token
+  await pool.query(`
+    INSERT INTO dir_claims (listing_id, owner_email, otp, otp_expires_at, is_verified, verified_at, edit_token)
+    VALUES
+      (199,'strategicflow@proton.me','000000',NOW()-INTERVAL '1 day',TRUE,NOW(),'354ea9caa3df2bc9a181bf37838d3f849b749409d895fa36'),
+      (203,'strategicflow@proton.me','000000',NOW()-INTERVAL '1 day',TRUE,NOW(),'7867f1dbdb52041eac8fb836ae25219c5f18121f3c348af0')
+    ON CONFLICT (listing_id, owner_email) DO NOTHING
+  `).catch(()=>{});
+  // Fix claimed_at if it was set via direct SQL without timestamp
+  await pool.query(`UPDATE directory_listings SET claimed_at=NOW() WHERE id IN (199,203) AND claimed_at IS NULL AND claimed_by IS NOT NULL`).catch(()=>{});
   console.log('[DB] All tables ready');
 }
 
