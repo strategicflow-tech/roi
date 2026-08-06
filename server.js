@@ -2091,7 +2091,7 @@ function ppCheckout(tier){
   } else {
     if(dateWrap)dateWrap.style.display='none';
     btn.disabled=false;
-    if(sub) sub.textContent='Enter your email to proceed to Stripe checkout. You\'ll be redirected instantly.';
+    if(sub) sub.textContent="Enter your email to proceed to Stripe checkout. You'll be redirected instantly.";
   }
   // Ensure overlay is open (in case ppCheckout called from inside tier step)
   var ov=document.getElementById('ppBoostOverlay');

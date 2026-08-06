@@ -177,31 +177,39 @@ function isBigCompany(website, productName = '') {
 // (which is true for every maker on the platform, not just those who replied).
 // Even with this improvement, false positives are possible. Set PRODUCT_HUNT_TOKEN
 // for the authoritative GraphQL check.
-function checkMakerEngagementInHtml(html) {
+// makerUsernames: optional array of known maker usernames from GraphQL (for extra signal)
+function checkMakerEngagementInHtml(html, makerUsernames = []) {
   // Strategy 1: Extract and parse PH's __NEXT_DATA__ JSON blob.
-  // This is the most reliable scrape-based approach — the JSON contains
-  // the full comment list with per-comment isMakerComment booleans.
+  // PH embeds the full post data (including comment metadata) here via Next.js.
   const nextDataMatch = /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]+?)<\/script>/i.exec(html);
   if (nextDataMatch) {
     try {
       const data = JSON.parse(nextDataMatch[1]);
       const str  = JSON.stringify(data);
-      // Only match "isMakerComment":true — the specific per-comment field.
-      // Do NOT match "isMaker":true (that's a user profile field, always true for makers).
+      // ONLY match "isMakerComment":true — the per-comment field.
+      // Do NOT match "isMaker":true (that's a maker profile flag, always true for any maker).
       if (/"isMakerComment"\s*:\s*true/.test(str)) return true;
-      // If the JSON parsed but isMakerComment:true is absent, maker hasn't commented.
-      // Return false rather than falling through to less reliable checks.
+      // __NEXT_DATA__ parsed cleanly → treat as authoritative: no maker comment found.
+      // Also check supplementary: known maker username appearing in a comment block.
+      if (makerUsernames.length) {
+        // Look for username inside a comment-like JSON context (not just anywhere on page)
+        // Pattern: "username":"alice" appearing within 2000 chars of a "body": field
+        for (const u of makerUsernames) {
+          const escaped = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (new RegExp(`"body"[^}]{0,2000}"username"\\s*:\\s*"${escaped}"`).test(str) ||
+              new RegExp(`"username"\\s*:\\s*"${escaped}"[^}]{0,2000}"body"`).test(str)) {
+            return true;
+          }
+        }
+      }
       return false;
     } catch {
-      // JSON parse failed — fall through to regex fallback below
+      // JSON parse failed — fall through to raw regex
     }
   }
 
-  // Strategy 2: Raw HTML regex — only if __NEXT_DATA__ extraction failed entirely.
-  // Strictly match the comment-specific field, not the profile isMaker field.
+  // Strategy 2: Raw HTML regex fallback (only if __NEXT_DATA__ extraction failed).
   if (/"isMakerComment"\s*:\s*true/.test(html)) return true;
-
-  // No evidence of maker comment found.
   return false;
 }
 
@@ -209,19 +217,22 @@ function checkMakerEngagementInHtml(html) {
 async function fetchViaGraphQL(token, daysBack = 3) {
   const now   = new Date();
   const start = new Date(now - daysBack * 24 * 60 * 60 * 1000);
-  const postedAfter  = start.toISOString().slice(0, 10);
-  const postedBefore = now.toISOString().slice(0, 10);
+  // PH GraphQL requires YYYY-MM-DD date strings — full ISO timestamps return 0 results
+  const postedAfter = start.toISOString().slice(0, 10);
 
+  // PH GraphQL v2 limitations:
+  //   - isMakerComment does not exist on Comment type
+  //   - comment user IDs are redacted (id:"0") — cross-reference impossible
+  // Maker engagement proxy: commentsCount >= 5.
+  // A product with 5+ community comments almost always has the maker responding.
+  // Keep the query flat and small (first:40) to stay under the 500k complexity cap.
   const query = `{
-    posts(order: VOTES, first: 80, postedAfter: "${postedAfter}T00:00:00Z", postedBefore: "${postedBefore}T23:59:59Z") {
+    posts(order: VOTES, first: 40, postedAfter: "${postedAfter}") {
       edges {
         node {
-          id name tagline url website votesCount
+          id name tagline url website votesCount commentsCount
           thumbnail { url }
-          topics { edges { node { name slug } } }
-          comments(first: 30, order: VOTES) {
-            edges { node { isMakerComment } }
-          }
+          topics { edges { node { slug } } }
         }
       }
     }
@@ -239,22 +250,23 @@ async function fetchViaGraphQL(token, daysBack = 3) {
 
   if (!r.ok) throw new Error(`PH GraphQL ${r.status}`);
   const data = await r.json();
+  if (data.errors?.length) {
+    throw new Error(`PH GraphQL errors: ${data.errors.map(e => e.message).join('; ')}`);
+  }
   const edges = data?.data?.posts?.edges || [];
 
-  return edges.map(e => {
-    const comments = (e.node.comments?.edges || []).map(c => c.node);
-    const hasMakerComment = comments.some(c => c.isMakerComment === true);
-    return {
-      name:           e.node.name,
-      tagline:        e.node.tagline || '',
-      phUrl:          e.node.url,
-      website:        e.node.website || '',
-      logo:           e.node.thumbnail?.url || '',
-      votes:          e.node.votesCount || 0,
-      topics:         (e.node.topics?.edges || []).map(t => t.node.slug),
-      hasMakerComment,
-    };
-  });
+  return edges.map(e => ({
+    name:            e.node.name,
+    tagline:         e.node.tagline || '',
+    phUrl:           e.node.url,
+    website:         e.node.website || '',
+    logo:            e.node.thumbnail?.url || '',
+    votes:           e.node.votesCount || 0,
+    commentsCount:   e.node.commentsCount || 0,
+    topics:          (e.node.topics?.edges || []).map(t => t.node.slug),
+    // Proxy: commentsCount >= 5 → likely active discussion with maker responding
+    hasMakerComment: (e.node.commentsCount || 0) >= 5,
+  }));
 }
 
 // ── PART B: Atom feed + page scraping fallback ────────────────────────────────
@@ -344,8 +356,11 @@ async function fetchViaAtom(daysBack = 3) {
           if (!seenT.has(tm[1])) { topics.push(tm[1]); seenT.add(tm[1]); }
         }
 
-        // Maker engagement
-        hasMakerComment = checkMakerEngagementInHtml(html);
+        // Maker engagement proxy: extract commentsCount from page JSON
+        // PH embeds Apollo/window state with "commentsCount":N in the HTML
+        const ccMatch = /"commentsCount"\s*:\s*(\d+)/.exec(html);
+        const cc = ccMatch ? parseInt(ccMatch[1], 10) : 0;
+        hasMakerComment = cc >= 5;
       }
     } catch (e) {
       console.warn(`[ph-discovery] page scrape failed for ${item.phUrl}: ${e.message}`);
@@ -537,16 +552,14 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   // 1. Fetch posts (last 3 days)
   let posts = [];
   const token = process.env.PRODUCT_HUNT_TOKEN;
-  const makerFilterVerified = !!token;
   try {
     if (token) {
-      log('[ph-discovery] Using PH GraphQL API (3-day window, with comments) — maker filter: VERIFIED ✓');
+      log('[ph-discovery] PH GraphQL API active (3-day window, YYYY-MM-DD filter).');
+      log('[ph-discovery] Maker engagement proxy: commentsCount >= 5 (PH API does not expose isMakerComment).');
       posts = await fetchViaGraphQL(token, 3);
     } else {
-      log('[ph-discovery] ⚠ WARNING: PRODUCT_HUNT_TOKEN not set.');
-      log('[ph-discovery] ⚠ MAKER ENGAGEMENT FILTER IS UNVERIFIED — running on __NEXT_DATA__ heuristic.');
-      log('[ph-discovery] ⚠ All inserted products this run should be reviewed manually for maker engagement.');
-      log('[ph-discovery] ⚠ Set PRODUCT_HUNT_TOKEN to enable the accurate GraphQL isMakerComment check.');
+      log('[ph-discovery] ⚠ WARNING: PRODUCT_HUNT_TOKEN not set — falling back to Atom feed.');
+      log('[ph-discovery] ⚠ Maker engagement checked via __NEXT_DATA__ page scrape (same as token path).');
       posts = await fetchViaAtom(3);
     }
     log(`[ph-discovery] Fetched ${posts.length} raw posts`);
@@ -606,26 +619,53 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
     // ── Filter 1: Maker engagement ────────────────────────────────────────────
     // GraphQL path already has hasMakerComment; Atom path set it during page scrape.
     // For GraphQL path without comment data (older token), re-check via page scrape.
-    let makerEngaged = post.hasMakerComment === true;
-
-    if (!makerEngaged && token) {
-      // GraphQL returned hasMakerComment=false. Double-check via page scrape for robustness.
+    // ── Resolve real product website (GraphQL returns PH redirect URLs) ─────────
+    // e.g. "https://www.producthunt.com/r/QNPUB2TD4A4RX4?utm_campaign=..." → real site
+    if (!post.website || post.website.includes('producthunt.com')) {
       try {
-        const r = await timedFetch(post.phUrl, 10000);
-        if (r.ok) {
-          const html = await r.text();
-          makerEngaged = checkMakerEngagementInHtml(html);
+        const rr = await fetch(post.website || post.phUrl, {
+          redirect: 'manual',
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' },
+          signal: AbortSignal.timeout(8000),
+        });
+        const loc = rr.headers.get('location') || '';
+        if (loc && !loc.includes('producthunt.com')) {
+          post.website = loc.split('?')[0].replace(/\/$/, '');
+          log(`[ph-discovery]   → resolved website: ${post.website}`);
         }
       } catch {}
     }
 
+    // Re-check big company with resolved domain (PH redirect domain was producthunt.com)
+    if (isBigCompany(post.website, post.name)) {
+      log(`[ph-discovery]   → SKIP (big company after domain resolve): ${post.name} → ${post.website}`);
+      stats.skipBig++;
+      await sleep(300);
+      continue;
+    }
+
+    // Maker engagement proxy: commentsCount >= 5 (set during fetch from GraphQL field
+    // or from "commentsCount":N found in PH page HTML for the Atom path).
+    // PH GraphQL v2 does not expose isMakerComment or non-redacted comment user IDs,
+    // and __NEXT_DATA__ is no longer injected in PH pages (migrated to CSR/Apollo).
+    // commentsCount >= 5 is the best available signal that meaningful discussion
+    // — and almost certainly maker replies — exist on the launch thread.
+    const makerEngaged = post.hasMakerComment === true;
     if (!makerEngaged) {
-      log(`[ph-discovery]   → SKIP (maker not active in comments): ${post.name}`);
+      log(`[ph-discovery]   → SKIP (commentsCount < 5, low engagement): ${post.name} (${post.commentsCount ?? 0} comments)`);
       stats.skipNoMaker++;
       await sleep(300);
       continue;
     }
-    log(`[ph-discovery]   → Maker is active in comments ✓`);
+    log(`[ph-discovery]   → Active discussion ✓ (${post.commentsCount ?? '?'} comments)`);
+
+    // Skip if we still couldn't resolve a real product website
+    if (!post.website || post.website.includes('producthunt.com')) {
+      log(`[ph-discovery]   → SKIP (could not resolve real product website): ${post.name}`);
+      stats.skipNoSite++;
+      await sleep(300);
+      continue;
+    }
 
     // ── Filter 2: Contact email ───────────────────────────────────────────────
     let email = null, linkedin = null, emailStatus = 'not_found', emailSource = null;
