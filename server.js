@@ -4578,6 +4578,27 @@ app.get('/api/directory/activity-feed', async (req, res) => {
                AND voted_at < NOW() - INTERVAL '24 hours'
            )
          ORDER BY v.cur_votes DESC LIMIT 4)
+        UNION ALL
+        (SELECT 'velocity' AS type, dl.name,
+                MAX(dv.voted_at) AS occurred_at,
+                COUNT(dv.id)::text AS detail,
+                dl.id
+         FROM dir_votes dv
+         JOIN directory_listings dl ON dl.id = dv.listing_id
+         WHERE dl.status = 'active'
+           AND dv.voted_at >= NOW() - INTERVAL '1 hour'
+         GROUP BY dl.id, dl.name
+         HAVING COUNT(dv.id) >= 2
+         ORDER BY COUNT(dv.id) DESC LIMIT 3)
+        UNION ALL
+        (SELECT 'recent_claim' AS type, dl.name,
+                dl.claimed_at AS occurred_at,
+                NULL::text AS detail,
+                dl.id
+         FROM directory_listings dl
+         WHERE dl.claimed_at >= NOW() - INTERVAL '6 hours'
+           AND dl.status = 'active'
+         ORDER BY dl.claimed_at DESC LIMIT 3)
         ORDER BY occurred_at DESC LIMIT 20
       `),
       pool.query(`
@@ -4609,6 +4630,57 @@ app.get('/api/directory/activity-feed', async (req, res) => {
   } catch(e) {
     console.error('[activity-feed]', e.message);
     res.status(500).json({ events: [], top3: [] });
+  }
+});
+
+// ── GET /api/directory/activity-stats — real submission + claim counts ─────────
+app.get('/api/directory/activity-stats', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=120'); // 2-min cache
+  try {
+    const [statsRes, nearRes] = await Promise.all([
+      pool.query(`
+        SELECT
+          (SELECT COUNT(*)::int FROM directory_listings
+           WHERE status='active' AND NOT is_seeded
+             AND submitted_at >= NOW() - INTERVAL '24 hours') AS submitted_24h,
+          (SELECT COUNT(*)::int FROM directory_listings
+           WHERE status='active'
+             AND claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')) AS claimed_today
+      `),
+      pool.query(`
+        WITH ranked AS (
+          SELECT dl.id, dl.name, COUNT(dv.id)::int AS today_votes
+          FROM directory_listings dl
+          JOIN dir_votes dv ON dv.listing_id = dl.id
+          WHERE dl.status = 'active'
+            AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+          GROUP BY dl.id, dl.name
+          ORDER BY today_votes DESC
+          LIMIT 12
+        ),
+        threshold AS (
+          SELECT MIN(today_votes) AS cutoff, COUNT(*)::int AS cnt
+          FROM (SELECT today_votes FROM ranked ORDER BY today_votes DESC LIMIT 10) t
+        )
+        SELECT r.id, r.name,
+               (t.cutoff - r.today_votes) AS votes_needed
+        FROM ranked r, threshold t
+        WHERE t.cnt >= 8
+          AND r.today_votes < t.cutoff
+          AND (t.cutoff - r.today_votes) BETWEEN 1 AND 5
+        ORDER BY votes_needed ASC
+        LIMIT 5
+      `),
+    ]);
+    const stats = statsRes.rows[0] || {};
+    res.json({
+      submitted_24h: stats.submitted_24h || 0,
+      claimed_today: stats.claimed_today || 0,
+      near_top10: nearRes.rows.map(r => ({ id: r.id, votes_needed: parseInt(r.votes_needed) })),
+    });
+  } catch(e) {
+    console.error('[activity-stats]', e.message);
+    res.status(500).json({ submitted_24h: 0, claimed_today: 0, near_top10: [] });
   }
 });
 
@@ -19181,6 +19253,9 @@ ${content}
   });
 
   // ── Admin: editors-pick — set/unset (max 3 simultaneous) ────────────────
+  // POLICY: Editor's Pick must stay rare — no more than 1-2 new assignments per month.
+  // It is a credibility signal; overuse destroys its value. Always unset before reassigning
+  // to keep the active count at or below 2. Never automate this assignment.
   app.post('/admin/directory/editors-pick', async (req, res) => {
     if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
     const { listing_id, value } = req.body || {};

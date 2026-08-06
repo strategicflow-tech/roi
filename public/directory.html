@@ -405,6 +405,10 @@ a:hover{text-decoration:underline;}
 .dir-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:0 40px 28px;}
 @media(max-width:1200px){.dir-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px){.dir-grid{grid-template-columns:repeat(2,1fr);}}
+.dir-activity-stats-bar{display:none;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--muted);padding:7px 20px;margin:0 auto 4px;max-width:760px;}
+.dir-activity-stats-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px;flex-shrink:0;animation:pulse 2s infinite;}
+.dir-activity-stats-sep{color:rgba(0,212,200,0.22);padding:0 4px;}
+.dir-milestone{font-family:var(--mono);font-size:10.5px;color:#f59e0b;margin-top:4px;padding:3px 7px;border:1px solid rgba(245,158,11,0.25);border-radius:5px;background:rgba(245,158,11,0.06);width:fit-content;}
 .dir-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s,transform .2s;}
 .dir-card:hover{border-color:var(--border2);transform:translateY(-2px);}
 .dir-card.is-featured{border-color:rgba(245,158,11,0.3);background:linear-gradient(135deg,rgba(245,158,11,0.05),var(--bg2));}
@@ -871,7 +875,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     Free to list · Dofollow backlink · Instant approval
   </div>
   <h1>Every day you're not listed,<br><em>a competitor gets the backlink.</em></h1>
-  <p class="dir-hero-sub"><span id="heroCount">500+</span> products already indexed on a DR&nbsp;86 domain. The organic visibility you're skipping goes directly to whoever listed before you.</p>
+  <p class="dir-hero-sub"><span id="heroCount">500+</span> founders are already building authority here — every day you wait is a backlink someone else earns first.</p>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
     <a href="#pricing" class="dir-hero-pricing-link" style="margin-bottom:0;">⚡ Featured placements from $9 — see pricing →</a>
     <a href="#dirGrid" id="heroBrowseBtn" onclick="event.preventDefault();document.getElementById('dirGrid')?.scrollIntoView({behavior:'smooth',block:'start'});" style="font-size:13px;font-family:var(--mono);color:var(--muted);text-decoration:none;padding:8px 16px;border:1px solid var(--border);border-radius:8px;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='#fff';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Browse <span id="heroBrowseCount">500+</span> products</a>
@@ -905,6 +909,9 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     </div>
   </div>
 </section>
+
+<!-- DYNAMIC ACTIVITY STATS BAR — real counts from DB, hidden if zero -->
+<div class="dir-activity-stats-bar" id="dirActivityStatsBar"></div>
 
 <!-- HERO SEARCH — prominent central search bar -->
 <div class="dir-herosearch-wrap">
@@ -2088,6 +2095,7 @@ function renderCard(l){
       </div>
     </div>
     <p class="dir-desc">${escHtml(l.description||'')}</p>
+    ${(()=>{ const vn=_top10Near.get(l.id); return vn>0?`<div class="dir-milestone">⚡ Next milestone: ${vn} vote${vn!==1?'s':''} until Top 10 today</div>`:''; })()}
     <div class="dir-card-footer">
       <div class="dir-card-actions">
         <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
@@ -2689,6 +2697,36 @@ function loadDailySection(){
     .catch(function(){ if(section) section.style.display='none'; });
 }
 
+// ── Top-10 milestone map — populated by loadActivityStats ─────────────────────
+let _top10Near = new Map(); // listing_id (int) → votes_needed (int)
+
+// ── Activity Stats Bar ────────────────────────────────────────────────────────
+function loadActivityStats(){
+  fetch('/api/directory/activity-stats')
+    .then(r=>r.json())
+    .then(function(d){
+      // Populate milestone map
+      _top10Near = new Map();
+      (d.near_top10||[]).forEach(function(x){ _top10Near.set(x.id, x.votes_needed); });
+      // Rebuild cards if already rendered so milestones appear
+      if(allListings.length) applyFilters();
+      // Activity stats bar — only show real non-zero counts
+      var bar = document.getElementById('dirActivityStatsBar');
+      if(!bar) return;
+      var parts = [];
+      if(d.submitted_24h > 0)
+        parts.push('<span class="dir-activity-stats-dot"></span>'
+          +d.submitted_24h+' product'+(d.submitted_24h!==1?'s':'')+' submitted in the last 24&nbsp;hours');
+      if(d.claimed_today > 0)
+        parts.push(d.claimed_today+' founder'+(d.claimed_today!==1?'s':'')+' claimed their listing today');
+      if(!parts.length){ bar.style.display='none'; return; }
+      bar.innerHTML = parts.map(function(p,i){
+        return (i>0?'<span class="dir-activity-stats-sep">·</span>':'')+p;
+      }).join('');
+      bar.style.display='flex';
+    }).catch(function(){});
+}
+
 // ── Live Activity Feed ────────────────────────────────────────────────────────
 let _activityLoaded = false;
 function timeAgo(isoStr){
@@ -2707,14 +2745,23 @@ function loadActivityFeed(){
     .then(r=>r.json())
     .then(({events=[],top3=[],top3Period='today'})=>{
       const medals=['🥇','🥈','🥉'];
-      const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡',climbed:'📈'};
-      const labels ={claimed:'claimed their listing',joined:'just joined ToolIndex',boosted:'boosted their listing',climbed:'is climbing the ranks'};
+      const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡',climbed:'📈',velocity:'🔥',recent_claim:'✓'};
+      const labels ={
+        claimed:'claimed their listing',
+        joined:'just joined ToolIndex',
+        boosted:'boosted their listing',
+        climbed:'is climbing the ranks',
+        velocity: e => `gained ${e.detail} vote${e.detail!=='1'?'s':''} in the last hour`,
+        recent_claim:'was just claimed',
+      };
       // Build up to 6 event rows (3 columns × ≤2 rows)
-      const rows = events.slice(0,6).map(e=>`
-        <div class="dir-activity-row">
-          <div class="dir-activity-text">${icons[e.type]||'→'} <strong>${escHtml(e.name)}</strong> ${labels[e.type]||'was updated'}</div>
+      const rows = events.slice(0,6).map(e=>{
+        const lbl = typeof labels[e.type]==='function' ? labels[e.type](e) : (labels[e.type]||'was updated');
+        return `<div class="dir-activity-row">
+          <div class="dir-activity-text">${icons[e.type]||'→'} <strong>${escHtml(e.name)}</strong> ${lbl}</div>
           <div class="dir-activity-time">${timeAgo(e.occurred_at)}</div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       // Top-3 snapshot row — always shown if data exists (today or 7d fallback)
       const top3Label = top3Period==='today' ? "Today's Top 3" : "Top 3 This Week";
       const top3Html = top3.length
@@ -2939,6 +2986,7 @@ async function loadListings(){
     loadCollections();
     loadDailySection();
     loadActivityFeed();
+    loadActivityStats();
     loadCategoryLeaders();
     document.dispatchEvent(new CustomEvent('listingsLoaded',{detail:allListings.length}));
     // Sync trust section total with real count

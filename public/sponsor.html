@@ -130,7 +130,7 @@ h1 span{color:var(--teal)}
   <h1>Reach founders browsing <span>566+ SaaS tools</span></h1>
   <p class="hero-sub">
     Your brand sits in the sidebar of every ToolIndex listing page — the directory with a DR 86 dofollow link.
-    Only 3 slots. No scripts, no tracking pixel, no middleman. Just a clean logo, name, and link.
+    <span id="heroSlotsCopy">Only 3 slots</span>. No scripts, no tracking pixel, no middleman. Just a clean logo, name, and link.
   </p>
 
   <!-- SLOT COUNTER -->
@@ -294,17 +294,20 @@ var MAX_SLOTS     = 3;
 function renderSlotCounter(slotsAvailable) {
   var dot  = document.getElementById('slotDot');
   var text = document.getElementById('slotText');
+  var heroCopy = document.getElementById('heroSlotsCopy');
   if (slotsAvailable === 0) {
     dot.className = 'slot-dot full';
     text.textContent = 'All 3 slots taken — check back when one opens';
-    // Disable all checkout buttons
+    if (heroCopy) heroCopy.textContent = 'All 3 slots taken';
     document.querySelectorAll('.tier-btn').forEach(function(b){ b.disabled = true; });
   } else if (slotsAvailable === 1) {
     dot.className = 'slot-dot warn';
     text.textContent = '1 of 3 slots available';
+    if (heroCopy) heroCopy.textContent = 'Only 1 slot left';
   } else {
     dot.className = 'slot-dot';
     text.textContent = slotsAvailable + ' of 3 slots available';
+    if (heroCopy) heroCopy.textContent = 'Only ' + slotsAvailable + ' slots available';
   }
 }
 
