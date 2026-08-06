@@ -5208,7 +5208,9 @@ app.get('/api/directory/claim/prefill/:id', async (req, res) => {
     );
     if (!auth.rows.length) return res.status(403).json({ error: 'unauthorized' });
     const { rows } = await pool.query(
-      `SELECT description, image_url, founder_name, founder_avatar_url,
+      `SELECT COALESCE(owner_description, description) AS description,
+              COALESCE(owner_image_url, image_url) AS image_url,
+              founder_name, founder_avatar_url,
               social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
        FROM directory_listings WHERE id=$1`, [id]
     );

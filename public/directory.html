@@ -3312,8 +3312,20 @@ async function claimSaveEdit() {
       body: JSON.stringify(body)
     });
     const d = await r.json();
-    if (d.ok) { msg.style.display = 'block'; }
-    else { errEl.textContent = 'Save failed: ' + (d.error||'unknown'); errEl.style.display = 'block'; }
+    if (d.ok) {
+      msg.style.display = 'block';
+      // Update in-memory listing so card reflects changes immediately (no reload needed)
+      const idx = allListings.findIndex(function(l){ return l.id === claimListingId; });
+      if (idx !== -1) {
+        if (description)    allListings[idx].description = description;
+        if (image_url)      allListings[idx].image_url   = image_url;
+        if (founder_name)   allListings[idx].founder_name = founder_name;
+        applyFilters(); // re-render grid with updated data
+      }
+    } else {
+      errEl.textContent = 'Save failed: ' + (d.error||'unknown');
+      errEl.style.display = 'block';
+    }
   } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
   btn.disabled = false; btn.textContent = 'Save changes →';
 }
