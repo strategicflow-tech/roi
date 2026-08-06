@@ -2550,8 +2550,8 @@ function loadActivityFeed(){
     .then(r=>r.json())
     .then(({events=[],top3=[]})=>{
       const medals=['🥇','🥈','🥉'];
-      const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡'};
-      const labels ={claimed:'claimed their listing',joined:'just joined ToolIndex',boosted:'boosted their listing'};
+      const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡',climbed:'📈'};
+      const labels ={claimed:'claimed their listing',joined:'just joined ToolIndex',boosted:'boosted their listing',climbed:'is climbing the ranks'};
       // Build up to 6 event rows (3 columns × ≤2 rows)
       const rows = events.slice(0,6).map(e=>`
         <div class="dir-activity-row">

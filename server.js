@@ -4386,6 +4386,26 @@ app.get('/api/directory/activity-feed', async (req, res) => {
          FROM dir_featured df JOIN directory_listings dl ON dl.id=df.listing_id
          WHERE df.starts_at > NOW() - INTERVAL '14 days'
          ORDER BY df.starts_at DESC LIMIT 6)
+        UNION ALL
+        (SELECT 'climbed' AS type, dl.name,
+                NOW() - INTERVAL '1 minute' * (row_number() OVER (ORDER BY cur_votes DESC)) AS occurred_at,
+                '#' || RANK() OVER (ORDER BY dl.vote_count DESC)::text AS detail,
+                dl.id
+         FROM directory_listings dl
+         JOIN LATERAL (
+           SELECT COUNT(*)::int AS cur_votes
+           FROM dir_votes
+           WHERE listing_id=dl.id AND voted_at >= NOW() - INTERVAL '24 hours'
+         ) v ON true
+         WHERE dl.status='active'
+           AND v.cur_votes >= 3
+           AND v.cur_votes > (
+             SELECT COUNT(*)::int FROM dir_votes
+             WHERE listing_id=dl.id
+               AND voted_at >= NOW() - INTERVAL '48 hours'
+               AND voted_at < NOW() - INTERVAL '24 hours'
+           )
+         ORDER BY v.cur_votes DESC LIMIT 4)
         ORDER BY occurred_at DESC LIMIT 20
       `),
       pool.query(`
@@ -5297,7 +5317,7 @@ app.get('/api/directory/category-counts', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT category, COUNT(*)::int AS cnt
       FROM directory_listings
-      WHERE status = 'active' AND category IS NOT NULL AND category <> 'Other'
+      WHERE status = 'active' AND category IS NOT NULL AND category <> ''
       GROUP BY category
       ORDER BY cnt DESC
     `);
