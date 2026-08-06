@@ -2816,8 +2816,14 @@ async function submitListing(e){
     });
     const d = await r.json();
     if(r.ok && d.success){
+      const newId = d.id;
+      const badgeUrl = location.origin + '/directory/' + newId;
+      const embedCode = `<a href="${badgeUrl}" target="_blank" rel="noopener"><img src="https://strategic-flow-audit.replit.app/api/directory/badge/${newId}" alt="Listed on ToolIndex" style="height:28px;"/></a>`;
       msg.className='dir-form-msg success';
-      msg.textContent='✓ Listed! Your product is live on ToolIndex. Refresh to see your listing.';
+      msg.innerHTML='✓ Listed! Your product is live on ToolIndex.<br><br>'
+        +'<strong style="font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#00d4c8;">Add badge to your site:</strong>'
+        +'<textarea readonly onclick="this.select()" style="display:block;width:100%;margin-top:6px;padding:8px;font-family:var(--mono);font-size:10px;background:#0a1628;color:#cbd5e1;border:1px solid rgba(0,212,200,0.3);border-radius:6px;resize:none;line-height:1.5;" rows="3">'+escHtml(embedCode)+'</textarea>'
+        +'<a href="/badge-kit?id='+newId+'" target="_blank" style="font-size:11px;color:#00d4c8;text-decoration:none;display:inline-block;margin-top:4px;">→ See all badge styles</a>';
       document.getElementById('dirForm').reset();
       setTimeout(loadListings, 3000);
     }else if(d.error==='already_listed'){

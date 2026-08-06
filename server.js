@@ -2394,16 +2394,40 @@ async function extractContactEmail(productUrl) {
   return { status: 'not_found' };
 }
 
+// ── Submit: spam / physical-goods blocklist ───────────────────────────────────
+const SUBMIT_SPAM_KEYWORDS = [
+  // Gambling
+  'casino','betting','sports bet','poker','gambling','slots','lottery','sportsbook',
+  // Physical goods / non-SaaS
+  'braiding hair','hair extension','human hair','lace front','wigs','weave hair',
+  'clothing','fashion wear','shoes','sneakers','cosmetics','makeup kit',
+  'food delivery','restaurant','grocery store','supplement','vitamins',
+  'real estate listing','mortgage broker','insurance quote',
+];
+const SUBMIT_SPAM_DOMAINS = ['aizabeauty.com','shopify.com/stock-photos','amazon.com','ebay.com','alibaba.com'];
+
+function isSpamSubmission(name, description, url) {
+  const text = `${name} ${description} ${url}`.toLowerCase();
+  if (SUBMIT_SPAM_DOMAINS.some(d => text.includes(d))) return true;
+  return SUBMIT_SPAM_KEYWORDS.some(kw => text.includes(kw));
+}
+
 app.post('/api/directory/submit', async (req, res) => {
   const { name, url, category, description, email, logo_url, terms_accepted } = req.body || {};
   if (!terms_accepted) return res.status(400).json({ error: 'terms_required', message: 'You must accept the Terms of Use.' });
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
   let cleanUrl = url.trim();
   if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = 'https://' + cleanUrl;
-  // Accept a user-supplied logo URL if it looks like a real image link
-  const suppliedLogo = (logo_url && /^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(logo_url.trim()))
-    ? logo_url.trim().slice(0, 500)
-    : null;
+
+  // Block spam, gambling, and physical goods
+  if (isSpamSubmission(name, description || '', cleanUrl)) {
+    return res.status(400).json({ error: 'not_eligible', message: 'ToolIndex lists software products and SaaS tools only. Physical goods, gambling, and unrelated services are not accepted.' });
+  }
+
+  // Accept a user-supplied logo only if it's a real image and not an og:image/hero
+  const rawLogo = logo_url && /^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(logo_url.trim()) ? logo_url.trim() : null;
+  const _HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
+  const suppliedLogo = rawLogo && !_HERO_PAT.some(re => re.test(rawLogo)) ? rawLogo.slice(0, 500) : null;
   try {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
@@ -2440,7 +2464,7 @@ app.post('/api/directory/submit', async (req, res) => {
     } catch(e) {
       console.error(`[submit] boost error:`, e.message);
     }
-    res.json({ success: true, id });
+    res.json({ success: true, id, name: name.slice(0,80) });
   } catch (err) {
     console.error('[directory] submit error:', err.message);
     res.status(500).json({ error: 'db_error' });
@@ -3570,9 +3594,12 @@ const SPONSOR_TIERS = {
 const SPONSOR_MAX_SLOTS = 3;
 
 // ── Directory: compute current period winners from dir_votes ─────────────────
-// Returns { day: id|null, week: id|null, month: id|null }
-// Called at request-time, never cached — always reflects live votes.
+// Cached for 5 minutes to reduce DB load on high-traffic badge requests.
+let _winnersCache = { data: null, at: 0 };
+const WINNERS_TTL = 5 * 60 * 1000;
+
 async function computeWinners() {
+  if (_winnersCache.data && Date.now() - _winnersCache.at < WINNERS_TTL) return _winnersCache.data;
   try {
     const r = await pool.query(`
       SELECT
@@ -3590,10 +3617,12 @@ async function computeWinners() {
          GROUP BY listing_id ORDER BY COUNT(*) DESC, listing_id ASC LIMIT 1) AS month_winner
     `);
     const row = r.rows[0] || {};
-    return { day: row.day_winner || null, week: row.week_winner || null, month: row.month_winner || null };
+    const data = { day: row.day_winner || null, week: row.week_winner || null, month: row.month_winner || null };
+    _winnersCache = { data, at: Date.now() };
+    return data;
   } catch(e) {
     console.error('[computeWinners]', e.message);
-    return { day: null, week: null, month: null };
+    return _winnersCache.data || { day: null, week: null, month: null };
   }
 }
 
@@ -3619,9 +3648,12 @@ async function computeWinnerForRange(start, end) {
 }
 
 // ── Directory: compute trending listings ──────────────────────────────────────
-// Eligible: ≥3 votes in last 24h AND more than previous 24h.
-// Returns array of { id, cur, prev, pct } sorted by pct desc.
+// Eligible: ≥3 votes in last 24h AND more than previous 24h. Cached 5 min.
+let _trendingCache = { data: null, at: 0 };
+const TRENDING_TTL = 5 * 60 * 1000;
+
 async function computeTrending() {
+  if (_trendingCache.data && Date.now() - _trendingCache.at < TRENDING_TTL) return _trendingCache.data;
   try {
     const r = await pool.query(`
       SELECT
@@ -3637,7 +3669,7 @@ async function computeTrending() {
       HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours'
                                 AND voted_at <= NOW()) >= 3
     `);
-    return r.rows
+    const data = r.rows
       .filter(row => row.cur > row.prev)
       .map(row => ({
         id:   row.id,
@@ -3646,9 +3678,11 @@ async function computeTrending() {
         pct:  row.prev > 0 ? Math.round(((row.cur - row.prev) / row.prev) * 100) : 100,
       }))
       .sort((a, b) => b.pct - a.pct);
+    _trendingCache = { data, at: Date.now() };
+    return data;
   } catch(e) {
     console.error('[computeTrending]', e.message);
-    return [];
+    return _trendingCache.data || [];
   }
 }
 
@@ -3736,6 +3770,21 @@ async function handleDirectoryPayment(session) {
       console.log(`[dir-boost] ${listingName} activated as #1 today until ${exp.toISOString()}`);
     } else {
       console.log(`[dir-boost-schedule] ${listingName} booked slot for ${boostDate} — cron will activate`);
+      // Confirmation email to buyer for future-dated boost
+      if (email) {
+        resend.emails.send({
+          from: SENDER,
+          to:   email,
+          subject: `Your ToolIndex Daily Boost is confirmed for ${boostDate}`,
+          html: `<div style="font-family:sans-serif;max-width:500px;margin:auto;background:#0a1628;color:#eef1f7;padding:24px;border-radius:12px;border:1px solid rgba(0,212,200,0.2);">
+            <p style="color:#00d4c8;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 16px;">ToolIndex — Boost Confirmed</p>
+            <h2 style="font-size:18px;margin:0 0 12px;">Your Daily Boost is booked ✅</h2>
+            <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 12px;"><strong style="color:#eef1f7;">${escHtml(listingName)}</strong> will be pinned to <strong>#1</strong> on ToolIndex on <strong style="color:#00d4c8;">${boostDate}</strong>.</p>
+            <p style="color:#94a3b8;font-size:13px;">Your listing will automatically move to the top of the directory on that date and stay there for 24 hours.</p>
+            <p style="color:#475569;font-size:11px;margin-top:20px;">Questions? Reply to this email.</p>
+          </div>`
+        }).catch(() => {});
+      }
     }
   } else {
   // ── Founder Pack + other tiers: featured placement in dir_featured ─────────
@@ -4666,10 +4715,21 @@ function emailMatchesDomain(email, productUrl) {
 }
 
 // ── POST /api/directory/claim/start ──────────────────────────────────────────
+// OTP rate limiting: max 1 email per listing+email combo every 5 minutes
+const _otpRateLimit = new Map();
+const OTP_COOLDOWN_MS = 5 * 60 * 1000;
+
 app.post('/api/directory/claim/start', async (req, res) => {
   const { listing_id, email } = req.body || {};
   if (!listing_id || !email || !email.includes('@'))
     return res.status(400).json({ error: 'listing_id and valid email required' });
+
+  const rlKey = `${email.toLowerCase()}:${listing_id}`;
+  const lastSent = _otpRateLimit.get(rlKey);
+  if (lastSent && Date.now() - lastSent < OTP_COOLDOWN_MS) {
+    const waitSec = Math.ceil((OTP_COOLDOWN_MS - (Date.now() - lastSent)) / 1000);
+    return res.status(429).json({ error: 'rate_limited', message: `Please wait ${waitSec}s before requesting another code.` });
+  }
 
   try {
     const row = await pool.query(
@@ -4707,6 +4767,7 @@ app.post('/api/directory/claim/start', async (req, res) => {
       </div>`
     });
 
+    _otpRateLimit.set(rlKey, Date.now());
     console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}`);
     res.json({ ok: true });
   } catch(err) {
@@ -6751,6 +6812,18 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] dir_daily_section:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dds_date ON dir_daily_section(display_date DESC)`).catch(()=>{});
+
+  // ── Daily vote snapshots — one row per active listing per day for climber stats
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_vote_snapshots (
+      id           SERIAL PRIMARY KEY,
+      listing_id   INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      snapshot_date DATE    NOT NULL,
+      vote_count    INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(listing_id, snapshot_date)
+    )
+  `).catch(e => console.error('[DB] dir_vote_snapshots:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dvs_date ON dir_vote_snapshots(snapshot_date DESC)`).catch(()=>{});
 
   // ── Force-deactivate known non-SaaS listings (runs on every deploy) ─────
   await pool.query(
@@ -18904,6 +18977,31 @@ ${content}
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
   cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));
+
+  // ── Daily 23:55 UTC: snapshot vote counts for Biggest Climber ───────────────
+  cron.schedule('55 23 * * *', async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await pool.query(`
+        INSERT INTO dir_vote_snapshots (listing_id, snapshot_date, vote_count)
+        SELECT id, $1::date, vote_count FROM directory_listings WHERE status='active'
+        ON CONFLICT (listing_id, snapshot_date) DO UPDATE SET vote_count=EXCLUDED.vote_count
+      `, [today]);
+      console.log('[cron] Daily vote snapshot saved for', today);
+    } catch(e) { console.error('[cron] vote-snapshot error:', e.message); }
+  });
+
+  // ── Weekly Sunday 03:30 UTC: force-refresh brand marquee favicons ────────────
+  cron.schedule('30 3 * * 0', async () => {
+    try {
+      for (const d of BRAND_MARQUEE_DOMAINS) {
+        const f = path.join(BRAND_FAVICON_DIR, `${d}.png`);
+        await fs.promises.unlink(f).catch(()=>{});
+      }
+      await cacheBrandFavicons();
+      console.log('[cron] Brand marquee favicons re-cached');
+    } catch(e) { console.error('[cron] brand-favicon refresh error:', e.message); }
+  });
 
   // ── Weekly directory aggregation (Sunday 03:00) ────────────────────────────
   cron.schedule('0 3 * * 0', async () => {
