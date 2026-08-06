@@ -1784,7 +1784,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     <!-- DAILY BOOST: date calendar (hidden for other tiers) -->
     <div id="boostDateWrap" style="display:none;margin:12px 0 4px;">
-      <div style="font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#475569;margin-bottom:8px;">Pick a date — one listing per day</div>
+      <div style="font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#475569;margin-bottom:8px;">Pick a date for your Daily Boost</div>
       <div id="boostDateGrid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
       <div id="boostDateSelected" style="font-size:11px;font-family:var(--mono);color:#00d4c8;margin-top:8px;min-height:16px;"></div>
     </div>
@@ -1983,7 +1983,7 @@ function renderCard(l){
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
-        <button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}')">⚡ Boost from $9</button>
+        <button class="dir-boost-btn" type="button" data-boost-id="${l.id}" data-boost-name="${escHtml(l.name)}">⚡ Boost from $9</button>
       </div>
     </div>
   </div>`;
@@ -2319,6 +2319,15 @@ document.addEventListener('click',function(e){
   document.querySelectorAll('.dir-pulse-tab').forEach(t=>t.classList.remove('active'));
   tab.classList.add('active');
   loadRecentLaunches(tab.dataset.interval);
+});
+
+// ── Delegated: card ⚡ Boost button → open modal directly (no scroll) ─────────
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.dir-boost-btn[data-boost-id]');
+  if (!btn) return;
+  const id   = parseInt(btn.dataset.boostId, 10);
+  const name = btn.dataset.boostName;
+  openBoostModal(id, name);
 });
 
 // ── Recently Claimed ──────────────────────────────────────────────────────────
@@ -3512,11 +3521,7 @@ function renderBoostDateCalendar(d){
 
   grid.innerHTML = (d.available||[]).map(dateStr=>{
     const label = dateStr === today ? 'Today' : new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    const booked = bookedMap[dateStr];
     const isSelected = dateStr === _boostSelectedDate;
-    if(booked){
-      return `<button class="bdc-btn bdc-taken" title="Booked by ${booked}" disabled>${label}<br><span style="font-size:9px;opacity:.6;">Taken</span></button>`;
-    }
     return `<button class="bdc-btn${isSelected?' bdc-sel':''}" onclick="pickBoostDate('${dateStr}',this)">${label}</button>`;
   }).join('');
 

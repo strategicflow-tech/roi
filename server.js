@@ -4493,12 +4493,7 @@ app.post('/api/directory/checkout', async (req, res) => {
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRe.test(targetDate)) return res.status(400).json({ error: 'invalid_date' });
     if (targetDate < new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'date_in_past' });
-    const conflict = await pool.query(
-      `SELECT id FROM dir_boost_schedule WHERE boost_date=$1`, [targetDate]
-    ).catch(() => null);
-    if (conflict?.rows?.length) {
-      return res.status(409).json({ error: 'date_booked', message: 'That date is already taken.' });
-    }
+    // No per-day slot limit — multiple listings can boost on the same date
   }
 
   try {
