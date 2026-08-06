@@ -342,6 +342,11 @@ a:hover{text-decoration:underline;}
 .tier-perks li::before{content:'✓';color:var(--teal);flex-shrink:0;font-weight:700;}
 .tier-option.selected .tier-perks li{color:rgba(255,255,255,0.65);}
 .tier-option.selected .tier-perks li::before{color:var(--teal);}
+/* Boost date calendar */
+.bdc-btn{padding:6px 10px;border-radius:7px;border:1px solid rgba(0,212,200,0.25);background:transparent;color:#cbd5e1;font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;line-height:1.3;text-align:center;}
+.bdc-btn:hover{border-color:var(--teal);color:var(--teal);background:rgba(0,212,200,0.07);}
+.bdc-btn.bdc-sel{border-color:var(--teal);color:#041214;background:var(--teal);font-weight:700;}
+.bdc-btn.bdc-taken{border-color:rgba(255,255,255,0.08);color:#334155;background:rgba(255,255,255,0.02);cursor:not-allowed;}
 
 /* LEADERBOARD */
 .dir-leaderboard-section{padding:0 40px 36px;}
@@ -1761,6 +1766,13 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     </div>
 
+    <!-- DAILY BOOST: date calendar (hidden for other tiers) -->
+    <div id="boostDateWrap" style="display:none;margin:12px 0 4px;">
+      <div style="font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#475569;margin-bottom:8px;">Pick a date — one listing per day</div>
+      <div id="boostDateGrid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div id="boostDateSelected" style="font-size:11px;font-family:var(--mono);color:#00d4c8;margin-top:8px;min-height:16px;"></div>
+    </div>
+
     <div class="modal-email-label">Your email (receipt + confirmation)</div>
     <input type="email" class="modal-email-input" id="boostEmail" placeholder="you@company.com" />
 
@@ -2548,7 +2560,7 @@ function loadActivityFeed(){
   if(!section||!grid) return;
   fetch('/api/directory/activity-feed')
     .then(r=>r.json())
-    .then(({events=[],top3=[]})=>{
+    .then(({events=[],top3=[],top3Period='today'})=>{
       const medals=['🥇','🥈','🥉'];
       const icons  ={claimed:'✅',joined:'🆕',boosted:'⚡',climbed:'📈'};
       const labels ={claimed:'claimed their listing',joined:'just joined ToolIndex',boosted:'boosted their listing',climbed:'is climbing the ranks'};
@@ -2558,9 +2570,10 @@ function loadActivityFeed(){
           <div class="dir-activity-text">${icons[e.type]||'→'} <strong>${escHtml(e.name)}</strong> ${labels[e.type]||'was updated'}</div>
           <div class="dir-activity-time">${timeAgo(e.occurred_at)}</div>
         </div>`).join('');
-      // Top-3 snapshot row
+      // Top-3 snapshot row — always shown if data exists (today or 7d fallback)
+      const top3Label = top3Period==='today' ? "Today's Top 3" : "Top 3 This Week";
       const top3Html = top3.length
-        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">Today's Top 3</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#475569;">${p.votes}v</span></span>`).join('')}</div>`
+        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">${top3Label}</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#475569;">${p.votes}v</span></span>`).join('')}</div>`
         : '';
       grid.innerHTML = rows + top3Html;
       if(age) age.textContent = 'Updated just now';
@@ -2586,16 +2599,29 @@ function loadCategoryLeaders(){
 function updateCatLeaderBadge(cat){
   const el = document.getElementById('dirCatLeader');
   if(!el) return;
-  if(cat==='All'||!_catLeaders[cat]){
-    el.style.display='none';
-    el.innerHTML='';
+
+  if(cat==='All'){
+    // On "All" view: show top listing across all categories (most today_votes)
+    const allLeaders = Object.values(_catLeaders);
+    if(!allLeaders.length){ el.style.display='none'; el.innerHTML=''; return; }
+    const top = allLeaders.sort((a,b)=>b.today_votes-a.today_votes)[0];
+    const slug = (top.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/,'')+'-'+top.id;
+    el.style.display='';
+    el.innerHTML=`<div class="dir-cat-leader">
+      <span class="dir-cat-leader-label">🏆 Today's Overall #1</span>
+      <a href="/directory/${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(top.name)}</a>
+      <span style="font-size:10px;font-family:var(--mono);color:#475569;margin-left:4px;">${escHtml(top.category)}</span>
+      <span class="dir-cat-leader-votes">${top.today_votes} vote${top.today_votes!==1?'s':''} today</span>
+    </div>`;
     return;
   }
+
+  if(!_catLeaders[cat]){ el.style.display='none'; el.innerHTML=''; return; }
   const leader = _catLeaders[cat];
   const slug = (leader.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/,'')+'-'+leader.id;
   el.style.display='';
   el.innerHTML=`<div class="dir-cat-leader">
-    <span class="dir-cat-leader-label">Today's #1 in ${escHtml(cat)}</span>
+    <span class="dir-cat-leader-label">🏆 Today's #1 in ${escHtml(cat)}</span>
     <a href="/directory/${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(leader.name)}</a>
     <span class="dir-cat-leader-votes">${leader.today_votes} vote${leader.today_votes!==1?'s':''} today</span>
   </div>`;
@@ -3245,7 +3271,13 @@ function openBoostModal(id, name, tier='weekly_feature'){
   document.getElementById('boostListingName').textContent = name || 'your product';
   document.getElementById('boostEmail').value = '';
   selectedTier = tier;
+  _boostSelectedDate = null;
+  _boostDatesCache = null; // always refresh dates when modal opens
   document.querySelectorAll('.tier-option').forEach(o => o.classList.toggle('selected', o.dataset.tier===tier));
+  // Show/hide calendar based on pre-selected tier
+  const wrap = document.getElementById('boostDateWrap');
+  if(wrap) wrap.style.display = tier === 'daily_top' ? '' : 'none';
+  if(tier === 'daily_top') loadBoostDateCalendar();
   document.getElementById('boostModal').classList.add('open');
   document.body.style.overflow='hidden';
   updateCtaLabel();
@@ -3355,21 +3387,89 @@ function closeBoostModal(e){
   document.body.style.overflow='';
 }
 
+let _boostDatesCache = null;
+let _boostSelectedDate = null;
+
 function selectTier(el){
   selectedTier = el.dataset.tier;
   document.querySelectorAll('.tier-option').forEach(o=>o.classList.toggle('selected',o===el));
   updateCtaLabel();
+  const wrap = document.getElementById('boostDateWrap');
+  if(selectedTier === 'daily_top'){
+    wrap.style.display = '';
+    loadBoostDateCalendar();
+  } else {
+    wrap.style.display = 'none';
+    _boostSelectedDate = null;
+  }
+}
+
+function loadBoostDateCalendar(){
+  const grid = document.getElementById('boostDateGrid');
+  if(!grid) return;
+  if(_boostDatesCache){
+    renderBoostDateCalendar(_boostDatesCache);
+    return;
+  }
+  grid.innerHTML = '<span style="font-size:11px;font-family:var(--mono);color:#475569;">Loading…</span>';
+  fetch('/api/directory/boost-dates')
+    .then(r=>r.json())
+    .then(d=>{
+      _boostDatesCache = d;
+      renderBoostDateCalendar(d);
+    })
+    .catch(()=>{ grid.innerHTML='<span style="font-size:11px;color:#ef4444;">Could not load dates.</span>'; });
+}
+
+function renderBoostDateCalendar(d){
+  const grid = document.getElementById('boostDateGrid');
+  const selEl = document.getElementById('boostDateSelected');
+  if(!grid) return;
+  const bookedMap = {};
+  (d.booked||[]).forEach(b=>{ bookedMap[b.date]=b.listing_name; });
+  const today = new Date().toISOString().slice(0,10);
+
+  grid.innerHTML = (d.available||[]).map(dateStr=>{
+    const label = dateStr === today ? 'Today' : new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const booked = bookedMap[dateStr];
+    const isSelected = dateStr === _boostSelectedDate;
+    if(booked){
+      return `<button class="bdc-btn bdc-taken" title="Booked by ${booked}" disabled>${label}<br><span style="font-size:9px;opacity:.6;">Taken</span></button>`;
+    }
+    return `<button class="bdc-btn${isSelected?' bdc-sel':''}" onclick="pickBoostDate('${dateStr}',this)">${label}</button>`;
+  }).join('');
+
+  if(_boostSelectedDate && selEl){
+    selEl.textContent = `✓ Selected: ${_boostSelectedDate === today ? 'Today' : _boostSelectedDate}`;
+  }
+}
+
+function pickBoostDate(dateStr, btn){
+  _boostSelectedDate = dateStr;
+  document.querySelectorAll('.bdc-btn').forEach(b=>b.classList.remove('bdc-sel'));
+  btn.classList.add('bdc-sel');
+  const selEl = document.getElementById('boostDateSelected');
+  const today = new Date().toISOString().slice(0,10);
+  if(selEl) selEl.textContent = `✓ ${dateStr===today?'Activates today':'Scheduled for '+dateStr}`;
 }
 
 async function startCheckout(){
   const email = document.getElementById('boostEmail').value.trim();
   if(!email || !email.includes('@')){ document.getElementById('boostEmail').focus(); return; }
+  // Daily Boost requires a date selection
+  if(selectedTier === 'daily_top' && !_boostSelectedDate){
+    document.getElementById('boostDateSelected').textContent = '⚠ Please pick a date above.';
+    document.getElementById('boostDateSelected').style.color = '#f59e0b';
+    return;
+  }
   const btn = document.getElementById('boostCta');
   btn.disabled=true; btn.textContent='Redirecting to Stripe…';
+  const body = { listing_id: boostListingId, tier: selectedTier, email };
+  if(selectedTier === 'daily_top' && _boostSelectedDate) body.boost_date = _boostSelectedDate;
   try{
     const r = await fetch('/api/directory/checkout',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ listing_id: boostListingId, tier: selectedTier, email })
+      body: JSON.stringify(body)
     });
     const d = await r.json();
     if(d.url) window.location.href = d.url;

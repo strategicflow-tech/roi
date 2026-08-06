@@ -4502,14 +4502,31 @@ app.get('/api/directory/activity-feed', async (req, res) => {
         ORDER BY occurred_at DESC LIMIT 20
       `),
       pool.query(`
-        SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
-        FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
-        WHERE dl.status='active'
-          AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-        GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
+        WITH today AS (
+          SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+          FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
+          WHERE dl.status='active'
+            AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+          GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
+        ),
+        fallback AS (
+          SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+          FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
+          WHERE dl.status='active'
+            AND dv.voted_at >= NOW() - INTERVAL '7 days'
+          GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
+        )
+        SELECT *, (SELECT COUNT(*) FROM today) > 0 AS is_today
+        FROM (
+          SELECT * FROM today
+          UNION ALL
+          SELECT id, name, votes FROM fallback WHERE (SELECT COUNT(*) FROM today) = 0
+        ) t LIMIT 3
       `),
     ]);
-    res.json({ events: eventsRes.rows, top3: top3Res.rows });
+    const top3 = top3Res.rows;
+    const top3Period = top3.length > 0 && top3[0].is_today ? 'today' : '7d';
+    res.json({ events: eventsRes.rows, top3, top3Period });
   } catch(e) {
     console.error('[activity-feed]', e.message);
     res.status(500).json({ events: [], top3: [] });
@@ -4630,6 +4647,59 @@ app.post('/api/directory/vote/:id', async (req, res) => {
                <p style="color:#888;font-size:12px;">You're receiving this because you claimed this listing.</p>`
       }).catch(() => {});
     }
+
+    // ── Competitor rank-change notification ───────────────────────────────────
+    // If this vote caused the listing to overtake a claimed competitor, notify them.
+    setImmediate(async () => {
+      try {
+        // Get this listing's category + new rank
+        const meRow = await pool.query(
+          `SELECT dl.category,
+                  (SELECT COUNT(*)::int FROM directory_listings
+                   WHERE status='active' AND category=dl.category
+                     AND vote_count > $2) + 1 AS new_rank
+           FROM directory_listings dl WHERE dl.id=$1`,
+          [lid, newCount]
+        );
+        if (!meRow.rows.length) return;
+        const { category, new_rank: myRank } = meRow.rows[0];
+
+        // Find claimed competitors that this listing just overtook
+        // (their rank is now higher number than ours, meaning we passed them)
+        const overtaken = await pool.query(
+          `SELECT dl.id, dl.name, dc.owner_email,
+                  (SELECT COUNT(*)::int FROM directory_listings
+                   WHERE status='active' AND category=$2
+                     AND vote_count > dl.vote_count) + 1 AS their_rank
+           FROM directory_listings dl
+           JOIN dir_claims dc ON dc.listing_id=dl.id AND dc.is_verified=TRUE
+           WHERE dl.status='active' AND dl.category=$2 AND dl.id!=$1
+             AND dc.owner_email IS NOT NULL
+             AND dl.vote_count = $3 - 1`,  // we just passed them (they have one fewer vote)
+          [lid, category, newCount]
+        );
+
+        for (const comp of overtaken.rows) {
+          if (BYPASS_EMAILS.has((comp.owner_email || '').toLowerCase())) continue;
+          resend.emails.send({
+            from: SENDER,
+            to:   comp.owner_email,
+            subject: `${listingName} just passed you in ${category} — you're now #${comp.their_rank}`,
+            html: `<div style="font-family:sans-serif;max-width:500px;margin:auto;background:#0a1628;color:#eef1f7;padding:24px;border-radius:12px;border:1px solid rgba(0,212,200,0.2);">
+              <p style="color:#00d4c8;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 16px;">ToolIndex — Rank Change Alert</p>
+              <h2 style="font-size:18px;margin:0 0 12px;"><strong>${escHtml(listingName)}</strong> just moved ahead of <strong>${escHtml(comp.name)}</strong> in <strong>${escHtml(category)}</strong></h2>
+              <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 16px;">Your listing is now <strong>#${comp.their_rank}</strong> in this category. A Daily Boost ($9) pins you to #1 for 24 hours.</p>
+              <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;margin-top:8px;padding:10px 20px;background:#00d4c8;color:#041214;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Reclaim your spot →</a>
+              <p style="color:#475569;font-size:11px;margin-top:20px;">You're receiving this because you claimed ${escHtml(comp.name)} on ToolIndex.</p>
+            </div>`
+          }).catch(() => {});
+        }
+        if (overtaken.rows.length > 0)
+          console.log(`[vote-rank-notif] ${listingName} overtook ${overtaken.rows.length} listing(s) in "${category}"`);
+      } catch(e) {
+        console.error('[vote-rank-notif]', e.message);
+      }
+    });
   } catch(err) {
     console.error('[dir-vote]', err.message);
     res.status(500).json({ error: 'db_error' });
