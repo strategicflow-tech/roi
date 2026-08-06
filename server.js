@@ -3163,13 +3163,14 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
   try {
     const base = 'https://strategic-flow-audit.replit.app';
     const { rows } = await pool.query(`
-      SELECT id, name, category, status,
-             regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g') || '-' || id::text AS slug,
-             contact_email, social_linkedin, source,
-             outreach_emailed_at, claimed_at, follow_up_sent_at
-      FROM directory_listings
-      WHERE status IN ('active', 'draft')
-      ORDER BY id DESC
+      SELECT dl.id, dl.name, dl.category, dl.status,
+             regexp_replace(lower(dl.name), '[^a-z0-9]+', '-', 'g') || '-' || dl.id::text AS slug,
+             dl.contact_email, dl.social_linkedin, dl.source,
+             dl.outreach_emailed_at, dl.claimed_at, dl.follow_up_sent_at,
+             (SELECT COUNT(*) FROM dir_claims dc WHERE dc.listing_id = dl.id) > 0 AS is_claimed
+      FROM directory_listings dl
+      WHERE dl.status IN ('active', 'draft')
+      ORDER BY dl.id DESC
     `);
     const data = rows.map(r => ({
       id:               String(r.id),
@@ -3181,7 +3182,7 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
       big:              false,
       status:           r.status || 'active',
       emailed_at:       r.outreach_emailed_at ? r.outreach_emailed_at.toISOString() : null,
-      claimed_at:       r.claimed_at         ? r.claimed_at.toISOString()         : null,
+      claimed_at:       r.is_claimed ? (r.claimed_at ? r.claimed_at.toISOString() : 'claimed') : null,
       follow_up_sent_at: r.follow_up_sent_at ? r.follow_up_sent_at.toISOString()  : null,
     }));
     res.setHeader('Cache-Control', 'no-store');
@@ -3290,6 +3291,13 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
     if (listing.outreach_emailed_at) {
       return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
+    }
+    // Never send outreach to a claimed listing — owner already knows about ToolIndex
+    const claimCheck = await pool.query(
+      `SELECT id FROM dir_claims WHERE listing_id=$1 LIMIT 1`, [listingId]
+    );
+    if (claimCheck.rows.length) {
+      return res.status(409).json({ error: 'already_claimed', message: 'Listing is already claimed — skip outreach' });
     }
     const slug = toListingSlug(listing.name, listing.id);
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;

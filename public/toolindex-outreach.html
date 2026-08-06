@@ -517,7 +517,8 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
   batchBtn.addEventListener('click', async ()=>{
     if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
     // Use full DATA regardless of active tab/filter/search
-    const fullQueue = DATA.filter(d => d.email && !d.emailed_at);
+    // Exclude claimed listings — owner already knows about ToolIndex
+    const fullQueue = DATA.filter(d => d.email && !d.emailed_at && !d.claimed_at);
     if(!fullQueue.length){
       alert('Coada reală e goală — nicio listare cu email nerămasă de trimis în întregul dataset.');
       return;
