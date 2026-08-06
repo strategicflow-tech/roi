@@ -5239,7 +5239,7 @@ app.get('/api/directory/category-counts', async (req, res) => {
       GROUP BY category
       ORDER BY cnt DESC
     `);
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('Cache-Control', 'public, max-age=60');
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -6750,6 +6750,12 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] dir_daily_section:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dds_date ON dir_daily_section(display_date DESC)`).catch(()=>{});
+
+  // ── Force-deactivate known non-SaaS listings (runs on every deploy) ─────
+  await pool.query(
+    `UPDATE directory_listings SET status='inactive'
+     WHERE id IN (111, 169) AND status='active'`
+  ).catch(()=>{});
 
   // ── Idempotent deduplication migration ───────────────────────────────────
   // Runs after dir_votes + its indexes exist. Safe to re-run — the check

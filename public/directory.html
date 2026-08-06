@@ -2648,6 +2648,19 @@ function loadCollections(){
     .catch(()=>{el.innerHTML='';});
 }
 
+// Deterministic seeded shuffle — changes every ROTATION_HOURS hours
+const ROTATION_HOURS = 4;
+function _timeSeed(){ return Math.floor(Date.now() / (ROTATION_HOURS * 3600 * 1000)); }
+function _seededShuffle(arr, seed){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const x = (Math.abs(Math.sin(seed * 9301 + i * 49297 + 233) * 1e9) | 0);
+    const j = x % (i + 1);
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
 function applyFilters(){
   let items = allListings;
   if(activeCategory !== 'All') items = items.filter(l => l.category === activeCategory);
@@ -2658,6 +2671,13 @@ function applyFilters(){
       (l.description||'').toLowerCase().includes(q)||
       (l.category||'').toLowerCase().includes(q)
     );
+  }
+  // Rotate the main "All" grid every 4 hours — keep featured pinned at top,
+  // shuffle everything else so different apps get visibility each cycle.
+  if(activeCategory === 'All' && !searchQuery){
+    const featured = items.filter(l => l.featured_tier);
+    const rest     = items.filter(l => !l.featured_tier);
+    items = featured.concat(_seededShuffle(rest, _timeSeed()));
   }
   filteredListings = items;
   visibleCount = INITIAL_SIZE;
