@@ -16500,6 +16500,48 @@ setupDB().then(async () => {
   await runMonthlyAudit();
   cacheBrandFavicons().catch(() => {}); // non-blocking; marquee degrades gracefully
 
+  // ── Auto-fix "Other" listings & missing logos on every startup ───────────────
+  // Triggers only if there's work to do; safe to run on every deploy.
+  setImmediate(async () => {
+    try {
+      const otherCount = await pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND category='Other'`);
+      if (otherCount.rows[0].n > 0 && !_recategorizeRunning) {
+        console.log(`[startup] ${otherCount.rows[0].n} "Other" listings found — starting auto-recategorize`);
+        _recategorizeRunning = true;
+        (async () => {
+          try {
+            const {rows} = await pool.query(`SELECT id,name,url,description FROM directory_listings WHERE status='active' AND category='Other' ORDER BY vote_count DESC,id`);
+            const stats={};
+            for(const row of rows){
+              try{
+                const prompt=`Classify this SaaS product into one of these categories:\n${_VALID_CATS.join(', ')}\n\nProduct: ${row.name}\nURL: ${row.url}\nDescription: ${(row.description||'').slice(0,300)}\n\nReply with ONLY the category name, nothing else.`;
+                const msg=await claude.messages.create({model:'claude-haiku-4-5',max_tokens:20,messages:[{role:'user',content:prompt}]});
+                const cat=(msg.content[0]?.text||'').trim().replace(/['"]/g,'');
+                const finalCat=_VALID_CATS.includes(cat)?cat:'General';
+                await pool.query('UPDATE directory_listings SET category=$1 WHERE id=$2',[finalCat,row.id]);
+                stats[finalCat]=(stats[finalCat]||0)+1;
+                console.log(`[recategorize] ${row.name}(${row.id}) → ${finalCat}`);
+              }catch(e){console.error(`[recategorize] ${row.id} err:`,e.message);}
+              await new Promise(r=>setTimeout(r,3500));
+            }
+            console.log('[recategorize] Done. Distribution:', JSON.stringify(stats));
+          }catch(e){console.error('[recategorize] fatal:',e.message);}
+          _recategorizeRunning=false;
+        })();
+      }
+    } catch(e) { console.error('[startup] recategorize-check err:', e.message); }
+
+    try {
+      const noLogoCount = await pool.query(`SELECT COUNT(*)::int AS n FROM directory_listings WHERE status='active' AND (image_url IS NULL OR image_url='' OR image_url LIKE '%google.com/s2/favicons%')`);
+      if (noLogoCount.rows[0].n > 0 && !_backfillLogosRunning) {
+        console.log(`[startup] ${noLogoCount.rows[0].n} listings without real logos — starting auto-backfill`);
+        // Trigger via internal call (reuses the same logic as /admin/backfill-logos)
+        fetch(`http://localhost:${process.env.PORT||3000}/admin/backfill-logos?key=${process.env.WHY_ADMIN_KEY}`)
+          .catch(()=>{});
+      }
+    } catch(e) { console.error('[startup] logo-backfill-check err:', e.message); }
+  });
+
   // Bootstrap TEARDOWN_COUNT from DB if not already set via env var
   if (!process.env.TEARDOWN_COUNT) {
     try {
