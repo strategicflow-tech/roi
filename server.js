@@ -3360,6 +3360,99 @@ app.get('/admin/enrich-listings', async (req, res) => {
   res.end();
 });
 
+// ── GET /admin/backfill-logos?key=… — fetch real logos for Google-favicon-only listings ─────
+let _backfillLogosRunning = false;
+app.get('/admin/backfill-logos', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (_backfillLogosRunning) return res.json({ ok: false, message: 'Already running' });
+  res.json({ ok: true, message: 'Logo backfill started in background — check server logs' });
+
+  _backfillLogosRunning = true;
+  (async () => {
+    console.log('[backfill-logos] Starting Task #23 — backfill real logos');
+    const HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
+    const CDN_SET = new Set(['s3.amazonaws.com','cloudfront.net','cloudinary.com','imgix.net','imagekit.io','res.cloudinary.com','cdn.shopify.com','logo.clearbit.com']);
+    function validateLogo(url, domain) {
+      if (!url) return false;
+      if (HERO_PAT.some(re => re.test(url))) return false;
+      try {
+        const h = new URL(url).hostname.replace(/^www\./,'');
+        if (h===domain||h.endsWith('.'+domain)||domain.endsWith('.'+h)) return true;
+        if (h.split('.').slice(-2).join('.')===domain.split('.').slice(-2).join('.')) return true;
+        for(const cdn of CDN_SET) if(h===cdn||h.endsWith('.'+cdn)) return true;
+        return false;
+      } catch { return false; }
+    }
+    async function timedFetch(u,ms=7000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);try{return await fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}});}finally{clearTimeout(t);}}
+    async function getBetterLogo(siteUrl) {
+      let base,domain;
+      try{const p=new URL(siteUrl);base=p.origin;domain=p.hostname.replace(/^www\/./,'');}catch{return null;}
+      try{const r=await timedFetch(`${base}/apple-touch-icon.png`,5000);if(r.ok&&r.headers.get('content-type')?.startsWith('image'))return`${base}/apple-touch-icon.png`;}catch{}
+      try{
+        const r=await timedFetch(siteUrl,8000);
+        if(r.ok){
+          const html=(await r.text()).slice(0,30000);
+          const ogM=html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)||html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+          if(ogM){const c=new URL(ogM[1],base).href;if(validateLogo(c,domain))return c;}
+          const re=/<link[^>]+rel=["'][^"']*icon[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>/gi;let m;
+          while((m=re.exec(html))!==null){const c=new URL(m[1],base).href;if(/\.(png|svg|webp)(\?|$)/i.test(c)&&!HERO_PAT.some(p=>p.test(c)))return c;}
+        }
+      }catch{}
+      try{const r=await timedFetch(`${base}/favicon.ico`,5000);if(r.ok)return`${base}/favicon.ico`;}catch{}
+      return`https://logo.clearbit.com/${domain}?size=128`;
+    }
+    try {
+      const {rows} = await pool.query(`SELECT id,name,url FROM directory_listings WHERE status='active' AND (image_url IS NULL OR image_url='' OR image_url LIKE '%google.com/s2/favicons%') ORDER BY vote_count DESC,id`);
+      console.log(`[backfill-logos] ${rows.length} listings to process`);
+      let upgraded=0,failed=0;
+      for(const row of rows){
+        try{
+          const logo=await getBetterLogo(row.url);
+          if(logo){await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2',[logo,row.id]);upgraded++;}
+          else failed++;
+          console.log(`[backfill-logos] ${row.name}(${row.id}) → ${logo||'none'}`);
+        }catch(e){failed++;console.error(`[backfill-logos] ${row.id} err:`,e.message);}
+        await new Promise(r=>setTimeout(r,2000));
+      }
+      console.log(`[backfill-logos] Done. upgraded=${upgraded} failed=${failed}`);
+    } catch(e) { console.error('[backfill-logos] fatal:', e.message); }
+    _backfillLogosRunning = false;
+  })();
+});
+
+// ── GET /admin/recategorize-other?key=… — re-classify "Other" listings via Claude ────────
+let _recategorizeRunning = false;
+const _VALID_CATS = ['AI Tools','Developer Tools','Design','Productivity','Marketing','Social Media','Analytics','Finance','Sales','Education','No-Code','Directories','HR & Recruiting','General'];
+app.get('/admin/recategorize-other', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (_recategorizeRunning) return res.json({ ok: false, message: 'Already running' });
+  res.json({ ok: true, message: 'Recategorize started in background — check server logs' });
+
+  _recategorizeRunning = true;
+  (async () => {
+    console.log('[recategorize] Starting Task #114 — re-classify Other listings');
+    try {
+      const {rows} = await pool.query(`SELECT id,name,url,description FROM directory_listings WHERE status='active' AND category='Other' ORDER BY vote_count DESC,id`);
+      console.log(`[recategorize] ${rows.length} listings to classify`);
+      const stats={};
+      for(const row of rows){
+        try{
+          const prompt=`Classify this SaaS product into one of these categories:\n${_VALID_CATS.join(', ')}\n\nProduct: ${row.name}\nURL: ${row.url}\nDescription: ${(row.description||'').slice(0,300)}\n\nReply with ONLY the category name, nothing else.`;
+          const msg=await claude.messages.create({model:'claude-haiku-4-5',max_tokens:20,messages:[{role:'user',content:prompt}]});
+          const cat=(msg.content[0]?.text||'').trim().replace(/['"]/g,'');
+          const finalCat=_VALID_CATS.includes(cat)?cat:'General';
+          await pool.query('UPDATE directory_listings SET category=$1 WHERE id=$2',[finalCat,row.id]);
+          stats[finalCat]=(stats[finalCat]||0)+1;
+          console.log(`[recategorize] ${row.name}(${row.id}) → ${finalCat}`);
+        }catch(e){console.error(`[recategorize] ${row.id} err:`,e.message);}
+        await new Promise(r=>setTimeout(r,3000));
+      }
+      console.log('[recategorize] Done. Distribution:', JSON.stringify(stats));
+    }catch(e){console.error('[recategorize] fatal:',e.message);}
+    _recategorizeRunning=false;
+  })();
+});
+
 // GET /admin/seed-votes?key=… — seeds vote_count + dir_votes (safe to re-run on any env)
 // Period rules:
 //   Daily   — only WHY Audit (#1) and SFA (#2) have today's votes; others appear with 0
@@ -6721,6 +6814,13 @@ async function setupDB() {
     SET featured_tier='premium', featured_until='2099-12-31'
     WHERE id IN (199, 203)
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
+
+  // Seeded listings whose URLs are permanently unreachable — always inactive
+  // (siliform.com 502, wispr.flow ERR, subsaver.app ERR, 4todo.app ERR, aso.agency ERR, launchy.so ERR)
+  await pool.query(`
+    UPDATE directory_listings SET status='inactive'
+    WHERE id IN (1, 2, 5, 6, 11, 14) AND is_seeded=TRUE
+  `).catch(e => console.error('[startup] unreachable-seeded deactivate err:', e.message));
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_status TEXT DEFAULT 'pending'`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
