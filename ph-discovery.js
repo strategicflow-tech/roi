@@ -5,14 +5,18 @@
  * Single job, runs once daily. A product is included only if ALL three hold:
  *   1. Posted on PH within the last 3 days
  *   2. Has a discoverable public contact email (extracted from product site)
- *   3. The maker/founder has actively replied to ≥1 comment on their own launch thread
+ *   3. commentsCount >= 5 (engagement proxy — PH API does not expose isMakerComment)
  *
- * Products are inserted as status='draft' (hidden from /directory public listing).
- * A claim-invitation email is sent to the founder immediately after insert.
- * Target: 25 qualifying products per day.
+ * Two insertion tracks (processed in order from highest votes):
+ *   • "daily"  — top DAILY_LIMIT (default 10): inserted as status='active' (live in directory),
+ *                founder gets a "you're live + paid options" notification email immediately.
+ *   • "draft"  — next DRAFT_LIMIT (default 25): inserted as status='draft' (hidden),
+ *                founder gets a claim-invitation email immediately.
+ *
+ * Both tracks email on insert → outreach queue stays clean (no pending rows to re-process).
  *
  * Data source:
- *   - PH GraphQL API (includes comments.isMakerComment) if PRODUCT_HUNT_TOKEN is set
+ *   - PH GraphQL API (PRODUCT_HUNT_TOKEN) — preferred
  *   - PH Atom feed + page scraping fallback (no token required)
  */
 
@@ -533,6 +537,62 @@ Reply to unsubscribe.`;
   return { subject, html, text };
 }
 
+// ── Email: "you're live on ToolIndex + paid options" (for daily/active track) ──
+function buildDailyLiveEmail(name, listingUrl) {
+  const subject = `${name} is live on ToolIndex (DR 86) — here's how to boost it`;
+
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Good news — <strong>${name}</strong> is now <strong>live on <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">ToolIndex</a></strong>, our SaaS directory hosted on a DR&nbsp;86 domain. Your listing includes a permanent dofollow backlink from <strong>strategicflow.tech</strong>.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">View your live listing &rarr;</a></p>
+
+<p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;">Want more visibility?</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px;">
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:700;">Featured placement</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#374151;">Pin your listing at the top of your category. Starts at <strong>$9/mo</strong>.</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:700;">Daily boost</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#374151;">Appear in the marquee + homepage spotlight for 24 hours. <strong>$29/day</strong>.</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:700;">Claim &amp; edit</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#374151;">Update your description, logo, and links — <strong>free</strong>. Verify in 60 sec.</td>
+  </tr>
+</table>
+
+<p style="margin:24px 0 0;font-size:14px;color:#374151;">All options are at <a href="${listingUrl}" style="color:#00d4c8;">your listing page</a> — scroll to the Boost section. Reply to this email if you have questions.</p>
+
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+<p style="font-size:11px;color:#9ca3af;">Reply to unsubscribe from future messages.</p>
+</div>`;
+
+  const text = `Hi,
+
+${name} is now live on ToolIndex — our SaaS directory on a DR 86 domain (strategicflow.tech). Your listing includes a permanent dofollow backlink.
+
+View your listing: ${listingUrl}
+
+Want more visibility?
+- Featured placement: pin your listing at the top of your category. From $9/mo.
+- Daily boost: appear in the marquee + homepage spotlight for 24 hours. $29/day.
+- Claim & edit: update description, logo, links for free. Takes 60 seconds.
+
+All options are on your listing page — scroll to the Boost section.
+
+--
+Alex Iliescu
+Strategic Flow — strategicflow.tech
+ToolIndex — https://strategic-flow-audit.replit.app/directory
+LinkedIn: https://www.linkedin.com/in/strategic-flow-tech
+Tenerife, Spain
+
+Reply to unsubscribe.`;
+
+  return { subject, html, text };
+}
+
 // ── Main unified pipeline ─────────────────────────────────────────────────────
 /**
  * runDailyPHDiscovery(pool, log, opts)
@@ -543,11 +603,14 @@ Reply to unsubscribe.`;
  *   enrichFn     — optional: async (listing, pool, claudeJsonFn) => void
  *   claudeJsonFn — optional: passed to enrichFn
  *   dryRun       — if true: go through all filtering but skip DB insert + email
- *   limit        — max products to insert (default: 25)
+ *   dailyLimit   — max products to insert as active with upsell email (default: 10)
+ *   draftLimit   — max products to insert as draft with claim email (default: 25)
  */
 async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
-  const LIMIT = opts.limit || 25;
-  log(`[ph-discovery] Starting unified daily PH discovery (target: ${LIMIT}/day)…`);
+  const DAILY_LIMIT = opts.dailyLimit ?? 10;
+  const DRAFT_LIMIT = opts.draftLimit ?? 25;
+  const LIMIT = DAILY_LIMIT + DRAFT_LIMIT;
+  log(`[ph-discovery] Starting unified daily PH discovery (daily/active: ${DAILY_LIMIT}, draft: ${DRAFT_LIMIT})…`);
 
   // 1. Fetch posts (last 3 days)
   let posts = [];
@@ -610,17 +673,24 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   });
 
   // 5. Per-candidate: check maker engagement + extract email, then insert
-  const inserted = [];
+  //    Track A (daily):  first DAILY_LIMIT passing candidates → status='active' + upsell email
+  //    Track B (draft):  next  DRAFT_LIMIT passing candidates → status='draft'  + claim email
+  const inserted = [];   // all successfully inserted records
+  let dailyCount = 0;    // how many inserted into the "daily/active" track
+  let draftCount = 0;    // how many inserted into the "draft" track
+  let quotaHit   = false;
+
   for (const post of candidates) {
-    if (inserted.length >= LIMIT) break;
+    if (dailyCount >= DAILY_LIMIT && draftCount >= DRAFT_LIMIT) break;
+    if (quotaHit) break;
 
-    log(`[ph-discovery] Processing: ${post.name} (${post.website})`);
+    // Determine which track this candidate will go into (if it passes filters)
+    // Daily track fills first (higher signal products go live immediately)
+    const targetTrack = dailyCount < DAILY_LIMIT ? 'daily' : 'draft';
 
-    // ── Filter 1: Maker engagement ────────────────────────────────────────────
-    // GraphQL path already has hasMakerComment; Atom path set it during page scrape.
-    // For GraphQL path without comment data (older token), re-check via page scrape.
-    // ── Resolve real product website (GraphQL returns PH redirect URLs) ─────────
-    // e.g. "https://www.producthunt.com/r/QNPUB2TD4A4RX4?utm_campaign=..." → real site
+    log(`[ph-discovery] Processing [${targetTrack}]: ${post.name} (${post.website})`);
+
+    // ── Resolve real product website (GraphQL returns PH redirect URLs) ──────
     if (!post.website || post.website.includes('producthunt.com')) {
       try {
         const rr = await fetch(post.website || post.phUrl, {
@@ -636,7 +706,7 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       } catch {}
     }
 
-    // Re-check big company with resolved domain (PH redirect domain was producthunt.com)
+    // Re-check big company with resolved domain
     if (isBigCompany(post.website, post.name)) {
       log(`[ph-discovery]   → SKIP (big company after domain resolve): ${post.name} → ${post.website}`);
       stats.skipBig++;
@@ -644,12 +714,9 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       continue;
     }
 
-    // Maker engagement proxy: commentsCount >= 5 (set during fetch from GraphQL field
-    // or from "commentsCount":N found in PH page HTML for the Atom path).
-    // PH GraphQL v2 does not expose isMakerComment or non-redacted comment user IDs,
-    // and __NEXT_DATA__ is no longer injected in PH pages (migrated to CSR/Apollo).
-    // commentsCount >= 5 is the best available signal that meaningful discussion
-    // — and almost certainly maker replies — exist on the launch thread.
+    // ── Maker engagement proxy: commentsCount >= 5 ───────────────────────────
+    // PH GraphQL v2 does not expose isMakerComment; commentsCount >= 5 is the
+    // best available signal that meaningful discussion exists on the launch thread.
     const makerEngaged = post.hasMakerComment === true;
     if (!makerEngaged) {
       log(`[ph-discovery]   → SKIP (commentsCount < 5, low engagement): ${post.name} (${post.commentsCount ?? 0} comments)`);
@@ -659,7 +726,6 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
     }
     log(`[ph-discovery]   → Active discussion ✓ (${post.commentsCount ?? '?'} comments)`);
 
-    // Skip if we still couldn't resolve a real product website
     if (!post.website || post.website.includes('producthunt.com')) {
       log(`[ph-discovery]   → SKIP (could not resolve real product website): ${post.name}`);
       stats.skipNoSite++;
@@ -667,7 +733,7 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       continue;
     }
 
-    // ── Filter 2: Contact email ───────────────────────────────────────────────
+    // ── Contact email (required for both tracks) ─────────────────────────────
     let email = null, linkedin = null, emailStatus = 'not_found', emailSource = null;
     try {
       const contact = await extractContact(post.website);
@@ -687,16 +753,20 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       continue;
     }
 
-    // ── All criteria passed — insert as draft ─────────────────────────────────
+    // ── Dry run ───────────────────────────────────────────────────────────────
     if (opts.dryRun) {
-      log(`[ph-discovery]   → DRY RUN: would insert ${post.name} → ${email}`);
-      inserted.push({ name: post.name, url: post.website, email, dryRun: true });
+      log(`[ph-discovery]   → DRY RUN [${targetTrack}]: would insert ${post.name} → ${email}`);
+      inserted.push({ name: post.name, url: post.website, email, track: targetTrack, dryRun: true });
+      if (targetTrack === 'daily') dailyCount++; else draftCount++;
       continue;
     }
 
     const desc     = (post.tagline || '').slice(0, 160).trim();
     const category = post._category || 'Other';
     const logo     = post.logo || '';
+    // Daily track: insert as 'active' (visible in directory immediately)
+    // Draft track: insert as 'draft'  (hidden until claimed)
+    const insertStatus = targetTrack === 'daily' ? 'active' : 'draft';
 
     try {
       const r = await pool.query(
@@ -706,12 +776,12 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
             is_seeded, is_auto_imported,
             contact_email, contact_email_status, contact_email_source, contact_email_fetched_at,
             social_linkedin)
-         VALUES ($1,$2,$3,$4,$5,'Product Hunt',$6,'draft',0,true,false,true,$7,$8,$9,NOW(),$10)
+         VALUES ($1,$2,$3,$4,$5,'Product Hunt',$6,$7,0,true,false,true,$8,$9,$10,NOW(),$11)
          ON CONFLICT DO NOTHING
          RETURNING id, name`,
         [
           post.name, post.website, category, desc, logo,
-          post.phUrl,
+          post.phUrl, insertStatus,
           email, emailStatus, emailSource,
           linkedin,
         ]
@@ -725,14 +795,17 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
 
       const newId = r.rows[0].id;
       const name  = r.rows[0].name;
-      log(`[ph-discovery]   → Inserted draft id=${newId}: ${name}`);
+      log(`[ph-discovery]   → Inserted [${insertStatus}] id=${newId}: ${name}`);
 
-      // ── Send claim invitation email ───────────────────────────────────────
+      // ── Send the right email for each track ──────────────────────────────────
       let emailSent = false;
       if (opts.resend && opts.SENDER) {
         const slugStr    = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + newId;
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slugStr}`;
-        const { subject, html: htmlBody, text: textBody } = buildDraftClaimEmail(name, listingUrl);
+
+        const { subject, html: htmlBody, text: textBody } = targetTrack === 'daily'
+          ? buildDailyLiveEmail(name, listingUrl)   // "you're live + paid options"
+          : buildDraftClaimEmail(name, listingUrl);  // "private draft — claim it"
 
         try {
           await opts.resend.emails.send({
@@ -747,16 +820,17 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
             `UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`,
             [newId]
           );
-          log(`[ph-discovery]   → ✉ Claim email sent → ${email}`);
+          log(`[ph-discovery]   → ✉ ${targetTrack === 'daily' ? 'Live notification' : 'Claim'} email sent → ${email}`);
           emailSent = true;
         } catch (emailErr) {
-          // Check for Resend quota
           const isQuota = emailErr.statusCode === 429
             || /rate.?limit|quota|daily.?limit|too many/i.test(emailErr.message || '');
           if (isQuota) {
             log(`[ph-discovery]   → Resend quota hit — stopping email sends for today`);
-            inserted.push({ id: newId, name, url: post.website, email, emailSent: false });
-            break; // Stop the loop — quota exhausted
+            inserted.push({ id: newId, name, url: post.website, email, track: targetTrack, emailSent: false });
+            if (targetTrack === 'daily') dailyCount++; else draftCount++;
+            quotaHit = true;
+            break;
           }
           log(`[ph-discovery]   → Email send failed for ${name}: ${emailErr.message}`);
         }
@@ -764,7 +838,8 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
         log(`[ph-discovery]   → No resend/SENDER configured — skipping email`);
       }
 
-      inserted.push({ id: newId, name, url: post.website, email, emailSent });
+      inserted.push({ id: newId, name, url: post.website, email, track: targetTrack, emailSent });
+      if (targetTrack === 'daily') dailyCount++; else draftCount++;
 
     } catch (e) {
       log(`[ph-discovery]   → DB insert error for ${post.name}: ${e.message}`);
@@ -773,7 +848,7 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
     await sleep(2000);
   }
 
-  // 6. Optional AI enrichment
+  // 6. Optional AI enrichment (both tracks)
   const toEnrich = inserted.filter(l => l.id && typeof opts.enrichFn === 'function');
   if (toEnrich.length) {
     log(`[ph-discovery] AI enrichment for ${toEnrich.length} new listings…`);
@@ -789,11 +864,15 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   }
 
   const emailsSent = inserted.filter(l => l.emailSent).length;
-  log(`[ph-discovery] Done. Evaluated: ${stats.total} | Inserted: ${inserted.length} | Emails sent: ${emailsSent}`);
+  const dailyInserted = inserted.filter(l => l.track === 'daily').length;
+  const draftInserted = inserted.filter(l => l.track === 'draft').length;
+  log(`[ph-discovery] Done. Evaluated: ${stats.total} | Active (daily): ${dailyInserted} | Draft: ${draftInserted} | Emails sent: ${emailsSent}`);
   log(`[ph-discovery] Skip breakdown — category: ${stats.skipCategory}, big co: ${stats.skipBig}, no site: ${stats.skipNoSite}, dupe: ${stats.skipDupe}, no maker engagement: ${stats.skipNoMaker}, no email: ${stats.skipNoEmail}`);
 
   return {
     inserted: inserted.length,
+    dailyInserted,
+    draftInserted,
     emailsSent,
     listings: inserted,
     stats,

@@ -3346,9 +3346,9 @@ app.get('/admin/ph-import/run', async (req, res) => {
       resend,
       SENDER,
     });
-    log(`\nDone. Evaluated: ${result.stats?.total ?? '?'} | Inserted: ${result.inserted} | Emails sent: ${result.emailsSent ?? 0}`);
+    log(`\nDone. Evaluated: ${result.stats?.total ?? '?'} | Active (daily): ${result.dailyInserted ?? 0} | Draft: ${result.draftInserted ?? 0} | Emails sent: ${result.emailsSent ?? 0}`);
     if (result.listings?.length) {
-      result.listings.forEach(l => log(`  → id=${l.id}: ${l.name} | email: ${l.email} | sent: ${l.emailSent}`));
+      result.listings.forEach(l => log(`  → [${l.track}] id=${l.id}: ${l.name} | email: ${l.email} | sent: ${l.emailSent}`));
     }
     if (result.stats) {
       log(`Skip breakdown — category: ${result.stats.skipCategory}, big co: ${result.stats.skipBig}, no site: ${result.stats.skipNoSite}, dupe: ${result.stats.skipDupe}, no maker: ${result.stats.skipNoMaker}, no email: ${result.stats.skipNoEmail}`);
