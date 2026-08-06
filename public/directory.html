@@ -797,8 +797,6 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-fomo-holder{font-size:10.5px;color:#00d4c8;font-family:var(--mono);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;display:none;font-weight:600;}
 .dir-fomo-holder:hover{text-decoration:underline;}
 .dir-fomo-holder.loaded{display:block;}
-.dir-fomo-ph-count{font-size:10.5px;color:#ff8040;font-family:var(--mono);display:none;font-weight:600;}
-.dir-fomo-ph-count.loaded{display:block;}
 </style>
 </head>
 <body>
@@ -1141,10 +1139,6 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <div class="dir-fomo-row" data-slot="verified_founder">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-verified-founder">✓ Verified Founder</span></span>
           <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Claimed + verified</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
-        </div>
-        <div class="dir-fomo-row" data-slot="ph">
-          <span class="dir-fomo-badge-wrap"><span class="dir-daily-badge-ph">PH</span></span>
-          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Product Hunt import</span><span class="dir-fomo-ph-count" id="fomoPhCount"></span></span>
         </div>
       </div>
 
@@ -3899,11 +3893,7 @@ loadClickCounts();
       }
     }
 
-    // PH count
-    if (d.ph_today > 0) {
-      var phEl = document.getElementById('fomoPhCount');
-      if (phEl) { phEl.textContent = d.ph_today + ' added today'; phEl.classList.add('loaded'); }
-    }
+
   }).catch(function(){});
 })();
 
