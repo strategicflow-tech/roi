@@ -1456,34 +1456,65 @@ app.get('/directory/:slug', async (req, res) => {
     // ── boost section (all 7 paid tiers, golden dropdown) ────────────────────
     const boostHtml = `
 <div class="pp-boost-section">
-  <button type="button" class="pp-boost-toggle" onclick="toggleBoost()" id="ppBoostToggle">
+  <button type="button" class="pp-boost-toggle" onclick="openPpBoostModal()" id="ppBoostToggle">
     <span>✨ Boost This Listing</span>
-    <span class="pp-boost-arrow" id="ppBoostArrow">▼</span>
+    <span style="font-size:11px;opacity:.7;">→</span>
   </button>
-  <div class="pp-boost-body" id="ppBoostBody" style="display:none;">
-    <div class="pp-boost-grid">
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🔥 Daily Boost</span><span class="pp-boost-card-price">$9</span></div><div class="pp-boost-card-desc">24 hours as #1 in the grid. Activates instantly, no review queue.</div><button class="pp-boost-card-btn" onclick="ppCheckout('daily_top')">Get Daily Boost →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">⚡ Weekly Feature</span><span class="pp-boost-card-price">$19</span></div><div class="pp-boost-card-desc">14 days in the Featured Spotlight with a gold badge.</div><button class="pp-boost-card-btn" onclick="ppCheckout('weekly_feature')">Get Weekly Feature →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">💎 Premium Listing</span><span class="pp-boost-card-price">$29</span></div><div class="pp-boost-card-desc">30 days with a purple Premium badge and top-3 placement.</div><button class="pp-boost-card-btn" onclick="ppCheckout('premium')">Get Premium →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🏆 Founder Pack</span><span class="pp-boost-card-price">$49</span></div><div class="pp-boost-card-desc">30-day Premium + unlimited Relaunches + priority brand carousel placement.</div><button class="pp-boost-card-btn" onclick="ppCheckout('founder_pack')">Get Founder Pack →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">✅ Verified Badge</span><span class="pp-boost-card-price">$9</span></div><div class="pp-boost-card-desc">Permanent ✓ Verified badge on card &amp; product page. No expiry, ever.</div><button class="pp-boost-card-btn" onclick="ppCheckout('verified_badge')">Get Verified →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">✂️ Teardown Solo</span><span class="pp-boost-card-price">$19</span></div><div class="pp-boost-card-desc">Pro teardown of your landing page or email, published on ToolIndex. 48–72 h delivery.</div><button class="pp-boost-card-btn" onclick="ppCheckout('teardown_solo')">Order Solo →</button></div>
-      <div class="pp-boost-card"><div class="pp-boost-card-top"><span class="pp-boost-card-name">🔍 Teardown Pro</span><span class="pp-boost-card-price">$49</span></div><div class="pp-boost-card-desc">Everything in Solo + LinkedIn feature + Startup of the Week on ToolIndex.</div><button class="pp-boost-card-btn" onclick="ppCheckout('teardown_pro')">Order Pro →</button></div>
-    </div>
-  </div>
 </div>
 <div class="pp-boost-overlay" id="ppBoostOverlay" style="display:none;" onclick="if(event.target===this)closeBoostModal()">
-  <div class="pp-boost-modal">
+  <div class="pp-boost-modal" style="max-height:90vh;overflow-y:auto;">
+    <button type="button" class="pp-boost-modal-cancel" onclick="closeBoostModal()" style="float:right;margin:-4px -4px 0 0;padding:4px 10px;font-size:16px;border:1px solid rgba(255,255,255,.15);border-radius:6px;background:transparent;color:#8b93a7;cursor:pointer;">✕</button>
     <div class="pp-boost-modal-title" id="ppBoostModalTitle">✨ Boost This Listing</div>
-    <div class="pp-boost-modal-sub" id="ppBoostModalSub">Enter your email to proceed to Stripe checkout. You'll be redirected instantly.</div>
-    <div id="ppBoostDateWrap" style="display:none;margin-bottom:14px;">
-      <div style="font-size:10px;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;color:#00d4c8;margin-bottom:8px;">📅 Pick a date — one product per day</div>
-      <div id="ppBoostCalendar" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
-      <div id="ppBoostDateMsg" style="font-size:11px;color:#00d4c8;min-height:14px;font-family:monospace;"></div>
+
+    <!-- Step 1: tier picker (shown first) -->
+    <div id="ppTierStep">
+      <div style="font-size:11px;color:#8b93a7;margin-bottom:12px;font-family:monospace;">Choose a plan — one-time payment, no subscription.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('daily_top')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🔥</span><span><span class="pp-tier-row-name">Daily Boost</span><span class="pp-tier-row-desc">24h as #1 — instant, no queue</span></span></span>
+          <span class="pp-tier-row-price">$9</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('weekly_feature')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">⚡</span><span><span class="pp-tier-row-name">Weekly Feature</span><span class="pp-tier-row-desc">14 days in Featured Spotlight</span></span></span>
+          <span class="pp-tier-row-price">$19</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('premium')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">💎</span><span><span class="pp-tier-row-name">Premium Listing</span><span class="pp-tier-row-desc">30 days — purple badge + top-3</span></span></span>
+          <span class="pp-tier-row-price">$29</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('founder_pack')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🏆</span><span><span class="pp-tier-row-name">Founder Pack</span><span class="pp-tier-row-desc">30d Premium + unlimited relaunches</span></span></span>
+          <span class="pp-tier-row-price">$49</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('verified_badge')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✅</span><span><span class="pp-tier-row-name">Verified Badge</span><span class="pp-tier-row-desc">Permanent ✓ badge — no expiry</span></span></span>
+          <span class="pp-tier-row-price">$9</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_solo')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✂️</span><span><span class="pp-tier-row-name">Teardown Solo</span><span class="pp-tier-row-desc">Pro critique published on ToolIndex</span></span></span>
+          <span class="pp-tier-row-price">$19</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_pro')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🔍</span><span><span class="pp-tier-row-name">Teardown Pro</span><span class="pp-tier-row-desc">Solo + LinkedIn + Startup of the Week</span></span></span>
+          <span class="pp-tier-row-price">$49</span>
+        </button>
+      </div>
     </div>
-    <input class="pp-boost-modal-input" type="email" id="ppBoostEmail" placeholder="your@email.com" />
-    <button class="pp-boost-modal-btn" id="ppBoostModalBtn" onclick="submitBoostCheckout()">Continue to Checkout →</button>
-    <button class="pp-boost-modal-cancel" onclick="closeBoostModal()">Cancel</button>
+
+    <!-- Step 2: email + date (shown after tier pick) -->
+    <div id="ppEmailStep" style="display:none;">
+      <button type="button" onclick="showTierStep()" style="background:none;border:none;color:#00d4c8;font-size:12px;font-family:monospace;cursor:pointer;padding:0;margin-bottom:14px;">← Back to plans</button>
+      <div class="pp-boost-modal-sub" id="ppBoostModalSub">Enter your email to proceed to Stripe checkout. You'll be redirected instantly.</div>
+      <div id="ppBoostDateWrap" style="display:none;margin-bottom:14px;">
+        <div style="font-size:10px;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;color:#00d4c8;margin-bottom:8px;">📅 Pick a date — one product per day</div>
+        <div id="ppBoostCalendar" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;"></div>
+        <div id="ppBoostDateMsg" style="font-size:11px;color:#00d4c8;min-height:14px;font-family:monospace;"></div>
+      </div>
+      <input class="pp-boost-modal-input" type="email" id="ppBoostEmail" placeholder="your@email.com" />
+      <button type="button" class="pp-boost-modal-btn" id="ppBoostModalBtn" onclick="submitBoostCheckout()">Continue to Checkout →</button>
+    </div>
+
+    <p style="font-size:10px;color:#8b93a7;text-align:center;margin-top:12px;font-family:monospace;">Secure · Stripe · One-time charge</p>
   </div>
 </div>`;
 
@@ -1865,6 +1896,14 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .pp-boost-modal-btn:disabled{opacity:.6;cursor:default;}
 .pp-boost-modal-cancel{width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px;font-family:var(--font);}
 .pp-boost-modal-cancel:hover{color:var(--text);}
+/* Tier row picker inside boost modal */
+.pp-tier-row{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.25);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;text-align:left;gap:8px;}
+.pp-tier-row:hover,.pp-tier-row:active{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.6);}
+.pp-tier-row-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.pp-tier-row-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center;}
+.pp-tier-row-name{display:block;font-size:13px;font-weight:700;color:var(--text);line-height:1.3;}
+.pp-tier-row-desc{display:block;font-size:11px;color:var(--muted);line-height:1.3;}
+.pp-tier-row-price{font-size:15px;font-weight:800;color:#f59e0b;font-family:var(--mono);white-space:nowrap;flex-shrink:0;}
 /* ── AI Insights sections ── */
 .ai-section{margin-bottom:16px;}
 .ai-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;}
@@ -1978,28 +2017,36 @@ var PAGE = ${JSON.stringify({ id: l.id, votes: votes })};
 var VOTE_KEY = 'dir_voted_v2';
 // ── Boost section ──────────────────────────────────────────────────────
 var ppBoostTier = null;
-// Move overlay to body on load so position:fixed works correctly on mobile
+var ppBoostSelectedDate = null;
+// Move overlay to body so position:fixed works correctly on mobile
 (function(){
   var ov=document.getElementById('ppBoostOverlay');
   if(ov && ov.parentElement !== document.body) document.body.appendChild(ov);
 })();
-function toggleBoost(){
-  var body=document.getElementById('ppBoostBody');
-  var arrow=document.getElementById('ppBoostArrow');
-  var toggle=document.getElementById('ppBoostToggle');
-  if(!body) return;
-  var open=body.style.display!=='none';
-  body.style.display=open?'none':'block';
-  if(arrow) arrow.style.transform=open?'':'rotate(180deg)';
-  // On mobile scroll the opened section into view
-  if(!open && toggle) setTimeout(function(){ toggle.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 80);
+function openPpBoostModal(){
+  showTierStep();
+  document.getElementById('ppBoostModalTitle').textContent='✨ Boost This Listing';
+  var ov=document.getElementById('ppBoostOverlay');
+  ov.style.display='flex';
+  document.body.style.overflow='hidden';
 }
-var ppBoostSelectedDate=null;
+function showTierStep(){
+  var ts=document.getElementById('ppTierStep');
+  var es=document.getElementById('ppEmailStep');
+  if(ts) ts.style.display='';
+  if(es) es.style.display='none';
+  document.getElementById('ppBoostModalTitle').textContent='✨ Boost This Listing';
+}
 function ppCheckout(tier){
   ppBoostTier=tier;
   ppBoostSelectedDate=null;
   var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Badge — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
-  document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost This Listing';
+  document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost';
+  // Switch to email step
+  var ts=document.getElementById('ppTierStep');
+  var es=document.getElementById('ppEmailStep');
+  if(ts) ts.style.display='none';
+  if(es) es.style.display='';
   document.getElementById('ppBoostEmail').value='';
   var btn=document.getElementById('ppBoostModalBtn');
   btn.textContent='Continue to Checkout →';
@@ -2022,6 +2069,7 @@ function ppCheckout(tier){
         var label=dt.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
         var isToday=dateStr===new Date().toISOString().slice(0,10);
         var b=document.createElement('button');
+        b.type='button';
         b.style.cssText='padding:5px 10px;border-radius:6px;font-size:11px;font-family:monospace;cursor:'+(isBooked?'not-allowed':'pointer')+';border:1px solid '+(isBooked?'rgba(255,255,255,0.08)':'rgba(0,212,200,0.35)')+';background:'+(isBooked?'rgba(255,255,255,0.04)':'rgba(0,212,200,0.08)')+';color:'+(isBooked?'#444':'#00d4c8')+';transition:all .15s;';
         b.textContent=(isToday?'Today — ':'')+label;
         b.disabled=isBooked;
@@ -2039,16 +2087,24 @@ function ppCheckout(tier){
         });}
         cal.appendChild(b);
       });
-    }).catch(function(){dateWrap.style.display='none';btn.disabled=false;});
+    }).catch(function(){if(dateWrap)dateWrap.style.display='none';btn.disabled=false;});
   } else {
     if(dateWrap)dateWrap.style.display='none';
     btn.disabled=false;
-    sub.textContent='Enter your email to proceed to Stripe checkout. You\'ll be redirected instantly.';
+    if(sub) sub.textContent='Enter your email to proceed to Stripe checkout. You\'ll be redirected instantly.';
   }
-  document.getElementById('ppBoostOverlay').style.display='flex';
-  setTimeout(function(){document.getElementById('ppBoostEmail').focus();},80);
+  // Ensure overlay is open (in case ppCheckout called from inside tier step)
+  var ov=document.getElementById('ppBoostOverlay');
+  if(ov.style.display!=='flex'){ ov.style.display='flex'; document.body.style.overflow='hidden'; }
+  setTimeout(function(){var em=document.getElementById('ppBoostEmail');if(em)em.focus();},120);
 }
-function closeBoostModal(){document.getElementById('ppBoostOverlay').style.display='none';}
+function closeBoostModal(){
+  var ov=document.getElementById('ppBoostOverlay');
+  if(ov) ov.style.display='none';
+  document.body.style.overflow='';
+  // Reset to tier step for next open
+  showTierStep();
+}
 function submitBoostCheckout(){
   var email=document.getElementById('ppBoostEmail').value.trim();
   if(!email||!email.includes('@')){alert('Please enter a valid email.');return;}

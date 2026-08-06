@@ -3381,17 +3381,24 @@ function renderPickListingResults() {
     container.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No listings found. Try a different name.</div>';
     return;
   }
+  // Use data-attributes — NO inline JSON in onclick (JSON.stringify produces " that break onclick="...")
   container.innerHTML = matches.map(l => `
-    <button onclick="pickListingAndCheckout(${l.id},${JSON.stringify(l.name)})"
-      style="display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;"
-      onmouseover="this.style.borderColor='var(--teal)';this.style.background='rgba(0,212,200,.06)'"
-      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,.04)'">
-      ${l.image_url ? `<img src="${l.image_url}" style="width:30px;height:30px;border-radius:6px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+    <button type="button" data-pick-id="${l.id}" data-pick-name="${escHtml(l.name)}"
+      style="display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;">
+      ${l.image_url ? `<img src="${escHtml(l.image_url)}" style="width:30px;height:30px;border-radius:6px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
       <div>
         <div style="font-size:13px;font-weight:600;color:#fff;">${escHtml(l.name)}</div>
         <div style="font-size:11px;color:var(--muted);">${escHtml(l.category||'')}</div>
       </div>
     </button>`).join('');
+  // Attach click handlers after render (safe — dataset reads raw attribute value)
+  container.querySelectorAll('button[data-pick-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pickListingAndCheckout(parseInt(btn.dataset.pickId, 10), btn.dataset.pickName);
+    });
+    btn.addEventListener('mouseover', () => { btn.style.borderColor='var(--teal)'; btn.style.background='rgba(0,212,200,.06)'; });
+    btn.addEventListener('mouseout',  () => { btn.style.borderColor='var(--border)'; btn.style.background='rgba(255,255,255,.04)'; });
+  });
 }
 function pickListingAndCheckout(id, name) {
   pendingBoostId   = id;
