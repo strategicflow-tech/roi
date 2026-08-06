@@ -3846,6 +3846,69 @@ async function activateScheduledBoosts() {
   } catch(e) { console.error('[activateScheduledBoosts]', e.message); }
 }
 
+// ── Directory: seed the Daily section for today ───────────────────────────────
+// Called at 01:30 UTC (after PH import at 01:00) and at server startup.
+// Idempotent — skips if today already has ≥6 entries.
+const DAILY_SECTION_TARGET = 12;
+async function seedDailySection() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Idempotency check
+    const existing = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM dir_daily_section WHERE display_date=$1`, [today]
+    );
+    if (existing.rows[0].cnt >= 6) {
+      console.log(`[daily-section] Already seeded for ${today} (${existing.rows[0].cnt} items)`);
+      return;
+    }
+
+    const picks = [];
+
+    // ── Priority 1: today's PH auto-imports ──────────────────────────────────
+    const phRes = await pool.query(`
+      SELECT id FROM directory_listings
+      WHERE status='active' AND is_auto_imported=TRUE
+        AND submitted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+      ORDER BY submitted_at DESC
+      LIMIT $1
+    `, [DAILY_SECTION_TARGET]);
+    for (const r of phRes.rows) picks.push({ id: r.id, source: 'ph_import' });
+
+    // ── Priority 2: DB picks never shown before (exclude seeded big brands) ──
+    const needed = DAILY_SECTION_TARGET - picks.length;
+    if (needed > 0) {
+      const usedIds = picks.map(p => p.id);
+      const fillRes = await pool.query(`
+        SELECT dl.id FROM directory_listings dl
+        WHERE dl.status='active'
+          AND dl.is_seeded=FALSE
+          AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
+          AND dl.id != ALL($2::int[])
+          AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
+        ORDER BY dl.vote_count DESC,
+                 dl.friction_score DESC NULLS LAST,
+                 dl.submitted_at DESC
+        LIMIT $1
+      `, [needed, usedIds.length ? usedIds : [0]]);
+      for (const r of fillRes.rows) picks.push({ id: r.id, source: 'db_pick' });
+    }
+
+    if (!picks.length) { console.log('[daily-section] No listings available to seed'); return; }
+
+    for (let i = 0; i < picks.length; i++) {
+      await pool.query(
+        `INSERT INTO dir_daily_section (listing_id, display_date, position, source)
+         VALUES ($1,$2,$3,$4) ON CONFLICT (display_date, listing_id) DO NOTHING`,
+        [picks[i].id, today, i + 1, picks[i].source]
+      ).catch(()=>{});
+    }
+
+    const phCount = picks.filter(p => p.source === 'ph_import').length;
+    console.log(`[daily-section] Seeded ${picks.length} listings for ${today} (${phCount} PH + ${picks.length - phCount} DB picks)`);
+  } catch(e) { console.error('[daily-section] seed error:', e.message); }
+}
+
 // ── Sponsorship: handle post-payment sponsor record creation ──────────────────
 async function handleSponsorPayment(session) {
   const meta = session.metadata || {};
@@ -4328,6 +4391,35 @@ app.get('/api/directory/boost-dates', async (req, res) => {
   } catch(e) {
     console.error('[boost-dates]', e.message);
     res.status(500).json({ available: [], booked: [] });
+  }
+});
+
+// ── GET /api/directory/daily ──────────────────────────────────────────────────
+app.get('/api/directory/daily', async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const r = await pool.query(`
+      SELECT dl.id, dl.name, dl.url, dl.category,
+             COALESCE(dl.owner_description, dl.description) AS description,
+             dl.friction_score, dl.score_pending, dl.vote_count,
+             dl.featured_tier, dl.source, dl.source_url, dl.is_auto_imported,
+             COALESCE(dl.verified, FALSE) AS verified,
+             (dl.claimed_by IS NOT NULL) AS is_claimed,
+             CASE WHEN dl.owner_image_url IS NOT NULL
+                  THEN '/api/directory/listing-logo/'||dl.id::text
+                  WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                  ELSE NULL END AS image_url,
+             dds.source AS daily_source,
+             dds.position
+      FROM dir_daily_section dds
+      JOIN directory_listings dl ON dl.id=dds.listing_id
+      WHERE dds.display_date=$1 AND dl.status='active'
+      ORDER BY (dds.source='ph_import') DESC, dds.position ASC
+    `, [today]);
+    res.json({ date: today, listings: r.rows });
+  } catch(e) {
+    console.error('[daily]', e.message);
+    res.status(500).json({ date: null, listings: [] });
   }
 });
 
@@ -6644,6 +6736,20 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_boost_schedule:', e.message));
+
+  // ── Daily section picks — what appears in the "Daily" UI strip each day ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_daily_section (
+      id           SERIAL PRIMARY KEY,
+      listing_id   INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      display_date DATE    NOT NULL,
+      position     INTEGER NOT NULL DEFAULT 0,
+      source       TEXT    NOT NULL DEFAULT 'db_pick',
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(display_date, listing_id)
+    )
+  `).catch(e => console.error('[DB] dir_daily_section:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dds_date ON dir_daily_section(display_date DESC)`).catch(()=>{});
 
   // ── Idempotent deduplication migration ───────────────────────────────────
   // Runs after dir_votes + its indexes exist. Safe to re-run — the check
@@ -18391,6 +18497,12 @@ ${content}
   expireFeaturedListings().catch(()=>{});
   expireSponsors().catch(()=>{});
   activateScheduledBoosts().catch(()=>{});
+  seedDailySection().catch(()=>{});
+
+  // ── Daily 01:30 UTC: seed the Daily section (after PH import at 01:00) ────
+  cron.schedule('30 1 * * *', () => {
+    seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
+  });
 
   // ── Daily 01:00 UTC (02:00 Tenerife WEST): Product Hunt auto-discovery ───────
   cron.schedule('0 1 * * *', async () => {
