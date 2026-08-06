@@ -62,28 +62,53 @@ const SKIP_TOPICS = new Set([
   'blockchain', 'defi',
 ]);
 
-// Known big-company ROOT domains (stripped of subdomains)
+// Known big-company ROOT domains (stripped of subdomains).
+// Add any domain here whose company is funded/established enough that they
+// don't need (or wouldn't care about) a free indie-directory backlink.
 const BIG_DOMAINS = new Set([
+  // Big tech
   'google.com', 'apple.com', 'microsoft.com', 'amazon.com', 'meta.com',
   'facebook.com', 'twitter.com', 'x.com', 'linkedin.com', 'netflix.com',
   'salesforce.com', 'oracle.com', 'ibm.com', 'sap.com', 'adobe.com',
-  'atlassian.com', 'slack.com', 'zoom.us', 'hubspot.com', 'zendesk.com',
-  'intercom.com', 'mailchimp.com', 'anthropic.com', 'openai.com',
-  'github.com', 'gitlab.com', 'notion.so', 'figma.com', 'canva.com',
-  'shopify.com', 'stripe.com', 'twilio.com', 'zapier.com', 'airtable.com',
-  'monday.com', 'asana.com', 'clickup.com', 'trello.com',
-  'vercel.com', 'netlify.com', 'cloudflare.com', 'heroku.com',
-  'dropbox.com', 'box.com', 'webflow.com', 'wordpress.com', 'squarespace.com',
-  'wix.com', 'godaddy.com', 'nvidia.com', 'intel.com', 'qualcomm.com',
-  'paypal.com', 'visa.com', 'mastercard.com', 'docker.com', 'hashicorp.com',
+  'nvidia.com', 'intel.com', 'qualcomm.com', 'cisco.com', 'dell.com',
+  'samsung.com', 'sony.com', 'lg.com',
+  // Dev/infra
+  'atlassian.com', 'github.com', 'gitlab.com', 'docker.com', 'hashicorp.com',
+  'cloudflare.com', 'heroku.com', 'vercel.com', 'netlify.com',
   'elastic.co', 'mongodb.com', 'redis.com', 'snowflake.com', 'databricks.com',
-  'workday.com', 'servicenow.com', 'okta.com', 'crowdstrike.com',
-  'datadog.com', 'splunk.com', 'pagerduty.com', 'twitch.tv', 'discord.com',
-  'spotify.com', 'tiktok.com', 'pinterest.com', 'reddit.com', 'quora.com',
-  'medium.com', 'substack.com', 'calendly.com', 'typeform.com',
+  'datadog.com', 'splunk.com', 'pagerduty.com', 'newrelic.com',
+  // AI — funded/established
+  'openai.com', 'anthropic.com', 'mistral.ai', 'la-plateforme.ai',
+  'cohere.com', 'huggingface.co', 'stability.ai', 'midjourney.com',
+  'runway.ml', 'runwayml.com', 'perplexity.ai', 'replicate.com',
+  'together.ai', 'groq.com', 'inflection.ai', 'xai.com', 'character.ai',
+  'elevenlabs.io', 'jasper.ai', 'copy.ai', 'writesonic.com',
+  // Collaboration / productivity
+  'slack.com', 'zoom.us', 'notion.so', 'figma.com', 'canva.com',
+  'dropbox.com', 'box.com', 'airtable.com', 'monday.com', 'asana.com',
+  'clickup.com', 'trello.com', 'basecamp.com', 'linear.app',
+  // Marketing / CRM
+  'hubspot.com', 'zendesk.com', 'intercom.com', 'mailchimp.com',
+  'calendly.com', 'typeform.com', 'webflow.com',
+  // E-commerce / payments
+  'shopify.com', 'stripe.com', 'paypal.com', 'visa.com', 'mastercard.com',
+  'square.com', 'braintreepayments.com',
+  // Hosting / publishing
+  'wordpress.com', 'squarespace.com', 'wix.com', 'godaddy.com',
+  'substack.com', 'medium.com',
+  // Social / media
+  'discord.com', 'twitch.tv', 'spotify.com', 'tiktok.com',
+  'pinterest.com', 'reddit.com', 'quora.com',
+  // SaaS
+  'twilio.com', 'zapier.com', 'okta.com', 'workday.com', 'servicenow.com',
+  'crowdstrike.com', 'zscaler.com', 'pendo.io', 'amplitude.com',
+  'mixpanel.com', 'segment.com', 'braze.com', 'klaviyo.com',
+  // Recruiting / HR
   'dover.com', 'rippling.com', 'gusto.com', 'bamboohr.com', 'greenhouse.io',
-  'lever.co', 'ashbyhq.com', 'gem.com', 'gong.io', 'salesloft.com',
-  'outreach.io', 'apollo.io', 'zoominfo.com', 'clearbit.com',
+  'lever.co', 'ashbyhq.com', 'gem.com', 'workable.com',
+  // Sales
+  'gong.io', 'salesloft.com', 'outreach.io', 'apollo.io',
+  'zoominfo.com', 'clearbit.com', 'seamless.ai',
 ]);
 
 // Brand names that signal large/established companies (matched against product name)
@@ -146,16 +171,37 @@ function isBigCompany(website, productName = '') {
 }
 
 // ── Maker engagement: check PH page HTML ─────────────────────────────────────
-// PH embeds Next.js JSON (window.__NEXT_DATA__) that includes isMakerComment.
-// We also fall back to simpler regex patterns.
+// NOTE: This heuristic is the fallback used when PRODUCT_HUNT_TOKEN is not set.
+// It parses PH's Next.js __NEXT_DATA__ JSON and looks for isMakerComment:true
+// inside the comments array specifically — NOT the broader isMaker profile flag
+// (which is true for every maker on the platform, not just those who replied).
+// Even with this improvement, false positives are possible. Set PRODUCT_HUNT_TOKEN
+// for the authoritative GraphQL check.
 function checkMakerEngagementInHtml(html) {
-  // Strategy 1: Next.js JSON data with isMakerComment:true
-  if (/["']isMakerComment["']\s*:\s*true/i.test(html)) return true;
-  // Strategy 2: isMaker flag anywhere in JS data
-  if (/["']isMaker["']\s*:\s*true/i.test(html)) return true;
-  // Strategy 3: "Maker" badge near comment content (PH sometimes renders this)
-  const makerBadgeRE = /Maker[\s\S]{0,500}comment|comment[\s\S]{0,500}Maker/i;
-  if (makerBadgeRE.test(html)) return true;
+  // Strategy 1: Extract and parse PH's __NEXT_DATA__ JSON blob.
+  // This is the most reliable scrape-based approach — the JSON contains
+  // the full comment list with per-comment isMakerComment booleans.
+  const nextDataMatch = /<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]+?)<\/script>/i.exec(html);
+  if (nextDataMatch) {
+    try {
+      const data = JSON.parse(nextDataMatch[1]);
+      const str  = JSON.stringify(data);
+      // Only match "isMakerComment":true — the specific per-comment field.
+      // Do NOT match "isMaker":true (that's a user profile field, always true for makers).
+      if (/"isMakerComment"\s*:\s*true/.test(str)) return true;
+      // If the JSON parsed but isMakerComment:true is absent, maker hasn't commented.
+      // Return false rather than falling through to less reliable checks.
+      return false;
+    } catch {
+      // JSON parse failed — fall through to regex fallback below
+    }
+  }
+
+  // Strategy 2: Raw HTML regex — only if __NEXT_DATA__ extraction failed entirely.
+  // Strictly match the comment-specific field, not the profile isMaker field.
+  if (/"isMakerComment"\s*:\s*true/.test(html)) return true;
+
+  // No evidence of maker comment found.
   return false;
 }
 
@@ -491,12 +537,16 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   // 1. Fetch posts (last 3 days)
   let posts = [];
   const token = process.env.PRODUCT_HUNT_TOKEN;
+  const makerFilterVerified = !!token;
   try {
     if (token) {
-      log('[ph-discovery] Using PH GraphQL API (3-day window, with comments)');
+      log('[ph-discovery] Using PH GraphQL API (3-day window, with comments) — maker filter: VERIFIED ✓');
       posts = await fetchViaGraphQL(token, 3);
     } else {
-      log('[ph-discovery] No PRODUCT_HUNT_TOKEN — using Atom feed + page scraping (3-day window)');
+      log('[ph-discovery] ⚠ WARNING: PRODUCT_HUNT_TOKEN not set.');
+      log('[ph-discovery] ⚠ MAKER ENGAGEMENT FILTER IS UNVERIFIED — running on __NEXT_DATA__ heuristic.');
+      log('[ph-discovery] ⚠ All inserted products this run should be reviewed manually for maker engagement.');
+      log('[ph-discovery] ⚠ Set PRODUCT_HUNT_TOKEN to enable the accurate GraphQL isMakerComment check.');
       posts = await fetchViaAtom(3);
     }
     log(`[ph-discovery] Fetched ${posts.length} raw posts`);
