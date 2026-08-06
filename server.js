@@ -22,7 +22,7 @@ const {
 const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
-const { runDailyPHDiscovery, runDailyPHDraftDiscovery } = require('./ph-discovery');
+const { runDailyPHDiscovery } = require('./ph-discovery');
 const { enrichListingWithAI } = require('./listing-enricher');
 
 const multer = require('multer');
@@ -3341,12 +3341,17 @@ app.get('/admin/ph-import/run', async (req, res) => {
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
     const result = await runDailyPHDiscovery(pool, log, {
-      enrichFn: enrichListingWithAI,
+      enrichFn:    enrichListingWithAI,
       claudeJsonFn: claudeJSON,
+      resend,
+      SENDER,
     });
-    log(`\nDone. Inserted: ${result.inserted}`);
+    log(`\nDone. Evaluated: ${result.stats?.total ?? '?'} | Inserted: ${result.inserted} | Emails sent: ${result.emailsSent ?? 0}`);
     if (result.listings?.length) {
-      result.listings.forEach(l => log(`  → id=${l.id}: ${l.name}`));
+      result.listings.forEach(l => log(`  → id=${l.id}: ${l.name} | email: ${l.email} | sent: ${l.emailSent}`));
+    }
+    if (result.stats) {
+      log(`Skip breakdown — category: ${result.stats.skipCategory}, big co: ${result.stats.skipBig}, no site: ${result.stats.skipNoSite}, dupe: ${result.stats.skipDupe}, no maker: ${result.stats.skipNoMaker}, no email: ${result.stats.skipNoEmail}`);
     }
   } catch(e) {
     log(`ERROR: ${e.message}`);
@@ -18887,118 +18892,23 @@ ${content}
     seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
   });
 
-  // ── Daily 01:00 UTC (02:00 Tenerife WEST): Product Hunt auto-discovery ───────
+  // ── Daily 01:00 UTC: Unified Product Hunt discovery ─────────────────────────
+  // Criteria: ≤3 days old on PH + maker active in comments + discoverable email.
+  // Inserts as status='draft' (hidden until claimed). Sends claim invitation email.
   cron.schedule('0 1 * * *', async () => {
     console.log('[cron] Daily PH discovery starting…');
     try {
       const result = await runDailyPHDiscovery(pool, m => console.log(m), {
-        enrichFn: enrichListingWithAI,
+        enrichFn:    enrichListingWithAI,
         claudeJsonFn: claudeJSON,
+        resend,
+        SENDER,
       });
-      console.log(`[cron] PH discovery done. Inserted: ${result.inserted}`);
-
-      // Seed initial votes for newly imported listings so they appear at top
-      // of the Daily leaderboard tab from day one.
-      if (result.listings?.length) {
-        for (const listing of result.listings) {
-          const initialVotes = 5 + Math.floor(Math.random() * 4); // 5–8
-          const rows = [];
-          for (let i = 0; i < initialVotes; i++) {
-            rows.push(`(${listing.id}, 'ph_init_${listing.id}_${i}', NOW())`);
-          }
-          try {
-            await pool.query(
-              `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-               VALUES ${rows.join(',')}
-               ON CONFLICT DO NOTHING`
-            );
-            await pool.query(
-              `UPDATE directory_listings
-               SET vote_count = vote_count + $1
-               WHERE id = $2`,
-              [initialVotes, listing.id]
-            );
-            console.log(`[cron] Seeded ${initialVotes} initial votes for: ${listing.name}`);
-          } catch(e) {
-            console.error(`[cron] Vote seed error for ${listing.name}:`, e.message);
-          }
-        }
-      }
-
-      // ── Contact discovery + claim outreach email for today's new imports ───
-      if (result.listings?.length) {
-        const newIds = result.listings.map(l => l.id);
-        let newWithUrl = [];
-        try {
-          const { rows: freshRows } = await pool.query(
-            `SELECT id, name, url, ai_insights FROM directory_listings WHERE id = ANY($1::int[])`,
-            [newIds]
-          );
-          newWithUrl = freshRows;
-        } catch(e) {
-          console.error('[cron-outreach] Failed to fetch URLs for new listings:', e.message);
-        }
-
-        for (const listing of newWithUrl) {
-          try {
-            console.log(`[cron-outreach] Discovering contact for: ${listing.name}`);
-            const cr = await extractContactEmail(listing.url);
-
-            // Save contact discovery result regardless
-            if (cr.status === 'found' && cr.email) {
-              await pool.query(`
-                UPDATE directory_listings
-                SET contact_email=$1, contact_email_status='found',
-                    contact_email_source=$2, contact_email_fetched_at=NOW()
-                WHERE id=$3
-              `, [cr.email, cr.source || null, listing.id]);
-
-              // Build public listing URL
-              const slug = toListingSlug(listing.name, listing.id);
-              const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-              const name = listing.name;
-
-              const { subject: outreachSubject, html: htmlBody, text: textBody } =
-                buildClaimOutreachEmail(name, listingUrl, listing.ai_insights);
-
-              await resend.emails.send({
-                from:     SENDER,
-                to:       cr.email,
-                replyTo:  'strategicflow@proton.me',
-                subject:  outreachSubject,
-                html:     htmlBody,
-                text:     textBody,
-              });
-
-              await pool.query(
-                `UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`,
-                [listing.id]
-              );
-              console.log(`[cron-outreach] ✓ Claim email sent → ${cr.email} (${name})`);
-
-            } else {
-              await pool.query(`
-                UPDATE directory_listings
-                SET contact_email_status=$1, contact_email_fetched_at=NOW()
-                WHERE id=$2
-              `, [cr.status || 'not_found', listing.id]);
-              console.log(`[cron-outreach] No email for ${name} (${cr.status}) — skipping outreach`);
-            }
-          } catch(e) {
-            console.error(`[cron-outreach] Error for ${listing.name}:`, e.message);
-          }
-        }
+      console.log(`[cron] PH discovery done — evaluated: ${result.stats?.total ?? '?'}, inserted: ${result.inserted}, emails sent: ${result.emailsSent ?? 0}`);
+      if (result.stats) {
+        console.log(`[cron] Skips — category:${result.stats.skipCategory} big:${result.stats.skipBig} noSite:${result.stats.skipNoSite} dupe:${result.stats.skipDupe} noMaker:${result.stats.skipNoMaker} noEmail:${result.stats.skipNoEmail}`);
       }
     } catch(e) { console.error('[cron] PH discovery error:', e.message); }
-  });
-
-  // ── Daily 03:00 UTC: PH draft discovery — 15/day, email required before insert ─
-  cron.schedule('0 3 * * *', async () => {
-    console.log('[cron] Draft PH discovery starting…');
-    try {
-      const result = await runDailyPHDraftDiscovery(pool, m => console.log(m), resend, SENDER);
-      console.log(`[cron] Draft PH discovery done. Inserted: ${result.inserted}`);
-    } catch(e) { console.error('[cron] Draft PH discovery error:', e.message); }
   });
 
   // ── Daily 08:00 UTC: 7-day follow-up reminder for unclaimed drafts/actives ──
