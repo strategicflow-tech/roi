@@ -138,7 +138,7 @@ a:hover{text-decoration:underline;}
 .dir-activity-text strong{color:#eef1f7;}
 .dir-activity-time{font-size:10px;color:#475569;font-family:var(--mono);}
 .dir-activity-top3{grid-column:1/-1;border-top:1px solid rgba(0,212,200,0.12);background:rgba(0,212,200,0.025);padding:10px 18px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
-.dir-activity-top3-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#475569;margin-right:6px;}
+.dir-activity-top3-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#94a3b8;margin-right:6px;}
 @media(max-width:760px){.dir-activity-section{padding:0 16px 24px;}.dir-activity-grid{grid-template-columns:1fr;}.dir-activity-row{border-right:none;}.dir-activity-row:nth-last-child(-n+3){border-bottom:1px solid rgba(0,212,200,0.07);}.dir-activity-row:last-child{border-bottom:none;}}
 /* DAILY SECTION */
 .dir-daily-section{padding:0 40px 36px;max-width:1200px;margin:0 auto;}
@@ -2623,7 +2623,7 @@ function loadActivityFeed(){
       // Top-3 snapshot row — always shown if data exists (today or 7d fallback)
       const top3Label = top3Period==='today' ? "Today's Top 3" : "Top 3 This Week";
       const top3Html = top3.length
-        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">${top3Label}</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#475569;">${p.votes}v</span></span>`).join('')}</div>`
+        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">${top3Label}</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#94a3b8;">${p.votes}v</span></span>`).join('')}</div>`
         : '';
       grid.innerHTML = rows + top3Html;
       if(age) age.textContent = 'Updated just now';
