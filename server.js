@@ -7350,6 +7350,8 @@ async function setupDB() {
   // ── Fairness enforcement: clear any permanently-hardcoded featured placements ─
   // Fix WHY Audit™ logo — Clearbit can't resolve Replit subdomains → use local file
   await pool.query(`UPDATE directory_listings SET image_url='/why-logo.png' WHERE id=199 AND image_url NOT LIKE '/why-logo%'`).catch(()=>{});
+  // Ensure WHY Audit™ and Strategic Flow Audit show Verified Founder badge
+  await pool.query(`UPDATE directory_listings SET claimed_by='strategicflow@proton.me', verified=TRUE WHERE id IN (199,203) AND (claimed_by IS NULL OR verified IS NOT TRUE)`).catch(()=>{});
   console.log('[DB] All tables ready');
 }
 
