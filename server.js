@@ -1456,7 +1456,7 @@ app.get('/directory/:slug', async (req, res) => {
     // ── boost section (all 7 paid tiers, golden dropdown) ────────────────────
     const boostHtml = `
 <div class="pp-boost-section">
-  <button class="pp-boost-toggle" onclick="toggleBoost()" id="ppBoostToggle">
+  <button type="button" class="pp-boost-toggle" onclick="toggleBoost()" id="ppBoostToggle">
     <span>✨ Boost This Listing</span>
     <span class="pp-boost-arrow" id="ppBoostArrow">▼</span>
   </button>
@@ -1978,12 +1978,21 @@ var PAGE = ${JSON.stringify({ id: l.id, votes: votes })};
 var VOTE_KEY = 'dir_voted_v2';
 // ── Boost section ──────────────────────────────────────────────────────
 var ppBoostTier = null;
+// Move overlay to body on load so position:fixed works correctly on mobile
+(function(){
+  var ov=document.getElementById('ppBoostOverlay');
+  if(ov && ov.parentElement !== document.body) document.body.appendChild(ov);
+})();
 function toggleBoost(){
   var body=document.getElementById('ppBoostBody');
   var arrow=document.getElementById('ppBoostArrow');
+  var toggle=document.getElementById('ppBoostToggle');
+  if(!body) return;
   var open=body.style.display!=='none';
   body.style.display=open?'none':'block';
-  arrow.style.transform=open?'':'rotate(180deg)';
+  if(arrow) arrow.style.transform=open?'':'rotate(180deg)';
+  // On mobile scroll the opened section into view
+  if(!open && toggle) setTimeout(function(){ toggle.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 80);
 }
 var ppBoostSelectedDate=null;
 function ppCheckout(tier){

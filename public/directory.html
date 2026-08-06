@@ -1697,6 +1697,22 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </div>
 
+<!-- PICK LISTING MODAL (shown when user clicks pricing CTA without a listing selected) -->
+<div class="modal-overlay" id="pickListingModal" onclick="if(event.target===this)closePickListingModal()" style="z-index:600;">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="closePickListingModal()">&times;</button>
+    <div class="modal-tag">🔍 Select your listing</div>
+    <div class="modal-title" style="font-size:18px;">Which product do you want to boost?</div>
+    <div class="modal-sub">Type your product name to find it in the directory.</div>
+    <input id="pickListingSearch" type="text" placeholder="Search your product name…"
+      autocomplete="off" autocorrect="off" spellcheck="false"
+      style="width:100%;padding:11px 13px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:10px;color:#fff;font-size:14px;font-family:var(--font);box-sizing:border-box;outline:none;margin-bottom:10px;"
+      oninput="renderPickListingResults()" />
+    <div id="pickListingResults" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+    <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;">Don't see your listing? <a href="/directory#submit" style="color:var(--teal);text-decoration:none;">Submit it free →</a></p>
+  </div>
+</div>
+
 <!-- BOOST MODAL -->
 <div class="modal-overlay" id="boostModal" onclick="closeBoostModal(event)">
   <div class="modal-box">
@@ -2658,6 +2674,15 @@ function loadPulseSections(){
 }
 
 // ── Collections sidebar: real counts from DB ─────────────────────────────────
+function filterByCategory(cat){
+  const btn = document.querySelector('.dir-filter-btn[data-cat="'+cat+'"]');
+  if(btn){
+    btn.click();
+    // Scroll to the grid so filtered results are visible
+    const grid = document.getElementById('dirGrid');
+    if(grid) setTimeout(()=>grid.scrollIntoView({behavior:'smooth',block:'start'}),80);
+  }
+}
 function loadCollections(){
   const el=document.getElementById('dirCollections');
   if(!el) return;
@@ -2666,10 +2691,17 @@ function loadCollections(){
     .then(rows=>{
       if(!rows.length){el.innerHTML='';return;}
       el.innerHTML=rows.map(({category:cat,cnt})=>
-        `<a class="dir-collection-item" href="/directory?category=${encodeURIComponent(cat)}" onclick="document.querySelector('[data-cat=\\''+${JSON.stringify(cat)}+'\\']')?.click();return false;">
+        `<a class="dir-collection-item" href="#dirGrid" data-filter-cat="${escHtml(cat)}">
           <span class="dir-collection-name">${escHtml(cat)}</span>
           <span class="dir-collection-count">${cnt}</span>
         </a>`).join('');
+      // Attach click handlers after rendering (avoids any inline-JS escaping issues)
+      el.querySelectorAll('.dir-collection-item[data-filter-cat]').forEach(a=>{
+        a.addEventListener('click', e=>{
+          e.preventDefault();
+          filterByCategory(a.dataset.filterCat);
+        });
+      });
     })
     .catch(()=>{el.innerHTML='';});
 }
@@ -3322,11 +3354,56 @@ const LU_LABELS = {
   teardown_pro:   'Teardown Spotlight Pro — $49',
 };
 
+// ── Pick Listing Modal ────────────────────────────────────────────────────────
+let _pickListingPendingTier = null;
+let _pickListingPendingFlow = null; // 'boost' | 'levelup'
+function openPickListingModal(tier, flow) {
+  _pickListingPendingTier = tier;
+  _pickListingPendingFlow = flow;
+  document.getElementById('pickListingSearch').value = '';
+  document.getElementById('pickListingResults').innerHTML = '';
+  document.getElementById('pickListingModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(()=>document.getElementById('pickListingSearch').focus(), 150);
+}
+function closePickListingModal() {
+  document.getElementById('pickListingModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function renderPickListingResults() {
+  const q = (document.getElementById('pickListingSearch').value || '').toLowerCase().trim();
+  const container = document.getElementById('pickListingResults');
+  if (!q) { container.innerHTML = ''; return; }
+  const matches = (allListings || []).filter(l =>
+    l.name && l.name.toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!matches.length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No listings found. Try a different name.</div>';
+    return;
+  }
+  container.innerHTML = matches.map(l => `
+    <button onclick="pickListingAndCheckout(${l.id},${JSON.stringify(l.name)})"
+      style="display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;"
+      onmouseover="this.style.borderColor='var(--teal)';this.style.background='rgba(0,212,200,.06)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,.04)'">
+      ${l.image_url ? `<img src="${l.image_url}" style="width:30px;height:30px;border-radius:6px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#fff;">${escHtml(l.name)}</div>
+        <div style="font-size:11px;color:var(--muted);">${escHtml(l.category||'')}</div>
+      </div>
+    </button>`).join('');
+}
+function pickListingAndCheckout(id, name) {
+  pendingBoostId   = id;
+  pendingBoostName = name;
+  closePickListingModal();
+  if (_pickListingPendingFlow === 'levelup') startLevelUpCheckout(_pickListingPendingTier);
+  else startBoostCheckout(_pickListingPendingTier);
+}
+
 function startLevelUpCheckout(tier) {
   if (!pendingBoostId) {
-    showToast('First click ⚡ Boost on your listing card to select it, then try again.', 5000);
-    const grid = document.getElementById('dirGrid');
-    if (grid) setTimeout(() => grid.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+    openPickListingModal(tier, 'levelup');
     return;
   }
   levelUpTier = tier;
@@ -3372,10 +3449,7 @@ async function submitLevelUpCheckout() {
 
 function startBoostCheckout(tier){
   if(!pendingBoostId){
-    showToast('Click ⚡ Boost on any listing card first, then pick a plan here.', 4000);
-    // Scroll up to the grid so they can choose
-    const grid = document.getElementById('dirGrid');
-    if(grid) setTimeout(()=>grid.scrollIntoView({behavior:'smooth', block:'start'}), 400);
+    openPickListingModal(tier, 'boost');
     return;
   }
   openBoostModal(pendingBoostId, pendingBoostName, tier);
@@ -3572,6 +3646,20 @@ loadListings();
 loadFeatured();
 loadLeaderboard('daily');
 loadClickCounts();
+
+// Auto-select category from ?category= URL param (used by sidebar links)
+(function(){
+  const urlCat = new URLSearchParams(window.location.search).get('category');
+  if(urlCat){
+    // Wait for listings + filter buttons to be ready, then click
+    const trySelect = (attempts) => {
+      const btn = document.querySelector('.dir-filter-btn[data-cat="'+urlCat+'"]');
+      if(btn){ btn.click(); return; }
+      if(attempts > 0) setTimeout(()=>trySelect(attempts-1), 300);
+    };
+    setTimeout(()=>trySelect(10), 200);
+  }
+})();
 
 // ── Sponsor sidebar ───────────────────────────────────────────────────────────
 (function loadSponsorSidebar() {
