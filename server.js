@@ -3745,9 +3745,9 @@ const DIR_PRICES = {
 
 // ── Sidebar sponsorship tiers (Stripe price IDs pre-created in live mode) ─────
 const SPONSOR_TIERS = {
-  '1mo':  { price_id: 'price_1TzP0mDpTwoDeZJnZV9p6FkC',  days: 30,  label: '1 Month',    amount: 19 },
-  '3mo':  { price_id: 'price_1TzP0uDpTwoDeZJnDxP1f1rv',  days: 90,  label: '3 Months',   amount: 39,  badge: 'Best Value' },
-  '12mo': { price_id: 'price_1TzP12DpTwoDeZJnpKg4X13m',  days: 365, label: '12 Months',  amount: 129 },
+  '1mo':  { price_id: 'price_1U1NueDpTwoDeZJnxCnouU1J',  days: 30,  label: '1 Month',    amount: 29 },
+  '3mo':  { price_id: 'price_1U1NueDpTwoDeZJniB5IiqdX',  days: 90,  label: '3 Months',   amount: 59,  badge: 'Best Value' },
+  '12mo': { price_id: 'price_1U1NueDpTwoDeZJnLHLlrCw6',  days: 365, label: '12 Months',  amount: 199 },
 };
 const SPONSOR_MAX_SLOTS = 3;
 

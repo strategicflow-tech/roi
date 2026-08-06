@@ -266,6 +266,8 @@ a:hover{text-decoration:underline;}
 .dir-marquee-track:hover{animation-play-state:paused;}
 @keyframes marqueeScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 @keyframes marqueeScrollReverse{0%{transform:translateX(-50%);}100%{transform:translateX(0);}}
+/* Sponsor marquee — left to right */
+@keyframes sponsorMarquee{0%{transform:translateX(-50%);}100%{transform:translateX(0%);}}
 .dir-marquee-track-rev{display:flex;align-items:center;gap:12px;width:max-content;animation:marqueeScrollReverse 36s linear infinite;}
 .dir-marquee-track-rev:hover{animation-play-state:paused;}
 .dir-marquee-item{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:7px 15px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:#8a9ab0;font-size:12px;font-weight:500;transition:border-color .2s,color .2s;white-space:nowrap;}
@@ -983,6 +985,29 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
 <div class="dir-body-wrap">
 <div class="dir-body-main">
+
+<!-- SPONSOR MARQUEE — above search bar -->
+<div id="dirSponsorMarqueeWrap" style="margin:0 0 18px;padding:0 0 0;display:none;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <span style="font-size:10px;font-family:var(--mono);letter-spacing:.13em;text-transform:uppercase;color:#f59e0b;font-weight:700;">★ Featured Sponsors</span>
+    <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(245,158,11,.25),transparent);"></span>
+    <a href="/sponsor" style="font-size:10px;font-family:var(--mono);color:var(--muted);text-decoration:none;letter-spacing:.08em;transition:color .2s;" onmouseover="this.style.color='#f59e0b'" onmouseout="this.style.color='var(--muted)'">Become a sponsor →</a>
+  </div>
+  <div style="overflow:hidden;width:100%;position:relative;">
+    <div id="dirSponsorTrack" style="display:flex;align-items:center;gap:14px;width:max-content;animation:sponsorMarquee 28s linear infinite;">
+      <!-- populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- SPONSOR MARQUEE CTA — shown when no active sponsors -->
+<div id="dirSponsorCtaWrap" style="margin:0 0 18px;display:none;">
+  <div style="overflow:hidden;width:100%;position:relative;">
+    <div id="dirSponsorCtaTrack" style="display:flex;align-items:center;gap:0;width:max-content;animation:sponsorMarquee 22s linear infinite;">
+      <!-- CTA repeated 4× for seamless loop, populated by JS -->
+    </div>
+  </div>
+</div>
 
 <!-- FILTERS + SEARCH -->
 <div class="dir-search-wrap">
@@ -3671,6 +3696,66 @@ loadClickCounts();
     };
     setTimeout(()=>trySelect(10), 200);
   }
+})();
+
+// ── Sponsor Marquee (above search bar) ───────────────────────────────────────
+(function loadSponsorMarquee() {
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function favSrc(url){ try{ return 'https://www.google.com/s2/favicons?domain='+new URL(url).hostname+'&sz=64'; }catch{ return ''; } }
+
+  function sponsorCard(s) {
+    const logo = s.sponsor_logo
+      ? `<img src="${esc(s.sponsor_logo)}" alt="${esc(s.sponsor_name)}" style="width:28px;height:28px;border-radius:6px;object-fit:contain;flex-shrink:0;" onerror="this.src='${favSrc(s.sponsor_url)}'">`
+      : `<img src="${favSrc(s.sponsor_url)}" alt="${esc(s.sponsor_name)}" style="width:28px;height:28px;border-radius:6px;object-fit:contain;flex-shrink:0;">`;
+    return `<a href="${esc(s.sponsor_url)}" target="_blank" rel="noopener sponsored"
+      style="display:inline-flex;align-items:center;gap:10px;flex-shrink:0;padding:10px 18px;background:rgba(245,158,11,.07);border:1.5px solid rgba(245,158,11,.3);border-radius:12px;text-decoration:none;color:var(--text);white-space:nowrap;transition:border-color .2s,background .2s;"
+      onmouseover="this.style.borderColor='#f59e0b';this.style.background='rgba(245,158,11,.13)'"
+      onmouseout="this.style.borderColor='rgba(245,158,11,.3)';this.style.background='rgba(245,158,11,.07)'">
+      ${logo}
+      <div style="line-height:1.3;">
+        <div style="font-size:13px;font-weight:700;color:#fff;">${esc(s.sponsor_name)}</div>
+        ${s.sponsor_tagline ? `<div style="font-size:11px;color:var(--muted);">${esc(s.sponsor_tagline)}</div>` : ''}
+      </div>
+      <span style="font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:2px 7px;flex-shrink:0;">SPONSOR</span>
+    </a>`;
+  }
+
+  function ctaCard(slotsAvailable) {
+    const items = [
+      `🚀 <strong>Become a Sponsor</strong> — ${slotsAvailable} slot${slotsAvailable!==1?'s':''} available — Get featured on every page →`,
+      `⚡ <strong>Sponsor ToolIndex</strong> — Reach 500+ SaaS founders daily →`,
+      `★ <strong>Featured Sponsor Slot</strong> — DR 86 directory · instant visibility →`,
+      `🎯 <strong>Sponsor This Directory</strong> — ${slotsAvailable} open slot${slotsAvailable!==1?'s':''} — $29/month →`,
+    ];
+    return items.map(txt =>
+      `<a href="/sponsor" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:11px 24px;background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.22);border-radius:12px;text-decoration:none;color:#c9a84c;font-size:13px;font-family:var(--font);white-space:nowrap;margin-right:18px;transition:border-color .2s,background .2s;"
+        onmouseover="this.style.borderColor='#f59e0b';this.style.background='rgba(245,158,11,.12)'"
+        onmouseout="this.style.borderColor='rgba(245,158,11,.22)';this.style.background='rgba(245,158,11,.06)'">${txt}</a>`
+    ).join('');
+  }
+
+  fetch('/api/sponsor/active').then(r=>r.json()).then(d=>{
+    const sponsors = d.sponsors || [];
+    const slotsAvailable = d.slots_available ?? 3;
+
+    if (sponsors.length > 0) {
+      // Sponsor cards — duplicate for seamless left→right loop
+      const cards = sponsors.map(sponsorCard).join('');
+      const track = document.getElementById('dirSponsorTrack');
+      if (track) { track.innerHTML = cards + cards; }
+      const wrap = document.getElementById('dirSponsorMarqueeWrap');
+      if (wrap) wrap.style.display = '';
+    } else {
+      // CTA fallback — show call-to-action ticker
+      const track = document.getElementById('dirSponsorCtaTrack');
+      if (track) {
+        const ctas = ctaCard(slotsAvailable);
+        track.innerHTML = ctas + ctas; // duplicate for seamless loop
+      }
+      const wrap = document.getElementById('dirSponsorCtaWrap');
+      if (wrap) wrap.style.display = '';
+    }
+  }).catch(()=>{}); // silent fail — marquee is decorative
 })();
 
 // ── Sponsor sidebar ───────────────────────────────────────────────────────────
