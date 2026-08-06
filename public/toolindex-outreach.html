@@ -170,9 +170,15 @@
     </div>
     <div class="head-title">
       <h1>ToolIndex Outreach</h1>
-      <p><b id="sentCount">0</b> sent · <b id="draftCount">0</b> drafts · <b id="claimedCount">0</b> claimed / <b id="totalCount">…</b> total</p>
+      <p>
+        <span title="Confirmed sent via Resend API — stored in DB">✉ <b id="sentCount">0</b> sent via Resend</span>
+        &nbsp;·&nbsp;
+        <span title="Manually checked off in this browser only — localStorage, not DB" style="color:#94a3b8;">☑ <b id="doneCount">0</b> marked done (local)</span>
+        &nbsp;·&nbsp;
+        <b id="draftCount">0</b> drafts · <b id="claimedCount">0</b> claimed / <b id="totalCount">…</b> total
+      </p>
     </div>
-    <button class="batch-btn" id="batchBtn" title="Trimite automat la next 25 cu email găsit și netrimis">⚡ Trimite 25</button>
+    <button class="batch-btn" id="batchBtn" title="Trimite automat la next 25 cu email găsit și netrimis (folosește întreaga coadă, nu doar filtrul activ)">⚡ Trimite 25</button>
   </div>
   <div class="search">
     <input id="q" type="text" placeholder="Caută nume sau categorie…">
@@ -507,16 +513,21 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
   });
 
   // ── Batch send (25 at a time) ──
+  // ALWAYS queues from full DATA — never from the currently visible filtered subset
   batchBtn.addEventListener('click', async ()=>{
     if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
-    const queue = DATA.filter(d => d.email && !d.emailed_at);
-    if(!queue.length){ alert('Nicio listare cu email nerămasă de trimis.'); return; }
-    const batch = queue.slice(0, 25);
+    // Use full DATA regardless of active tab/filter/search
+    const fullQueue = DATA.filter(d => d.email && !d.emailed_at);
+    if(!fullQueue.length){
+      alert('Coada reală e goală — nicio listare cu email nerămasă de trimis în întregul dataset.');
+      return;
+    }
+    const batch = fullQueue.slice(0, 25);
     batchBtn.disabled = true;
     batchLog.style.display = 'block';
-    batchLog.textContent = `Trimit ${batch.length} emailuri…\n`;
+    batchLog.textContent = `Trimit ${batch.length} emailuri (${fullQueue.length} totale în coadă)…\n`;
 
-    let ok = 0, fail = 0;
+    let ok = 0, fail = 0, quotaHit = false;
     for(const item of batch){
       try {
         const r = await fetch('/admin/send-claim-outreach?key=' + encodeURIComponent(urlKey) + '&id=' + item.id, { method: 'POST' });
@@ -525,6 +536,14 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
           item.emailed_at = d.sent_at || new Date().toISOString();
           ok++;
           batchLog.textContent += `✓ ${item.name} → ${item.email}\n`;
+        } else if(r.status === 429 || d.error === 'quota_exceeded'){
+          // Resend daily quota reached — stop immediately, only mark confirmed sends
+          quotaHit = true;
+          const remaining = fullQueue.length - ok;
+          batchLog.textContent += `\n⚠ Resend quota atinsă după ${ok} trimise.\n`;
+          batchLog.textContent += `   Mesaj Resend: ${d.message || 'daily limit reached'}\n`;
+          batchLog.textContent += `   ${remaining} emailuri rămân pentru mâine.\n`;
+          break;
         } else {
           fail++;
           batchLog.textContent += `✗ ${item.name} — ${d.error}\n`;
@@ -534,11 +553,13 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
         batchLog.textContent += `✗ ${item.name} — eroare rețea\n`;
       }
       batchLog.scrollTop = batchLog.scrollHeight;
-      // Small delay between sends to be polite
       await new Promise(r => setTimeout(r, 300));
     }
 
-    batchLog.textContent += `\nGata: ${ok} trimise, ${fail} erori.`;
+    if(!quotaHit){
+      const stillPending = DATA.filter(d => d.email && !d.emailed_at).length;
+      batchLog.textContent += `\nGata: ${ok} trimise, ${fail} erori. ${stillPending} rămase în coadă.`;
+    }
     batchBtn.disabled = false;
     render();
   });

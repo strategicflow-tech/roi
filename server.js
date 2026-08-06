@@ -3308,6 +3308,12 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     res.json({ ok: true, listing_id: listingId, email: listing.contact_email, sent_at: new Date().toISOString() });
   } catch(e) {
     console.error('[outreach] Send error:', e.message);
+    // Detect Resend quota / rate-limit errors (statusCode 429 or message keywords)
+    const isQuota = e.statusCode === 429
+      || (e.message && /rate.?limit|quota|daily.?limit|too many/i.test(e.message));
+    if (isQuota) {
+      return res.status(429).json({ error: 'quota_exceeded', message: e.message || 'Resend daily quota reached' });
+    }
     res.status(500).json({ error: e.message });
   }
 });
