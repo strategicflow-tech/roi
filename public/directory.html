@@ -792,7 +792,13 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-fomo-row{display:flex;align-items:center;gap:7px;padding:3px 4px;border-radius:5px;transition:background .15s;cursor:default;}
 .dir-fomo-row:hover{background:rgba(0,212,200,.05);}
 .dir-fomo-badge-wrap{flex-shrink:0;line-height:1;}
+.dir-fomo-desc-wrap{display:flex;flex-direction:column;min-width:0;flex:1;}
 .dir-fomo-desc{font-size:9.5px;color:rgba(148,163,184,.75);line-height:1.3;font-family:var(--mono);}
+.dir-fomo-holder{font-size:9px;color:#00d4c8;font-family:var(--mono);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;display:none;}
+.dir-fomo-holder:hover{text-decoration:underline;}
+.dir-fomo-holder.loaded{display:block;}
+.dir-fomo-ph-count{font-size:9px;color:#ff8040;font-family:var(--mono);display:none;}
+.dir-fomo-ph-count.loaded{display:block;}
 </style>
 </head>
 <body>
@@ -1088,61 +1094,57 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
       <div class="dir-fomo-section">
         <div class="dir-fomo-section-label">EARNED</div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="winner_day">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-winner">🏆 Winner Today</span></span>
-          <span class="dir-fomo-desc">#1 in votes today</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">#1 in votes today</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="winner_week">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-winner">🏆 Week Winner</span></span>
-          <span class="dir-fomo-desc">#1 this week</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">#1 this week</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
-          <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-trending">🔥 Trending +X%</span></span>
-          <span class="dir-fomo-desc">Vote spike vs yesterday</span>
+        <div class="dir-fomo-row" data-slot="trending">
+          <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-trending" id="fomoTrendingBadge">🔥 Trending</span></span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Vote spike vs yesterday</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="editors_pick">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-editors-pick">⭐ Editor's Pick</span></span>
-          <span class="dir-fomo-desc">Handpicked by ToolIndex</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Handpicked by ToolIndex</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="award">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-award">🎖 Award</span></span>
-          <span class="dir-fomo-desc">Special recognition</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Special recognition</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
       </div>
 
       <div class="dir-fomo-section">
         <div class="dir-fomo-section-label">PAID BOOSTS</div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="daily_top">
           <span class="dir-fomo-badge-wrap"><span class="dir-featured-badge badge-daily_top">🔥 Daily Top</span></span>
-          <span class="dir-fomo-desc">24h #1 spot — $9</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">24h #1 spot — $9</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="weekly_feature">
           <span class="dir-fomo-badge-wrap"><span class="dir-featured-badge badge-weekly_feature">⚡ Weekly Feature</span></span>
-          <span class="dir-fomo-desc">14-day spotlight — $19</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">14-day spotlight — $19</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="premium">
           <span class="dir-fomo-badge-wrap"><span class="dir-featured-badge badge-premium">⭐ Founder Pack</span></span>
-          <span class="dir-fomo-desc">30-day premium — $29</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">30-day premium — $29</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="promoted">
           <span class="dir-fomo-badge-wrap"><span class="dir-promoted-badge">Promoted</span></span>
-          <span class="dir-fomo-desc">Sponsor placement</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Sponsor placement</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
       </div>
 
       <div class="dir-fomo-section">
         <div class="dir-fomo-section-label">STATUS</div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="verified_founder">
           <span class="dir-fomo-badge-wrap"><span class="dir-sp-badge sp-verified-founder">✓ Verified Founder</span></span>
-          <span class="dir-fomo-desc">Claimed + verified</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Claimed + verified</span><a class="dir-fomo-holder" href="#" target="_blank"></a></span>
         </div>
-        <div class="dir-fomo-row">
-          <span class="dir-fomo-badge-wrap"><span class="dir-verified-badge">✓ Verified</span></span>
-          <span class="dir-fomo-desc">Owner identity confirmed</span>
-        </div>
-        <div class="dir-fomo-row">
+        <div class="dir-fomo-row" data-slot="ph">
           <span class="dir-fomo-badge-wrap"><span class="dir-daily-badge-ph">PH</span></span>
-          <span class="dir-fomo-desc">Imported from Product Hunt</span>
+          <span class="dir-fomo-desc-wrap"><span class="dir-fomo-desc">Product Hunt import</span><span class="dir-fomo-ph-count" id="fomoPhCount"></span></span>
         </div>
       </div>
 
@@ -3855,6 +3857,54 @@ loadClickCounts();
       if (wrap) wrap.style.display = '';
     }
   }).catch(()=>{}); // silent fail — marquee is decorative
+})();
+
+// ── FOMO Legend Card — fetch live badge holders ───────────────────────────────
+(function loadFomoBadgeHolders() {
+  function truncate(s, n) { return s && s.length > n ? s.slice(0, n - 1) + '…' : (s || ''); }
+  fetch('/api/directory/badge-holders').then(function(r){ return r.json(); }).then(function(d) {
+    // Helper: populate a single slot with first holder from an array or a single object
+    function fill(slot, item, labelFn) {
+      var row = document.querySelector('[data-slot="' + slot + '"]');
+      if (!row || !item) return;
+      var holders = Array.isArray(item) ? item : [item];
+      if (!holders.length) return;
+      var h = holders[0];
+      if (!h || !h.name) return;
+      var a = row.querySelector('.dir-fomo-holder');
+      if (!a) return;
+      a.textContent = '→ ' + truncate(labelFn ? labelFn(h) : h.name, 22);
+      a.href = h.url || '#';
+      a.classList.add('loaded');
+    }
+
+    fill('winner_day',      d.winner_day);
+    fill('winner_week',     d.winner_week);
+    fill('editors_pick',    d.editors_picks);
+    fill('award',           d.awards,       function(h){ return h.name + (h.label ? ' · ' + h.label : ''); });
+    fill('daily_top',       d.daily_top);
+    fill('weekly_feature',  d.weekly_feature);
+    fill('premium',         d.premium);
+    fill('promoted',        d.promoted);
+    fill('verified_founder',d.verified_founder);
+
+    // Trending: also update badge text with pct
+    if (d.trending && d.trending.name) {
+      var tRow = document.querySelector('[data-slot="trending"]');
+      if (tRow) {
+        var badge = document.getElementById('fomoTrendingBadge');
+        if (badge && d.trending.pct) badge.textContent = '🔥 Trending +' + d.trending.pct + '%';
+        var a = tRow.querySelector('.dir-fomo-holder');
+        if (a) { a.textContent = '→ ' + truncate(d.trending.name, 22); a.href = d.trending.url || '#'; a.classList.add('loaded'); }
+      }
+    }
+
+    // PH count
+    if (d.ph_today > 0) {
+      var phEl = document.getElementById('fomoPhCount');
+      if (phEl) { phEl.textContent = d.ph_today + ' added today'; phEl.classList.add('loaded'); }
+    }
+  }).catch(function(){});
 })();
 
 // ── Sponsor sidebar ───────────────────────────────────────────────────────────

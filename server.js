@@ -4632,6 +4632,94 @@ app.get('/api/directory/category-leaders', async (req, res) => {
   }
 });
 
+// ── GET /api/directory/badge-holders — live holders for FOMO legend card ──────
+app.get('/api/directory/badge-holders', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300'); // 5-min cache
+  try {
+    const [winners, trending] = await Promise.all([computeWinners(), computeTrending()]);
+
+    // Collect IDs we need names for
+    const needIds = new Set();
+    if (winners.day)   needIds.add(winners.day);
+    if (winners.week)  needIds.add(winners.week);
+    if (winners.month) needIds.add(winners.month);
+    trending.slice(0, 1).forEach(t => needIds.add(t.id));
+
+    // Single query for all featured/special listings
+    const { rows: specials } = await pool.query(`
+      SELECT id, name,
+             editors_pick, award_label,
+             featured_tier, featured_until,
+             (claimed_by IS NOT NULL) AS is_claimed, verified,
+             source, submitted_at
+      FROM directory_listings
+      WHERE status = 'active'
+        AND (
+          editors_pick = TRUE
+          OR award_label IS NOT NULL
+          OR (featured_tier IS NOT NULL AND featured_until > NOW())
+          OR (claimed_by IS NOT NULL AND verified = TRUE)
+        )
+      ORDER BY submitted_at DESC
+    `);
+
+    // Name lookup for winner/trending IDs
+    const idArr = [...needIds];
+    let nameMap = {};
+    if (idArr.length) {
+      const { rows: nrows } = await pool.query(
+        `SELECT id, name FROM directory_listings WHERE id = ANY($1)`,
+        [idArr]
+      );
+      nrows.forEach(r => { nameMap[r.id] = r.name; });
+    }
+
+    // Sponsored (active)
+    const { rows: sponsors } = await pool.query(`
+      SELECT sponsor_name AS name, sponsor_url AS url
+      FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
+      ORDER BY created_at LIMIT 1
+    `).catch(() => ({ rows: [] }));
+
+    // PH imports today
+    const { rows: phRows } = await pool.query(`
+      SELECT COUNT(*)::int AS cnt
+      FROM directory_listings
+      WHERE source='Product Hunt'
+        AND submitted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+    `).catch(() => ({ rows: [{ cnt: 0 }] }));
+
+    const slug = (name, id) => {
+      const base = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+      return `/directory/${base}-${id}`;
+    };
+
+    const editors = specials.filter(l => l.editors_pick).slice(0, 3);
+    const awards  = specials.filter(l => l.award_label).slice(0, 2);
+    const dailyTop   = specials.filter(l => l.featured_tier === 'daily_top').slice(0, 1);
+    const weeklyFeat = specials.filter(l => l.featured_tier === 'weekly_feature').slice(0, 2);
+    const premium    = specials.filter(l => l.featured_tier === 'premium').slice(0, 2);
+    const verifiedF  = specials.filter(l => l.is_claimed && l.verified).slice(0, 1);
+
+    res.json({
+      winner_day:     winners.day   ? { name: nameMap[winners.day],   url: slug(nameMap[winners.day],   winners.day)   } : null,
+      winner_week:    winners.week  ? { name: nameMap[winners.week],  url: slug(nameMap[winners.week],  winners.week)  } : null,
+      trending:       trending[0]   ? { name: nameMap[trending[0].id], url: slug(nameMap[trending[0].id], trending[0].id), pct: trending[0].pct } : null,
+      editors_picks:  editors.map(l => ({ name: l.name, url: slug(l.name, l.id) })),
+      awards:         awards.map(l  => ({ name: l.name, url: slug(l.name, l.id), label: l.award_label })),
+      daily_top:      dailyTop.map(l   => ({ name: l.name, url: slug(l.name, l.id) })),
+      weekly_feature: weeklyFeat.map(l => ({ name: l.name, url: slug(l.name, l.id) })),
+      premium:        premium.map(l    => ({ name: l.name, url: slug(l.name, l.id) })),
+      promoted:       sponsors.length  ? [{ name: sponsors[0].name, url: sponsors[0].url }] : [],
+      verified_founder: verifiedF.map(l => ({ name: l.name, url: slug(l.name, l.id) })),
+      ph_today:       phRows[0]?.cnt ?? 0,
+    });
+  } catch(e) {
+    console.error('[badge-holders]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── GET /api/directory/boost-dates ───────────────────────────────────────────
 app.get('/api/directory/boost-dates', async (req, res) => {
   try {
