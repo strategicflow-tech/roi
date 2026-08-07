@@ -3370,12 +3370,9 @@ app.get('/admin/run-vote-growth', async (req, res) => {
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     let grown = 0;
 
-    // ── Promoted listings: WHY Audit (199) + Strategic Flow Audit (203) ─────────
-    // Get 10–14 votes every day, no cap — they are featured and must stay well ahead.
-    const PROMOTED_IDS = [199, 203];
+    // ── Promoted listings (is_promoted=TRUE): 10–14 votes/day, no cap ───────────
     const { rows: promoted } = await pool.query(
-      `SELECT id, name, vote_count FROM directory_listings WHERE id = ANY($1)`,
-      [PROMOTED_IDS]
+      `SELECT id, name, vote_count FROM directory_listings WHERE is_promoted = TRUE AND status = 'active'`
     );
     for (const listing of promoted) {
       const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
@@ -3392,22 +3389,23 @@ app.get('/admin/run-vote-growth', async (req, res) => {
       log(`[vote-growth] PROMOTED +${toAdd} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
       grown++;
     }
+    const promotedIds = promoted.map(p => p.id);
 
-    // ── Regular auto-imported listings: 1–3 votes/day, cap 12 ──────────────────
+    // ── Regular auto-imported listings: 1–3 votes/day below 20, 1/day above, cap 30 ──
     const { rows } = await pool.query(
       `SELECT id, name, vote_count FROM directory_listings
        WHERE is_auto_imported = TRUE AND status = 'active'
-         AND id != ALL($1)
-         AND vote_count < 12
-         AND submitted_at >= NOW() - INTERVAL '10 days'
-       ORDER BY submitted_at DESC`,
-      [PROMOTED_IDS]
+         AND NOT COALESCE(is_promoted, FALSE)
+         AND vote_count < 30
+         AND submitted_at >= NOW() - INTERVAL '30 days'
+       ORDER BY submitted_at DESC`
     );
     log(`[vote-growth] ${rows.length} regular listings eligible`);
     for (const listing of rows) {
-      const remaining = 12 - listing.vote_count;
+      const remaining = 30 - listing.vote_count;
       if (remaining <= 0) continue;
-      const maxToday = listing.vote_count >= 10 ? 1 : 3;
+      // Slow growth rate above 20 — 1/day; below 20 — 1-3/day
+      const maxToday = listing.vote_count >= 20 ? 1 : listing.vote_count >= 15 ? 2 : 3;
       const toAdd = 1 + Math.floor(Math.random() * maxToday);
       const actual = Math.min(toAdd, remaining);
       const voteRows = Array.from({ length: actual }, (_, i) =>
@@ -3423,7 +3421,7 @@ app.get('/admin/run-vote-growth', async (req, res) => {
       log(`[vote-growth] +${actual} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
       grown++;
     }
-    log(`[vote-growth] Done. Grew ${grown} listings (${PROMOTED_IDS.length} promoted, ${rows.length} regular).`);
+    log(`[vote-growth] Done. Grew ${grown} listings (${promoted.length} promoted, ${rows.length} regular).`);
   } catch (e) {
     log(`[vote-growth] ERROR: ${e.message}`);
   }
@@ -3605,6 +3603,25 @@ app.get('/admin/redistribute-votes', async (req, res) => {
     log(`ERROR: ${e.message}`);
   }
   res.end();
+});
+
+// GET /admin/toggle-promoted?key=&id=&promoted=true|false — set is_promoted on a listing
+// e.g. /admin/toggle-promoted?key=X&id=199&promoted=true
+app.get('/admin/toggle-promoted', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const id = parseInt(req.query.id, 10);
+  const promoted = req.query.promoted === 'true';
+  if (!id) return res.status(400).json({ error: 'id required' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE directory_listings SET is_promoted = $1 WHERE id = $2 RETURNING id, name, is_promoted`,
+      [promoted, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'listing not found' });
+    res.json({ ok: true, id: rows[0].id, name: rows[0].name, is_promoted: rows[0].is_promoted });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET /admin/seed-votes?key=… — seeds vote_count + dir_votes (safe to re-run on any env)
@@ -7185,11 +7202,13 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url     TEXT`).catch(()=>{});
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
+  // Promoted flag — listings that get 10-14 votes/day to stay well ahead in the leaderboard
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS is_promoted         BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
   // Premium showcase listings — always force-set on startup so production stays in sync
   await pool.query(`
     UPDATE directory_listings
-    SET featured_tier='premium', featured_until='2099-12-31'
+    SET featured_tier='premium', featured_until='2099-12-31', is_promoted=TRUE
     WHERE id IN (199, 203)
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
 
@@ -19234,9 +19253,9 @@ ${content}
     } catch(e) { console.error('[cron] Follow-up reminder error:', e.message); }
   });
 
-  // ── Daily 02:00 UTC: Gradual vote growth for recent auto-imports (Task #84) ─
-  // Adds 1-2 votes/day to PH-imported listings until they reach 10-12 total,
-  // keeping them visible in the Daily leaderboard tab for several days post-import.
+  // ── Daily 02:00 UTC: Gradual vote growth for auto-imports ────────────────────
+  // Cap: 30 votes. Window: 30 days. Rate: 1-3/day below 15, 1-2/day 15-20, 1/day 20-30.
+  // Promoted listings (is_promoted=TRUE) are excluded — they have their own boost cron.
   cron.schedule('0 2 * * *', async () => {
     console.log('[cron] Daily vote growth starting…');
     try {
@@ -19245,35 +19264,31 @@ ${content}
          FROM directory_listings
          WHERE is_auto_imported = TRUE
            AND status = 'active'
-           AND vote_count < 12
-           AND submitted_at >= NOW() - INTERVAL '10 days'
+           AND NOT COALESCE(is_promoted, FALSE)
+           AND vote_count < 30
+           AND submitted_at >= NOW() - INTERVAL '30 days'
          ORDER BY submitted_at DESC`
       );
-      console.log(`[cron] Vote growth: ${rows.length} listings to grow`);
+      console.log(`[cron] Vote growth: ${rows.length} listings eligible`);
+      const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       for (const listing of rows) {
-        const cap       = 12;
-        const remaining = cap - listing.vote_count;
+        const remaining = 30 - listing.vote_count;
         if (remaining <= 0) continue;
-        // Random 1–3 per day, slowing near cap — different per listing each run
-        const maxToday = listing.vote_count >= 10 ? 1 : 3;
+        const maxToday = listing.vote_count >= 20 ? 1 : listing.vote_count >= 15 ? 2 : 3;
         const toAdd    = 1 + Math.floor(Math.random() * maxToday);
         const actual   = Math.min(toAdd, remaining);
-        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const voteRows = [];
-        for (let i = 0; i < actual; i++) {
-          voteRows.push(`(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`);
-        }
+        const voteRows = Array.from({ length: actual }, (_, i) =>
+          `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
+        );
         try {
           await pool.query(
-            `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-             VALUES ${voteRows.join(',')}
-             ON CONFLICT DO NOTHING`
+            `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows.join(',')} ON CONFLICT DO NOTHING`
           );
           await pool.query(
             `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
             [actual, listing.id]
           );
-          console.log(`[cron] +${actual} votes → ${listing.name} (total: ${listing.vote_count + actual})`);
+          console.log(`[cron] +${actual} → ${listing.name} (now ${listing.vote_count + actual})`);
         } catch(e) {
           console.error(`[cron] Vote growth error for ${listing.name}:`, e.message);
         }
@@ -19282,26 +19297,29 @@ ${content}
     } catch(e) { console.error('[cron] Vote growth error:', e.message); }
   });
 
-  // ── Daily 02:05 UTC: Premium listing vote boost (WHY Audit™ #199, Strategic Flow Audit #203) ─
+  // ── Daily 02:05 UTC: Promoted listing vote boost (is_promoted=TRUE) ─────────
+  // 10–14 votes/day, no cap. Toggled via /admin/toggle-promoted?key=&id=&promoted=true|false
   cron.schedule('5 2 * * *', async () => {
-    const PREMIUM_IDS = [199, 203];
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    for (const id of PREMIUM_IDS) {
-      try {
-        const toAdd = 10 + Math.floor(Math.random() * 6); // 10–15, Founder Pack (WHY + SFA)
+    try {
+      const { rows: promoted } = await pool.query(
+        `SELECT id, name FROM directory_listings WHERE is_promoted = TRUE AND status = 'active'`
+      );
+      for (const listing of promoted) {
+        const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
         const voteRows = Array.from({ length: toAdd }, (_, i) =>
-          `(${id}, 'premium_boost_${id}_${dateTag}_${i}', NOW())`
+          `(${listing.id}, 'promoted_boost_${listing.id}_${dateTag}_${i}', NOW() - interval '${i * 90} minutes')`
         ).join(',');
         await pool.query(
           `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
         );
         await pool.query(
           `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-          [toAdd, id]
+          [toAdd, listing.id]
         );
-        console.log(`[cron] Premium boost (Founder Pack): +${toAdd} votes → listing #${id}`);
-      } catch(e) { console.error(`[cron] Premium boost error for #${id}:`, e.message); }
-    }
+        console.log(`[cron] Promoted boost: +${toAdd} votes → ${listing.name} (#${listing.id})`);
+      }
+    } catch(e) { console.error('[cron] Promoted boost error:', e.message); }
   });
 
   // ── Daily 02:10 UTC: Vote boost for claimed listings (5–7/day) ───────────
