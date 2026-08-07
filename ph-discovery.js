@@ -3,7 +3,7 @@
  * ph-discovery.js — Unified daily Product Hunt discovery pipeline (v2)
  *
  * Single job, runs once daily. A product is included only if ALL three hold:
- *   1. Posted on PH within the last 3 days
+ *   1. Posted on PH within the last 7 days
  *   2. Has a discoverable public contact email (extracted from product site)
  *   3. commentsCount >= 5 (engagement proxy — PH API does not expose isMakerComment)
  *
@@ -218,7 +218,7 @@ function checkMakerEngagementInHtml(html, makerUsernames = []) {
 }
 
 // ── PART A: PH GraphQL API ────────────────────────────────────────────────────
-async function fetchViaGraphQL(token, daysBack = 3) {
+async function fetchViaGraphQL(token, daysBack = 7, order = 'VOTES') {
   const now   = new Date();
   const start = new Date(now - daysBack * 24 * 60 * 60 * 1000);
   // PH GraphQL requires YYYY-MM-DD date strings — full ISO timestamps return 0 results
@@ -231,7 +231,7 @@ async function fetchViaGraphQL(token, daysBack = 3) {
   // A product with 5+ community comments almost always has the maker responding.
   // first:40 stays under the 500k complexity cap.
   const query = `{
-    posts(order: VOTES, first: 40, postedAfter: "${postedAfter}") {
+    posts(order: ${order}, first: 40, postedAfter: "${postedAfter}") {
       edges {
         node {
           id name tagline url website votesCount commentsCount
@@ -616,20 +616,31 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   const LIMIT = DAILY_LIMIT + DRAFT_LIMIT;
   log(`[ph-discovery] Starting unified daily PH discovery (daily/active: ${DAILY_LIMIT}, draft: ${DRAFT_LIMIT})…`);
 
-  // 1. Fetch posts (last 3 days)
+  // 1. Fetch posts — two passes to maximize candidate pool:
+  //    Pass 1: top VOTES from last 2 days  → strong signal for daily/active track
+  //    Pass 2: NEWEST from last 5 days     → recent launches for draft track (different set)
+  //    Merging both gives up to 80 candidates before DB dedup.
   let posts = [];
   const token = process.env.PRODUCT_HUNT_TOKEN;
   try {
     if (token) {
-      log('[ph-discovery] PH GraphQL API active (3-day window, YYYY-MM-DD filter).');
-      log('[ph-discovery] Maker engagement proxy: commentsCount >= 5 (PH API does not expose isMakerComment).');
-      posts = await fetchViaGraphQL(token, 3);
+      log('[ph-discovery] PH GraphQL API — dual fetch: VOTES/2-day (daily) + NEWEST/5-day (draft).');
+      log('[ph-discovery] Maker engagement proxy: commentsCount >= 5 daily, >= 2 draft (PH API does not expose isMakerComment).');
+      const [votedPosts, newestPosts] = await Promise.all([
+        fetchViaGraphQL(token, 2, 'VOTES'),   // last 48h, top by votes → daily candidates
+        fetchViaGraphQL(token, 5, 'NEWEST'),  // last 5 days, newest first → draft candidates
+      ]);
+      // Merge: VOTES-ordered first (daily priority), then NEWEST that aren't duplicates
+      const seenUrls = new Set(votedPosts.map(p => p.phUrl));
+      const freshNewest = newestPosts.filter(p => !seenUrls.has(p.phUrl));
+      posts = [...votedPosts, ...freshNewest];
+      log(`[ph-discovery] Fetched ${votedPosts.length} by-votes + ${freshNewest.length} newest-only = ${posts.length} total`);
     } else {
       log('[ph-discovery] ⚠ WARNING: PRODUCT_HUNT_TOKEN not set — falling back to Atom feed.');
       log('[ph-discovery] ⚠ Maker engagement checked via __NEXT_DATA__ page scrape (same as token path).');
       posts = await fetchViaAtom(3);
+      log(`[ph-discovery] Fetched ${posts.length} raw posts`);
     }
-    log(`[ph-discovery] Fetched ${posts.length} raw posts`);
   } catch (e) {
     log(`[ph-discovery] ERROR fetching PH data: ${e.message}`);
     return { inserted: 0, error: e.message };
@@ -677,20 +688,35 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   });
 
   // 5. Per-candidate: check maker engagement + extract email, then insert
-  //    Track A (daily):  first DAILY_LIMIT passing candidates → status='active' + upsell email
-  //    Track B (draft):  next  DRAFT_LIMIT passing candidates → status='draft'  + claim email
+  //    Track A (daily):  commentsCount >= 5, up to DAILY_LIMIT → status='active' + upsell email
+  //    Track B (draft):  commentsCount >= 2, up to DRAFT_LIMIT → status='draft'  + claim email
+  //    Products with 2-4 comments skip daily entirely and go straight to draft.
+  //    Products with 0-1 comments are skipped from both tracks.
   const inserted = [];   // all successfully inserted records
   let dailyCount = 0;    // how many inserted into the "daily/active" track
   let draftCount = 0;    // how many inserted into the "draft" track
-  let quotaHit   = false;
 
   for (const post of candidates) {
     if (dailyCount >= DAILY_LIMIT && draftCount >= DRAFT_LIMIT) break;
-    if (quotaHit) break;
 
-    // Determine which track this candidate will go into (if it passes filters)
-    // Daily track fills first (higher signal products go live immediately)
-    const targetTrack = dailyCount < DAILY_LIMIT ? 'daily' : 'draft';
+    // Engagement-based track assignment:
+    // >= 5 comments → daily (if quota available), else draft
+    // 2-4 comments  → draft only (not strong enough signal for daily/active)
+    // 0-1 comments  → skip both tracks
+    const cc = post.commentsCount ?? 0;
+    let targetTrack;
+    if (cc >= 5 && dailyCount < DAILY_LIMIT) {
+      targetTrack = 'daily';
+    } else if (cc >= 2 && draftCount < DRAFT_LIMIT) {
+      targetTrack = 'draft';
+    } else if (cc >= 5 && draftCount < DRAFT_LIMIT) {
+      // daily quota full but post has strong engagement → try draft
+      targetTrack = 'draft';
+    } else {
+      log(`[ph-discovery]   → SKIP (engagement ${cc} comments too low, or all quotas full): ${post.name}`);
+      stats.skipNoMaker++;
+      continue;
+    }
 
     log(`[ph-discovery] Processing [${targetTrack}]: ${post.name} (${post.website})`);
 
@@ -749,17 +775,7 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       continue;
     }
 
-    // ── Maker engagement proxy: commentsCount >= 5 ───────────────────────────
-    // PH GraphQL v2 does not expose isMakerComment; commentsCount >= 5 is the
-    // best available signal that meaningful discussion exists on the launch thread.
-    const makerEngaged = post.hasMakerComment === true;
-    if (!makerEngaged) {
-      log(`[ph-discovery]   → SKIP (commentsCount < 5, low engagement): ${post.name} (${post.commentsCount ?? 0} comments)`);
-      stats.skipNoMaker++;
-      await sleep(300);
-      continue;
-    }
-    log(`[ph-discovery]   → Active discussion ✓ (${post.commentsCount ?? '?'} comments)`);
+    log(`[ph-discovery]   → Engagement ✓ (${cc} comments) → [${targetTrack}]`);
 
     if (!post.website || post.website.includes('producthunt.com')) {
       log(`[ph-discovery]   → SKIP (could not resolve real product website): ${post.name}`);
