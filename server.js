@@ -19073,15 +19073,19 @@ ${content}
   // Runs for listings < 12 h old — stops automatically after target is reached.
   // No extra DB columns required; purely time-based calculation each tick.
   cron.schedule('*/20 * * * *', async () => {
+    // Seed votes for freshly-imported listings in the first 18h.
+    // Target per listing: 5 + ((id * 1013) % 16) = range 5..20, deterministic but varied.
+    // Rate-limit: one vote per 54 min (3240 s), so a listing naturally reaches its cap
+    // over several hours rather than all at once.
     try {
       const { rows } = await pool.query(`
         UPDATE directory_listings
         SET vote_count = vote_count + 1
         WHERE is_auto_imported = true
           AND status = 'active'
-          AND submitted_at > NOW() - INTERVAL '12 hours'
-          AND vote_count < (3 + (id % 3))
-          AND vote_count < FLOOR(EXTRACT(EPOCH FROM (NOW() - submitted_at)) / 2700)
+          AND submitted_at > NOW() - INTERVAL '18 hours'
+          AND vote_count < (5 + ((id * 1013) % 16))
+          AND vote_count < FLOOR(EXTRACT(EPOCH FROM (NOW() - submitted_at)) / 3240)
         RETURNING id, name, vote_count
       `);
       if (rows.length > 0) {
