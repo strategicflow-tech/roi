@@ -1263,6 +1263,7 @@ app.get('/directory/:slug', async (req, res) => {
 
     const mainR = await pool.query(
       `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+              dl.status,
               CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
               COALESCE(dl.verified, FALSE) AS verified,
@@ -1280,10 +1281,64 @@ app.get('/directory/:slug', async (req, res) => {
               (SELECT COUNT(*)::int FROM dir_listing_clicks WHERE listing_id=dl.id
                AND clicked_at >= NOW()-INTERVAL '30 days') AS clicks_30d
        FROM directory_listings dl
-       WHERE dl.id=$1 AND dl.status='active'`,
+       WHERE dl.id=$1 AND dl.status IN ('active','draft')`,
       [id]
     );
     if (!mainR.rows.length) return res.redirect('/directory');
+
+    // ── Draft: show pre-claim page (not indexed, not yet published) ─────────
+    if (mainR.rows[0].status === 'draft') {
+      const d = mainR.rows[0];
+      const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const initials = (d.name || '?').slice(0, 2).toUpperCase();
+      const logoHtml = d.image_url
+        ? `<img src="${esc(d.image_url)}" alt="${esc(d.name)}" class="logo-img" onerror="this.style.display='none'">`
+        : '';
+      return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${esc(d.name)} — Claim your listing on ToolIndex</title>
+<meta name="robots" content="noindex,nofollow"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--teal:#00d4c8;--bg:#0a1628;--card:#0f2035;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8;--mono:'DM Mono',monospace}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+nav{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--border)}
+.nav-logo{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 32px;max-width:520px;width:100%;margin-top:56px}
+.logo-wrap{width:72px;height:72px;border-radius:14px;background:#1a3050;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:20px;position:relative}
+.logo-init{font-size:26px;font-weight:800;color:#fff;font-family:var(--mono)}
+.logo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4px}
+.badge-draft{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;border:1px solid rgba(245,158,11,.3);border-radius:20px;padding:2px 10px;margin-bottom:12px}
+h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
+.desc{font-size:14px;color:var(--sub);line-height:1.65;margin-bottom:16px}
+.url{font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:28px;word-break:break-all}
+.divider{border:none;border-top:1px solid var(--border);margin:0 0 24px}
+.cta-title{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+.cta-sub{font-size:13px;color:var(--sub);line-height:1.6;margin-bottom:20px}
+.btn-claim{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;background:var(--teal);color:#0a1628;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;font-family:var(--mono)}
+.btn-claim:hover{opacity:.9;text-decoration:none}
+</style>
+</head>
+<body>
+<nav><a href="/directory" class="nav-logo">ToolIndex</a></nav>
+<div class="card">
+  <div class="logo-wrap"><span class="logo-init">${esc(initials)}</span>${logoHtml}</div>
+  <span class="badge-draft">⏳ Not yet published</span>
+  <h1>${esc(d.name)}</h1>
+  <p class="desc">${esc(d.description || '')}</p>
+  <p class="url">🔗 ${esc(d.url)}</p>
+  <hr class="divider"/>
+  <p class="cta-title">Is this your product?</p>
+  <p class="cta-sub">Claim this listing to publish it on ToolIndex, correct the description, add your logo, and get a permanent dofollow backlink from strategicflow.tech (DR&nbsp;86).</p>
+  <a href="/directory?claim=${d.id}" class="btn-claim">Claim &amp; publish free →</a>
+</div>
+</body>
+</html>`);
+    }
+
     const l = mainR.rows[0];
 
     // Canonical redirect (preserves link equity on renamed slugs)
@@ -3534,6 +3589,39 @@ app.get('/admin/recategorize-other', async (req, res) => {
     }catch(e){console.error('[recategorize] fatal:',e.message);}
     _recategorizeRunning=false;
   })();
+});
+
+// GET /admin/insert-batch1?key=… — one-time insert of manually-curated batch 1 listings
+app.get('/admin/insert-batch1', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    const batch = [
+      { name: 'Coldtea.ai',  url: 'https://coldtea.ai',                       description: 'Agentic development environment combining coding agents visual QA and production monitoring',                                                 founder_name: 'Ohans Emmanuel',       contact_email: 'hello@coldtea.ai',  source_url: null },
+      { name: 'Soloop',      url: 'https://www.soloop.io',                    description: 'AI CEO CTO and CMO agent team that helps solo founders plan build and sell their product',                                                     founder_name: 'Wenhao Yu',            contact_email: null,                source_url: 'https://www.soloop.io/about' },
+      { name: 'DataBlur',    url: 'https://datablur.app',                     description: 'Free browser extension that blurs sensitive data on screen in real time during calls demos and recordings',                                   founder_name: 'Kosta Zanin',          contact_email: null,                source_url: 'https://datablur.app/about' },
+      { name: 'Rindler',     url: 'https://rindler.ai',                       description: 'Signs into websites your team already uses and does the manual busywork pulling records checking status submitting forms',                    founder_name: 'YC-backed team',       contact_email: null,                source_url: 'https://rindler.ai/about' },
+      { name: 'Crew',        url: 'https://crew-deskmates.vercel.app/crew',   description: 'Free macOS menu companion that shows a pixel creature for every Claude Code chat and subagent so you can see what your agents are doing',    founder_name: 'Independent designer', contact_email: null,                source_url: 'https://crew-deskmates.vercel.app/crew#pricing' },
+      { name: 'StepShot',    url: 'https://stepshot.app',                     description: 'Native Mac app that records real workflows and uses local AI to generate polished step by step guides SOPs and training docs',                founder_name: 'Thomas Ellon',         contact_email: 'hello@stepshot.app', source_url: null },
+      { name: 'Troopr',      url: 'https://www.troopr.ai',                    description: 'AI project manager for engineering teams that runs Slack standups retrospectives and Jira updates automatically',                             founder_name: 'Troopr Labs Inc',      contact_email: 'hello@troopr.io',   source_url: null },
+    ];
+    let inserted = 0, skipped = 0;
+    for (const item of batch) {
+      const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = $1`, [item.url]);
+      if (exists.rows.length) { log(`SKIP (exists id=${exists.rows[0].id}): ${item.name}`); skipped++; continue; }
+      const r = await pool.query(
+        `INSERT INTO directory_listings (name, url, description, founder_name, contact_email, source_url, source, status, is_auto_imported, submitted_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'product_hunt','draft',false,NOW()) RETURNING id`,
+        [item.name, item.url, item.description, item.founder_name, item.contact_email, item.source_url]
+      );
+      log(`INSERTED id=${r.rows[0].id}: ${item.name}`);
+      inserted++;
+    }
+    log(`\nDone. Inserted: ${inserted}, Skipped (already exist): ${skipped}`);
+  } catch(e) { log(`ERROR: ${e.message}`); }
+  res.end();
 });
 
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
