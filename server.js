@@ -22,7 +22,6 @@ const {
 const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
-const { runDailyPHDiscovery } = require('./ph-discovery');
 const { enrichListingWithAI } = require('./listing-enricher');
 
 const multer = require('multer');
@@ -3332,32 +3331,6 @@ app.get('/admin/outreach', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'toolindex-outreach.html'));
 });
 
-// ── GET /admin/ph-import/run?key=… — manually trigger daily PH discovery ──────
-app.get('/admin/ph-import/run', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Transfer-Encoding', 'chunked');
-  res.flushHeaders();
-  const log = m => { console.log(m); res.write(m + '\n'); };
-  try {
-    const result = await runDailyPHDiscovery(pool, log, {
-      enrichFn:    enrichListingWithAI,
-      claudeJsonFn: claudeJSON,
-      resend,
-      SENDER,
-    });
-    log(`\nDone. Evaluated: ${result.stats?.total ?? '?'} | Active (daily): ${result.dailyInserted ?? 0} | Draft: ${result.draftInserted ?? 0} | Emails sent: ${result.emailsSent ?? 0}`);
-    if (result.listings?.length) {
-      result.listings.forEach(l => log(`  → [${l.track}] id=${l.id}: ${l.name} | email: ${l.email} | sent: ${l.emailSent}`));
-    }
-    if (result.stats) {
-      log(`Skip breakdown — category: ${result.stats.skipCategory}, big co: ${result.stats.skipBig}, no site: ${result.stats.skipNoSite}, dupe: ${result.stats.skipDupe}, no maker: ${result.stats.skipNoMaker}, no email: ${result.stats.skipNoEmail}`);
-    }
-  } catch(e) {
-    log(`ERROR: ${e.message}`);
-  }
-  res.end();
-});
 
 // ── GET /admin/run-vote-growth?key=… — manually trigger daily vote growth cron ─
 app.get('/admin/run-vote-growth', async (req, res) => {
@@ -4232,17 +4205,7 @@ async function seedDailySection() {
 
     const picks = [];
 
-    // ── Priority 1: today's PH auto-imports ──────────────────────────────────
-    const phRes = await pool.query(`
-      SELECT id FROM directory_listings
-      WHERE status='active' AND is_auto_imported=TRUE
-        AND submitted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-      ORDER BY submitted_at DESC
-      LIMIT $1
-    `, [DAILY_SECTION_TARGET]);
-    for (const r of phRes.rows) picks.push({ id: r.id, source: 'ph_import' });
-
-    // ── Priority 2: DB picks never shown before (exclude seeded big brands) ──
+    // ── DB picks never shown before (exclude seeded big brands) ──────────────
     const needed = DAILY_SECTION_TARGET - picks.length;
     if (needed > 0) {
       const usedIds = picks.map(p => p.id);
@@ -19251,24 +19214,6 @@ ${content}
     } catch(e) { console.error('[vote-seed] error:', e.message); }
   });
 
-  // ── Daily 01:00 UTC: Unified Product Hunt discovery ─────────────────────────
-  // Criteria: ≤3 days old on PH + maker active in comments + discoverable email.
-  // Inserts as status='draft' (hidden until claimed). Sends claim invitation email.
-  cron.schedule('0 1 * * *', async () => {
-    console.log('[cron] Daily PH discovery starting…');
-    try {
-      const result = await runDailyPHDiscovery(pool, m => console.log(m), {
-        enrichFn:    enrichListingWithAI,
-        claudeJsonFn: claudeJSON,
-        resend,
-        SENDER,
-      });
-      console.log(`[cron] PH discovery done — evaluated: ${result.stats?.total ?? '?'}, inserted: ${result.inserted}, emails sent: ${result.emailsSent ?? 0}`);
-      if (result.stats) {
-        console.log(`[cron] Skips — category:${result.stats.skipCategory} big:${result.stats.skipBig} noSite:${result.stats.skipNoSite} dupe:${result.stats.skipDupe} noMaker:${result.stats.skipNoMaker} noEmail:${result.stats.skipNoEmail}`);
-      }
-    } catch(e) { console.error('[cron] PH discovery error:', e.message); }
-  });
 
   // ── Daily 08:00 UTC: 7-day follow-up reminder for unclaimed drafts/actives ──
   // Sends exactly ONE follow-up per listing, 7+ days after outreach_emailed_at,
