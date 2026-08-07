@@ -19067,6 +19067,29 @@ ${content}
     seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
   });
 
+  // ── Every 20 min: seed initial votes for fresh auto-imported listings ────────
+  // Adds 1 vote per 45-min elapsed since submission, up to per-listing target.
+  // Target = 3 + (id % 3) → naturally 3, 4, or 5 votes per listing.
+  // Runs for listings < 12 h old — stops automatically after target is reached.
+  // No extra DB columns required; purely time-based calculation each tick.
+  cron.schedule('*/20 * * * *', async () => {
+    try {
+      const { rows } = await pool.query(`
+        UPDATE directory_listings
+        SET vote_count = vote_count + 1
+        WHERE is_auto_imported = true
+          AND status = 'active'
+          AND submitted_at > NOW() - INTERVAL '12 hours'
+          AND vote_count < (3 + (id % 3))
+          AND vote_count < FLOOR(EXTRACT(EPOCH FROM (NOW() - submitted_at)) / 2700)
+        RETURNING id, name, vote_count
+      `);
+      if (rows.length > 0) {
+        rows.forEach(r => console.log(`[vote-seed] ${r.name} (${r.id}) → ${r.vote_count} votes`));
+      }
+    } catch(e) { console.error('[vote-seed] error:', e.message); }
+  });
+
   // ── Daily 01:00 UTC: Unified Product Hunt discovery ─────────────────────────
   // Criteria: ≤3 days old on PH + maker active in comments + discoverable email.
   // Inserts as status='draft' (hidden until claimed). Sends claim invitation email.
