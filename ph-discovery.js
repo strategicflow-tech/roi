@@ -229,7 +229,7 @@ async function fetchViaGraphQL(token, daysBack = 3) {
   //   - comment user IDs are redacted (id:"0") — cross-reference impossible
   // Maker engagement proxy: commentsCount >= 5.
   // A product with 5+ community comments almost always has the maker responding.
-  // Keep the query flat and small (first:40) to stay under the 500k complexity cap.
+  // first:40 stays under the 500k complexity cap.
   const query = `{
     posts(order: VOTES, first: 40, postedAfter: "${postedAfter}") {
       edges {
@@ -241,6 +241,9 @@ async function fetchViaGraphQL(token, daysBack = 3) {
       }
     }
   }`;
+  // NOTE: post.id is numeric (e.g., 1214897) and used to build the
+  // /r/p/{id}?app_id=339 redirect URL which bypasses Cloudflare bot protection
+  // (unlike the /r/XXXXX?utm_campaign=... format returned by GraphQL's `website` field).
 
   const r = await fetch('https://api.producthunt.com/v2/api/graphql', {
     method: 'POST',
@@ -260,6 +263,7 @@ async function fetchViaGraphQL(token, daysBack = 3) {
   const edges = data?.data?.posts?.edges || [];
 
   return edges.map(e => ({
+    id:              e.node.id,       // numeric post ID — used for /r/p/{id} redirect
     name:            e.node.name,
     tagline:         e.node.tagline || '',
     phUrl:           e.node.url,
@@ -690,20 +694,51 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
 
     log(`[ph-discovery] Processing [${targetTrack}]: ${post.name} (${post.website})`);
 
-    // ── Resolve real product website (GraphQL returns PH redirect URLs) ──────
+    // ── Resolve real product website ──────────────────────────────────────────
+    // GraphQL's `website` field returns PH tracking redirects (/r/XXXXX?utm_campaign=...)
+    // which are blocked by Cloudflare bot protection (403 + cf-mitigated: challenge).
+    // The /r/p/{id}?app_id=339 format used by the Atom feed is NOT Cloudflare-protected
+    // and returns a clean 301 redirect to the real product website.
     if (!post.website || post.website.includes('producthunt.com')) {
-      try {
-        const rr = await fetch(post.website || post.phUrl, {
-          redirect: 'manual',
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' },
-          signal: AbortSignal.timeout(8000),
-        });
-        const loc = rr.headers.get('location') || '';
-        if (loc && !loc.includes('producthunt.com')) {
-          post.website = loc.split('?')[0].replace(/\/$/, '');
-          log(`[ph-discovery]   → resolved website: ${post.website}`);
+      let resolved = false;
+
+      // Primary: use /r/p/{numeric-id}?app_id=339 (bypasses Cloudflare on most products)
+      if (post.id) {
+        const resolveUrl = `https://www.producthunt.com/r/p/${post.id}?app_id=339`;
+        try {
+          const rr = await fetch(resolveUrl, {
+            redirect: 'manual',
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' },
+            signal: AbortSignal.timeout(10000),
+          });
+          const loc = rr.headers.get('location') || '';
+          if (loc && !loc.includes('producthunt.com')) {
+            post.website = loc.split('?')[0].replace(/\/$/, '');
+            log(`[ph-discovery]   → resolved website (/r/p/${post.id}): ${post.website}`);
+            resolved = true;
+          } else if (rr.status === 403) {
+            log(`[ph-discovery]   → /r/p/${post.id} blocked (403) — product site has strict bot protection`);
+          }
+        } catch(e) {
+          log(`[ph-discovery]   → /r/p/${post.id} fetch error: ${e.message}`);
         }
-      } catch {}
+      }
+
+      // Fallback: follow redirect chain on the GraphQL website URL
+      if (!resolved && post.website) {
+        try {
+          const rr = await fetch(post.website, {
+            redirect: 'follow',
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (rr.ok && rr.url && !rr.url.includes('producthunt.com')) {
+            post.website = rr.url.split('?')[0].replace(/\/$/, '');
+            log(`[ph-discovery]   → resolved website (follow): ${post.website}`);
+            resolved = true;
+          }
+        } catch {}
+      }
     }
 
     // Re-check big company with resolved domain
@@ -733,7 +768,11 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       continue;
     }
 
-    // ── Contact email (required for both tracks) ─────────────────────────────
+    // ── Contact email ─────────────────────────────────────────────────────────
+    // Daily/active track: email is OPTIONAL — listing goes live regardless.
+    //   Email is used only to send the founder notification; no email = no email sent.
+    // Draft track: email is REQUIRED — the listing is hidden; without email we
+    //   cannot invite the founder to claim it (the whole point of the draft track).
     let email = null, linkedin = null, emailStatus = 'not_found', emailSource = null;
     try {
       const contact = await extractContact(post.website);
@@ -746,16 +785,19 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
       log(`[ph-discovery]   → contact extraction error: ${e.message}`);
     }
 
-    if (!email) {
-      log(`[ph-discovery]   → SKIP (no public contact email found): ${post.name}`);
+    if (!email && targetTrack === 'draft') {
+      log(`[ph-discovery]   → SKIP (no contact email — draft track requires it): ${post.name}`);
       stats.skipNoEmail++;
       await sleep(500);
       continue;
     }
+    if (!email) {
+      log(`[ph-discovery]   → No email found — inserting as active without notification: ${post.name}`);
+    }
 
     // ── Dry run ───────────────────────────────────────────────────────────────
     if (opts.dryRun) {
-      log(`[ph-discovery]   → DRY RUN [${targetTrack}]: would insert ${post.name} → ${email}`);
+      log(`[ph-discovery]   → DRY RUN [${targetTrack}]: would insert ${post.name} → ${email || '(no email)'}`);
       inserted.push({ name: post.name, url: post.website, email, track: targetTrack, dryRun: true });
       if (targetTrack === 'daily') dailyCount++; else draftCount++;
       continue;
@@ -879,4 +921,4 @@ async function runDailyPHDiscovery(pool, log = console.log, opts = {}) {
   };
 }
 
-module.exports = { runDailyPHDiscovery };
+module.exports = { runDailyPHDiscovery, buildDailyLiveEmail, buildDraftClaimEmail };
