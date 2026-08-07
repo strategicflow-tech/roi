@@ -3561,6 +3561,57 @@ app.get('/admin/recategorize-other', async (req, res) => {
   })();
 });
 
+// GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
+// listings are clearly ahead (power-law decay: #1=30, #2=26, #3=23, #4=20 … #10=10).
+// Never reduces votes. Safe to re-run.
+app.get('/admin/rank-spread-votes', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    // Rank all non-promoted auto-imported active listings by current vote_count DESC.
+    // Target = ROUND(30 * 0.88^(rank-1)) but at least 8.  Never reduces.
+    const { rowCount } = await pool.query(`
+      WITH ranked AS (
+        SELECT id, vote_count,
+          ROW_NUMBER() OVER (ORDER BY vote_count DESC, submitted_at DESC) AS rn
+        FROM directory_listings
+        WHERE is_auto_imported = TRUE AND status = 'active'
+          AND NOT COALESCE(is_promoted, FALSE)
+      ),
+      targets AS (
+        SELECT id, vote_count,
+          GREATEST(
+            vote_count,
+            GREATEST(8, ROUND(30.0 * POWER(0.88, rn - 1))::INT)
+          ) AS target
+        FROM ranked
+      )
+      UPDATE directory_listings dl
+      SET vote_count = t.target
+      FROM targets t
+      WHERE dl.id = t.id AND t.target > dl.vote_count
+    `);
+    log(`Updated ${rowCount} listings with rank-based spread.`);
+
+    // Show top 15 result
+    const { rows } = await pool.query(`
+      SELECT name, vote_count,
+        ROW_NUMBER() OVER (ORDER BY vote_count DESC, submitted_at DESC) AS rank
+      FROM directory_listings
+      WHERE is_auto_imported = TRUE AND status = 'active'
+        AND NOT COALESCE(is_promoted, FALSE)
+      ORDER BY vote_count DESC, submitted_at DESC
+      LIMIT 15
+    `);
+    log('\nTop 15 after spread:');
+    rows.forEach(r => log(`  #${r.rank} ${r.name} → ${r.vote_count} votes`));
+    log('\nDone.');
+  } catch(e) { log(`ERROR: ${e.message}`); }
+  res.end();
+});
+
 // GET /admin/redistribute-votes?key=… — one-time fix: spread auto-imported vote counts
 // from flat 3-10 cluster to a deterministic varied range 4-20 (never reduces anyone's votes)
 app.get('/admin/redistribute-votes', async (req, res) => {
@@ -19157,24 +19208,26 @@ ${content}
   });
 
   // ── Every 20 min: seed initial votes for fresh auto-imported listings ────────
-  // Adds 1 vote per 45-min elapsed since submission, up to per-listing target.
-  // Target = 3 + (id % 3) → naturally 3, 4, or 5 votes per listing.
-  // Runs for listings < 12 h old — stops automatically after target is reached.
-  // No extra DB columns required; purely time-based calculation each tick.
+  // Rate-limit is PROPORTIONAL to the target so higher-target listings accumulate faster,
+  // creating clear separation even between listings imported at the same time.
+  // Formula: votes_allowed = FLOOR(elapsed_s * target / 64800)
+  // At 7h elapsed: target-5→1 vote, target-10→3, target-15→5, target-20→7 (diverged!)
+  // Every listing reaches its unique target at 18h post-import.
   cron.schedule('*/20 * * * *', async () => {
-    // Seed votes for freshly-imported listings in the first 18h.
-    // Target per listing: 5 + ((id * 1013) % 16) = range 5..20, deterministic but varied.
-    // Rate-limit: one vote per 54 min (3240 s), so a listing naturally reaches its cap
-    // over several hours rather than all at once.
     try {
       const { rows } = await pool.query(`
         UPDATE directory_listings
         SET vote_count = vote_count + 1
         WHERE is_auto_imported = true
           AND status = 'active'
+          AND NOT COALESCE(is_promoted, FALSE)
           AND submitted_at > NOW() - INTERVAL '18 hours'
           AND vote_count < (5 + ((id * 1013) % 16))
-          AND vote_count < FLOOR(EXTRACT(EPOCH FROM (NOW() - submitted_at)) / 3240)
+          AND vote_count < FLOOR(
+                EXTRACT(EPOCH FROM (NOW() - submitted_at))
+                * (5 + ((id * 1013) % 16))
+                / 64800.0
+              )
         RETURNING id, name, vote_count
       `);
       if (rows.length > 0) {
