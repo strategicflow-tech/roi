@@ -3391,24 +3391,26 @@ app.get('/admin/run-vote-growth', async (req, res) => {
     }
     const promotedIds = promoted.map(p => p.id);
 
-    // ── Regular auto-imported listings: 1–3 votes/day below 20, 1/day above, cap 30 ──
+    // ── Regular auto-imported listings: only today's dir_daily_section, non-claimed ──
+    // Position 1-3 → up to 3 votes, 4-6 → up to 2, 7+ → 1. Cap 30.
     const { rows } = await pool.query(
-      `SELECT id, name, vote_count FROM directory_listings
-       WHERE is_auto_imported = TRUE AND status = 'active'
-         AND NOT COALESCE(is_promoted, FALSE)
-         AND vote_count < 30
-         AND submitted_at >= NOW() - INTERVAL '30 days'
-       ORDER BY submitted_at DESC`
+      `SELECT dl.id, dl.name, dl.vote_count, dds.position
+       FROM directory_listings dl
+       JOIN dir_daily_section dds ON dds.listing_id = dl.id
+         AND dds.display_date = CURRENT_DATE
+       WHERE dl.is_auto_imported = TRUE AND dl.status = 'active'
+         AND NOT COALESCE(dl.is_promoted, FALSE)
+         AND dl.claimed_by IS NULL
+         AND dl.vote_count < 30
+       ORDER BY dds.position ASC`
     );
-    log(`[vote-growth] ${rows.length} regular listings eligible`);
+    log(`[vote-growth] ${rows.length} daily-section listings eligible`);
     for (const listing of rows) {
       const remaining = 30 - listing.vote_count;
       if (remaining <= 0) continue;
-      // Slow growth rate above 20 — 1/day; below 20 — 1-3/day
-      const maxToday = listing.vote_count >= 20 ? 1 : listing.vote_count >= 15 ? 2 : 3;
-      const toAdd = 1 + Math.floor(Math.random() * maxToday);
-      const actual = Math.min(toAdd, remaining);
-      const voteRows = Array.from({ length: actual }, (_, i) =>
+      const baseMax = listing.position <= 3 ? 3 : listing.position <= 6 ? 2 : 1;
+      const toAdd = Math.min(1 + Math.floor(Math.random() * baseMax), remaining);
+      const voteRows = Array.from({ length: toAdd }, (_, i) =>
         `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
       ).join(',');
       await pool.query(
@@ -3416,12 +3418,12 @@ app.get('/admin/run-vote-growth', async (req, res) => {
       );
       const r = await pool.query(
         `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
-        [actual, listing.id]
+        [toAdd, listing.id]
       );
-      log(`[vote-growth] +${actual} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
+      log(`[vote-growth] +${toAdd} → ${listing.name} pos#${listing.position} (now ${r.rows[0]?.vote_count})`);
       grown++;
     }
-    log(`[vote-growth] Done. Grew ${grown} listings (${promoted.length} promoted, ${rows.length} regular).`);
+    log(`[vote-growth] Done. Grew ${grown} listings (${promoted.length} promoted, ${rows.length} daily-section).`);
   } catch (e) {
     log(`[vote-growth] ERROR: ${e.message}`);
   }
@@ -19213,25 +19215,38 @@ ${content}
   // Formula: votes_allowed = FLOOR(elapsed_s * target / 64800)
   // At 7h elapsed: target-5→1 vote, target-10→3, target-15→5, target-20→7 (diverged!)
   // Every listing reaches its unique target at 18h post-import.
+  // Also inserts into dir_votes so period_votes (daily tab sort) reflects the spread.
+  // Only seeds listings that are in dir_daily_section for today.
   cron.schedule('*/20 * * * *', async () => {
     try {
+      const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const { rows } = await pool.query(`
-        UPDATE directory_listings
-        SET vote_count = vote_count + 1
-        WHERE is_auto_imported = true
-          AND status = 'active'
-          AND NOT COALESCE(is_promoted, FALSE)
-          AND submitted_at > NOW() - INTERVAL '18 hours'
-          AND vote_count < (5 + ((id * 1013) % 16))
-          AND vote_count < FLOOR(
-                EXTRACT(EPOCH FROM (NOW() - submitted_at))
-                * (5 + ((id * 1013) % 16))
+        SELECT dl.id, dl.name, dl.vote_count
+        FROM directory_listings dl
+        JOIN dir_daily_section dds ON dds.listing_id = dl.id
+          AND dds.display_date = CURRENT_DATE
+        WHERE dl.is_auto_imported = true
+          AND dl.status = 'active'
+          AND NOT COALESCE(dl.is_promoted, FALSE)
+          AND dl.submitted_at > NOW() - INTERVAL '18 hours'
+          AND dl.vote_count < (5 + ((dl.id * 1013) % 16))
+          AND dl.vote_count < FLOOR(
+                EXTRACT(EPOCH FROM (NOW() - dl.submitted_at))
+                * (5 + ((dl.id * 1013) % 16))
                 / 64800.0
               )
-        RETURNING id, name, vote_count
       `);
-      if (rows.length > 0) {
-        rows.forEach(r => console.log(`[vote-seed] ${r.name} (${r.id}) → ${r.vote_count} votes`));
+      for (const r of rows) {
+        const voterHash = `seed_${r.id}_${dateTag}_v${r.vote_count}`;
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ($1,$2,NOW()) ON CONFLICT DO NOTHING`,
+          [r.id, voterHash]
+        );
+        await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + 1 WHERE id = $1`,
+          [r.id]
+        );
+        console.log(`[vote-seed] ${r.name} (${r.id}) → ${r.vote_count + 1} votes`);
       }
     } catch(e) { console.error('[vote-seed] error:', e.message); }
   });
@@ -19306,31 +19321,35 @@ ${content}
     } catch(e) { console.error('[cron] Follow-up reminder error:', e.message); }
   });
 
-  // ── Daily 02:00 UTC: Gradual vote growth for auto-imports ────────────────────
-  // Cap: 30 votes. Window: 30 days. Rate: 1-3/day below 15, 1-2/day 15-20, 1/day 20-30.
-  // Promoted listings (is_promoted=TRUE) are excluded — they have their own boost cron.
+  // ── Daily 02:00 UTC: Gradual vote growth — ONLY for today's dir_daily_section ──
+  // Non-daily listings get 0 votes/day so founders see the difference and claim/upgrade.
+  // Priority within daily section: position 1-3 → 3 votes, 4-6 → 2 votes, 7+ → 1 vote.
+  // Claimed listings are excluded here — they get their own boost at 02:10.
+  // Promoted listings excluded — they have their own boost at 02:05.
   cron.schedule('0 2 * * *', async () => {
-    console.log('[cron] Daily vote growth starting…');
+    console.log('[cron] Daily vote growth starting (daily-section only)…');
     try {
       const { rows } = await pool.query(
-        `SELECT id, name, vote_count
-         FROM directory_listings
-         WHERE is_auto_imported = TRUE
-           AND status = 'active'
-           AND NOT COALESCE(is_promoted, FALSE)
-           AND vote_count < 30
-           AND submitted_at >= NOW() - INTERVAL '30 days'
-         ORDER BY submitted_at DESC`
+        `SELECT dl.id, dl.name, dl.vote_count, dds.position
+         FROM directory_listings dl
+         JOIN dir_daily_section dds ON dds.listing_id = dl.id
+           AND dds.display_date = CURRENT_DATE
+         WHERE dl.is_auto_imported = TRUE
+           AND dl.status = 'active'
+           AND NOT COALESCE(dl.is_promoted, FALSE)
+           AND dl.claimed_by IS NULL
+           AND dl.vote_count < 30
+         ORDER BY dds.position ASC`
       );
-      console.log(`[cron] Vote growth: ${rows.length} listings eligible`);
+      console.log(`[cron] Vote growth: ${rows.length} daily-section listings`);
       const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       for (const listing of rows) {
         const remaining = 30 - listing.vote_count;
         if (remaining <= 0) continue;
-        const maxToday = listing.vote_count >= 20 ? 1 : listing.vote_count >= 15 ? 2 : 3;
-        const toAdd    = 1 + Math.floor(Math.random() * maxToday);
-        const actual   = Math.min(toAdd, remaining);
-        const voteRows = Array.from({ length: actual }, (_, i) =>
+        // More votes for top positions → creates clear spread on daily tab
+        const baseMax = listing.position <= 3 ? 3 : listing.position <= 6 ? 2 : 1;
+        const toAdd = Math.min(1 + Math.floor(Math.random() * baseMax), remaining);
+        const voteRows = Array.from({ length: toAdd }, (_, i) =>
           `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
         );
         try {
@@ -19339,9 +19358,9 @@ ${content}
           );
           await pool.query(
             `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-            [actual, listing.id]
+            [toAdd, listing.id]
           );
-          console.log(`[cron] +${actual} → ${listing.name} (now ${listing.vote_count + actual})`);
+          console.log(`[cron] +${toAdd} → ${listing.name} pos#${listing.position} (now ${listing.vote_count + toAdd})`);
         } catch(e) {
           console.error(`[cron] Vote growth error for ${listing.name}:`, e.message);
         }
@@ -19375,17 +19394,20 @@ ${content}
     } catch(e) { console.error('[cron] Promoted boost error:', e.message); }
   });
 
-  // ── Daily 02:10 UTC: Vote boost for claimed listings (5–7/day) ───────────
+  // ── Daily 02:10 UTC: Vote boost for claimed listings — ONLY if in daily section ──
+  // 5–7 votes/day. Non-daily claimed listings get 0 — incentivises founders to get listed.
   cron.schedule('10 2 * * *', async () => {
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     try {
       const { rows } = await pool.query(
-        `SELECT id, name FROM directory_listings
-         WHERE claimed_by IS NOT NULL AND status = 'active'`
+        `SELECT dl.id, dl.name FROM directory_listings dl
+         JOIN dir_daily_section dds ON dds.listing_id = dl.id
+           AND dds.display_date = CURRENT_DATE
+         WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'`
       );
-      console.log(`[cron] Claimed boost: ${rows.length} listings`);
+      console.log(`[cron] Claimed boost: ${rows.length} daily-section claimed listings`);
       for (const listing of rows) {
-        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7, different per listing
+        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
         const voteRows = Array.from({ length: toAdd }, (_, i) =>
           `(${listing.id}, 'claimed_boost_${listing.id}_${dateTag}_${i}', NOW())`
         ).join(',');
@@ -19411,9 +19433,12 @@ ${content}
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     try {
       const { rows } = await pool.query(
-        `SELECT id, name FROM directory_listings WHERE claimed_by IS NOT NULL AND status = 'active'`
+        `SELECT dl.id, dl.name FROM directory_listings dl
+         JOIN dir_daily_section dds ON dds.listing_id = dl.id
+           AND dds.display_date = CURRENT_DATE
+         WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'`
       );
-      log(`[claimed-boost] ${rows.length} claimed listings found`);
+      log(`[claimed-boost] ${rows.length} daily-section claimed listings found`);
       for (const listing of rows) {
         const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
         const voteRows = Array.from({ length: toAdd }, (_, i) =>
