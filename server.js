@@ -3584,7 +3584,7 @@ app.get('/admin/rank-spread-votes', async (req, res) => {
         SELECT id, vote_count,
           GREATEST(
             vote_count,
-            GREATEST(8, ROUND(30.0 * POWER(0.88, rn - 1))::INT)
+            GREATEST(8, ROUND(60.0 * POWER(0.85, rn - 1))::INT)
           ) AS target
         FROM ranked
       )
