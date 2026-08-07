@@ -3624,6 +3624,42 @@ app.get('/admin/insert-batch1', async (req, res) => {
   res.end();
 });
 
+// GET /admin/insert-batch2?key=… — one-time insert of manually-curated batch 2 listings
+app.get('/admin/insert-batch2', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    const batch = [
+      { name: 'Blueberry',              url: 'https://www.blueberry.cool',                                              description: 'Mac menu bar app that drafts iMessage replies in your voice and lets you review before sending',                                        founder_name: 'Rishi Narain',                         contact_email: null, source_url: 'https://www.producthunt.com/@rishi_narain' },
+      { name: 'Reference',              url: 'https://tryreference.com',                                                description: 'Local semantic search for files and code built for AI agents with a built in MCP server and no cloud',                                   founder_name: 'Rahul Thennarasu',                      contact_email: null, source_url: 'https://www.github.com/RahulThennarasu/reference' },
+      { name: 'Website to Markdown API',url: 'https://exabase.io/tools/website-to-markdown',                           description: 'API that submits a URL and returns clean LLM-ready Markdown with JS rendering and anti-bot handling built in',                            founder_name: 'Johnny (Exabase)',                      contact_email: null, source_url: 'https://www.producthunt.com/@johnny_makes' },
+      { name: 'Aveiro',                 url: 'https://aveiro.app',                                                      description: 'AI native publishing platform for sites blogs newsletters and social media with MCP support for ChatGPT Claude and Cursor',               founder_name: 'Lorant One and Justin',                 contact_email: null, source_url: 'https://www.producthunt.com/@lorant_one' },
+      { name: 'Ticketdesk AI',          url: 'https://ticketdesk.ai',                                                   description: 'AI agents for customer support that handle tickets classify and reply automatically on chat and email',                                  founder_name: null,                                    contact_email: null, source_url: 'https://ticketdesk.ai' },
+      { name: 'hey postcard',           url: 'https://heypostcard.com',                                                 description: 'Slow messaging app where you write a digital postcard that arrives the next morning at a random time',                                  founder_name: 'Mihir and Heli',                        contact_email: null, source_url: 'https://heypostcard.com' },
+      { name: 'Token Harbor',           url: 'https://tokenharbor.ai',                                                  description: 'One OpenAI compatible API to access GPT Claude Gemini DeepSeek Kimi and other frontier AI models',                                       founder_name: 'William Song',                          contact_email: null, source_url: 'https://www.producthunt.com/@wsongth' },
+      { name: 'UCP Radar',              url: 'https://ucpradar.com',                                                    description: 'Connects to Google Merchant Center and rewrites product feeds so they are readable by AI shopping agents like ChatGPT and Perplexity',  founder_name: '18-year digital marketing veteran',     contact_email: null, source_url: 'https://ucpradar.com' },
+      { name: 'Superbrain for macOS',   url: 'https://www.onesuperbrain.com',                                           description: 'AI coding agent using a proprietary TokenFold architecture that uses fewer tokens and costs less than Claude Code or Cursor',            founder_name: null,                                    contact_email: null, source_url: 'https://www.onesuperbrain.com' },
+      { name: 'Pangea',                 url: 'https://apps.apple.com/us/app/pangea-share-plans-recs/id1592449564',      description: 'Social travel app to share plans recommendations and stats with friends',                                                              founder_name: 'Pangea Technology LLC',                contact_email: null, source_url: 'https://apps.apple.com/us/app/pangea-share-plans-recs/id1592449564' },
+    ];
+    let inserted = 0, skipped = 0;
+    for (const item of batch) {
+      const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = $1`, [item.url]);
+      if (exists.rows.length) { log(`SKIP (exists id=${exists.rows[0].id}): ${item.name}`); skipped++; continue; }
+      const r = await pool.query(
+        `INSERT INTO directory_listings (name, url, description, founder_name, contact_email, source_url, source, status, is_auto_imported, submitted_at)
+         VALUES ($1,$2,$3,$4,$5,$6,'product_hunt','draft',false,NOW()) RETURNING id`,
+        [item.name, item.url, item.description, item.founder_name, item.contact_email, item.source_url]
+      );
+      log(`INSERTED id=${r.rows[0].id}: ${item.name}`);
+      inserted++;
+    }
+    log(`\nDone. Inserted: ${inserted}, Skipped (already exist): ${skipped}`);
+  } catch(e) { log(`ERROR: ${e.message}`); }
+  res.end();
+});
+
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
 // listings are clearly ahead (power-law decay: #1=30, #2=26, #3=23, #4=20 … #10=10).
 // Never reduces votes. Safe to re-run.
