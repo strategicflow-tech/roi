@@ -448,7 +448,7 @@ function ssrCard(l, clickMap) {
   const safeDomain = domain.replace(/'/g,"\\'");
   let claimSection = '';
   if (l.is_claimed) {
-    claimSection = `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')" style="margin-left:4px;">Edit listing →</button>`;
+    claimSection = `<span class="dir-claimed-badge">✓ Verified Founder</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')" style="margin-left:4px;">Edit listing →</button>`;
   } else if (l.is_auto_imported) {
     claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Is this your product? Claim it free →</button>`;
   }
@@ -1433,7 +1433,7 @@ app.get('/directory/:slug', async (req, res) => {
   <a href="/directory?claim=${l.id}" class="claim-link">Claim free →</a>
 </div>` : `
 <div class="claimed-badge-row">
-  <span class="claimed-badge">✓ Verified owner</span>
+  <span class="claimed-badge">✓ Verified Founder</span>
   <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
   <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
 </div>
@@ -1487,7 +1487,7 @@ app.get('/directory/:slug', async (req, res) => {
           <span class="pp-tier-row-price">$49</span>
         </button>
         <button type="button" class="pp-tier-row" onclick="ppCheckout('verified_badge')">
-          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✅</span><span><span class="pp-tier-row-name">Verified Badge</span><span class="pp-tier-row-desc">Permanent ✓ badge — no expiry</span></span></span>
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✅</span><span><span class="pp-tier-row-name">Verified Founder</span><span class="pp-tier-row-desc">Gold ✓ Verified Founder badge — permanent, no expiry</span></span></span>
           <span class="pp-tier-row-price">$9</span>
         </button>
         <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_solo')">
@@ -1523,7 +1523,7 @@ app.get('/directory/:slug', async (req, res) => {
       ? ' <span class="pp-premium-badge">💎 Premium</span>' : '';
     // ── verified badge ────────────────────────────────────────────────────────
     const verifiedBadge = l.verified
-      ? ' <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;font-family:var(--mono);color:#60a5fa;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:6px;padding:3px 9px;vertical-align:middle;margin-left:6px;letter-spacing:.04em;">✓ Verified</span>' : '';
+      ? ' <span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;font-family:var(--mono);color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:3px 9px;vertical-align:middle;margin-left:6px;letter-spacing:.04em;">✓ Verified Founder</span>' : '';
 
     // ── founder card ──────────────────────────────────────────────────────────
     const founderHtml = l.founder_name ? `
@@ -2040,7 +2040,7 @@ function showTierStep(){
 function ppCheckout(tier){
   ppBoostTier=tier;
   ppBoostSelectedDate=null;
-  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Badge — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
+  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Founder — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
   document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost';
   // Switch to email step
   var ts=document.getElementById('ppTierStep');

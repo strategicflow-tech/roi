@@ -447,7 +447,9 @@ a:hover{text-decoration:underline;}
 /* CLAIM */
 .dir-claim-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:var(--muted);background:transparent;border:none;padding:0;cursor:pointer;transition:color .2s;letter-spacing:.03em;text-decoration:underline;text-decoration-style:dotted;}
 .dir-claim-btn:hover{color:var(--teal);}
+/* free claim → teal; paid $9 → gold — both labelled "Verified Founder" */
 .dir-claimed-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);color:#22c55e;letter-spacing:.04em;}
+.dir-vf-paid{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;font-family:var(--mono);color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:2px 8px;letter-spacing:.04em;}
 
 /* CLAIM MODAL steps */
 .claim-step{display:none;flex-direction:column;gap:14px;}
@@ -619,7 +621,8 @@ a:hover{text-decoration:underline;}
 details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-faq-a{font-size:14px;color:var(--muted);line-height:1.7;padding-top:12px;max-width:740px;}
 /* ─── VERIFIED BADGE ──────────────────────────────────────────── */
-.dir-verified-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;font-family:var(--mono);color:#60a5fa;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.28);border-radius:4px;padding:2px 7px;letter-spacing:.04em;}
+/* kept for backwards-compat; new gold variant is .dir-vf-paid */
+.dir-verified-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;font-family:var(--mono);color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:2px 7px;letter-spacing:.04em;}
 /* ── Social proof badges on cards ─────────────────────────────────────── */
 .dir-badge-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
 .dir-sp-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-family:var(--mono);font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:10px;white-space:nowrap;line-height:1.4;}
@@ -627,7 +630,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-sp-badge.sp-trending{background:rgba(239,68,68,.13);color:#f87171;border:1px solid rgba(239,68,68,.25);}
 .dir-sp-badge.sp-editors-pick{background:rgba(0,212,200,.12);color:#00d4c8;border:1px solid rgba(0,212,200,.28);}
 .dir-sp-badge.sp-award{background:rgba(167,139,250,.13);color:#a78bfa;border:1px solid rgba(167,139,250,.28);}
-.dir-sp-badge.sp-verified-founder{background:rgba(96,165,250,.12);color:#60a5fa;border:1px solid rgba(96,165,250,.28);}
+.dir-sp-badge.sp-verified-founder{background:rgba(245,158,11,.13);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}/* paid → gold */
 /* ─── LEVEL UP SECTION ────────────────────────────────────────── */
 .dir-levelup-section{padding:0 40px 64px;}
 .dir-levelup-inner{max-width:960px;margin:0 auto;}
@@ -1265,13 +1268,13 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <button class="dir-lu-cta" onclick="startLevelUpCheckout('founder_pack')">Get Founder Pack →</button>
       </div>
 
-      <!-- Verified Badge -->
+      <!-- Verified Founder Badge -->
       <div class="dir-lu-card lu-blue">
         <div class="dir-lu-icon">✅</div>
-        <div class="dir-lu-name">Verified Badge</div>
+        <div class="dir-lu-name">Verified Founder</div>
         <div class="dir-lu-price">$9</div>
-        <div class="dir-lu-desc">Show buyers this listing is real and actively maintained. A permanent <strong style="color:#60a5fa;">✓ Verified</strong> badge appears on your card and product page — no expiry, ever. Distinct from claimed-owner status.</div>
-        <button class="dir-lu-cta" onclick="startLevelUpCheckout('verified_badge')">Get Verified →</button>
+        <div class="dir-lu-desc">Show buyers this listing is real and actively maintained. A permanent <strong style="color:#f59e0b;">✓ Verified Founder</strong> gold badge appears on your card and product page — no expiry, ever.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('verified_badge')">Get Verified Founder →</button>
       </div>
 
       <!-- Teardown Solo -->
@@ -2099,7 +2102,8 @@ function renderCard(l){
     spBadges.push(`<span class="dir-sp-badge sp-trending" title="${l.trending_pct}% more votes vs yesterday">🔥 Trending +${l.trending_pct}%</span>`);
   if(l.editors_pick)           spBadges.push(`<span class="dir-sp-badge sp-editors-pick" title="Handpicked by ToolIndex">⭐ Editor's Pick</span>`);
   if(l.award_label)            spBadges.push(`<span class="dir-sp-badge sp-award" title="Award">🎖 ${escHtml(l.award_label)}</span>`);
-  if(l.verified && l.is_claimed) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Owner identity verified">✓ Verified Founder</span>`);
+  // paid $9 badge (verified=TRUE) → gold "Verified Founder", with or without claim
+  if(l.verified) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Paid verified founder badge">✓ Verified Founder</span>`);
   const spBadgeRow = spBadges.length ? `<div class="dir-badge-row">${spBadges.join('')}</div>` : '';
 
   return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
@@ -2109,7 +2113,7 @@ function renderCard(l){
         <div style="min-width:0;">
           <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
-          ${featBadge}${!l.is_claimed && l.verified ? '<span class="dir-verified-badge">✓ Verified</span>' : ''}${spBadgeRow}
+          ${featBadge}${spBadgeRow}
         </div>
       </div>
     </div>
@@ -2126,7 +2130,7 @@ function renderCard(l){
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${sourceTag}
         ${l.is_claimed
-          ? `<span class="dir-claimed-badge">✓ Verified owner</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Edit listing →</button>`
+          ? `<span class="dir-claimed-badge">✓ Verified Founder</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Edit listing →</button>`
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
@@ -3235,7 +3239,7 @@ async function claimVerifyOTP() {
       document.getElementById('claimStep3').classList.add('active');
       // Mark card as claimed without reload
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
-      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified owner</span>';
+      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
       // Load analytics for this owner
       loadClaimAnalytics();
     } else {
