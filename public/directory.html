@@ -402,8 +402,8 @@ a:hover{text-decoration:underline;}
 .dir-search::placeholder{color:var(--muted);}
 
 /* GRID */
-.dir-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:0 40px 28px;}
-@media(max-width:1200px){.dir-grid{grid-template-columns:repeat(3,1fr);}}
+.dir-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 40px 28px;}
+@media(max-width:1400px){.dir-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px){.dir-grid{grid-template-columns:repeat(2,1fr);}}
 .dir-activity-stats-bar{display:none;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--muted);padding:7px 20px;margin:0 auto 4px;max-width:760px;}
 .dir-activity-stats-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px;flex-shrink:0;animation:pulse 2s infinite;}
@@ -419,7 +419,7 @@ a:hover{text-decoration:underline;}
 .dir-card-name{font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-decoration:none;}
 .dir-card-name:hover{color:var(--teal);}
 .dir-cat-tag{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
-.dir-desc{font-size:13px;color:var(--muted);line-height:1.55;flex:1;}
+.dir-desc{font-size:13px;color:var(--muted);line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .dir-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
 .dir-card-actions{display:flex;align-items:center;gap:8px;}
 .dir-visit{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--teal);font-family:var(--mono);transition:opacity .2s;}
@@ -766,7 +766,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 /* Override inner element padding inside the wrapper */
 .dir-body-wrap .dir-search-wrap{padding-left:0;padding-right:0}
 .dir-body-wrap .dir-filters{padding-left:0;padding-right:0}
-.dir-body-wrap .dir-grid{padding-left:0;padding-right:0}
+.dir-body-wrap .dir-grid{padding-left:0;padding-right:0;min-width:0;}
+@media(min-width:961px) and (max-width:1150px){.dir-body-wrap .dir-grid{grid-template-columns:repeat(2,1fr);}}
 .dir-body-wrap .dir-load-more-wrap{padding-left:0;padding-right:0}
 /* Sponsor widget */
 .dir-sponsor-widget{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px}
