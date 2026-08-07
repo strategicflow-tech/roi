@@ -3367,20 +3367,46 @@ app.get('/admin/run-vote-growth', async (req, res) => {
   res.flushHeaders();
   const log = m => { console.log(m); res.write(m + '\n'); };
   try {
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let grown = 0;
+
+    // ── Promoted listings: WHY Audit (199) + Strategic Flow Audit (203) ─────────
+    // Get 10–14 votes every day, no cap — they are featured and must stay well ahead.
+    const PROMOTED_IDS = [199, 203];
+    const { rows: promoted } = await pool.query(
+      `SELECT id, name, vote_count FROM directory_listings WHERE id = ANY($1)`,
+      [PROMOTED_IDS]
+    );
+    for (const listing of promoted) {
+      const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
+      const voteRows = Array.from({ length: toAdd }, (_, i) =>
+        `(${listing.id}, 'promoted_growth_${listing.id}_${dateTag}_${i}', NOW() - interval '${i * 90} minutes')`
+      ).join(',');
+      await pool.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+      );
+      const r = await pool.query(
+        `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
+        [toAdd, listing.id]
+      );
+      log(`[vote-growth] PROMOTED +${toAdd} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
+      grown++;
+    }
+
+    // ── Regular auto-imported listings: 1–3 votes/day, cap 12 ──────────────────
     const { rows } = await pool.query(
       `SELECT id, name, vote_count FROM directory_listings
        WHERE is_auto_imported = TRUE AND status = 'active'
+         AND id != ALL($1)
          AND vote_count < 12
          AND submitted_at >= NOW() - INTERVAL '10 days'
-       ORDER BY submitted_at DESC`
+       ORDER BY submitted_at DESC`,
+      [PROMOTED_IDS]
     );
-    log(`[vote-growth] ${rows.length} listings eligible`);
-    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    let grown = 0;
+    log(`[vote-growth] ${rows.length} regular listings eligible`);
     for (const listing of rows) {
       const remaining = 12 - listing.vote_count;
       if (remaining <= 0) continue;
-      // Random 1–3 per day, slowing near cap, never the same for each listing
       const maxToday = listing.vote_count >= 10 ? 1 : 3;
       const toAdd = 1 + Math.floor(Math.random() * maxToday);
       const actual = Math.min(toAdd, remaining);
@@ -3397,7 +3423,7 @@ app.get('/admin/run-vote-growth', async (req, res) => {
       log(`[vote-growth] +${actual} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
       grown++;
     }
-    log(`[vote-growth] Done. Grew ${grown} listings.`);
+    log(`[vote-growth] Done. Grew ${grown} listings (${PROMOTED_IDS.length} promoted, ${rows.length} regular).`);
   } catch (e) {
     log(`[vote-growth] ERROR: ${e.message}`);
   }
@@ -3535,6 +3561,50 @@ app.get('/admin/recategorize-other', async (req, res) => {
     }catch(e){console.error('[recategorize] fatal:',e.message);}
     _recategorizeRunning=false;
   })();
+});
+
+// GET /admin/redistribute-votes?key=… — one-time fix: spread auto-imported vote counts
+// from flat 3-10 cluster to a deterministic varied range 4-20 (never reduces anyone's votes)
+app.get('/admin/redistribute-votes', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'text/plain');
+  res.flushHeaders();
+  const log = m => { console.log(m); res.write(m + '\n'); };
+  try {
+    // Pass 1: raise 3-10 zone → 4-20 via hash
+    const r1 = await pool.query(`
+      UPDATE directory_listings
+      SET vote_count = 4 + ((id * 1013) % 17)
+      WHERE is_auto_imported = TRUE AND status = 'active'
+        AND vote_count BETWEEN 3 AND 10
+        AND (4 + ((id * 1013) % 17)) > vote_count
+    `);
+    log(`Pass 1 (raise 3-10 → 4-20): ${r1.rowCount} rows updated`);
+
+    // Pass 2: widen the 7-10 band further via second hash → 6-22
+    const r2 = await pool.query(`
+      UPDATE directory_listings
+      SET vote_count = 6 + ((id * 773) % 17)
+      WHERE is_auto_imported = TRUE AND status = 'active'
+        AND vote_count BETWEEN 7 AND 10
+        AND (6 + ((id * 773) % 17)) > vote_count
+    `);
+    log(`Pass 2 (widen 7-10 → 6-22): ${r2.rowCount} rows updated`);
+
+    // Report new distribution
+    const { rows } = await pool.query(`
+      SELECT vote_count, COUNT(*) as cnt
+      FROM directory_listings
+      WHERE is_auto_imported = TRUE AND status = 'active'
+      GROUP BY vote_count ORDER BY vote_count DESC LIMIT 25
+    `);
+    log('\nNew distribution:');
+    rows.forEach(r => log(`  ${String(r.vote_count).padStart(3)} → ${r.cnt}`));
+    log('\nDone.');
+  } catch (e) {
+    log(`ERROR: ${e.message}`);
+  }
+  res.end();
 });
 
 // GET /admin/seed-votes?key=… — seeds vote_count + dir_votes (safe to re-run on any env)
