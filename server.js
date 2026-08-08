@@ -5596,7 +5596,7 @@ app.post('/api/directory/claim/verify', async (req, res) => {
 // Called after OTP verify. Founder confirms they've added a ToolIndex badge to their site.
 // This is the step that actually marks the listing as claimed/active.
 app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
-  const { listing_id, email, edit_token, backlink_url } = req.body || {};
+  const { listing_id, email, edit_token, backlink_url, skipped } = req.body || {};
   if (!listing_id || !email || !edit_token)
     return res.status(400).json({ error: 'listing_id, email, edit_token required' });
   try {
@@ -5611,15 +5611,16 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
     const existingR = await pool.query(`SELECT claimed_by FROM directory_listings WHERE id=$1`, [listing_id]);
     const alreadyClaimed = !!(existingR.rows[0]?.claimed_by);
 
-    // Mark listing as claimed, active, backlink confirmed
+    // Mark listing as claimed and active.
+    // backlink_confirmed=TRUE only if founder explicitly confirmed; FALSE if they skipped.
     await pool.query(
       `UPDATE directory_listings
        SET claimed_by=$1, claimed_at=NOW(), status='active',
-           backlink_confirmed=TRUE,
+           backlink_confirmed=$4,
            backlink_url=NULLIF($2,''),
-           backlink_confirmed_at=NOW()
+           backlink_confirmed_at=CASE WHEN $4 THEN NOW() ELSE NULL END
        WHERE id=$3`,
-      [email.toLowerCase(), backlink_url || null, listing_id]
+      [email.toLowerCase(), backlink_url || null, listing_id, !skipped]
     );
 
     // ── Gradual vote boost on first claim only ────────────────────────────
@@ -5695,7 +5696,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
       }).catch(() => {});
     }
 
-    console.log(`[dir-claim] backlink confirmed: ${email} → listing ${listing_id}`);
+    console.log(`[dir-claim] claim completed: ${email} → listing ${listing_id} (backlink_confirmed=${!skipped})`);
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/confirm-backlink]', err.message);

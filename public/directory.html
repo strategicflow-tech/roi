@@ -1846,7 +1846,7 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
       </label>
       <div class="claim-err" id="claimErr3"></div>
       <button class="claim-btn" id="claimBacklinkBtn" onclick="claimConfirmBacklink()">Complete claim &amp; get backlink →</button>
-      <button onclick="claimSkipBacklink()" style="width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;margin-top:4px;">Skip for now (listing stays pending)</button>
+      <button id="claimSkipBtn" onclick="claimSkipBacklink()" style="width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline;margin-top:2px;font-family:var(--mono);">Skip for now — listing still goes live</button>
     </div>
 
     <!-- Step 4: success + edit -->
@@ -3414,11 +3414,27 @@ async function claimConfirmBacklink() {
   btn.disabled = false; btn.textContent = 'Complete claim & get backlink →';
 }
 
-function claimSkipBacklink() {
-  // Skip backlink step — listing stays unclaimed/pending but founder sees edit form
-  document.getElementById('claimStep3').classList.remove('active');
-  document.getElementById('claimStep4').classList.add('active');
-  loadClaimAnalytics();
+async function claimSkipBacklink() {
+  const btn = document.getElementById('claimSkipBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing listing…'; }
+  try {
+    const r = await fetch('/api/directory/claim/confirm-backlink', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, skipped: true })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('claimStep3').classList.remove('active');
+      document.getElementById('claimStep4').classList.add('active');
+      const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
+      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+      loadClaimAnalytics();
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Skip for now — listing still goes live'; }
+    }
+  } catch {
+    if (btn) { btn.disabled = false; btn.textContent = 'Skip for now — listing still goes live'; }
+  }
 }
 
 async function claimSendOTP() {
