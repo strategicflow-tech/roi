@@ -1660,7 +1660,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-latest-blog-card:hover .dir-latest-blog-arrow{transform:translateX(5px);}
 .dir-latest-blog-scan{position:absolute;top:0;left:-100%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(0,210,190,.045) 50%,transparent);animation:dlbScan 5s ease-in-out infinite;pointer-events:none;}
 @keyframes dlbScan{0%{left:-100%}60%{left:160%}100%{left:160%}}
-@media(max-width:600px){.dir-latest-blog{padding:40px 20px;}.dir-latest-blog-card{padding:22px 20px;}.dir-latest-blog-title{font-size:17px;}}
+@media(max-width:600px){
+  .dir-latest-blog{padding:24px 16px;}
+  .dir-latest-blog-label{margin-bottom:12px;}
+  .dir-latest-blog-card{padding:16px 18px;}
+  .dir-latest-blog-badge{margin-bottom:8px;}
+  .dir-latest-blog-date{margin-bottom:6px;}
+  .dir-latest-blog-title{font-size:15px;margin-bottom:8px;}
+  .dir-latest-blog-excerpt{font-size:13px;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .dir-latest-blog-cta{font-size:11px;}
+}
 </style>
 <section class="dir-latest-blog" aria-label="Latest from the ToolIndex blog">
   <div class="dir-latest-blog-inner">
