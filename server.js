@@ -2284,6 +2284,7 @@ app.get('/api/directory/listings', async (req, res) => {
                     COALESCE(verified, FALSE) AS verified,
                     COALESCE(priority_marquee, FALSE) AS priority_marquee,
                     COALESCE(editors_pick, FALSE) AS editors_pick,
+                    COALESCE(is_promoted, FALSE) AS is_promoted,
                     award_label,
                     (claimed_by IS NOT NULL) AS is_claimed,
                     COALESCE(owner_description, description) AS description,

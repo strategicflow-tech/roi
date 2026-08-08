@@ -304,7 +304,7 @@ a:hover{text-decoration:underline;}
 .dir-promoted-pill-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 2s infinite;flex-shrink:0;}
 .dir-promoted-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
 .dir-promoted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;}
-.dir-promoted-card{background:linear-gradient(135deg,rgba(167,139,250,0.09),rgba(167,139,250,0.02),rgba(10,22,40,0));border:1px solid rgba(167,139,250,0.28);border-radius:14px;padding:22px 24px;display:flex;gap:18px;position:relative;overflow:hidden;transition:border-color .2s;}
+.dir-promoted-card{background:linear-gradient(135deg,rgba(167,139,250,0.09),rgba(167,139,250,0.02),rgba(10,22,40,0));border:1px solid rgba(167,139,250,0.45);border-radius:14px;padding:22px 24px;display:flex;gap:18px;position:relative;overflow:hidden;transition:border-color .2s;animation:gp-glow 3s ease-in-out infinite;}
 .dir-promoted-card:hover{border-color:rgba(167,139,250,0.5);}
 .dir-promoted-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--purple),rgba(167,139,250,0.3),transparent);}
 .dir-promoted-logo{width:60px;height:60px;border-radius:12px;object-fit:cover;border:1px solid rgba(167,139,250,0.2);flex-shrink:0;background:rgba(167,139,250,0.08);}
@@ -2309,7 +2309,7 @@ function renderCard(l){
 }
 
 // ── Promoted card (injected every ~10 items in main grid) ────────────────────
-const PROMOTED_IDS = [199, 203]; // WHY Audit™, Strategic Flow Audit
+// Dynamic — uses is_promoted flag returned by API, not hardcoded IDs
 function renderInlinePromoCard(l){
   if(!l) return '';
   const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
@@ -2341,7 +2341,7 @@ function renderInlinePromoCard(l){
 }
 
 function buildGridHtml(cards){
-  const promos = PROMOTED_IDS.map(id => allListings.find(l => l.id === id)).filter(Boolean);
+  const promos = allListings.filter(l => l.is_promoted);
   // Only inject in unfiltered "All" view without active search
   if(!promos.length || activeCategory !== 'All' || searchQuery){
     return cards.map(renderCard).join('');
@@ -2498,7 +2498,7 @@ function renderPromotedCard(l){
     ${logo}
     <div class="dir-promoted-body">
       <div class="dir-promoted-top">
-        <div class="dir-promoted-name">${escHtml(l.name)}</div>
+        <a class="dir-promoted-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;" onclick="event.stopPropagation();">${escHtml(l.name)}</a>
         <span class="dir-promoted-badge">⭐ Founder Pack</span>
       </div>
       <div class="dir-promoted-cat">${escHtml(l.category||'')}</div>
