@@ -2304,7 +2304,7 @@ function renderCard(l){
 
 // ── Promoted card (injected every ~10 items in main grid) ────────────────────
 const PROMOTED_IDS = [199, 203]; // WHY Audit™, Strategic Flow Audit
-function renderPromotedCard(l){
+function renderInlinePromoCard(l){
   if(!l) return '';
   const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
   const votes  = l.vote_count||0;
@@ -2344,7 +2344,7 @@ function buildGridHtml(cards){
   cards.forEach((card, i) => {
     result.push(renderCard(card));
     if((i + 1) % 10 === 0){
-      result.push(renderPromotedCard(promos[promoIdx % promos.length]));
+      result.push(renderInlinePromoCard(promos[promoIdx % promos.length]));
       promoIdx++;
     }
   });
