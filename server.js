@@ -6462,6 +6462,44 @@ app.get('/api/teardown-count', async (req, res) => {
 // Redirect /why to canonical /why.html before static middleware intercepts the /why/ directory
 app.get('/why', (req, res) => res.redirect(301, '/why.html'));
 
+// ── 301 redirects: teardown/showcase pages live on strategicflow.tech, not here ─────────────
+// Google found these via relative links in glossary.html; redirect to the canonical location.
+const SFTECH = 'https://strategicflow.tech';
+[
+  '/teardowns.html',
+  '/figma-showcase.html',
+  '/perplexity-teardown.html',
+  '/heygen-showcase.html',
+  '/landbot-ai-agent-showcase.html',
+  '/optimizely-ai-agents-showcase.html',
+  '/ahrefs-changelog-showcase.html',
+  '/elevenlabs-showcase.html',
+  '/revolut_email_analysis.html',
+  '/decision-lab-teardown.html',
+  '/wrike-teardown.html',
+  '/medallia-cx-stats-showcase.html',
+  '/cato_networks_showcase.html',
+  '/why-saas-emails-get-opened-but-not-clicked.html',
+  '/how-to-fix-saas-email-ctr.html',
+  '/saas-email-conversion-failure.html',
+  '/saas-email-architecture-study.html',
+  '/decision-friction-report-2026.html',
+  '/decision-friction-model.html',
+  '/decision-friction-patterns.html',
+  '/method.html',
+  '/strategic-flow-vs-klaviyo.html',
+  '/strategic-flow-vs-digistorms.html',
+  '/strategic-flow-vs-scalero.html',
+  '/strategic-flow-vs-mailtest.html',
+  '/what-is-a-structural-audit.html',
+  '/notion-34-part2-showcase.html',
+  '/cato-networks-teardown.html',
+  '/zoho-workplace-teardown.html',
+  '/semrush-teardown.html',
+  '/limelight-teardown.html',
+].forEach(p => app.get(p, (req, res) => res.redirect(301, SFTECH + p)));
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Blink Test — serve before static middleware (no auth required)
 app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'blink-test.html')));
 
