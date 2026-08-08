@@ -2625,7 +2625,7 @@ app.post('/api/directory/submit', async (req, res) => {
                 <td width="32%" valign="top">
                   <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
                     <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
-                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
+                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$49</div>
                     <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
                     <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>10–15 votes/day automatic</li><li>Premium badge + top placement</li><li>Unlimited relaunches</li></ul>
                     <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
@@ -5823,7 +5823,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
                 <td width="32%" valign="top">
                   <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
                     <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
-                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
+                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$49</div>
                     <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
                     <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>10–15 votes/day automatic</li><li>Premium badge + top placement</li><li>Unlimited relaunches</li></ul>
                     <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
