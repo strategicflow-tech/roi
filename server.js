@@ -6540,6 +6540,13 @@ app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname
 
 // Growth / advertise hub
 app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
+app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html')));
+app.get('/blog/:slug', (req, res) => {
+  const fs = require('fs');
+  const file = path.join(__dirname, 'public', 'blog', req.params.slug + '.html');
+  if (fs.existsSync(file)) return res.sendFile(file);
+  res.status(404).sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
+});
 
 app.use(express.static('public'));
 
