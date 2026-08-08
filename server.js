@@ -2551,7 +2551,15 @@ app.post('/api/directory/submit', async (req, res) => {
     else if (/^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(t)) rawLogo = t;     // direct image URL
   }
   const _HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
-  const suppliedLogo = rawLogo && !_HERO_PAT.some(re => re.test(rawLogo)) ? rawLogo.slice(0, 500) : null;
+  // Data URLs (uploaded files) are stored in full; external URLs are capped at 500 chars and checked against hero patterns.
+  let suppliedLogo = null;
+  if (rawLogo) {
+    if (rawLogo.startsWith('data:image/')) {
+      suppliedLogo = rawLogo; // base64 upload — store as-is, no hero-pattern check
+    } else if (!_HERO_PAT.some(re => re.test(rawLogo))) {
+      suppliedLogo = rawLogo.slice(0, 500);
+    }
+  }
   try {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
@@ -2560,12 +2568,77 @@ app.post('/api/directory/submit', async (req, res) => {
     );
     if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
     const id = r.rows[0].id;
+
+    // ── Auto-claim: submitter is the owner ───────────────────────────────────
+    if (email) {
+      await pool.query(
+        `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW(), backlink_confirmed=FALSE WHERE id=$2`,
+        [email.toLowerCase(), id]
+      ).catch(() => {});
+    }
+
     // If no logo supplied, fetch one in the background
     if (!suppliedLogo) {
       fetchProductLogo(cleanUrl).then(logoUrl => {
         if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
       }).catch(()=>{});
     }
+
+    // ── Welcome email ─────────────────────────────────────────────────────────
+    if (email) {
+      resend.emails.send({
+        from:    SENDER,
+        to:      email,
+        subject: `"${name.slice(0,60)}" is live on ToolIndex ✓`,
+        html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
+            <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Your listing is live ✓</h2>
+            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;"><strong style="color:#e8f0fa;">${name.slice(0,80)}</strong> has been added to ToolIndex and is already receiving its first votes.</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots by clicking the ✏️ Edit button on your listing card.</p>
+            <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
+          </div>
+          <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
+            <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">The Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+              <tr>
+                <td width="32%" valign="top" style="padding-right:8px;">
+                  <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:14px 12px;">
+                    <div style="font-size:10px;font-family:monospace;color:#7a9ab8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Daily Boost</div>
+                    <div style="font-size:24px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1;">$9</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>24h #1 slot in grid</li><li>Instant activation</li><li>No subscription</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#00d4c8;color:#041214;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Boost now →</a>
+                  </div>
+                </td>
+                <td width="36%" valign="top" style="padding-right:8px;">
+                  <div style="background:#0a1628;border:2px solid rgba(245,158,11,.55);border-radius:10px;padding:14px 12px;position:relative;">
+                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:9px;font-weight:800;font-family:monospace;padding:2px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.08em;">MOST POPULAR</div>
+                    <div style="font-size:10px;font-family:monospace;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Weekly Feature</div>
+                    <div style="font-size:24px;font-weight:800;color:#f59e0b;font-family:monospace;line-height:1;">$19</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">14 days</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>Featured spotlight section</li><li>Gold badge on card</li><li>Priority placement in grid</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Feature my listing →</a>
+                  </div>
+                </td>
+                <td width="32%" valign="top">
+                  <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
+                    <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
+                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>10–15 votes/day automatic</li><li>Premium badge + top placement</li><li>Unlimited relaunches</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
+          </div>
+        </div>`
+      }).catch(() => {});
+    }
+
     // ── Gradual Daily boost: spread 4–7 votes over the next 2–6 hours ───────────
     // voted_at is set in the future so they trickle into Daily naturally.
     // The leaderboard query caps at <= NOW() so users see them appear one by one.
@@ -2595,6 +2668,28 @@ app.post('/api/directory/submit', async (req, res) => {
   }
 });
 // ── Admin: trigger directory aggregation manually ──────────────────────────────
+// GET /admin/refetch-logo?key=…&id=N  — re-fetches and stores logo for one listing
+app.get('/admin/refetch-logo', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const id = parseInt(req.query.id, 10);
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const r = await pool.query('SELECT url, image_url FROM directory_listings WHERE id=$1', [id]).catch(() => null);
+  if (!r?.rows?.length) return res.status(404).json({ error: 'not found' });
+  const { url, image_url } = r.rows[0];
+  res.json({ ok: true, url, current_image: image_url?.slice(0, 80) + '…', message: 'Fetching logo in background…' });
+  setImmediate(async () => {
+    try {
+      const logoUrl = await fetchProductLogo(url);
+      if (logoUrl) {
+        await pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]);
+        console.log(`[admin/refetch-logo] updated #${id} → ${logoUrl.slice(0,80)}`);
+      } else {
+        console.log(`[admin/refetch-logo] no logo found for #${id}`);
+      }
+    } catch(e) { console.error(`[admin/refetch-logo]`, e.message); }
+  });
+});
+
 app.get('/admin/aggregate', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   res.json({ ok: true, message: 'Aggregation started in background — check server logs for progress.' });
