@@ -1609,6 +1609,50 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   </div>
 </div>
 
+<!-- ── Latest Blog Post — sci-fi card ─────────────────────────────────────── -->
+<style>
+.dir-latest-blog{background:#050d0f;border-top:1px solid rgba(0,210,190,.12);border-bottom:1px solid rgba(0,210,190,.08);padding:52px 24px;position:relative;overflow:hidden;}
+.dir-latest-blog::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(0,210,190,.02) 40px,rgba(0,210,190,.02) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(0,210,190,.02) 40px,rgba(0,210,190,.02) 41px);pointer-events:none;}
+.dir-latest-blog-inner{max-width:700px;margin:0 auto;position:relative;}
+.dir-latest-blog-label{font-family:'SF Mono','Fira Code',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#00d4c8;margin-bottom:22px;opacity:.65;}
+.dir-latest-blog-card{display:block;background:rgba(0,210,190,.03);border:1px solid rgba(0,210,190,.17);border-radius:14px;padding:30px 34px;text-decoration:none;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s,transform .25s;}
+.dir-latest-blog-card:hover{border-color:rgba(0,210,190,.48);box-shadow:0 0 52px rgba(0,210,190,.1),inset 0 0 28px rgba(0,210,190,.03);transform:translateY(-3px);text-decoration:none;}
+.dir-latest-blog-badge{display:inline-block;font-family:'SF Mono','Fira Code',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#041214;background:#00d4c8;padding:3px 10px;border-radius:5px;margin-bottom:14px;font-weight:700;}
+.dir-latest-blog-date{font-size:11px;font-family:'SF Mono','Fira Code',monospace;color:#8a9ab0;margin-bottom:11px;opacity:.6;}
+.dir-latest-blog-title{font-size:clamp(18px,3.5vw,23px);font-weight:700;color:#e2e8f0;line-height:1.35;margin:0 0 13px;letter-spacing:-.01em;}
+.dir-latest-blog-excerpt{font-size:14px;color:#8a9ab0;line-height:1.68;margin:0 0 22px;}
+.dir-latest-blog-cta{font-family:'SF Mono','Fira Code',monospace;font-size:12px;color:#00d4c8;display:flex;align-items:center;gap:7px;}
+.dir-latest-blog-arrow{transition:transform .22s;display:inline-block;}
+.dir-latest-blog-card:hover .dir-latest-blog-arrow{transform:translateX(5px);}
+.dir-latest-blog-scan{position:absolute;top:0;left:-100%;width:55%;height:100%;background:linear-gradient(90deg,transparent,rgba(0,210,190,.045) 50%,transparent);animation:dlbScan 5s ease-in-out infinite;pointer-events:none;}
+@keyframes dlbScan{0%{left:-100%}60%{left:160%}100%{left:160%}}
+@media(max-width:600px){.dir-latest-blog{padding:40px 20px;}.dir-latest-blog-card{padding:22px 20px;}.dir-latest-blog-title{font-size:17px;}}
+</style>
+<section class="dir-latest-blog" aria-label="Latest from the ToolIndex blog">
+  <div class="dir-latest-blog-inner">
+    <div class="dir-latest-blog-label">◈ FROM THE BLOG</div>
+    <a class="dir-latest-blog-card" id="latestBlogCard" href="/blog/best-free-saas-directories-2026">
+      <div class="dir-latest-blog-scan"></div>
+      <div class="dir-latest-blog-badge">LATEST</div>
+      <div class="dir-latest-blog-date" id="latestBlogDate">Aug 8, 2026 · 8 min read</div>
+      <h3 class="dir-latest-blog-title" id="latestBlogTitle">The 9 Best Free SaaS Directories in 2026 — Ranked by Domain Rating</h3>
+      <p class="dir-latest-blog-excerpt" id="latestBlogExcerpt">One of them gives you a DR 86 dofollow backlink in under 60 seconds — no account required. We ranked every major free SaaS directory by real domain authority so you know which to hit first.</p>
+      <div class="dir-latest-blog-cta">Read the full article <span class="dir-latest-blog-arrow">→</span></div>
+    </a>
+  </div>
+</section>
+<script>
+// Hydrate from API if a newer post exists
+fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
+  if(!d||!d.slug) return;
+  const card=document.getElementById('latestBlogCard');
+  if(card) card.href='/blog/'+d.slug;
+  const t=document.getElementById('latestBlogTitle'); if(t) t.textContent=d.title;
+  const e=document.getElementById('latestBlogExcerpt'); if(e) e.textContent=d.excerpt;
+  const dt=document.getElementById('latestBlogDate'); if(dt) dt.textContent=d.dateLabel;
+}).catch(()=>{});
+</script>
+
 <footer class="dir-footer">
   <div class="dir-footer-inner">
     <div class="dir-footer-cols">

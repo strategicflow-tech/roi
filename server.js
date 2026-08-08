@@ -6540,6 +6540,20 @@ app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname
 
 // Growth / advertise hub
 app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
+// ── GET /api/blog/latest — returns the most recently published blog post ─────
+const BLOG_POSTS = [
+  { slug: 'best-free-saas-directories-2026',        title: 'The 9 Best Free SaaS Directories in 2026 — Ranked by Domain Rating', excerpt: 'One of them gives you a DR 86 dofollow backlink in under 60 seconds — no account required. We ranked every major free SaaS directory by real domain authority so you know which to hit first.', date: '2026-08-08', dateLabel: 'Aug 8, 2026 · 8 min read' },
+  { slug: 'ai-overviews-saas-discovery-2026',       title: 'How AI Overviews Are Reshaping SaaS Discovery in 2026',             excerpt: 'Google AI Overviews now appear in 55%+ of SaaS-related searches. How they choose sources, why directories matter, and the 4 steps to get your product cited in AI-generated answers.', date: '2026-08-07', dateLabel: 'Aug 7, 2026 \u00b7 9 min read' },
+  { slug: 'free-saas-backlinks-2026',               title: 'How to Get Your First 100 Backlinks as a SaaS Startup \u2014 Without Paying', excerpt: '5 proven sources of free high-DR backlinks for new SaaS products \u2014 with effort levels and realistic timelines. A focused founder can generate 20-40 high-DR backlinks in the first week.', date: '2026-08-06', dateLabel: 'Aug 6, 2026 \u00b7 10 min read' },
+  { slug: 'answer-engine-optimization-saas-2026',   title: 'What Is AEO? Answer Engine Optimization for SaaS Founders in 2026',  excerpt: 'AEO is how you get ChatGPT, Perplexity, and Google AI Overviews to cite your SaaS. The 5 signals AI engines use to pick sources and a 4-step framework to optimize for them.', date: '2026-08-05', dateLabel: 'Aug 5, 2026 \u00b7 10 min read' },
+  { slug: 'product-hunt-vs-saas-directories-2026',  title: 'Product Hunt vs. SaaS Directories: Which Drives More Signups in 2026?', excerpt: 'Product Hunt gives you a launch-day spike. Directories give you compounding backlinks for years. The data-driven comparison and the exact sequence to maximize both channels.', date: '2026-08-04', dateLabel: 'Aug 4, 2026 \u00b7 9 min read' },
+  { slug: 'saas-launch-directory-checklist-2026',   title: 'SaaS Launch Checklist: 23 Directories to Submit to Before You Go Live', excerpt: 'Before your public launch, submit to at least 10 high-DR directories. The full ranked list with submission tips, expected approval times, and a prep template that cuts total time in half.', date: '2026-08-03', dateLabel: 'Aug 3, 2026 \u00b7 10 min read' },
+];
+app.get('/api/blog/latest', (req, res) => {
+  // Posts are sorted newest-first; return the first one
+  res.json(BLOG_POSTS[0] || null);
+});
+
 // ── GET /api/directory/startup-of-day — daily rotating featured listing ─────
 // Picks deterministically from top-100 listings by vote_count using day-of-year
 // as seed → changes automatically every midnight UTC, never requires manual update.
@@ -18152,8 +18166,13 @@ setupDB().then(async () => {
       { loc: `${base}/directory/alternative-to-futurepedia`,    priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model`,                           priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model/guide`,                     priority: '0.7', changefreq: 'monthly' },
-      { loc: `${base}/blog`,                                     priority: '0.8', changefreq: 'weekly'  },
-      { loc: `${base}/blog/best-free-saas-directories-2026`,    priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog`,                                          priority: '0.8', changefreq: 'weekly'  },
+      { loc: `${base}/blog/best-free-saas-directories-2026`,         priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/ai-overviews-saas-discovery-2026`,        priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/free-saas-backlinks-2026`,                priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/answer-engine-optimization-saas-2026`,    priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/product-hunt-vs-saas-directories-2026`,   priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/saas-launch-directory-checklist-2026`,    priority: '0.9', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
