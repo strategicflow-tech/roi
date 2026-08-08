@@ -862,6 +862,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="#pricing" class="dir-nav-pricing">⚡ Pricing</a>
     <a href="/sponsor">Sponsor</a>
     <a href="/grow">Grow</a>
+    <a href="/blog">Blog</a>
     <a href="#submit" class="dir-nav-cta">Get your free backlink →</a>
   </div>
   <button class="dir-hamburger" id="dirHamburger" aria-label="Open menu" onclick="toggleNavPanel()">
@@ -1032,7 +1033,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <div id="recentLaunchesList" class="dir-lb-list"><div class="dir-lb-empty">Loading…</div></div>
   </div>
   <div>
-    <div class="dir-pulse-label">⭐ Startup of the week</div>
+    <div class="dir-pulse-label">⭐ Startup of the day</div>
     <div id="startupOfWeek"><div class="dir-lb-empty">Loading…</div></div>
   </div>
 </div>
@@ -2906,15 +2907,14 @@ function loadPulseSections(){
   loadRecentLaunches('24h');
   loadRecentlyClaimed();
 
-  // Startup of the Week
-  fetch('/api/directory/leaderboard?period=weekly')
+  // Startup of the Day — rotates daily via day-of-year seed, top listings by votes
+  fetch('/api/directory/startup-of-day')
     .then(r=>r.json())
     .then(d=>{
       const el=document.getElementById('startupOfWeek');
       if(!el) return;
-      const top=(d.listings||d.items||[])[0];
-      if(!top){el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';return;}
-      const votes=top.period_votes||top.vote_count||0;
+      const top=d.listing;
+      if(!top){el.innerHTML='<div class="dir-lb-empty">No featured startup today.</div>';return;}
       el.innerHTML=`
         <a class="dir-sotw-card" href="/directory/${toSlug(top.name,top.id)}">
           <img class="dir-sotw-logo" src="${top.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(top.name)}"/>
@@ -2922,12 +2922,12 @@ function loadPulseSections(){
             <div class="dir-sotw-name">🏆 ${escHtml(top.name)}</div>
             <div class="dir-sotw-cat">${escHtml(top.category)}</div>
             <div class="dir-sotw-desc">${escHtml((top.description||'').slice(0,130))}</div>
-            <div class="dir-sotw-votes">▲ ${votes} votes this week</div>
+            <div class="dir-sotw-votes">▲ ${top.vote_count} votes</div>
           </div>
         </a>`;
     }).catch(()=>{
       const el=document.getElementById('startupOfWeek');
-      if(el) el.innerHTML='<div class="dir-lb-empty">No votes this week yet.</div>';
+      if(el) el.innerHTML='<div class="dir-lb-empty">No featured startup today.</div>';
     });
 }
 

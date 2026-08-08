@@ -6540,6 +6540,32 @@ app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname
 
 // Growth / advertise hub
 app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
+// ── GET /api/directory/startup-of-day — daily rotating featured listing ─────
+// Picks deterministically from top-100 listings by vote_count using day-of-year
+// as seed → changes automatically every midnight UTC, never requires manual update.
+// Excludes Founder Pack listings (199,203) so user's own products don't self-feature.
+app.get('/api/directory/startup-of-day', async (req, res) => {
+  try {
+    const dayOfYear = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 86400000);
+    const { rows } = await pool.query(`
+      SELECT dl.id, dl.name, dl.url, dl.category, dl.description, dl.vote_count,
+             CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                  WHEN dl.image_url IS NOT NULL AND dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                  ELSE NULL END AS image_url
+      FROM directory_listings dl
+      WHERE dl.status = 'active'
+        AND dl.id NOT IN (199, 203)
+        AND dl.vote_count >= 10
+        AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
+      ORDER BY dl.vote_count DESC
+      LIMIT 100
+    `);
+    if (!rows.length) return res.json({ listing: null });
+    const listing = rows[dayOfYear % rows.length];
+    res.json({ listing, day: dayOfYear });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html')));
 app.get('/blog/:slug', (req, res) => {
   const fs = require('fs');
@@ -18126,6 +18152,8 @@ setupDB().then(async () => {
       { loc: `${base}/directory/alternative-to-futurepedia`,    priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model`,                           priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model/guide`,                     priority: '0.7', changefreq: 'monthly' },
+      { loc: `${base}/blog`,                                     priority: '0.8', changefreq: 'weekly'  },
+      { loc: `${base}/blog/best-free-saas-directories-2026`,    priority: '0.9', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
