@@ -5986,7 +5986,7 @@ app.get('/api/directory/listing-logo/:id', async (req, res) => {
       const b64    = raw.slice(comma + 1);
       const mime   = (header.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
       res.setHeader('Content-Type', mime);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 min — allows logo updates to propagate quickly
       return res.send(Buffer.from(b64, 'base64'));
     }
     res.redirect(raw);
