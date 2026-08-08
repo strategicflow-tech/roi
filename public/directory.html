@@ -188,7 +188,8 @@ a:hover{text-decoration:underline;}
 .dir-hero{padding:64px 40px 48px;max-width:860px;margin:0 auto;text-align:center;}
 .dir-hero-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);border:1px solid var(--border2);padding:5px 14px;border-radius:20px;margin-bottom:24px;}
 .dir-hero h1{font-size:clamp(28px,5vw,48px);font-weight:800;line-height:1.15;letter-spacing:-.02em;margin-bottom:16px;}
-.dir-hero h1 em{font-style:normal;color:var(--teal);}
+.dir-hero h1 em{font-style:normal;color:var(--teal);background:linear-gradient(90deg,var(--teal) 0%,var(--teal) 30%,#a0fff9 48%,#ffffff 50%,#a0fff9 52%,var(--teal) 70%,var(--teal) 100%);background-size:250% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:glowSweep 2.8s linear infinite;}
+@keyframes glowSweep{0%{background-position:150% center;}100%{background-position:-50% center;}}
 .dir-hero-sub{font-size:16px;color:var(--muted);max-width:560px;margin:0 auto 32px;}
 .dir-stats{display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap;}
 .dir-stat{text-align:center;}
@@ -965,7 +966,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 <div class="dir-herosearch-wrap">
   <div class="dir-herosearch-inner" style="position:relative;">
     <span class="dir-herosearch-icon">🔍</span>
-    <input class="dir-herosearch-input" id="dirHeroSearch" type="text" placeholder="Search 500+ tools, SaaS, AI products, developer tools…" autocomplete="off" spellcheck="false"/>
+    <input class="dir-herosearch-input" id="dirHeroSearch" type="text" placeholder="" autocomplete="off" spellcheck="false"/>
+    <span id="heroTypewriter" style="position:absolute;left:52px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--muted);pointer-events:none;white-space:nowrap;overflow:hidden;font-family:var(--mono);letter-spacing:.01em;"></span>
     <span class="dir-herosearch-count" id="heroSearchCount"></span>
   </div>
   <div id="heroDropdown" class="dir-hero-dropdown" style="display:none;"></div>
@@ -2768,6 +2770,44 @@ function buildMarquee(){
   document.addEventListener('listingsLoaded',function(e){
     if(cnt) cnt.textContent=(e.detail||0)+' products';
   });
+
+  // ── Typewriter placeholder ────────────────────────────────────────────────
+  (function(){
+    const tw=document.getElementById('heroTypewriter');
+    if(!tw||!hs) return;
+    const phrases=[
+      'Search AI writing tools…',
+      'Find no-code builders…',
+      'Explore CRM for startups…',
+      'Discover dev productivity tools…',
+      'Browse indie SaaS directories…',
+      'Find Notion alternatives…',
+      'Search email automation…',
+      'Explore analytics platforms…',
+      'Find your next backlink source…',
+      'Search 500+ products…',
+    ];
+    let pi=0,ci=0,deleting=false,paused=false;
+    function tick(){
+      if(hs.value){tw.style.opacity='0';setTimeout(tick,200);return;}
+      tw.style.opacity='1';
+      const phrase=phrases[pi];
+      if(paused){paused=false;deleting=true;setTimeout(tick,1400);return;}
+      if(!deleting){
+        ci++;
+        tw.textContent=phrase.slice(0,ci)+(ci<phrase.length?'▌':'▌');
+        if(ci>=phrase.length){paused=true;setTimeout(tick,80);return;}
+        setTimeout(tick,55+Math.random()*35);
+      } else {
+        if(ci>0){ci--;tw.textContent=phrase.slice(0,ci)+(ci>0?'▌':'');setTimeout(tick,28);}
+        else{deleting=false;pi=(pi+1)%phrases.length;setTimeout(tick,320);}
+      }
+    }
+    hs.addEventListener('focus',function(){tw.style.opacity='0';});
+    hs.addEventListener('blur',function(){if(!hs.value)tw.style.opacity='1';});
+    hs.addEventListener('input',function(){tw.style.opacity=hs.value?'0':'1';});
+    setTimeout(tick,800);
+  })();
 })();
 
 // ── Daily Section ─────────────────────────────────────────────────────────────
