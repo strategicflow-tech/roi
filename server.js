@@ -4370,10 +4370,10 @@ async function handleDirectoryPayment(session) {
   );
   if (tier === 'founder_pack') {
     await pool.query(
-      `UPDATE directory_listings SET relaunch_unlimited=TRUE, priority_marquee=TRUE WHERE id=$1`,
+      `UPDATE directory_listings SET relaunch_unlimited=TRUE, priority_marquee=TRUE, is_promoted=TRUE WHERE id=$1`,
       [lid]
     );
-    console.log(`[dir-founder] relaunch_unlimited + priority_marquee set for listing ${lid}`);
+    console.log(`[dir-founder] relaunch_unlimited + priority_marquee + is_promoted set for listing ${lid}`);
   }
   console.log(`[dir-payment] ${tier} applied to listing ${lid} until ${expires.toISOString()}`);
   }
