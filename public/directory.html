@@ -215,6 +215,10 @@ a:hover{text-decoration:underline;}
 /* Promoted card injected in main grid */
 .dir-card-promoted{background:linear-gradient(135deg,var(--bg2),rgba(0,212,200,.05))!important;border-color:rgba(0,212,200,.28)!important;position:relative;}
 .dir-promoted-badge{display:inline-block;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;background:rgba(0,212,200,.13);color:var(--teal);padding:2px 8px;border-radius:10px;border:1px solid rgba(0,212,200,.28);margin-top:2px;}
+/* Founder Pack inline card — compact grid size, purple branding */
+.dir-card-founder-inline{background:linear-gradient(135deg,var(--bg2),rgba(167,139,250,.06))!important;border-color:rgba(167,139,250,.35)!important;position:relative;}
+.dir-card-founder-inline::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(167,139,250,.7),transparent);border-radius:14px 14px 0 0;}
+.dir-fp-inline-badge{display:inline-block;font-size:9px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;background:rgba(167,139,250,.13);color:var(--purple);padding:2px 8px;border-radius:10px;border:1px solid rgba(167,139,250,.3);margin-top:2px;}
 /* Collections sidebar widget */
 .dir-collections-widget{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:16px;}
 .dir-collections-title{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
@@ -2309,18 +2313,19 @@ function renderInlinePromoCard(l){
   const domain = (()=>{ try{ return new URL(l.url).hostname.replace('www.',''); }catch{ return l.url; }})();
   const votes  = l.vote_count||0;
   const voted  = votedIds.has(l.id);
-  return `<div class="dir-card dir-card-promoted" data-id="${l.id}" data-cat="${l.category||'General'}">
+  const descShort = (l.description||'').slice(0,160) + ((l.description||'').length>160?'…':'');
+  return `<div class="dir-card dir-card-founder-inline" data-id="${l.id}" data-cat="${l.category||'General'}">
     <div class="dir-card-top">
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
         <div style="min-width:0;">
           <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
-          <span class="dir-promoted-badge">Promoted</span>
+          <span class="dir-fp-inline-badge">⭐ Founder Pack</span>
         </div>
       </div>
     </div>
-    <p class="dir-desc">${escHtml(l.description||'')}</p>
+    <p class="dir-desc">${escHtml(descShort)}</p>
     <div class="dir-card-footer">
       <div class="dir-card-actions">
         <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
