@@ -515,6 +515,7 @@ app.get('/directory', async (req, res) => {
   } catch (err) {
     console.error('[dir-ssr] error:', err.message);
     // Fallback to static file if SSR fails
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.sendFile(path.join(__dirname, 'public/directory.html'));
   }
 });

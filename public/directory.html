@@ -2517,11 +2517,11 @@ function renderPromotedCard(l){
   } else {
     logo = `<div class="dir-promoted-logo-fb">${initials}</div>`;
   }
-  return `<div class="dir-promoted-card">
+  return `<div class="dir-promoted-card" style="cursor:pointer;" onclick="if(!event.target.closest('a,button')){window.open('${escHtml(l.url)}','_blank');trackClick(${l.id});}">
     ${logo}
     <div class="dir-promoted-body">
       <div class="dir-promoted-top">
-        <a class="dir-promoted-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;" onclick="event.stopPropagation();">${escHtml(l.name)}</a>
+        <a class="dir-promoted-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;">${escHtml(l.name)}</a>
         <span class="dir-promoted-badge">⭐ Founder Pack</span>
       </div>
       <div class="dir-promoted-cat">${escHtml(l.category||'')}</div>
