@@ -7527,6 +7527,12 @@ async function setupDB() {
       description: 'Knight Leads monitors launch communities like Reddit, Product Hunt, and Hacker News for freshly launched startups, and also runs business discovery across verticals like dentists, salons, restaurants, and contractors. It extracts the domain, analyzes the site, scores the lead based on custom weighted criteria (login page, pricing page, domain age, post engagement, description quality), finds and verifies the founder or business email, and delivers it to a dashboard. Users control scoring weights and set a minimum threshold so only qualifying leads show up. Leads can be pushed to a CRM, Zapier, or any endpoint via webhook. Free plan offers a 50 lead cap with 2 industry verticals and daily refresh. Base plan is $29/mo for 3,000 leads across 5 verticals with verified emails and phone numbers. Plus plan is $79/mo for 10,000 leads, unlimited verticals, and refresh every 6 hours.',
       category: 'Lead Generation',
     },
+    {
+      name: 'CodeTrendy',
+      url: 'https://codetrendy.com',
+      description: 'CodeTrendy is a curated directory of newly launched startups, SaaS tools, and indie products, each listing is human-reviewed and organized by category, with 449+ products already listed. Founders can submit a product URL and details, free submissions get reviewed before going live while paid plans go live instantly. Free listings get a permanent public profile with a nofollow link, premium listings get a DR 58 dofollow backlink. The platform includes gamification, users earn engagement points, climb tiers, and appear on real-time leaderboards based on actual community votes. A weekly digest newsletter features top listings and community activity.',
+      category: 'Directories',
+    },
   ];
   for (const d of manualDrafts) {
     const exists = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [d.url]).catch(() => ({ rows: [1] }));
