@@ -1571,7 +1571,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           <label for="fLogoFile" id="fLogoUploadBtn" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;white-space:nowrap;transition:border-color .2s,color .2s;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
             📎 Upload
           </label>
-          <input type="file" id="fLogoFile" accept="image/*" style="display:none;" onchange="uploadSubmitLogo(this)" />
+          <input type="file" id="fLogoFile" accept="image/*,.svg,image/svg+xml" style="display:none;" onchange="uploadSubmitLogo(this)" />
         </div>
         <div id="fLogoPreview" style="display:none;margin-top:8px;align-items:center;gap:10px;">
           <img id="fLogoPreviewImg" src="" alt="Logo preview" style="width:40px;height:40px;border-radius:8px;object-fit:contain;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;" onerror="this.style.opacity='.3'" />
@@ -1893,7 +1893,7 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
         <div style="display:flex;gap:8px;align-items:center;">
           <label id="claimUploadLabel" style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:700;color:var(--teal);cursor:pointer;font-family:var(--mono);transition:border-color .2s;white-space:nowrap;">
             📷 Upload photo
-            <input type="file" id="claimLogoFile" accept="image/*" style="display:none;" onchange="claimUploadLogo(this)"/>
+            <input type="file" id="claimLogoFile" accept="image/*,.svg,image/svg+xml" style="display:none;" onchange="claimUploadLogo(this)"/>
           </label>
           <input class="claim-input" type="url" id="claimImageUrl" placeholder="or paste image URL…" style="flex:1;min-width:0;"/>
         </div>
