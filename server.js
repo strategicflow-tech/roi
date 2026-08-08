@@ -2688,6 +2688,23 @@ app.get('/admin/promote-listing', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /admin/set-votes?key=…&id=N&n=X  — directly set vote_count for one listing
+app.get('/admin/set-votes', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const id = parseInt(req.query.id, 10);
+  const n  = parseInt(req.query.n,  10);
+  if (!id || isNaN(n)) return res.status(400).json({ error: 'id and n required' });
+  try {
+    const r = await pool.query(
+      `UPDATE directory_listings SET vote_count=$1 WHERE id=$2 RETURNING id, name, vote_count`,
+      [n, id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'not found' });
+    console.log(`[admin/set-votes] #${id} (${r.rows[0].name}) → ${n} votes`);
+    res.json({ ok: true, listing: r.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/refetch-logo?key=…&id=N  — re-fetches and stores logo for one listing
 app.get('/admin/refetch-logo', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -3936,8 +3953,8 @@ app.get('/admin/seed-votes', async (req, res) => {
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
     // Owner/promoted listings: well above the 20-vote cap for free/unclaimed listings
-    await pool.query(`UPDATE directory_listings SET vote_count=180, is_promoted=TRUE WHERE id=199`);  // WHY Audit™
-    await pool.query(`UPDATE directory_listings SET vote_count=150, is_promoted=TRUE WHERE id=203`);  // Strategic Flow Audit
+    await pool.query(`UPDATE directory_listings SET vote_count=135, is_promoted=TRUE WHERE id=199`);  // WHY Audit™
+    await pool.query(`UPDATE directory_listings SET vote_count=139, is_promoted=TRUE WHERE id=203`);  // Strategic Flow Audit
     // Blink Test — owner's own tool, Editor's Pick + promoted
     await pool.query(`UPDATE directory_listings SET vote_count=32, is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
 
@@ -4063,10 +4080,10 @@ app.get('/admin/seed-votes', async (req, res) => {
     // ── 5b. Force premium listing vote_counts to canonical targets ───────────────
     // The sync above counts ALL dir_votes (including real visitor votes).
     // We override here so premium listings display exactly the intended totals.
-    await pool.query(`UPDATE directory_listings SET vote_count=180, is_promoted=TRUE WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=150, is_promoted=TRUE WHERE id=203`);
+    await pool.query(`UPDATE directory_listings SET vote_count=135, is_promoted=TRUE WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=139, is_promoted=TRUE WHERE id=203`);
     await pool.query(`UPDATE directory_listings SET vote_count=32,  is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
-    log('Owner vote_counts forced to 180 / 150 / 32.');
+    log('Owner vote_counts forced to 135 / 139 / 32.');
 
     // ── 6. Sanity check ──────────────────────────────────────────────────────────
     const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
