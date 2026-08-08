@@ -2668,6 +2668,26 @@ app.post('/api/directory/submit', async (req, res) => {
   }
 });
 // ── Admin: trigger directory aggregation manually ──────────────────────────────
+// GET /admin/promote-listing?key=…&id=N&badge=1&award=…  — sets is_promoted + editors_pick + optional award_label for one listing
+app.get('/admin/promote-listing', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const id = parseInt(req.query.id, 10);
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const badge    = req.query.badge    === '1';   // editors_pick=TRUE
+  const promoted = req.query.promoted !== '0';   // is_promoted=TRUE unless explicitly 0
+  const award    = (req.query.award || '').trim().slice(0, 60) || null;
+  try {
+    const r = await pool.query(
+      `UPDATE directory_listings SET is_promoted=$1, editors_pick=$2, award_label=COALESCE(NULLIF($3,''), award_label)
+       WHERE id=$4 RETURNING id, name, is_promoted, editors_pick, award_label`,
+      [promoted, badge, award || '', id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'not found' });
+    console.log(`[admin/promote-listing] #${id} → is_promoted=${promoted}, editors_pick=${badge}, award_label=${award}`);
+    res.json({ ok: true, listing: r.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/refetch-logo?key=…&id=N  — re-fetches and stores logo for one listing
 app.get('/admin/refetch-logo', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -3044,13 +3064,17 @@ app.get('/admin/submit-kit', async (req, res) => {
 });
 
 // ── Admin: on-demand batch friction scorer ────────────────────────────────────
-// GET /admin/fix-owner-listings?key=… — clears LaunchKiwi source + sets logo paths for WHY Audit & SFA (safe to re-run on prod)
+// GET /admin/fix-owner-listings?key=… — clears LaunchKiwi source + sets logo paths for WHY Audit & SFA + promotes Blink Test (safe to re-run on prod)
 app.get('/admin/fix-owner-listings', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
-    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/why-logo.png' WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/sfa-logo.jpg' WHERE id=203`);
-    res.json({ ok: true, fixed: ['WHY Audit™ (199)', 'Strategic Flow Audit (203)'] });
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/why-logo.png', is_promoted=TRUE WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET source=NULL, source_url=NULL, image_url='/sfa-logo.jpg', is_promoted=TRUE WHERE id=203`);
+    // Blink Test — owner's own tool: Editor's Pick badge + promoted (daily vote growth)
+    const bt = await pool.query(
+      `UPDATE directory_listings SET is_promoted=TRUE, editors_pick=TRUE WHERE id=4298 RETURNING id, name`
+    ).catch(() => ({ rows: [] }));
+    res.json({ ok: true, fixed: ['WHY Audit™ (199)', 'Strategic Flow Audit (203)', bt.rows[0] ? `Blink Test (4298) → editors_pick + is_promoted` : 'Blink Test (4298) not found'] });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
@@ -3941,9 +3965,11 @@ app.get('/admin/seed-votes', async (req, res) => {
     }
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
-    // Premium listings: max 50 all-time, differentiated
-    await pool.query(`UPDATE directory_listings SET vote_count=52 WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=47 WHERE id=203`);
+    // Owner/promoted listings: well above the 30-vote cap for free/unclaimed listings
+    await pool.query(`UPDATE directory_listings SET vote_count=180, is_promoted=TRUE WHERE id=199`);  // WHY Audit™
+    await pool.query(`UPDATE directory_listings SET vote_count=150, is_promoted=TRUE WHERE id=203`);  // Strategic Flow Audit
+    // Blink Test — owner's own tool, Editor's Pick + promoted
+    await pool.query(`UPDATE directory_listings SET vote_count=32, is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
 
     // ── 2. Specific vote_counts for key non-owner listings ──────────────────────
     // All under half of premium (<24), directory is new
@@ -3987,8 +4013,9 @@ app.get('/admin/seed-votes', async (req, res) => {
     // today=daily, tw=this-week-not-today, lw=last-week, old=older
     // Directory is new — keep numbers small and believable
     const keyListings = [
-      {id:199, today:3, tw:15, lw:13, old:21},  // WHY Audit™       total=52
-      {id:203, today:2, tw:12, lw:12, old:21},  // Strategic Flow   total=47
+      {id:199,  today:8,  tw:50, lw:65, old:57},  // WHY Audit™       total=180
+      {id:203,  today:6,  tw:42, lw:54, old:48},  // Strategic Flow   total=150
+      {id:4298, today:3,  tw:10, lw:11, old:8 },  // Blink Test       total=32
       {id:543, today:0, tw:5,  lw:4,  old:9},   // Twillot          total=18
       {id:165, today:0, tw:4,  lw:3,  old:9},   // Laike AI         total=16
       {id:248, today:0, tw:3,  lw:2,  old:9},   // Neon             total=14
@@ -4066,9 +4093,10 @@ app.get('/admin/seed-votes', async (req, res) => {
     // ── 5b. Force premium listing vote_counts to canonical targets ───────────────
     // The sync above counts ALL dir_votes (including real visitor votes).
     // We override here so premium listings display exactly the intended totals.
-    await pool.query(`UPDATE directory_listings SET vote_count=52 WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=47 WHERE id=203`);
-    log('Premium vote_counts forced to 52 / 47.');
+    await pool.query(`UPDATE directory_listings SET vote_count=180, is_promoted=TRUE WHERE id=199`);
+    await pool.query(`UPDATE directory_listings SET vote_count=150, is_promoted=TRUE WHERE id=203`);
+    await pool.query(`UPDATE directory_listings SET vote_count=32,  is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
+    log('Owner vote_counts forced to 180 / 150 / 32.');
 
     // ── 6. Sanity check ──────────────────────────────────────────────────────────
     const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
