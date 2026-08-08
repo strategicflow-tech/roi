@@ -3660,6 +3660,25 @@ app.get('/admin/insert-batch2', async (req, res) => {
   res.end();
 });
 
+// GET /admin/insert-directree?key=… — one-time insert of directree.io draft listing. Idempotent.
+app.get('/admin/insert-directree', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = 'https://www.directree.io'`);
+    if (exists.rows.length) return res.json({ status: 'already exists', id: exists.rows[0].id });
+    const r = await pool.query(
+      `INSERT INTO directory_listings (name, url, description, category, source, status, is_auto_imported, submitted_at)
+       VALUES ($1,$2,$3,'Directories','manual','draft',false,NOW()) RETURNING id`,
+      [
+        'directree',
+        'https://www.directree.io',
+        'directree is a free software directory. Paste a URL and get a structured listing in about 30 seconds. Every field is labeled Observed (verified), AI-inferred (transparently marked), or Founder-edited (claimed and verified by the owner). No fake precision scores, no pay-to-rank. Claimed listings get a permanent do-follow backlink badge. directree also runs GEO Monitor, a weekly tool that tracks whether AI answer engines like ChatGPT, Perplexity, Gemini, and Claude name a brand when buyers ask category questions.'
+      ]
+    );
+    res.json({ status: 'inserted', id: r.rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
 // listings are clearly ahead (power-law decay: #1=30, #2=26, #3=23, #4=20 … #10=10).
 // Never reduces votes. Safe to re-run.
