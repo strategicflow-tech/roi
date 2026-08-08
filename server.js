@@ -3553,12 +3553,12 @@ app.get('/admin/run-vote-growth', async (req, res) => {
        WHERE dl.is_auto_imported = TRUE AND dl.status = 'active'
          AND NOT COALESCE(dl.is_promoted, FALSE)
          AND dl.claimed_by IS NULL
-         AND dl.vote_count < 30
+         AND dl.vote_count < 20
        ORDER BY dds.position ASC`
     );
     log(`[vote-growth] ${rows.length} daily-section listings eligible`);
     for (const listing of rows) {
-      const remaining = 30 - listing.vote_count;
+      const remaining = 20 - listing.vote_count;
       if (remaining <= 0) continue;
       const baseMax = listing.position <= 3 ? 3 : listing.position <= 6 ? 2 : 1;
       const toAdd = Math.min(1 + Math.floor(Math.random() * baseMax), remaining);
@@ -3965,7 +3965,7 @@ app.get('/admin/seed-votes', async (req, res) => {
     }
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
-    // Owner/promoted listings: well above the 30-vote cap for free/unclaimed listings
+    // Owner/promoted listings: well above the 20-vote cap for free/unclaimed listings
     await pool.query(`UPDATE directory_listings SET vote_count=180, is_promoted=TRUE WHERE id=199`);  // WHY Audit™
     await pool.query(`UPDATE directory_listings SET vote_count=150, is_promoted=TRUE WHERE id=203`);  // Strategic Flow Audit
     // Blink Test — owner's own tool, Editor's Pick + promoted
