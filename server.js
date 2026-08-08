@@ -19503,34 +19503,10 @@ ${content}
     } catch(e) { console.error('[cron] Promoted boost error:', e.message); }
   });
 
-  // ── Daily 02:10 UTC: Vote boost for claimed listings — ONLY if in daily section ──
-  // 5–7 votes/day. Non-daily claimed listings get 0 — incentivises founders to get listed.
-  cron.schedule('10 2 * * *', async () => {
-    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    try {
-      const { rows } = await pool.query(
-        `SELECT dl.id, dl.name FROM directory_listings dl
-         JOIN dir_daily_section dds ON dds.listing_id = dl.id
-           AND dds.display_date = CURRENT_DATE
-         WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'`
-      );
-      console.log(`[cron] Claimed boost: ${rows.length} daily-section claimed listings`);
-      for (const listing of rows) {
-        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
-        const voteRows = Array.from({ length: toAdd }, (_, i) =>
-          `(${listing.id}, 'claimed_boost_${listing.id}_${dateTag}_${i}', NOW())`
-        ).join(',');
-        await pool.query(
-          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
-        );
-        await pool.query(
-          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-          [toAdd, listing.id]
-        );
-        console.log(`[cron] Claimed boost: +${toAdd} → ${listing.name}`);
-      }
-    } catch(e) { console.error('[cron] Claimed boost error:', e.message); }
-  });
+  // ── Daily 02:10 UTC: Claimed listing vote boost — DISABLED ──────────────────
+  // Was: 5–7 synthetic votes/day for claimed listings in daily section.
+  // Disabled per user request: Today's Picks vote counts are frozen at seed values.
+  // console.log('[cron] Claimed boost — DISABLED');
 
   // ── GET /admin/spread-votes?key=… — redistribute vote counts to wide unique range ──
   // Uses hashtext(id) to give each listing a stable, unique-ish vote count across 4–55.
