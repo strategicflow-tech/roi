@@ -525,6 +525,32 @@ a:hover{text-decoration:underline;}
 .modal-note{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;}
 
 /* SUBMIT SECTION */
+/* ── Guest Post sci-fi card ── */
+.dir-gp-wrap{max-width:1200px;margin:0 auto;padding:48px 40px 0;}
+@media(max-width:600px){.dir-gp-wrap{padding:32px 16px 0;}}
+@keyframes gp-glow{0%,100%{box-shadow:0 0 18px rgba(139,92,246,.35),inset 0 0 12px rgba(139,92,246,.06);}50%{box-shadow:0 0 34px rgba(139,92,246,.6),inset 0 0 22px rgba(139,92,246,.12);}}
+@keyframes gp-scan{0%{background-position:0 0;}100%{background-position:0 120px;}}
+@keyframes gp-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.dir-gp-card{position:relative;overflow:hidden;border:1px solid rgba(139,92,246,.45);border-radius:16px;padding:32px 36px;background:linear-gradient(135deg,#0d0620 0%,#100b2e 60%,#0a1228 100%);animation:gp-glow 3s ease-in-out infinite;display:flex;align-items:center;gap:36px;flex-wrap:wrap;}
+.dir-gp-card::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(139,92,246,.025) 3px,rgba(139,92,246,.025) 4px);background-size:100% 120px;animation:gp-scan 8s linear infinite;pointer-events:none;}
+.dir-gp-icon-wrap{flex-shrink:0;width:64px;height:64px;border-radius:14px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);display:flex;align-items:center;justify-content:center;animation:gp-float 3.5s ease-in-out infinite;position:relative;z-index:2;}
+.dir-gp-icon-wrap svg{width:30px;height:30px;color:#a78bfa;}
+.dir-gp-body{flex:1;min-width:200px;position:relative;z-index:2;}
+.dir-gp-badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(167,139,250,.8);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:2px 9px;margin-bottom:8px;}
+.dir-gp-title{font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:4px;letter-spacing:-.01em;}
+.dir-gp-desc{font-size:13px;color:rgba(148,163,184,.8);margin-bottom:12px;line-height:1.5;}
+.dir-gp-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.dir-gp-founders{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(167,139,250,.65);border:1px solid rgba(167,139,250,.2);border-radius:8px;padding:2px 7px;align-self:center;}
+.dir-gp-orig{font-size:16px;font-weight:600;color:rgba(167,139,250,.3);text-decoration:line-through;}
+.dir-gp-price{font-size:28px;font-weight:800;color:#a78bfa;text-shadow:0 0 16px rgba(139,92,246,.5);}
+.dir-gp-note{font-family:var(--mono);font-size:10px;color:rgba(139,92,246,.5);}
+.dir-gp-perks{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:0;}
+.dir-gp-perk{font-size:11px;color:rgba(148,163,184,.7);display:flex;align-items:center;gap:4px;}
+.dir-gp-perk::before{content:'✓';color:#a78bfa;font-weight:700;}
+.dir-gp-cta-wrap{flex-shrink:0;position:relative;z-index:2;}
+.dir-gp-cta{display:inline-block;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-weight:700;font-size:14px;padding:14px 28px;border-radius:10px;text-decoration:none;white-space:nowrap;transition:opacity .2s,transform .2s;box-shadow:0 0 24px rgba(124,58,237,.4);}
+.dir-gp-cta:hover{opacity:.9;transform:translateY(-2px);}
+@media(max-width:700px){.dir-gp-card{flex-direction:column;gap:20px;padding:24px 20px;}.dir-gp-cta-wrap{width:100%;}.dir-gp-cta{display:block;text-align:center;}}
 .dir-submit-section{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:60px 40px;}
 .dir-submit-inner{max-width:600px;margin:0 auto;}
 .dir-submit-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:12px;}
@@ -1437,6 +1463,35 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 </section>
 
 <!-- SUBMIT SECTION -->
+<!-- Guest Post sci-fi card -->
+<div class="dir-gp-wrap">
+  <div class="dir-gp-card">
+    <div class="dir-gp-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+    </div>
+    <div class="dir-gp-body">
+      <span class="dir-gp-badge">Editorial · Permanent dofollow backlink</span>
+      <div class="dir-gp-title">Guest Blog Post on strategicflow.tech</div>
+      <div class="dir-gp-desc">You write it, we publish it — permanent dofollow link to your site from a DR 86 domain read by 56+ SaaS founders daily.</div>
+      <div class="dir-gp-price-row">
+        <span class="dir-gp-founders">Founders Price</span>
+        <span class="dir-gp-orig">$99</span>
+        <span class="dir-gp-price">$29</span>
+        <span class="dir-gp-note">one-time · no expiry</span>
+      </div>
+      <div class="dir-gp-perks">
+        <span class="dir-gp-perk">DR 86 verified (Ahrefs)</span>
+        <span class="dir-gp-perk">Stays live indefinitely</span>
+        <span class="dir-gp-perk">Real SaaS audience</span>
+        <span class="dir-gp-perk">No renewal fees</span>
+      </div>
+    </div>
+    <div class="dir-gp-cta-wrap">
+      <a href="/grow" class="dir-gp-cta">Get the backlink →</a>
+    </div>
+  </div>
+</div>
+
 <section class="dir-submit-section" id="submit">
   <div class="dir-submit-inner">
     <div class="dir-submit-label">Submit your product</div>

@@ -19478,48 +19478,12 @@ ${content}
   // Priority within daily section: position 1-3 → 3 votes, 4-6 → 2 votes, 7+ → 1 vote.
   // Claimed listings are excluded here — they get their own boost at 02:10.
   // Promoted listings excluded — they have their own boost at 02:05.
-  cron.schedule('0 2 * * *', async () => {
-    console.log('[cron] Daily vote growth starting (daily-section only)…');
-    try {
-      const { rows } = await pool.query(
-        `SELECT dl.id, dl.name, dl.vote_count, dds.position
-         FROM directory_listings dl
-         JOIN dir_daily_section dds ON dds.listing_id = dl.id
-           AND dds.display_date = CURRENT_DATE
-         WHERE dl.is_auto_imported = TRUE
-           AND dl.status = 'active'
-           AND NOT COALESCE(dl.is_promoted, FALSE)
-           AND dl.claimed_by IS NULL
-           AND dl.vote_count < 30
-         ORDER BY dds.position ASC`
-      );
-      console.log(`[cron] Vote growth: ${rows.length} daily-section listings`);
-      const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      for (const listing of rows) {
-        const remaining = 30 - listing.vote_count;
-        if (remaining <= 0) continue;
-        // More votes for top positions → creates clear spread on daily tab
-        const baseMax = listing.position <= 3 ? 3 : listing.position <= 6 ? 2 : 1;
-        const toAdd = Math.min(1 + Math.floor(Math.random() * baseMax), remaining);
-        const voteRows = Array.from({ length: toAdd }, (_, i) =>
-          `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
-        );
-        try {
-          await pool.query(
-            `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows.join(',')} ON CONFLICT DO NOTHING`
-          );
-          await pool.query(
-            `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-            [toAdd, listing.id]
-          );
-          console.log(`[cron] +${toAdd} → ${listing.name} pos#${listing.position} (now ${listing.vote_count + toAdd})`);
-        } catch(e) {
-          console.error(`[cron] Vote growth error for ${listing.name}:`, e.message);
-        }
-      }
-      console.log('[cron] Daily vote growth done.');
-    } catch(e) { console.error('[cron] Vote growth error:', e.message); }
-  });
+  // ── Daily vote growth cron DISABLED ─────────────────────────────────────────
+  // Was: cron.schedule('0 2 * * *', ...) — added synthetic daily_growth_* votes
+  // to Today's Picks listings, causing all listings to converge to the same count.
+  // Today's Picks now use fixed position-based caps set at seed time via
+  // /admin/reseed-daily — no daily artificial boosting needed.
+  // console.log('[cron] Daily vote growth — DISABLED');
 
   // ── Daily 02:05 UTC: Promoted listing vote boost (is_promoted=TRUE) ─────────
   // 10–14 votes/day, no cap. Toggled via /admin/toggle-promoted?key=&id=&promoted=true|false
@@ -19573,6 +19537,101 @@ ${content}
         console.log(`[cron] Claimed boost: +${toAdd} → ${listing.name}`);
       }
     } catch(e) { console.error('[cron] Claimed boost error:', e.message); }
+  });
+
+  // ── GET /admin/spread-votes?key=… — redistribute vote counts to wide unique range ──
+  // Uses hashtext(id) to give each listing a stable, unique-ish vote count across 4–55.
+  // Never reduces listings that already have real activity (>55v).
+  // Safe to re-run — idempotent for listings already in the spread range.
+  app.get('/admin/spread-votes', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.flushHeaders();
+    const log = m => { console.log(m); res.write(m + '\n'); };
+    try {
+      // Give each listing a stable hash-based vote count in range 4–55.
+      // GREATEST ensures we never decrease a listing that's earned more.
+      const r = await pool.query(`
+        UPDATE directory_listings
+        SET vote_count = GREATEST(vote_count, 4 + ABS(hashtext(id::text)) % 52)
+        WHERE id NOT IN (199, 203)
+          AND status = 'active'
+          AND is_seeded = FALSE
+        RETURNING id, vote_count
+      `);
+      log(`Updated ${r.rowCount} listings.`);
+      // Quick distribution check
+      const dist = await pool.query(`
+        SELECT vote_count, COUNT(*)::int AS cnt
+        FROM directory_listings
+        WHERE status='active' AND is_seeded=FALSE AND id NOT IN (199,203)
+        GROUP BY vote_count ORDER BY cnt DESC LIMIT 10
+      `);
+      log('Top collisions after spread:');
+      dist.rows.forEach(x => log(`  ${x.vote_count}v → ${x.cnt} listings`));
+      log('Done.');
+    } catch(e) { log(`ERROR: ${e.message}`); }
+    res.end();
+  });
+
+  // ── GET /admin/reseed-daily?key=… — clear + reseed today's picks with position caps ──
+  app.get('/admin/reseed-daily', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.flushHeaders();
+    const log = m => { console.log(m); res.write(m + '\n'); };
+    const POS_CAP = [44,40,36,32,28,26,24,22,20,18,16,14];
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const dateTag = today.replace(/-/g, '');
+      // Clear today
+      const del = await pool.query('DELETE FROM dir_daily_section WHERE display_date=$1', [today]);
+      log(`Cleared ${del.rowCount} rows for ${today}`);
+      // Re-seed with NTILE tier sampling (same logic as seedDailySection)
+      const needed = 12;
+      const perTier = Math.ceil(needed / 4);
+      const fillRes = await pool.query(`
+        WITH eligible AS (
+          SELECT dl.id, NTILE(4) OVER (ORDER BY dl.vote_count DESC NULLS LAST) AS tier
+          FROM directory_listings dl
+          WHERE dl.status='active' AND dl.is_seeded=FALSE
+            AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
+            AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
+        ),
+        tier_picks AS (
+          SELECT id, tier, ROW_NUMBER() OVER (PARTITION BY tier ORDER BY RANDOM()) AS rn
+          FROM eligible
+        )
+        SELECT id FROM tier_picks WHERE rn <= $2 ORDER BY RANDOM() LIMIT $1
+      `, [needed, perTier]);
+      log(`Selected ${fillRes.rows.length} listings via tier sampling`);
+      for (let i = 0; i < fillRes.rows.length; i++) {
+        await pool.query(
+          `INSERT INTO dir_daily_section (listing_id, display_date, position, source) VALUES ($1,$2,$3,'db_pick') ON CONFLICT DO NOTHING`,
+          [fillRes.rows[i].id, today, i + 1]
+        );
+      }
+      // Apply position-based vote caps immediately
+      const { rows } = await pool.query(`
+        SELECT dl.id, dl.name, dl.vote_count, dds.position
+        FROM directory_listings dl JOIN dir_daily_section dds ON dds.listing_id=dl.id
+        WHERE dds.display_date=$1 ORDER BY dds.position ASC`, [today]);
+      for (const l of rows) {
+        const target = POS_CAP[l.position - 1] ?? 14;
+        const diff = target - l.vote_count;
+        if (diff <= 0) { log(`#${l.position} ${l.name} — already ${l.vote_count}v (cap ${target})`); continue; }
+        const voteRows = Array.from({length: diff}, (_, i) =>
+          `(${l.id}, 'daily_growth_${l.id}_${dateTag}_reseed_${i}', NOW() - INTERVAL '${i * 5} minutes')`
+        ).join(',');
+        await pool.query(`INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`);
+        await pool.query('UPDATE directory_listings SET vote_count=$1 WHERE id=$2', [target, l.id]);
+        log(`#${l.position} ${l.name}: ${l.vote_count}v → ${target}v (+${diff})`);
+      }
+      log('Done.');
+    } catch(e) { log(`ERROR: ${e.message}`); }
+    res.end();
   });
 
   // ── GET /admin/run-claimed-boost?key=… — manually trigger claimed listing vote boost ─
