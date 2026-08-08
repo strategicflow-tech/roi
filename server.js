@@ -3543,39 +3543,9 @@ app.get('/admin/run-vote-growth', async (req, res) => {
     }
     const promotedIds = promoted.map(p => p.id);
 
-    // ── Regular auto-imported listings: only today's dir_daily_section, non-claimed ──
-    // Position 1-3 → up to 3 votes, 4-6 → up to 2, 7+ → 1. Cap 30.
-    const { rows } = await pool.query(
-      `SELECT dl.id, dl.name, dl.vote_count, dds.position
-       FROM directory_listings dl
-       JOIN dir_daily_section dds ON dds.listing_id = dl.id
-         AND dds.display_date = CURRENT_DATE
-       WHERE dl.is_auto_imported = TRUE AND dl.status = 'active'
-         AND NOT COALESCE(dl.is_promoted, FALSE)
-         AND dl.claimed_by IS NULL
-         AND dl.vote_count < 20
-       ORDER BY dds.position ASC`
-    );
-    log(`[vote-growth] ${rows.length} daily-section listings eligible`);
-    for (const listing of rows) {
-      const remaining = 20 - listing.vote_count;
-      if (remaining <= 0) continue;
-      const baseMax = listing.position <= 3 ? 3 : listing.position <= 6 ? 2 : 1;
-      const toAdd = Math.min(1 + Math.floor(Math.random() * baseMax), remaining);
-      const voteRows = Array.from({ length: toAdd }, (_, i) =>
-        `(${listing.id}, 'daily_growth_${listing.id}_${dateTag}_${i}', NOW())`
-      ).join(',');
-      await pool.query(
-        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
-      );
-      const r = await pool.query(
-        `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
-        [toAdd, listing.id]
-      );
-      log(`[vote-growth] +${toAdd} → ${listing.name} pos#${listing.position} (now ${r.rows[0]?.vote_count})`);
-      grown++;
-    }
-    log(`[vote-growth] Done. Grew ${grown} listings (${promoted.length} promoted, ${rows.length} daily-section).`);
+    // Free/unclaimed listings do NOT get continued daily growth.
+    // They receive their unique vote count once at seedDailySection time and stay there.
+    log(`[vote-growth] Done. Grew ${grown} listings (${promoted.length} promoted — free listings frozen at seed counts).`);
   } catch (e) {
     log(`[vote-growth] ERROR: ${e.message}`);
   }
@@ -4528,16 +4498,40 @@ async function seedDailySection() {
 
     if (!picks.length) { console.log('[daily-section] No listings available to seed'); return; }
 
+    // Assign each new listing a UNIQUE random vote count so the leaderboard
+    // never shows two apps with identical numbers. Shuffle a range then assign.
+    const n = picks.length;
+    // Pool: 2 … (n + 1 + some spread). E.g. 12 listings → pool [2..19], pick 12 unique.
+    const pool_size = n + Math.floor(n * 0.6) + 2; // a bit wider than n for variety
+    const votePool = Array.from({ length: pool_size }, (_, i) => i + 2); // [2, 3, ..., pool_size+1]
+    // Fisher-Yates shuffle
+    for (let j = votePool.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [votePool[j], votePool[k]] = [votePool[k], votePool[j]];
+    }
+    const assignedVotes = votePool.slice(0, n); // unique, no two equal
+
     for (let i = 0; i < picks.length; i++) {
       await pool.query(
         `INSERT INTO dir_daily_section (listing_id, display_date, position, source)
          VALUES ($1,$2,$3,$4) ON CONFLICT (display_date, listing_id) DO NOTHING`,
         [picks[i].id, today, i + 1, picks[i].source]
       ).catch(()=>{});
+
+      // Set a unique vote count for this listing (only if it's currently ≤ assigned — don't reduce promoted listings)
+      const votes = assignedVotes[i];
+      await pool.query(
+        `UPDATE directory_listings
+         SET vote_count = $1
+         WHERE id = $2
+           AND NOT COALESCE(is_promoted, FALSE)
+           AND vote_count <= $1`,
+        [votes, picks[i].id]
+      ).catch(()=>{});
     }
 
     const phCount = picks.filter(p => p.source === 'ph_import').length;
-    console.log(`[daily-section] Seeded ${picks.length} listings for ${today} (${phCount} PH + ${picks.length - phCount} DB picks)`);
+    console.log(`[daily-section] Seeded ${picks.length} listings for ${today} (${phCount} PH + ${picks.length - phCount} DB picks) with unique vote counts [${assignedVotes.join(',')}]`);
   } catch(e) { console.error('[daily-section] seed error:', e.message); }
 }
 
