@@ -5863,7 +5863,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
     const params  = [];
 
     if (description && description.trim()) {
-      params.push(description.trim().slice(0, 400));
+      params.push(description.trim().slice(0, 500));
       updates.push(`owner_description=$${params.length}`);
     }
     if (image_url && (image_url.startsWith('http') || image_url.startsWith('data:image/'))) {
