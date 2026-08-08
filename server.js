@@ -3679,6 +3679,25 @@ app.get('/admin/insert-directree', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /admin/insert-knight-leads?key=… — one-time insert of knightleads.com draft listing. Idempotent.
+app.get('/admin/insert-knight-leads', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = 'https://knightleads.com'`);
+    if (exists.rows.length) return res.json({ status: 'already exists', id: exists.rows[0].id });
+    const r = await pool.query(
+      `INSERT INTO directory_listings (name, url, description, category, source, status, is_auto_imported, submitted_at)
+       VALUES ($1,$2,$3,'Lead Generation','manual','draft',false,NOW()) RETURNING id`,
+      [
+        'Knight Leads',
+        'https://knightleads.com',
+        'Knight Leads monitors launch communities like Reddit, Product Hunt, and Hacker News for freshly launched startups, and also runs business discovery across verticals like dentists, salons, restaurants, and contractors. It extracts the domain, analyzes the site, scores the lead based on custom weighted criteria (login page, pricing page, domain age, post engagement, description quality), finds and verifies the founder or business email, and delivers it to a dashboard. Users control scoring weights and set a minimum threshold so only qualifying leads show up. Leads can be pushed to a CRM, Zapier, or any endpoint via webhook. Free plan offers a 50 lead cap with 2 industry verticals and daily refresh. Base plan is $29/mo for 3,000 leads across 5 verticals with verified emails and phone numbers. Plus plan is $79/mo for 10,000 leads, unlimited verticals, and refresh every 6 hours.'
+      ]
+    );
+    res.json({ status: 'inserted', id: r.rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
 // listings are clearly ahead (power-law decay: #1=30, #2=26, #3=23, #4=20 … #10=10).
 // Never reduces votes. Safe to re-run.
