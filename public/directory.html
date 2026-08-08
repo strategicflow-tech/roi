@@ -3416,6 +3416,7 @@ function openClaimModal(id, name, domain) {
   document.getElementById('claimLogoFile').value  = '';
   claimFounderAvatarUrl = '';
   claimScreenshots = [];
+  _claimLogoDataUrl = null;
   const upSt = document.getElementById('claimUploadStatus');
   if (upSt) { upSt.style.display = 'none'; upSt.textContent = ''; }
   ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid) {
@@ -3626,7 +3627,7 @@ async function claimRelaunch() {
 
 async function claimSaveEdit() {
   const description     = (document.getElementById('claimDesc').value        || '').trim();
-  const image_url       = (document.getElementById('claimImageUrl').value     || '').trim();
+  const image_url       = _claimLogoDataUrl || (document.getElementById('claimImageUrl').value || '').trim();
   const founder_name    = (document.getElementById('claimFounderName').value  || '').trim();
   const social_twitter  = (document.getElementById('claimTwitter').value      || '').trim();
   const social_linkedin = (document.getElementById('claimLinkedin').value     || '').trim();
@@ -3668,6 +3669,7 @@ async function claimSaveEdit() {
     const d = await r.json();
     if (d.ok) {
       msg.style.display = 'block';
+      _claimLogoDataUrl = null; // clear after successful save
       // Update in-memory listing so card reflects changes immediately (no reload needed)
       const idx = allListings.findIndex(function(l){ return l.id === claimListingId; });
       if (idx !== -1) {
@@ -3701,9 +3703,10 @@ async function claimUploadLogo(input) {
     const r = await fetch('/api/directory/claim/upload-logo', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
-      document.getElementById('claimImageUrl').value = d.url;
+      _claimLogoDataUrl = d.url;                              // store separately — input[type=url] may drop data: URIs on mobile
+      document.getElementById('claimImageUrl').value = '';    // clear URL field so data URL takes priority
       statusEl.style.color   = '#22c55e';
-      statusEl.textContent   = '✓ Photo uploaded — click Save changes to apply.';
+      statusEl.textContent   = '✓ Logo uploaded — click Save changes to apply.';
     } else {
       statusEl.style.color   = '#e8455a';
       statusEl.textContent   = 'Upload failed. Try pasting a URL instead.';
@@ -3719,6 +3722,7 @@ async function claimUploadLogo(input) {
 // ── Rich profile upload helpers ───────────────────────────────────────────────
 var claimFounderAvatarUrl = '';
 var claimScreenshots = [];
+var _claimLogoDataUrl = null;  // keeps uploaded logo data URL safe from input[type=url] sanitization
 
 async function claimUploadFounderAvatar(input) {
   const file = input.files[0]; if (!file) return;
