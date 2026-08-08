@@ -5452,7 +5452,7 @@ app.post('/api/directory/claim/start', async (req, res) => {
 
   try {
     const row = await pool.query(
-      `SELECT id, name, url, claimed_by FROM directory_listings WHERE id=$1 AND status='active'`,
+      `SELECT id, name, url, claimed_by FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
       [listing_id]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'listing_not_found' });
@@ -5511,13 +5511,15 @@ app.get('/api/directory/claim/prefill/:id', async (req, res) => {
       `SELECT COALESCE(owner_description, description) AS description,
               COALESCE(owner_image_url, image_url) AS image_url,
               founder_name, founder_avatar_url,
-              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
+              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date,
+              claimed_by
        FROM directory_listings WHERE id=$1`, [id]
     );
     const r = rows[0] || {};
     res.json({
       ok: true,
       listing: {
+        claimed_by:      r.claimed_by      || null,
         description:     r.description     || '',
         image_url:       r.image_url       || '',
         founder_name:    r.founder_name    || '',
@@ -5559,114 +5561,19 @@ app.post('/api/directory/claim/verify', async (req, res) => {
        WHERE listing_id=$2 AND owner_email=$3`,
       [editToken, listing_id, email.toLowerCase()]
     );
-    await pool.query(
-      `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW(), status='active' WHERE id=$2`,
-      [email.toLowerCase(), listing_id]
-    );
-
-    // ── Gradual vote boost on first claim only (task #88) ─────────────────
-    // Votes spread over 2–5 hours so they trickle into Daily naturally.
-    if (!c.is_verified) {
-      try {
-        const claimBoostCount = 5 + Math.floor(Math.random() * 3); // 5–7
-        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const spreadMs = (2 + Math.random() * 3) * 60 * 60 * 1000; // 2–5 h
-        const voteRows = Array.from({ length: claimBoostCount }, (_, i) => {
-          const offsetMs = Math.floor((i / claimBoostCount) * spreadMs + Math.random() * (spreadMs / claimBoostCount));
-          return `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
-        }).join(',');
-        await pool.query(
-          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
-        );
-        await pool.query(
-          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-          [claimBoostCount, listing_id]
-        );
-        console.log(`[dir-claim] gradual boost: +${claimBoostCount} votes spread ~${Math.round(spreadMs/3600000)}h → listing ${listing_id}`);
-      } catch(e) {
-        console.error(`[dir-claim] boost error:`, e.message);
-      }
-    }
-
+    // Fetch listing data for response (claimed_by tells frontend whether backlink step was already done)
     const listing = await pool.query(
       `SELECT name, description, image_url, founder_name, founder_avatar_url,
-              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date
+              social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date,
+              claimed_by
        FROM directory_listings WHERE id=$1`, [listing_id]);
-    const row  = listing.rows[0] || {};
-    const name = row.name || 'your product';
-    const isRelogin = c.is_verified; // already claimed — skip welcome email
+    const row = listing.rows[0] || {};
 
-    // Welcome email (only on first claim)
-    if (!isRelogin) resend.emails.send({
-      from:    SENDER,
-      to:      email,
-      subject: `You've claimed "${name}" on Strategic Flow Directory ✓`,
-      html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
-        <div style="margin-bottom:24px;">
-          <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">Strategic Flow Directory</div>
-          <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
-          <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
-          <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">You can edit your description and screenshot directly on your listing card. You'll also get an email when your first real vote comes in.</p>
-          <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
-        </div>
-
-        <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
-          <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
-          <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">Today your listing is visible — but the Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
-
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-            <tr>
-              <td width="32%" valign="top" style="padding-right:8px;">
-                <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:14px 12px;">
-                  <div style="font-size:10px;font-family:monospace;color:#7a9ab8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Daily Boost</div>
-                  <div style="font-size:24px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1;">$9</div>
-                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
-                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
-                    <li>24h #1 slot in grid</li>
-                    <li>Instant activation</li>
-                    <li>No subscription</li>
-                  </ul>
-                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#00d4c8;color:#041214;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Boost now →</a>
-                </div>
-              </td>
-              <td width="36%" valign="top" style="padding-right:8px;">
-                <div style="background:#0a1628;border:2px solid rgba(245,158,11,.55);border-radius:10px;padding:14px 12px;position:relative;">
-                  <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:9px;font-weight:800;font-family:monospace;padding:2px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.08em;">MOST POPULAR</div>
-                  <div style="font-size:10px;font-family:monospace;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Weekly Feature</div>
-                  <div style="font-size:24px;font-weight:800;color:#f59e0b;font-family:monospace;line-height:1;">$19</div>
-                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">14 days</div>
-                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
-                    <li>Featured spotlight section</li>
-                    <li>Gold badge on card</li>
-                    <li>Priority placement in grid</li>
-                  </ul>
-                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Feature my listing →</a>
-                </div>
-              </td>
-              <td width="32%" valign="top">
-                <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
-                  <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
-                  <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
-                  <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
-                  <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;">
-                    <li>10–15 votes/day automatic</li>
-                    <li>Premium badge + top placement</li>
-                    <li>Unlimited relaunches</li>
-                  </ul>
-                  <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
-                </div>
-              </td>
-            </tr>
-          </table>
-          <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
-        </div>
-      </div>`
-    }).catch(() => {});
-
-    console.log(`[dir-claim] verified: ${email} owns listing ${listing_id}`);
+    console.log(`[dir-claim] OTP verified: ${email} → listing ${listing_id}${c.is_verified ? ' (returning)' : ' (new)'}`);
     res.json({
       ok: true, edit_token: editToken,
       listing: {
+        claimed_by:     row.claimed_by     || null,
         description:    row.description    || '',
         image_url:      row.image_url      || '',
         founder_name:   row.founder_name   || '',
@@ -5681,6 +5588,117 @@ app.post('/api/directory/claim/verify', async (req, res) => {
     });
   } catch(err) {
     console.error('[dir-claim/verify]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── POST /api/directory/claim/confirm-backlink ───────────────────────────────
+// Called after OTP verify. Founder confirms they've added a ToolIndex badge to their site.
+// This is the step that actually marks the listing as claimed/active.
+app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
+  const { listing_id, email, edit_token, backlink_url } = req.body || {};
+  if (!listing_id || !email || !edit_token)
+    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+  try {
+    const claim = await pool.query(
+      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
+      [listing_id, email.toLowerCase(), edit_token]
+    );
+    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const c = claim.rows[0];
+
+    // Check if already claimed (idempotent — skip votes/email on re-confirmation)
+    const existingR = await pool.query(`SELECT claimed_by FROM directory_listings WHERE id=$1`, [listing_id]);
+    const alreadyClaimed = !!(existingR.rows[0]?.claimed_by);
+
+    // Mark listing as claimed, active, backlink confirmed
+    await pool.query(
+      `UPDATE directory_listings
+       SET claimed_by=$1, claimed_at=NOW(), status='active',
+           backlink_confirmed=TRUE,
+           backlink_url=NULLIF($2,''),
+           backlink_confirmed_at=NOW()
+       WHERE id=$3`,
+      [email.toLowerCase(), backlink_url || null, listing_id]
+    );
+
+    // ── Gradual vote boost on first claim only ────────────────────────────
+    if (!alreadyClaimed) {
+      try {
+        const claimBoostCount = 5 + Math.floor(Math.random() * 3); // 5–7
+        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const spreadMs = (2 + Math.random() * 3) * 60 * 60 * 1000; // 2–5 h
+        const voteRows = Array.from({ length: claimBoostCount }, (_, i) => {
+          const offsetMs = Math.floor((i / claimBoostCount) * spreadMs + Math.random() * (spreadMs / claimBoostCount));
+          return `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
+        }).join(',');
+        await pool.query(`INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`);
+        await pool.query(`UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`, [claimBoostCount, listing_id]);
+        console.log(`[dir-claim] gradual boost: +${claimBoostCount} votes → listing ${listing_id}`);
+      } catch(e) { console.error(`[dir-claim] boost error:`, e.message); }
+    }
+
+    // ── Welcome email (first claim only) ─────────────────────────────────
+    if (!alreadyClaimed) {
+      const nameR = await pool.query(`SELECT name FROM directory_listings WHERE id=$1`, [listing_id]);
+      const name = nameR.rows[0]?.name || 'your product';
+      resend.emails.send({
+        from:    SENDER,
+        to:      email,
+        subject: `You've claimed "${name}" on ToolIndex ✓`,
+        html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
+            <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
+            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card. You'll also get an email when your first real vote comes in.</p>
+            <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
+          </div>
+          <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
+            <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">Today your listing is visible — but the Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+              <tr>
+                <td width="32%" valign="top" style="padding-right:8px;">
+                  <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:14px 12px;">
+                    <div style="font-size:10px;font-family:monospace;color:#7a9ab8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Daily Boost</div>
+                    <div style="font-size:24px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1;">$9</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>24h #1 slot in grid</li><li>Instant activation</li><li>No subscription</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#00d4c8;color:#041214;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Boost now →</a>
+                  </div>
+                </td>
+                <td width="36%" valign="top" style="padding-right:8px;">
+                  <div style="background:#0a1628;border:2px solid rgba(245,158,11,.55);border-radius:10px;padding:14px 12px;position:relative;">
+                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:9px;font-weight:800;font-family:monospace;padding:2px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.08em;">MOST POPULAR</div>
+                    <div style="font-size:10px;font-family:monospace;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Weekly Feature</div>
+                    <div style="font-size:24px;font-weight:800;color:#f59e0b;font-family:monospace;line-height:1;">$19</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">14 days</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>Featured spotlight section</li><li>Gold badge on card</li><li>Priority placement in grid</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Feature my listing →</a>
+                  </div>
+                </td>
+                <td width="32%" valign="top">
+                  <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
+                    <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
+                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$99</div>
+                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
+                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>10–15 votes/day automatic</li><li>Premium badge + top placement</li><li>Unlimited relaunches</li></ul>
+                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
+          </div>
+        </div>`
+      }).catch(() => {});
+    }
+
+    console.log(`[dir-claim] backlink confirmed: ${email} → listing ${listing_id}`);
+    res.json({ ok: true });
+  } catch(err) {
+    console.error('[dir-claim/confirm-backlink]', err.message);
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -7570,6 +7588,10 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_emailed_at     TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS follow_up_sent_at       TIMESTAMPTZ`).catch(()=>{});
+  // Reciprocal backlink requirement — added as part of claim flow
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS backlink_confirmed      BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS backlink_url            TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS backlink_confirmed_at   TIMESTAMPTZ`).catch(()=>{});
   // Rich profile fields (founder, socials, screenshots, tech)
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_name        TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS founder_avatar_url  TEXT`).catch(()=>{});

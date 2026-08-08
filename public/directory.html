@@ -475,8 +475,9 @@ a:hover{text-decoration:underline;}
 .claim-save-msg{font-size:11px;color:#22c55e;display:none;text-align:center;}
 /* Sticky Save footer inside claim modal */
 #claimModal .modal-box{display:flex;flex-direction:column;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);}
-#claimStep3{display:none;flex-direction:column;gap:0;flex:1;min-height:0;overflow:hidden;}
-#claimStep3.active{display:flex;}
+#claimStep4{display:none;flex-direction:column;gap:0;flex:1;min-height:0;overflow:hidden;}
+#claimStep4.active{display:flex;}
+#claimStep3{gap:12px;}
 .claim-modal-scroll{overflow-y:auto;flex:1;min-height:0;padding-right:2px;}
 .claim-save-footer{flex-shrink:0;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
 @media(max-width:600px){
@@ -1819,8 +1820,37 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
       <button style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;" onclick="claimBack()">← Different email</button>
     </div>
 
-    <!-- Step 3: success + edit -->
+    <!-- Step 3: backlink requirement -->
     <div class="claim-step" id="claimStep3">
+      <div class="claim-success">
+        <div class="claim-success-icon">🔗</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px;">One last step — add a badge</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;">To complete your claim and activate your permanent dofollow backlink from ToolIndex (DR&nbsp;86), paste our badge on your site — footer, sidebar, or any page.</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div class="claim-edit-label" style="margin-bottom:8px;">Copy this badge code:</div>
+        <pre id="claimBadgeSnippet" onclick="claimCopyBadge()" title="Click to copy" style="font-family:var(--mono);font-size:10px;color:var(--teal);background:var(--bg);border-radius:6px;padding:10px;white-space:pre-wrap;word-break:break-all;margin:0;cursor:pointer;border:1px dashed rgba(0,212,200,.3);line-height:1.55;"></pre>
+        <button onclick="claimCopyBadge()" id="claimCopyBadgeBtn" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:5px 14px;font-size:11px;font-family:var(--mono);color:var(--muted);cursor:pointer;transition:border-color .2s,color .2s;">📋 Copy code</button>
+      </div>
+      <div style="text-align:center;padding:10px 0 2px;">
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);">Preview:</span><br/>
+        <a href="https://strategic-flow-audit.replit.app/directory" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;margin-top:6px;background:rgba(0,212,200,0.08);border:1px solid rgba(0,212,200,0.3);border-radius:6px;padding:7px 14px;text-decoration:none;color:var(--teal);font-size:12px;font-weight:700;font-family:var(--mono);">🔗 Listed on ToolIndex · DR 86 dofollow</a>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="claim-edit-label">Page where you added it <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
+        <input class="claim-input" type="url" id="claimBacklinkUrl" placeholder="https://yoursite.com/about"/>
+      </div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 0 4px;font-size:13px;color:var(--text);line-height:1.4;">
+        <input type="checkbox" id="claimBacklinkCheck" style="margin-top:2px;accent-color:var(--teal);flex-shrink:0;width:15px;height:15px;"/>
+        I've added the ToolIndex badge to my site
+      </label>
+      <div class="claim-err" id="claimErr3"></div>
+      <button class="claim-btn" id="claimBacklinkBtn" onclick="claimConfirmBacklink()">Complete claim &amp; get backlink →</button>
+      <button onclick="claimSkipBacklink()" style="width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;margin-top:4px;">Skip for now (listing stays pending)</button>
+    </div>
+
+    <!-- Step 4: success + edit -->
+    <div class="claim-step" id="claimStep4">
       <div class="claim-modal-scroll">
       <div class="claim-success">
         <div class="claim-success-icon">✅</div>
@@ -1921,7 +1951,7 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
       </div><!-- /claim-modal-scroll -->
 
       <div class="claim-save-footer">
-        <div class="claim-err" id="claimErr3"></div>
+        <div class="claim-err" id="claimErr4"></div>
         <button class="claim-save-btn" id="claimSaveBtn" onclick="claimSaveEdit()">Save changes →</button>
         <div class="claim-save-msg" id="claimSaveMsg">✓ Saved! Your listing card has been updated.</div>
         <button onclick="closeClaimModal()" style="width:100%;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-family:var(--mono);cursor:pointer;transition:border-color .2s,color .2s;" onmouseover="this.style.borderColor='var(--border2)';this.style.color='#fff';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)';">✕ Close</button>
@@ -3276,8 +3306,7 @@ function openClaimModal(id, name, domain) {
     ['claimDesc','claimImageUrl','claimFounderName','claimTwitter','claimLinkedin','claimTechStack'].forEach(function(fid){
       var el = document.getElementById(fid); if(el) el.value = '';
     });
-    ['claimStep1','claimStep2','claimStep3'].forEach(function(s){ document.getElementById(s).classList.remove('active'); });
-    document.getElementById('claimStep3').classList.add('active');
+    ['claimStep1','claimStep2','claimStep3','claimStep4'].forEach(function(s){ document.getElementById(s).classList.remove('active'); });
     document.getElementById('claimModal').classList.add('open');
     document.body.style.overflow = 'hidden';
     // Fetch current listing data to pre-fill the form
@@ -3286,6 +3315,16 @@ function openClaimModal(id, name, domain) {
       .then(function(d){
         if(d.ok && d.listing){
           prefillClaimForm(d.listing);
+          // If listing already claimed (backlink confirmed) → go to edit form
+          // Otherwise → go to backlink step
+          if(d.listing.claimed_by){
+            document.getElementById('claimStep4').classList.add('active');
+          } else {
+            const snip=document.getElementById('claimBadgeSnippet');
+            if(snip) snip.textContent=claimBadgeSnippetHtml();
+            document.getElementById('claimStep3').classList.add('active');
+          }
+          loadClaimAnalytics();
         } else {
           // Stale or invalid token — clear localStorage and restart OTP flow cleanly
           localStorage.removeItem('claim_' + id);
@@ -3297,7 +3336,6 @@ function openClaimModal(id, name, domain) {
         }
       })
       .catch(function(){});
-    loadClaimAnalytics();
     return;
   }
 
@@ -3316,7 +3354,7 @@ function openClaimModal(id, name, domain) {
     const el = document.getElementById(eid);
     if(el){ el.style.display = 'none'; el.textContent = ''; }
   });
-  ['claimStep1','claimStep2','claimStep3'].forEach(s => document.getElementById(s).classList.remove('active'));
+  ['claimStep1','claimStep2','claimStep3','claimStep4'].forEach(s => document.getElementById(s).classList.remove('active'));
   document.getElementById('claimStep1').classList.add('active');
   document.getElementById('claimModal').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3331,6 +3369,56 @@ function closeClaimModal(e) {
 function claimBack() {
   document.getElementById('claimStep2').classList.remove('active');
   document.getElementById('claimStep1').classList.add('active');
+}
+
+function claimBadgeSnippetHtml() {
+  return '<a href="https://strategic-flow-audit.replit.app/directory" target="_blank" rel="noopener" style="display:inline-block;font-family:monospace;font-size:12px;font-weight:700;padding:6px 14px;background:#0a1628;color:#00d4c8;border:1px solid rgba(0,212,200,0.6);border-radius:6px;text-decoration:none;">🔗 Listed on ToolIndex · DR 86 dofollow</a>';
+}
+
+function claimCopyBadge() {
+  navigator.clipboard.writeText(claimBadgeSnippetHtml()).then(function() {
+    const btn = document.getElementById('claimCopyBadgeBtn');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copied!'; setTimeout(function(){ btn.textContent = orig; }, 2000); }
+  }).catch(function(){});
+}
+
+async function claimConfirmBacklink() {
+  const checked = document.getElementById('claimBacklinkCheck').checked;
+  const backlinkUrl = (document.getElementById('claimBacklinkUrl').value || '').trim();
+  const errEl = document.getElementById('claimErr3');
+  errEl.style.display = 'none';
+  if (!checked) {
+    errEl.textContent = 'Please confirm you\'ve added the badge to your site.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('claimBacklinkBtn');
+  btn.disabled = true; btn.textContent = 'Completing claim…';
+  try {
+    const r = await fetch('/api/directory/claim/confirm-backlink', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, backlink_url: backlinkUrl })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('claimStep3').classList.remove('active');
+      document.getElementById('claimStep4').classList.add('active');
+      const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
+      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+      loadClaimAnalytics();
+    } else {
+      errEl.textContent = 'Something went wrong. Try again.';
+      errEl.style.display = 'block';
+    }
+  } catch { errEl.textContent = 'Network error. Try again.'; errEl.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = 'Complete claim & get backlink →';
+}
+
+function claimSkipBacklink() {
+  // Skip backlink step — listing stays unclaimed/pending but founder sees edit form
+  document.getElementById('claimStep3').classList.remove('active');
+  document.getElementById('claimStep4').classList.add('active');
+  loadClaimAnalytics();
 }
 
 async function claimSendOTP() {
@@ -3389,12 +3477,18 @@ async function claimVerifyOTP() {
       // Pre-fill form with existing listing data
       if (d.listing) prefillClaimForm(d.listing);
       document.getElementById('claimStep2').classList.remove('active');
-      document.getElementById('claimStep3').classList.add('active');
-      // Mark card as claimed without reload
-      const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
-      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
-      // Load analytics for this owner
-      loadClaimAnalytics();
+      // If listing already fully claimed (returning owner) → go to edit form
+      // Otherwise → show backlink step first
+      if (d.listing && d.listing.claimed_by) {
+        document.getElementById('claimStep4').classList.add('active');
+        const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
+        if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+        loadClaimAnalytics();
+      } else {
+        const snip = document.getElementById('claimBadgeSnippet');
+        if (snip) snip.textContent = claimBadgeSnippetHtml();
+        document.getElementById('claimStep3').classList.add('active');
+      }
     } else {
       const msgs = { wrong_code: 'Incorrect code.', code_expired: 'Code expired — click back and resend.', already_verified: 'Already verified!' };
       errEl.textContent = msgs[d.error] || 'Verification failed. Try again.';
@@ -3457,7 +3551,7 @@ async function claimSaveEdit() {
   const pricing_model   = document.getElementById('claimPricing').value;
   const launch_date     = document.getElementById('claimLaunchDate').value;
 
-  const errEl = document.getElementById('claimErr3');
+  const errEl = document.getElementById('claimErr4');
   const msg   = document.getElementById('claimSaveMsg');
   errEl.style.display = 'none'; msg.style.display = 'none';
 
