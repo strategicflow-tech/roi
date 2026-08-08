@@ -810,6 +810,9 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 @media(max-width:480px){
   .dir-footer-cols{grid-template-columns:1fr;}
 }
+@media(max-width:768px){
+  .dir-footer-compare-col{display:none;}
+}
 /* ── Body layout: listing grid + sticky sidebar ──────────────────── */
 .dir-body-wrap{display:grid;grid-template-columns:1fr 264px;gap:28px;padding:0 40px 28px;align-items:start}
 .dir-body-main{min-width:0}
@@ -1734,7 +1737,7 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
       </div>
 
       <!-- Compare / SEO pages column -->
-      <div>
+      <div class="dir-footer-compare-col">
         <div class="dir-footer-col-title">Compare</div>
         <div class="dir-footer-col-links">
           <a href="/directory/alternative-to-product-hunt" class="dir-footer-col-link">Alternative to Product Hunt</a>
