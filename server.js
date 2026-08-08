@@ -4333,18 +4333,30 @@ async function seedDailySection() {
     const needed = DAILY_SECTION_TARGET - picks.length;
     if (needed > 0) {
       const usedIds = picks.map(p => p.id);
+      // Tier-sample across the full vote range so daily picks always show
+      // visibly different vote counts (avoids all-same-number batches).
+      const perTier = Math.ceil(needed / 4);
       const fillRes = await pool.query(`
-        SELECT dl.id FROM directory_listings dl
-        WHERE dl.status='active'
-          AND dl.is_seeded=FALSE
-          AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
-          AND dl.id != ALL($2::int[])
-          AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
-        ORDER BY dl.vote_count DESC,
-                 dl.friction_score DESC NULLS LAST,
-                 dl.submitted_at DESC
+        WITH eligible AS (
+          SELECT dl.id,
+            NTILE(4) OVER (ORDER BY dl.vote_count DESC NULLS LAST) AS tier
+          FROM directory_listings dl
+          WHERE dl.status='active'
+            AND dl.is_seeded=FALSE
+            AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
+            AND dl.id != ALL($2::int[])
+            AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
+        ),
+        tier_picks AS (
+          SELECT id, tier,
+            ROW_NUMBER() OVER (PARTITION BY tier ORDER BY RANDOM()) AS rn
+          FROM eligible
+        )
+        SELECT id FROM tier_picks
+        WHERE rn <= $3
+        ORDER BY RANDOM()
         LIMIT $1
-      `, [needed, usedIds.length ? usedIds : [0]]);
+      `, [needed, usedIds.length ? usedIds : [0], perTier]);
       for (const r of fillRes.rows) picks.push({ id: r.id, source: 'db_pick' });
     }
 
@@ -5237,7 +5249,8 @@ app.get('/api/directory/leaderboard', async (req, res) => {
     let q;
     if (period === 'daily') {
       // Founder Pack IDs (199,203) sorted last so they don't occupy top spots.
-      // Listings sorted strictly by period_votes then all-time vote_count.
+      // period_votes counts ONLY real user votes — synthetic cron hashes are excluded
+      // so the daily ranking reflects genuine visitor interest, not artificial boosts.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending,
                    CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
@@ -5252,8 +5265,12 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
+             AND dv.voter_hash NOT LIKE 'daily_growth_%'
+             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+             AND dv.voter_hash NOT LIKE 'seed_%'
            WHERE dl.status='active'
            GROUP BY dl.id
+           HAVING COUNT(dv.id) > 0
            ORDER BY
              (dl.id = ANY(ARRAY[199,203])) ASC,
              period_votes DESC,
@@ -5276,8 +5293,12 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
+             AND dv.voter_hash NOT LIKE 'daily_growth_%'
+             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+             AND dv.voter_hash NOT LIKE 'seed_%'
            WHERE dl.status='active'
            GROUP BY dl.id
+           HAVING COUNT(dv.id) > 0
            ORDER BY
              (dl.id = ANY(ARRAY[199,203])) ASC,
              period_votes DESC,
