@@ -1897,7 +1897,16 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
           </label>
           <input class="claim-input" type="url" id="claimImageUrl" placeholder="or paste image URL…" style="flex:1;min-width:0;"/>
         </div>
-        <div id="claimUploadStatus" style="font-size:11px;color:var(--muted);display:none;"></div>
+        <div id="claimUploadStatus" style="font-size:11px;color:var(--muted);display:none;margin-top:6px;"></div>
+        <!-- Logo preview — shown immediately after upload so founder can verify before saving -->
+        <div id="claimLogoPreview" style="display:none;margin-top:10px;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+          <img id="claimLogoPreviewImg" src="" alt="Logo preview" style="width:56px;height:56px;border-radius:8px;object-fit:contain;background:#0a1628;flex-shrink:0;" onerror="this.style.opacity='.3'" />
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;">Preview</div>
+            <div style="font-size:11px;color:var(--muted);">Arată bine? Apasă <strong style="color:#fff;">Save changes</strong> pentru a confirma.</div>
+          </div>
+          <button type="button" onclick="clearClaimLogo()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0;line-height:1;" title="Remove logo">✕</button>
+        </div>
 
         <!-- ── Founder / Publisher ─────────────────────────────── -->
         <div class="claim-edit-label" style="margin-top:18px;">Founder / Publisher <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></div>
@@ -3419,6 +3428,10 @@ function openClaimModal(id, name, domain) {
   _claimLogoDataUrl = null;
   const upSt = document.getElementById('claimUploadStatus');
   if (upSt) { upSt.style.display = 'none'; upSt.textContent = ''; }
+  const lpw = document.getElementById('claimLogoPreview');
+  if (lpw) lpw.style.display = 'none';
+  const lpi = document.getElementById('claimLogoPreviewImg');
+  if (lpi) lpi.src = '';
   ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid) {
     const el = document.getElementById(eid);
     if(el){ el.style.display = 'none'; el.textContent = ''; }
@@ -3712,17 +3725,26 @@ async function claimUploadLogo(input) {
         _claimLogoDataUrl = null;
         document.getElementById('claimImageUrl').value = d.url;
         statusEl.style.color = '#22c55e';
-        statusEl.textContent = '✓ Logo saved! Click Save changes to confirm your other edits.';
+        statusEl.textContent = '✓ Logo saved!';
       } else {
         // Fallback: store data URL in variable (avoids input[type=url] sanitization)
         _claimLogoDataUrl = d.url;
         document.getElementById('claimImageUrl').value = '';
         statusEl.style.color = '#22c55e';
-        statusEl.textContent = '✓ Logo uploaded — click Save changes to apply.';
+        statusEl.textContent = '✓ Logo uploaded';
+      }
+      // Show preview so founder can verify the image looks correct before saving
+      const previewWrap = document.getElementById('claimLogoPreview');
+      const previewImg  = document.getElementById('claimLogoPreviewImg');
+      if (previewWrap && previewImg) {
+        previewImg.src = d.saved ? (d.url + '?v=' + Date.now()) : d.url;
+        previewWrap.style.display = 'flex';
       }
     } else {
       statusEl.style.color   = '#e8455a';
       statusEl.textContent   = 'Upload failed. Try pasting a URL instead.';
+      const pw = document.getElementById('claimLogoPreview');
+      if (pw) pw.style.display = 'none';
     }
   } catch {
     statusEl.style.color   = '#e8455a';
@@ -3730,6 +3752,20 @@ async function claimUploadLogo(input) {
   }
   label.style.opacity = '1';
   label.style.pointerEvents = 'auto';
+}
+
+function clearClaimLogo() {
+  _claimLogoDataUrl = null;
+  const imgUrl = document.getElementById('claimImageUrl');
+  if (imgUrl) imgUrl.value = '';
+  const logoFile = document.getElementById('claimLogoFile');
+  if (logoFile) logoFile.value = '';
+  const pw = document.getElementById('claimLogoPreview');
+  if (pw) pw.style.display = 'none';
+  const previewImg = document.getElementById('claimLogoPreviewImg');
+  if (previewImg) previewImg.src = '';
+  const st = document.getElementById('claimUploadStatus');
+  if (st) { st.style.display = 'none'; st.textContent = ''; }
 }
 
 // ── Rich profile upload helpers ───────────────────────────────────────────────
