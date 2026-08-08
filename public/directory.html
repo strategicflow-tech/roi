@@ -1857,7 +1857,13 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
       </label>
       <div class="claim-err" id="claimErr3"></div>
       <button class="claim-btn" id="claimBacklinkBtn" onclick="claimConfirmBacklink()">Complete claim &amp; get backlink →</button>
-      <button id="claimSkipBtn" onclick="claimSkipBacklink()" style="width:100%;padding:8px;background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline;margin-top:2px;font-family:var(--mono);">Skip for now — listing still goes live</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;">or</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      <button id="claimSkipBtn" onclick="claimSkipBacklink()" style="width:100%;padding:11px 16px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--mono);transition:border-color .2s,color .2s;letter-spacing:.02em;" onmouseover="this.style.borderColor='rgba(255,255,255,.35)';this.style.color='#fff';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)';">Skip for now — publish listing without badge</button>
+      <div style="text-align:center;font-size:10px;color:var(--muted);font-family:var(--mono);">Your listing goes live immediately. You can add the badge later.</div>
     </div>
 
     <!-- Step 4: success + edit -->
