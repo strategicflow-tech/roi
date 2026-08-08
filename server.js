@@ -4700,6 +4700,27 @@ app.post('/api/sponsor/checkout', async (req, res) => {
   }
 });
 
+// ── POST /api/guest-post/checkout — $29 one-time guest post payment ───────────
+app.post('/api/guest-post/checkout', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    const sess = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{ price: 'price_1U1ym7DpTwoDeZJnUUHShbEE', quantity: 1 }],
+      success_url: `${base}/grow?paid=1`,
+      cancel_url:  `${base}/grow`,
+      customer_email: email && email.includes('@') ? email.toLowerCase() : undefined,
+      metadata: { source: 'guest_post' },
+    });
+    res.json({ url: sess.url });
+  } catch(err) {
+    console.error('[guest-post/checkout]', err.message);
+    res.status(500).json({ error: 'checkout_failed' });
+  }
+});
+
 // ── GET /sponsor — SSR sponsor page ───────────────────────────────────────────
 app.get('/sponsor', async (req, res) => {
   try {
@@ -6502,6 +6523,9 @@ const SFTECH = 'https://strategicflow.tech';
 
 // Blink Test — serve before static middleware (no auth required)
 app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'blink-test.html')));
+
+// Growth / advertise hub
+app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
 
 app.use(express.static('public'));
 

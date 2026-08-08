@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Grow — ToolIndex</title>
+<meta name="description" content="Paid growth options for your SaaS listing on ToolIndex. Featured placements, sidebar sponsorship, and guest blog posts on a DR 86 domain."/>
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/grow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#00d4c8;--teal-dim:rgba(0,212,200,.10);--teal-glow:rgba(0,212,200,.22);
+  --purple:#a78bfa;--purple-dim:rgba(167,139,250,.10);--purple-glow:rgba(167,139,250,.22);
+  --gold:#f59e0b;
+  --bg:#0a1628;--card:#0f2035;--card2:#0d1b30;--border:rgba(255,255,255,.07);
+  --muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8;
+  --mono:'DM Mono',monospace;
+}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;height:56px;display:flex;align-items:center;padding:0 32px;background:rgba(10,22,40,.97);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);z-index:40;gap:0;}
+.nav-logo{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);font-weight:700;margin-right:auto;display:flex;align-items:center;gap:6px;text-decoration:none;}
+.nav-logo::before{content:'●';font-size:8px;}
+.nav-back{font-size:12px;font-family:var(--mono);color:var(--muted);margin-right:20px;transition:color .2s;}
+.nav-back:hover{color:var(--text);text-decoration:none;}
+.nav-pill{font-size:11px;font-family:var(--mono);padding:6px 14px;background:var(--teal);color:#041214;border-radius:6px;font-weight:700;white-space:nowrap;text-decoration:none;}
+.nav-pill:hover{opacity:.9;text-decoration:none;}
+
+/* ── HERO ── */
+.hero{max-width:860px;margin:0 auto;padding:56px 32px 48px;}
+.hero-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.hero-eyebrow::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse-dot 2s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,212,200,.5);}50%{opacity:.6;box-shadow:0 0 0 5px rgba(0,212,200,0);}}
+h1{font-size:clamp(28px,4vw,42px);font-weight:800;line-height:1.15;margin-bottom:14px;letter-spacing:-.02em;}
+h1 .hl{color:var(--teal);}
+.hero-sub{font-size:15px;color:var(--sub);line-height:1.65;max-width:520px;}
+
+/* ── SECTION LABEL ── */
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:20px;}
+
+/* ── GROWTH GRID ── */
+.growth-wrap{max-width:860px;margin:0 auto;padding:0 32px 80px;}
+.growth-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:64px;}
+
+/* ── BASE CARD ── */
+.g-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;transition:transform .2s,border-color .25s,box-shadow .25s;cursor:default;}
+.g-card:hover{transform:translateY(-2px);}
+.g-card-tag{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;border-radius:10px;width:fit-content;font-weight:600;}
+.g-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.g-card-title{font-size:17px;font-weight:700;line-height:1.2;}
+.g-card-desc{font-size:13px;color:var(--sub);line-height:1.65;flex:1;}
+.g-card-price-row{display:flex;align-items:baseline;gap:8px;}
+.g-card-price{font-size:28px;font-weight:800;line-height:1;}
+.g-card-price-note{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em;}
+.g-card-perks{list-style:none;display:flex;flex-direction:column;gap:7px;}
+.g-card-perks li{font-size:12px;color:var(--sub);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.g-card-perks li::before{content:'✓';font-family:var(--mono);font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.g-card-btn{display:block;width:100%;padding:12px;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:var(--mono);cursor:pointer;transition:opacity .2s,box-shadow .2s;text-align:center;letter-spacing:.03em;margin-top:4px;}
+.g-card-btn:hover{opacity:.88;}
+.g-card-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ── TEAL CARD (sidebar sponsor / featured) ── */
+.g-card.teal{border-color:rgba(0,212,200,.18);}
+.g-card.teal:hover{border-color:rgba(0,212,200,.4);box-shadow:0 0 28px rgba(0,212,200,.08);}
+.g-card.teal .g-card-tag{background:rgba(0,212,200,.1);color:var(--teal);}
+.g-card.teal .g-card-icon{background:rgba(0,212,200,.1);}
+.g-card.teal .g-card-price{color:var(--teal);}
+.g-card.teal .g-card-perks li::before{color:var(--teal);}
+.g-card.teal .g-card-btn{background:var(--teal);color:#041214;}
+
+/* ── GOLD CARD ── */
+.g-card.gold{border-color:rgba(245,158,11,.18);}
+.g-card.gold:hover{border-color:rgba(245,158,11,.4);box-shadow:0 0 28px rgba(245,158,11,.07);}
+.g-card.gold .g-card-tag{background:rgba(245,158,11,.1);color:var(--gold);}
+.g-card.gold .g-card-icon{background:rgba(245,158,11,.1);}
+.g-card.gold .g-card-price{color:var(--gold);}
+.g-card.gold .g-card-perks li::before{color:var(--gold);}
+.g-card.gold .g-card-btn{background:var(--gold);color:#000;}
+
+/* ─────────────────────────────────────────────────────────────
+   SCI-FI GUEST POST CARD
+───────────────────────────────────────────────────────────── */
+.g-card.scifi{
+  background:linear-gradient(135deg,#080e1c 0%,#0c1428 50%,#0a0f20 100%);
+  border-color:rgba(167,139,250,.25);
+  box-shadow:0 0 0 1px rgba(167,139,250,.08) inset,0 4px 24px rgba(0,0,0,.4);
+}
+.g-card.scifi:hover{
+  border-color:rgba(167,139,250,.6);
+  box-shadow:0 0 0 1px rgba(167,139,250,.15) inset,0 0 40px rgba(167,139,250,.15),0 8px 40px rgba(0,0,0,.5);
+  transform:translateY(-3px);
+}
+
+/* Scan-line overlay */
+.g-card.scifi::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(167,139,250,.015) 3px,rgba(167,139,250,.015) 4px);
+  animation:scanlines 8s linear infinite;z-index:0;border-radius:inherit;
+}
+@keyframes scanlines{0%{background-position:0 0;}100%{background-position:0 100px;}}
+
+/* Top glow bar */
+.g-card.scifi::after{
+  content:'';position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(167,139,250,.7),transparent);
+  animation:glow-bar 3s ease-in-out infinite;z-index:1;
+}
+@keyframes glow-bar{0%,100%{opacity:.4;left:10%;right:10%;}50%{opacity:1;left:5%;right:5%;}}
+
+/* Particles */
+.scifi-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:inherit;z-index:0;}
+.scifi-particles span{position:absolute;width:2px;height:2px;background:rgba(167,139,250,.6);border-radius:50%;animation:float-particle var(--dur,6s) var(--delay,0s) ease-in-out infinite;}
+@keyframes float-particle{0%,100%{transform:translateY(0) scale(1);opacity:.6;}50%{transform:translateY(-12px) scale(1.4);opacity:1;}}
+
+/* Glowing icon */
+.scifi-icon{
+  width:52px;height:52px;border-radius:14px;
+  background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);
+  display:flex;align-items:center;justify-content:center;font-size:22px;position:relative;z-index:2;
+  animation:icon-pulse 3s ease-in-out infinite;flex-shrink:0;
+}
+.g-card.scifi:hover .scifi-icon{
+  background:rgba(167,139,250,.22);border-color:rgba(167,139,250,.7);
+  box-shadow:0 0 20px rgba(167,139,250,.4);
+}
+@keyframes icon-pulse{0%,100%{box-shadow:0 0 8px rgba(167,139,250,.25);}50%{box-shadow:0 0 20px rgba(167,139,250,.5),0 0 35px rgba(167,139,250,.15);}}
+
+.scifi-tag{position:relative;z-index:2;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);color:var(--purple);font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;border-radius:10px;width:fit-content;font-weight:600;}
+.scifi-title{position:relative;z-index:2;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.01em;}
+.scifi-desc{position:relative;z-index:2;font-size:13px;color:rgba(160,180,200,.85);line-height:1.65;flex:1;}
+.scifi-price-row{position:relative;z-index:2;display:flex;align-items:baseline;gap:8px;}
+.scifi-price{font-size:30px;font-weight:800;color:var(--purple);line-height:1;text-shadow:0 0 20px rgba(167,139,250,.5);}
+.scifi-price-note{font-family:var(--mono);font-size:10px;color:rgba(167,139,250,.6);letter-spacing:.04em;}
+.scifi-perks{position:relative;z-index:2;list-style:none;display:flex;flex-direction:column;gap:7px;}
+.scifi-perks li{font-size:12px;color:rgba(160,180,200,.8);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.scifi-perks li::before{content:'✓';font-family:var(--mono);font-size:11px;font-weight:700;color:var(--purple);flex-shrink:0;margin-top:1px;}
+
+.scifi-btn{
+  position:relative;z-index:2;display:block;width:100%;padding:13px;border:1px solid rgba(167,139,250,.5);
+  border-radius:10px;font-size:13px;font-weight:700;font-family:var(--mono);cursor:pointer;
+  background:rgba(167,139,250,.12);color:var(--purple);
+  transition:all .22s;text-align:center;letter-spacing:.04em;margin-top:4px;
+}
+.scifi-btn:hover{background:rgba(167,139,250,.25);border-color:rgba(167,139,250,.85);box-shadow:0 0 18px rgba(167,139,250,.3);color:#fff;}
+.g-card.scifi:hover .scifi-btn{border-color:rgba(167,139,250,.7);}
+.scifi-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* email field inside scifi card */
+.scifi-email{
+  position:relative;z-index:2;width:100%;background:rgba(255,255,255,.04);
+  border:1px solid rgba(167,139,250,.25);border-radius:8px;padding:10px 13px;
+  font-size:13px;color:#fff;font-family:-apple-system,sans-serif;outline:none;
+  transition:border-color .2s;margin-bottom:8px;
+}
+.scifi-email::placeholder{color:rgba(167,139,250,.4);}
+.scifi-email:focus{border-color:rgba(167,139,250,.6);}
+
+/* status line */
+.scifi-status{position:relative;z-index:2;font-family:var(--mono);font-size:10px;color:rgba(167,139,250,.55);text-align:center;letter-spacing:.04em;min-height:14px;}
+
+/* ── SUCCESS PANEL (inline confirmation after paid=1) ── */
+.paid-banner{display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:14px;padding:28px 32px;margin-bottom:32px;}
+.paid-banner.show{display:block;}
+.paid-banner-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.paid-icon{width:36px;height:36px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.paid-title{font-size:16px;font-weight:700;color:#10b981;}
+.paid-sub{font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:16px;}
+.paid-steps{display:flex;flex-direction:column;gap:10px;}
+.paid-step{display:flex;align-items:flex-start;gap:12px;font-size:13px;color:var(--sub);line-height:1.5;}
+.paid-step-num{font-family:var(--mono);font-size:11px;color:#10b981;font-weight:700;flex-shrink:0;width:18px;}
+.paid-step strong{color:var(--text);}
+.paid-step code{font-family:var(--mono);font-size:12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);padding:1px 7px;border-radius:4px;color:#10b981;}
+
+/* ── WIDE CARD (sponsor) ── */
+.growth-wide{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:64px;}
+@media(max-width:640px){.growth-wide{grid-template-columns:1fr;}}
+
+/* ── HOW IT WORKS (guest post) ── */
+.how-strip{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:28px 32px;margin-bottom:64px;}
+.how-strip-label{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--purple);margin-bottom:18px;opacity:.7;}
+.how-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
+@media(max-width:680px){.how-steps{grid-template-columns:1fr 1fr;}}
+@media(max-width:400px){.how-steps{grid-template-columns:1fr;}}
+.how-step{padding:0 20px;border-left:1px solid rgba(167,139,250,.12);}
+.how-step:first-child{padding-left:0;border-left:none;}
+.how-step-n{font-family:var(--mono);font-size:22px;font-weight:700;color:rgba(167,139,250,.3);margin-bottom:8px;line-height:1;}
+.how-step-t{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.how-step-d{font-size:12px;color:var(--muted);line-height:1.55;}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:24px 32px;text-align:center;}
+.footer-links{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;}
+.footer-links a{font-size:12px;color:var(--muted);font-family:var(--mono);transition:color .2s;}
+.footer-links a:hover{color:var(--text);text-decoration:none;}
+.footer-copy{font-family:var(--mono);font-size:11px;color:rgba(122,154,184,.45);}
+
+@media(max-width:600px){
+  .hero,.growth-wrap{padding-left:20px;padding-right:20px;}
+  .growth-grid{grid-template-columns:1fr;}
+  .how-strip{padding:20px;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/directory" class="nav-logo">ToolIndex</a>
+  <a href="/directory" class="nav-back">← Directory</a>
+  <a href="/sponsor" class="nav-pill">Become a sponsor</a>
+</nav>
+
+<header class="hero">
+  <div class="hero-eyebrow">Growth options</div>
+  <h1>Get more from your <span class="hl">ToolIndex</span> listing</h1>
+  <p class="hero-sub">Visibility boosts, sidebar sponsorships, and a permanent editorial backlink on a DR 86 domain. One-time payments, no subscriptions.</p>
+</header>
+
+<div class="growth-wrap">
+
+  <!-- SUCCESS BANNER (shown after ?paid=1) -->
+  <div class="paid-banner" id="paidBanner">
+    <div class="paid-banner-head">
+      <div class="paid-icon">✓</div>
+      <div class="paid-title">Payment confirmed — you're all set</div>
+    </div>
+    <p class="paid-sub">Your guest post slot on the Strategic Flow blog is reserved. Here's what to do next:</p>
+    <div class="paid-steps">
+      <div class="paid-step"><span class="paid-step-num">1.</span><span>Email your draft to <strong>alex@strategicflow.tech</strong> with subject <code>Guest Post Submission</code> — any format works (plain text, Google Doc, or HTML).</span></div>
+      <div class="paid-step"><span class="paid-step-num">2.</span><span>Include <strong>the URL you want the dofollow backlink to point to</strong>, plus any preferred anchor text (or leave it to us).</span></div>
+      <div class="paid-step"><span class="paid-step-num">3.</span><span>We review, confirm fit, and publish. If a small revision is needed we'll let you know before it goes live. Your link stays live <strong>permanently</strong>.</span></div>
+    </div>
+  </div>
+
+  <!-- SECTION: EDITORIAL -->
+  <div class="section-label" style="margin-bottom:16px;">Editorial · Permanent dofollow backlink</div>
+
+  <div class="growth-grid" style="margin-bottom:48px;">
+
+    <!-- ══ SCI-FI GUEST POST CARD ══ -->
+    <div class="g-card scifi" id="guestCard">
+      <!-- particles -->
+      <div class="scifi-particles" aria-hidden="true">
+        <span style="left:12%;top:18%;--dur:7s;--delay:0s;"></span>
+        <span style="left:80%;top:30%;--dur:5s;--delay:1.2s;"></span>
+        <span style="left:55%;top:70%;--dur:8s;--delay:.5s;"></span>
+        <span style="left:25%;top:82%;--dur:6s;--delay:2s;"></span>
+        <span style="left:90%;top:60%;--dur:9s;--delay:.8s;"></span>
+        <span style="left:40%;top:10%;--dur:5.5s;--delay:1.7s;"></span>
+      </div>
+
+      <div class="scifi-tag">Guest Post</div>
+      <div class="scifi-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+
+      <div class="scifi-title">Guest Blog Post</div>
+      <p class="scifi-desc">Publish your story on the Strategic Flow blog. You write it, we review and publish it — with a permanent dofollow backlink to your site.</p>
+
+      <div class="scifi-price-row">
+        <span class="scifi-price">$29</span>
+        <span class="scifi-price-note">One-time · No expiry</span>
+      </div>
+
+      <ul class="scifi-perks">
+        <li>Your article on strategicflow.tech — DR 86 verified (Ahrefs)</li>
+        <li>Permanent dofollow backlink to your URL</li>
+        <li>Real SaaS email &amp; conversion audience</li>
+        <li>Stays live indefinitely — no renewal fees</li>
+      </ul>
+
+      <input type="email" class="scifi-email" id="gpEmail" placeholder="Your email (optional)" autocomplete="email" />
+      <button class="scifi-btn" id="gpBtn">Continue to checkout →</button>
+      <div class="scifi-status" id="gpStatus">Secure · Stripe · One-time charge</div>
+    </div>
+
+  </div><!-- /editorial grid -->
+
+  <!-- HOW IT WORKS strip -->
+  <div class="how-strip">
+    <div class="how-strip-label">How the guest post works</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-step-n">01</div>
+        <div class="how-step-t">Pay once</div>
+        <div class="how-step-d">$29 via Stripe. One-time, no subscription, no renewal.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-n">02</div>
+        <div class="how-step-t">Submit your draft</div>
+        <div class="how-step-d">Email your post and backlink URL to alex@strategicflow.tech.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-n">03</div>
+        <div class="how-step-t">We review</div>
+        <div class="how-step-d">We check editorial fit. If a revision is needed, we tell you before publishing.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-n">04</div>
+        <div class="how-step-t">Live, permanently</div>
+        <div class="how-step-d">Your post and dofollow link stay live forever on a DR 86 domain.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: DIRECTORY PLACEMENTS -->
+  <div class="section-label" style="margin-bottom:16px;">Directory visibility · Featured placements</div>
+
+  <div class="growth-grid">
+
+    <!-- Daily Boost -->
+    <div class="g-card gold">
+      <div class="g-card-tag">Daily Boost</div>
+      <div class="g-card-icon">🔥</div>
+      <div class="g-card-title">24-Hour #1 Spot</div>
+      <p class="g-card-desc">Your listing pinned to #1 in the main grid for a full day. Activates immediately after payment, no review queue.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price" style="color:var(--gold)">$9</span>
+        <span class="g-card-price-note">One-time · 24 hours</span>
+      </div>
+      <ul class="g-card-perks" style="--c:var(--gold)">
+        <li style="--before-color:var(--gold);">First in every category &amp; search</li>
+        <li>🔥 Daily Top badge on your card</li>
+        <li>Instant activation</li>
+      </ul>
+      <button class="g-card-btn" style="background:var(--gold);color:#000;" onclick="window.location.href='/directory#pricing'">Boost from $9 →</button>
+    </div>
+
+    <!-- Weekly Feature -->
+    <div class="g-card teal">
+      <div class="g-card-tag">Weekly Feature</div>
+      <div class="g-card-icon">⭐</div>
+      <div class="g-card-title">14-Day Featured Spotlight</div>
+      <p class="g-card-desc">Your listing shown in the Featured Spotlight above the main directory grid — seen by every visitor for 14 days.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price">$19</span>
+        <span class="g-card-price-note">One-time · 14 days</span>
+      </div>
+      <ul class="g-card-perks">
+        <li>Featured Spotlight placement</li>
+        <li>Gold border in all search &amp; filter results</li>
+        <li>⭐ Weekly Feature badge</li>
+      </ul>
+      <button class="g-card-btn" onclick="window.location.href='/directory#pricing'">Get Weekly Feature →</button>
+    </div>
+
+    <!-- Premium -->
+    <div class="g-card teal">
+      <div class="g-card-tag">Premium Listing</div>
+      <div class="g-card-icon">💎</div>
+      <div class="g-card-title">30-Day Top-3 Placement</div>
+      <p class="g-card-desc">Top-3 position in the grid for 30 full days, purple Premium badge, and Spotlight presence throughout.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price">$29</span>
+        <span class="g-card-price-note">One-time · 30 days</span>
+      </div>
+      <ul class="g-card-perks">
+        <li>💎 Premium badge across all filters</li>
+        <li>Top-3 in grid for 30 days</li>
+        <li>Featured Spotlight throughout</li>
+      </ul>
+      <button class="g-card-btn" onclick="window.location.href='/directory#pricing'">Get Premium →</button>
+    </div>
+
+  </div><!-- /directory grid -->
+
+  <!-- SECTION: SPONSORSHIP -->
+  <div class="section-label" style="margin-bottom:16px;">Sidebar sponsorship · 3 slots, DR 86 dofollow</div>
+
+  <div class="growth-wide">
+    <div class="g-card teal">
+      <div class="g-card-tag">1 Month Sponsor</div>
+      <div class="g-card-icon">📌</div>
+      <div class="g-card-title">Sidebar placement · 30 days</div>
+      <p class="g-card-desc">Your logo, name, and tagline in the sidebar of every directory page. Dofollow link. Only 3 slots total.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price">$29</span>
+        <span class="g-card-price-note">One-time · 30 days</span>
+      </div>
+      <button class="g-card-btn" onclick="window.location.href='/sponsor'">View Sponsor Options →</button>
+    </div>
+    <div class="g-card teal">
+      <div class="g-card-tag">3 Month Sponsor</div>
+      <div class="g-card-icon">🏆</div>
+      <div class="g-card-title">Sidebar placement · 90 days</div>
+      <p class="g-card-desc">Three months of sidebar exposure with a dofollow link. Best-value option for sustained brand presence.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price">$59</span>
+        <span class="g-card-price-note">One-time · 90 days · Best value</span>
+      </div>
+      <button class="g-card-btn" onclick="window.location.href='/sponsor'">View Sponsor Options →</button>
+    </div>
+  </div>
+
+</div><!-- /growth-wrap -->
+
+<footer>
+  <div class="footer-links">
+    <a href="/directory">Directory</a>
+    <a href="/sponsor">Sponsorships</a>
+    <a href="mailto:alex@strategicflow.tech">Contact</a>
+    <a href="https://strategicflow.tech/blog.html" target="_blank" rel="noopener">Blog</a>
+  </div>
+  <div class="footer-copy">ToolIndex © 2026 · Built by Strategic Flow</div>
+</footer>
+
+<script>
+// Show paid confirmation if redirected back from Stripe
+(function(){
+  if(new URLSearchParams(location.search).get('paid')==='1'){
+    document.getElementById('paidBanner').classList.add('show');
+    // scroll to it
+    setTimeout(function(){document.getElementById('paidBanner').scrollIntoView({behavior:'smooth',block:'start'});},120);
+    // Clean URL
+    history.replaceState({},'',location.pathname);
+  }
+})();
+
+// Guest post checkout
+document.getElementById('gpBtn').addEventListener('click',async function(){
+  var btn=this, status=document.getElementById('gpStatus');
+  var email=(document.getElementById('gpEmail').value||'').trim();
+  btn.disabled=true;
+  btn.textContent='Redirecting to Stripe…';
+  status.textContent='Creating secure checkout session…';
+  try{
+    var r=await fetch('/api/guest-post/checkout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email})
+    });
+    var d=await r.json();
+    if(d.url){window.location.href=d.url;}
+    else throw new Error(d.error||'no_url');
+  }catch(e){
+    btn.disabled=false;
+    btn.textContent='Continue to checkout →';
+    status.textContent='Something went wrong — please try again.';
+    status.style.color='#f87171';
+  }
+});
+</script>
+</body>
+</html>
