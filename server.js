@@ -5803,6 +5803,20 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
 });
 
 // ── GET /api/directory/listing-logo/:id — serve owner-uploaded logo from DB ───
+// GET /api/directory/listing-info/:id — minimal info for active or draft listings (used by claim modal)
+app.get('/api/directory/listing-info/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const r = await pool.query(
+      `SELECT id, name, url, status FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
+      [id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'not found' });
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/directory/listing-logo/:id', async (req, res) => {
   try {
     const r = await pool.query('SELECT owner_image_url FROM directory_listings WHERE id=$1', [parseInt(req.params.id)]);

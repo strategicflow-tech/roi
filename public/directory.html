@@ -3167,6 +3167,16 @@ async function loadListings(){
           const dom = new URL(target.url).hostname.replace(/^www\./, '');
           setTimeout(() => openClaimModal(target.id, target.name, dom), 300);
         } catch(e) {}
+      } else {
+        // Listing not in allListings (e.g. draft) — fetch info directly
+        try {
+          const r = await fetch('/api/directory/listing-info/' + claimParam);
+          if (r.ok) {
+            const info = await r.json();
+            const dom = new URL(info.url).hostname.replace(/^www\./, '');
+            setTimeout(() => openClaimModal(info.id, info.name, dom), 300);
+          }
+        } catch(e) {}
       }
     }
   }catch{
