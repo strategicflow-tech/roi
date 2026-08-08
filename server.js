@@ -5315,8 +5315,9 @@ app.post('/api/directory/vote/:id', async (req, res) => {
     // Send one-time first-vote notification to verified owner
     if (newCount === 1 && claimedBy) {
       resend.emails.send({
-        from: SENDER,
-        to:   claimedBy,
+        from:    SENDER,
+        replyTo: 'strategicflow@proton.me',
+        to:      claimedBy,
         subject: `Your listing "${listingName}" just got its first vote 🎉`,
         html: `<p>Good news — someone upvoted your listing <strong>${listingName}</strong> on the Strategic Flow directory.</p>
                <p><a href="https://strategic-flow-audit.replit.app/directory">View the directory →</a></p>
@@ -5784,6 +5785,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
       const name = nameR.rows[0]?.name || 'your product';
       resend.emails.send({
         from:    SENDER,
+        replyTo: 'strategicflow@proton.me',
         to:      email,
         subject: `You've claimed "${name}" on ToolIndex ✓`,
         html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
@@ -5791,7 +5793,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
             <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
             <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
             <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
-            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card. You'll also get an email when your first real vote comes in.</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card.</p>
             <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
           </div>
           <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
@@ -6853,6 +6855,7 @@ app.post('/auth/magic', async (req, res) => {
   try {
     const sendResult = await resend.emails.send({
       from: 'Strategic Flow <noreply@strategicflow.tech>',
+      replyTo: 'strategicflow@proton.me',
       to: email,
       subject: 'Your Strategic Flow sign-in link',
       html: `
@@ -12198,6 +12201,7 @@ async function sendWhyProMagicLink(email, token) {
   const link = `${baseUrl}/why/login?token=${token}`;
   const sendResult = await resend.emails.send({
     from: 'Strategic Flow <noreply@strategicflow.tech>',
+    replyTo: 'strategicflow@proton.me',
     to: email,
     subject: 'Your WHY Pro sign-in link',
     html: `
@@ -18663,6 +18667,7 @@ setupDB().then(async () => {
           const summary = buildAiVisScanSummary(name, modelResults);
           await resend.emails.send({
             from: 'Strategic Flow <noreply@strategicflow.tech>',
+            replyTo: 'strategicflow@proton.me',
             to: email,
             subject: `Your AI Visibility Score: ${scoreLabel}/10 — Strategic Flow`,
             html: `
@@ -19187,6 +19192,7 @@ setupDB().then(async () => {
         const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
         await resend.emails.send({
           from: 'Strategic Flow <noreply@strategicflow.tech>',
+          replyTo: 'strategicflow@proton.me',
           to: email,
           subject: 'Your AI Visibility Pro access link',
           html: `
