@@ -2544,7 +2544,12 @@ app.post('/api/directory/submit', async (req, res) => {
   }
 
   // Accept a user-supplied logo only if it's a real image and not an og:image/hero
-  const rawLogo = logo_url && /^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(logo_url.trim()) ? logo_url.trim() : null;
+  let rawLogo = null;
+  if (logo_url) {
+    const t = logo_url.trim();
+    if (t.startsWith('data:image/')) rawLogo = t;                                          // uploaded file (base64)
+    else if (/^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(t)) rawLogo = t;     // direct image URL
+  }
   const _HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
   const suppliedLogo = rawLogo && !_HERO_PAT.some(re => re.test(rawLogo)) ? rawLogo.slice(0, 500) : null;
   try {

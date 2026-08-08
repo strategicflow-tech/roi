@@ -1565,8 +1565,19 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <textarea id="fDesc" placeholder="Factual one-line summary of what the product does." required maxlength="300"></textarea>
       </div>
       <div class="dir-field">
-        <label>Logo URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(optional — paste a direct .png/.svg link, or we'll auto-fetch it)</span></label>
-        <input type="url" id="fLogo" placeholder="https://yourproduct.com/logo.png" />
+        <label>Logo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(optional — paste a URL or upload a file)</span></label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="fLogo" placeholder="https://yourproduct.com/logo.png" style="flex:1;" oninput="previewSubmitLogo()" />
+          <label for="fLogoFile" id="fLogoUploadBtn" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;white-space:nowrap;transition:border-color .2s,color .2s;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+            📎 Upload
+          </label>
+          <input type="file" id="fLogoFile" accept="image/*" style="display:none;" onchange="uploadSubmitLogo(this)" />
+        </div>
+        <div id="fLogoPreview" style="display:none;margin-top:8px;align-items:center;gap:10px;">
+          <img id="fLogoPreviewImg" src="" alt="Logo preview" style="width:40px;height:40px;border-radius:8px;object-fit:contain;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;" onerror="this.style.opacity='.3'" />
+          <span id="fLogoPreviewLabel" style="font-size:11px;color:var(--muted);font-family:var(--mono);word-break:break-all;flex:1;"></span>
+          <button type="button" onclick="clearSubmitLogo()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0;" title="Remove logo">✕</button>
+        </div>
       </div>
       <div class="dir-submit-perks">
         <ul>
@@ -3230,6 +3241,56 @@ document.getElementById('dirSearch').addEventListener('input', e=>{
 });
 
 // ── Submit form ───────────────────────────────────────────────────────────────
+// ── Submit form: logo upload helpers ─────────────────────────────────────────
+window._fLogoDataUrl = null;
+
+async function uploadSubmitLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('fLogoUploadBtn');
+  btn.textContent = '⏳…';
+  try {
+    const fd = new FormData();
+    fd.append('logo', file);
+    const r = await fetch('/api/directory/claim/upload-logo', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok && d.url) {
+      window._fLogoDataUrl = d.url;
+      document.getElementById('fLogo').value = '';
+      showSubmitLogoPreview(d.url, file.name);
+    } else {
+      alert('Upload failed — try pasting a direct image URL instead.');
+    }
+  } catch { alert('Upload failed — try pasting a direct image URL instead.'); }
+  btn.textContent = '📎 Upload';
+  input.value = '';
+}
+
+function previewSubmitLogo() {
+  const url = (document.getElementById('fLogo').value || '').trim();
+  window._fLogoDataUrl = null;
+  if (url.startsWith('http')) showSubmitLogoPreview(url, url.split('/').pop().slice(0, 40) || url);
+  else clearSubmitLogoPreview();
+}
+
+function showSubmitLogoPreview(src, label) {
+  document.getElementById('fLogoPreviewImg').src = src;
+  document.getElementById('fLogoPreviewLabel').textContent = label.length > 40 ? label.slice(0, 37) + '…' : label;
+  document.getElementById('fLogoPreview').style.display = 'flex';
+}
+
+function clearSubmitLogoPreview() {
+  document.getElementById('fLogoPreview').style.display = 'none';
+  document.getElementById('fLogoPreviewImg').src = '';
+}
+
+function clearSubmitLogo() {
+  window._fLogoDataUrl = null;
+  const f = document.getElementById('fLogo'); if (f) f.value = '';
+  const ff = document.getElementById('fLogoFile'); if (ff) ff.value = '';
+  clearSubmitLogoPreview();
+}
+
 async function submitListing(e){
   e.preventDefault();
   const btn = document.getElementById('dirSubmitBtn');
@@ -3251,7 +3312,7 @@ async function submitListing(e){
         category: document.getElementById('fCategory').value,
         description: document.getElementById('fDesc').value,
         email:    document.getElementById('fEmail').value,
-        logo_url: document.getElementById('fLogo').value.trim(),
+        logo_url: window._fLogoDataUrl || document.getElementById('fLogo').value.trim(),
         terms_accepted: document.getElementById('dirTermsCheck').checked,
       })
     });
@@ -3266,6 +3327,7 @@ async function submitListing(e){
         +'<textarea readonly onclick="this.select()" style="display:block;width:100%;margin-top:6px;padding:8px;font-family:var(--mono);font-size:10px;background:#0a1628;color:#cbd5e1;border:1px solid rgba(0,212,200,0.3);border-radius:6px;resize:none;line-height:1.5;" rows="3">'+escHtml(embedCode)+'</textarea>'
         +'<a href="/badge-kit?id='+newId+'" target="_blank" style="font-size:11px;color:#00d4c8;text-decoration:none;display:inline-block;margin-top:4px;">→ See all badge styles</a>';
       document.getElementById('dirForm').reset();
+      clearSubmitLogo();
       setTimeout(loadListings, 3000);
     }else if(d.error==='already_listed'){
       msg.className='dir-form-msg error';
