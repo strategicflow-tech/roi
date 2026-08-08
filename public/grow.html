@@ -135,8 +135,10 @@ h1 .hl{color:var(--teal);}
 .scifi-title{position:relative;z-index:2;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.01em;}
 .scifi-desc{position:relative;z-index:2;font-size:13px;color:rgba(160,180,200,.85);line-height:1.65;flex:1;}
 .scifi-price-row{position:relative;z-index:2;display:flex;align-items:baseline;gap:8px;}
-.scifi-price{font-size:30px;font-weight:800;color:var(--purple);line-height:1;text-shadow:0 0 20px rgba(167,139,250,.5);}
-.scifi-price-note{font-family:var(--mono);font-size:10px;color:rgba(167,139,250,.6);letter-spacing:.04em;}
+.scifi-founders-badge{position:relative;z-index:2;display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(167,139,250,.75);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:3px 9px;font-weight:600;margin-bottom:4px;}
+.scifi-price-orig{font-size:18px;font-weight:600;color:rgba(167,139,250,.35);text-decoration:line-through;line-height:1;position:relative;z-index:2;}
+.scifi-price{font-size:34px;font-weight:800;color:var(--purple);line-height:1;text-shadow:0 0 20px rgba(167,139,250,.5);position:relative;z-index:2;}
+.scifi-price-note{font-family:var(--mono);font-size:10px;color:rgba(167,139,250,.6);letter-spacing:.04em;position:relative;z-index:2;}
 .scifi-perks{position:relative;z-index:2;list-style:none;display:flex;flex-direction:column;gap:7px;}
 .scifi-perks li{font-size:12px;color:rgba(160,180,200,.8);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
 .scifi-perks li::before{content:'✓';font-family:var(--mono);font-size:11px;font-weight:700;color:var(--purple);flex-shrink:0;margin-top:1px;}
@@ -263,6 +265,10 @@ footer{border-top:1px solid var(--border);padding:24px 32px;text-align:center;}
       <p class="scifi-desc">Publish your story on the Strategic Flow blog. You write it, we review and publish it — with a permanent dofollow backlink to your site.</p>
 
       <div class="scifi-price-row">
+        <span class="scifi-founders-badge">Founders Special Price</span>
+      </div>
+      <div class="scifi-price-row" style="align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <span class="scifi-price-orig">$99</span>
         <span class="scifi-price">$29</span>
         <span class="scifi-price-note">One-time · No expiry</span>
       </div>
