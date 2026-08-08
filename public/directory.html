@@ -219,6 +219,8 @@ a:hover{text-decoration:underline;}
 .dir-card-founder-inline{background:linear-gradient(135deg,var(--bg2),rgba(167,139,250,.06))!important;border-color:rgba(167,139,250,.35)!important;position:relative;}
 .dir-card-founder-inline::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(167,139,250,.7),transparent);border-radius:14px 14px 0 0;}
 .dir-fp-inline-badge{display:inline-block;font-size:9px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;background:rgba(167,139,250,.13);color:var(--purple);padding:2px 8px;border-radius:10px;border:1px solid rgba(167,139,250,.3);margin-top:2px;}
+.dir-fp-cta-btn{display:inline-flex;align-items:center;gap:5px;background:rgba(167,139,250,.18);color:var(--purple);border:1px solid rgba(167,139,250,.4);border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700;font-family:var(--mono);text-decoration:none;transition:background .18s,border-color .18s;white-space:nowrap;}
+.dir-fp-cta-btn:hover{background:rgba(167,139,250,.28);border-color:rgba(167,139,250,.65);color:var(--purple);text-decoration:none;}
 /* Collections sidebar widget */
 .dir-collections-widget{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:16px;}
 .dir-collections-title{font-size:10px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
@@ -2314,7 +2316,7 @@ function renderInlinePromoCard(l){
   const votes  = l.vote_count||0;
   const voted  = votedIds.has(l.id);
   const descShort = (l.description||'').slice(0,160) + ((l.description||'').length>160?'…':'');
-  return `<div class="dir-card dir-card-founder-inline" data-id="${l.id}" data-cat="${l.category||'General'}">
+  return `<div class="dir-card dir-card-founder-inline" data-id="${l.id}" data-cat="${l.category||'General'}" style="cursor:pointer;" onclick="if(event.target===this||event.target.classList.contains('dir-desc')){window.open('${escHtml(l.url)}','_blank');trackClick(${l.id});}">
     <div class="dir-card-top">
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
@@ -2327,9 +2329,9 @@ function renderInlinePromoCard(l){
     </div>
     <p class="dir-desc">${escHtml(descShort)}</p>
     <div class="dir-card-footer">
-      <div class="dir-card-actions">
-        <a href="${escHtml(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
-        <button class="dir-vote-btn${voted?' voted':''}" id="vbtn-p-${l.id}" onclick="castVote(${l.id},this)" ${voted?'disabled':''} title="${voted?'Already upvoted':'Upvote this product'}">
+      <div class="dir-card-actions" style="flex-wrap:wrap;gap:6px;">
+        <a href="${escHtml(l.url)}" class="dir-fp-cta-btn" target="_blank" rel="noopener" onclick="event.stopPropagation();trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
+        <button class="dir-vote-btn${voted?' voted':''}" id="vbtn-p-${l.id}" onclick="event.stopPropagation();castVote(${l.id},this)" ${voted?'disabled':''} title="${voted?'Already upvoted':'Upvote this product'}">
           <span class="vote-arrow">▲</span>
           <span class="vote-count" id="vc-p-${l.id}"${votes>0?'':' style="display:none"'}>${votes}</span>
         </button>
