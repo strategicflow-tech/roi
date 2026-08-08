@@ -6062,12 +6062,38 @@ const logoUpload = multer({
 }).single('logo');
 
 app.post('/api/directory/claim/upload-logo', (req, res) => {
-  logoUpload(req, res, (err) => {
+  logoUpload(req, res, async (err) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Logo must be under 4 MB.' });
     if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
     const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    console.log(`[dir-claim/upload] logo encoded as data URL (${Math.round(dataUrl.length/1024)}KB)`);
+    const sizeKB  = Math.round(dataUrl.length / 1024);
+
+    // If listing_id + edit_token are provided, save directly to DB and return a stable URL.
+    // This avoids passing a large data URI through the browser input field (Chrome Android drops them).
+    const listingId  = parseInt(req.body.listing_id, 10);
+    const editToken  = (req.body.edit_token || '').trim();
+    if (listingId && editToken) {
+      try {
+        const claim = await pool.query(
+          `SELECT id FROM dir_claims WHERE listing_id=$1 AND edit_token=$2 AND is_verified=TRUE`,
+          [listingId, editToken]
+        );
+        if (claim.rows.length) {
+          await pool.query(
+            `UPDATE directory_listings SET owner_image_url=$1 WHERE id=$2`,
+            [dataUrl, listingId]
+          );
+          console.log(`[dir-claim/upload] logo saved directly to DB for listing #${listingId} (${sizeKB}KB)`);
+          return res.json({ ok: true, url: `/api/directory/listing-logo/${listingId}`, saved: true });
+        }
+      } catch(e) {
+        console.error(`[dir-claim/upload] DB save failed, falling back to data URL:`, e.message);
+      }
+    }
+
+    // Fallback: return data URL for the submit form (no listing_id yet) or if DB save fails
+    console.log(`[dir-claim/upload] logo encoded as data URL (${sizeKB}KB)`);
     res.json({ ok: true, url: dataUrl });
   });
 });

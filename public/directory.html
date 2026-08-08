@@ -3700,13 +3700,26 @@ async function claimUploadLogo(input) {
   try {
     const fd = new FormData();
     fd.append('logo', file);
+    // Pass listing_id + edit_token so server can save directly to DB,
+    // bypassing the input[type=url] field that Chrome Android drops data: URIs from.
+    if (claimListingId)  fd.append('listing_id',  claimListingId);
+    if (claimEditToken)  fd.append('edit_token',   claimEditToken);
     const r = await fetch('/api/directory/claim/upload-logo', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
-      _claimLogoDataUrl = d.url;                              // store separately — input[type=url] may drop data: URIs on mobile
-      document.getElementById('claimImageUrl').value = '';    // clear URL field so data URL takes priority
-      statusEl.style.color   = '#22c55e';
-      statusEl.textContent   = '✓ Logo uploaded — click Save changes to apply.';
+      if (d.saved) {
+        // Server saved directly to DB — use the stable /listing-logo/ URL, no data URI needed
+        _claimLogoDataUrl = null;
+        document.getElementById('claimImageUrl').value = d.url;
+        statusEl.style.color = '#22c55e';
+        statusEl.textContent = '✓ Logo saved! Click Save changes to confirm your other edits.';
+      } else {
+        // Fallback: store data URL in variable (avoids input[type=url] sanitization)
+        _claimLogoDataUrl = d.url;
+        document.getElementById('claimImageUrl').value = '';
+        statusEl.style.color = '#22c55e';
+        statusEl.textContent = '✓ Logo uploaded — click Save changes to apply.';
+      }
     } else {
       statusEl.style.color   = '#e8455a';
       statusEl.textContent   = 'Upload failed. Try pasting a URL instead.';
