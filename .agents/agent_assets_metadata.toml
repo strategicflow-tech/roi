@@ -51,3 +51,10 @@ uri = "file://.agents/outputs/toolindex-listings-with-emails.json"
 type = "unspecified"
 title = "toolindex-listings-with-emails.json — 521 listări complete"
 description = "Array JSON complet: id, name, page, cat, email (unde există), li (unde există), big. 96KB, 521 obiecte."
+
+[[outputs]]
+id = "MIsQJPRr_vpXEB0bfzhX9"
+uri = "file://missing-listings-diff.js"
+type = "unspecified"
+title = "missing-listings-diff.js — 193 listinguri lipsă din tracker"
+description = "Total active în DB: 550 | În tracker: 361 | Lipsă: 193. Format: {id, name, domain, email, link} gata de lipit într-un array JS."
