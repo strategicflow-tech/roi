@@ -19702,9 +19702,9 @@ ${content}
   seedDailySection().catch(()=>{});
 
   // ── Daily 01:30 UTC: seed the Daily section — DISABLED
-  // cron.schedule('30 1 * * *', () => {
-  //   seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
-  // });
+  cron.schedule('30 1 * * *', () => {
+    seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
+  });
 
   // ── Every 20 min: seed initial votes for fresh auto-imported listings ────────
   // Rate-limit is PROPORTIONAL to the target so higher-target listings accumulate faster,
@@ -19721,7 +19721,53 @@ ${content}
   // ── Daily 08:00 UTC: 7-day follow-up reminder for unclaimed drafts/actives — DISABLED ──
   // Sends exactly ONE follow-up per listing, 7+ days after outreach_emailed_at,
   // only if still unclaimed. Tracked via follow_up_sent_at — never repeats.
-  // cron.schedule('0 8 * * *', ...) — follow-up emails DISABLED
+  cron.schedule('0 8 * * *', async () => {
+    console.log('[cron] Follow-up reminder check starting…');
+    try {
+      const { rows: dueListings } = await pool.query(`
+        SELECT id, name, url, contact_email
+        FROM directory_listings
+        WHERE outreach_emailed_at IS NOT NULL
+          AND follow_up_sent_at IS NULL
+          AND claimed_at IS NULL
+          AND outreach_emailed_at < NOW() - INTERVAL '7 days'
+          AND contact_email IS NOT NULL
+        ORDER BY outreach_emailed_at ASC
+        LIMIT 50
+      `);
+      console.log(`[cron-followup] ${dueListings.length} listings due for follow-up`);
+      for (const listing of dueListings) {
+        try {
+          const slug = toListingSlug(listing.name, listing.id);
+          const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+          const name = listing.name;
+          const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p>
+<p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
+<p style="font-size:13px;color:#6b7280;">If it&rsquo;s not your product or you&rsquo;d rather not hear from us, just reply and we&rsquo;ll stop.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+</div>`;
+          const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\nIf it's not your product or you'd rather not hear from us, just reply and we'll stop.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+          await resend.emails.send({
+            from:    SENDER,
+            to:      listing.contact_email,
+            replyTo: 'strategicflow@proton.me',
+            subject: `Still unclaimed: ${name} on ToolIndex`,
+            html:    followUpHtml,
+            text:    followUpText,
+          });
+          await pool.query(`UPDATE directory_listings SET follow_up_sent_at=NOW() WHERE id=$1`, [listing.id]);
+          console.log(`[cron-followup] ✓ Follow-up sent → ${listing.contact_email} (${name})`);
+          await new Promise(r => setTimeout(r, 500));
+        } catch(e) {
+          console.error(`[cron-followup] Error for ${listing.name}:`, e.message);
+        }
+      }
+      console.log('[cron-followup] Done.');
+    } catch(e) { console.error('[cron] Follow-up reminder error:', e.message); }
+  });
 
   // ── Daily 02:00 UTC: Gradual vote growth — ONLY for today's dir_daily_section ──
   // Non-daily listings get 0 votes/day so founders see the difference and claim/upgrade.
@@ -19735,7 +19781,28 @@ ${content}
   // /admin/reseed-daily — no daily artificial boosting needed.
   // console.log('[cron] Daily vote growth — DISABLED');
 
-  // cron.schedule('5 2 * * *', ...) — promoted vote boost DISABLED
+  cron.schedule('5 2 * * *', async () => {
+    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    try {
+      const { rows: promoted } = await pool.query(
+        `SELECT id, name FROM directory_listings WHERE is_promoted = TRUE AND status = 'active'`
+      );
+      for (const listing of promoted) {
+        const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
+        const voteRows = Array.from({ length: toAdd }, (_, i) =>
+          `(${listing.id}, 'promoted_boost_${listing.id}_${dateTag}_${i}', NOW() - interval '${i * 90} minutes')`
+        ).join(',');
+        await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
+        );
+        await pool.query(
+          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
+          [toAdd, listing.id]
+        );
+        console.log(`[cron] Promoted boost: +${toAdd} votes → ${listing.name} (#${listing.id})`);
+      }
+    } catch(e) { console.error('[cron] Promoted boost error:', e.message); }
+  });
 
   // ── Daily 02:10 UTC: Claimed listing vote boost — DISABLED ──────────────────
   // Was: 5–7 synthetic votes/day for claimed listings in daily section.
@@ -19915,23 +19982,78 @@ ${content}
   // ── 00:05 UTC daily: archive "Winner of the Day" for the just-closed UTC day ─
   // Runs 5 min after midnight UTC so the entire prior day [00:00–23:59:59.999] is
   // complete before querying. Uses computeWinnerForRange with explicit boundaries.
-  // cron.schedule('5 0 * * *', ...) — winner of day DISABLED
+  cron.schedule('5 0 * * *', async () => {
+    try {
+      const now = new Date();
+      const todayMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const periodStart   = new Date(todayMidnight - 86_400_000);
+      const periodEnd     = new Date(todayMidnight - 1);
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'day',$2,$3) ON CONFLICT DO NOTHING`,
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of day ${periodStart.toISOString().slice(0,10)}: listing #${winner}`);
+    } catch(e) { console.error('[cron] day-winner error:', e.message); }
+  }, { timezone: 'UTC' });
 
   // ── Monday 00:05 UTC: archive "Winner of the Week" for the just-closed Mon–Sun ─
   // Runs 5 min into the new ISO week (Monday), so the prior Mon 00:00 – Sun 23:59:59.999
   // interval is fully closed. Uses computeWinnerForRange with exact boundaries.
-  // cron.schedule('5 0 * * 1', ...) — winner of week DISABLED
+  cron.schedule('5 0 * * 1', async () => {
+    try {
+      const now = new Date();
+      const thisMondayMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      const periodEnd   = new Date(thisMondayMidnight - 1);
+      const periodStart = new Date(thisMondayMidnight - 7 * 86_400_000);
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'week',$2,$3) ON CONFLICT DO NOTHING`,
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of week ${periodStart.toISOString().slice(0,10)}: listing #${winner}`);
+    } catch(e) { console.error('[cron] week-winner error:', e.message); }
+  }, { timezone: 'UTC' });
 
   // ── 1st of month 00:05 UTC: archive "Winner of the Month" for the prior month ─
   // Runs 5 min into the 1st of the new month, so the entire prior calendar month
   // [1st 00:00 – last-day 23:59:59.999] is fully closed before querying.
-  // cron.schedule('5 0 1 * *', ...) — winner of month DISABLED
+  cron.schedule('5 0 1 * *', async () => {
+    try {
+      const now = new Date();
+      const firstOfThisMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+      const periodEnd   = new Date(firstOfThisMonth - 1);
+      const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+      const winner = await computeWinnerForRange(periodStart, periodEnd);
+      if (!winner) return;
+      await pool.query(
+        `INSERT INTO directory_winners (listing_id, period_type, period_start, period_end)
+         VALUES ($1,'month',$2,$3) ON CONFLICT DO NOTHING`,
+        [winner, periodStart.toISOString(), periodEnd.toISOString()]
+      );
+      console.log(`[cron] Winner of month ${periodStart.toISOString().slice(0,7)}: listing #${winner}`);
+    } catch(e) { console.error('[cron] month-winner error:', e.message); }
+  }, { timezone: 'UTC' });
 
   // ── Daily 09:00: check sponsor renewal reminders (Task #39) ─────────────
-  // cron.schedule('0 9 * * *', ...) — sponsor renewals DISABLED
+  cron.schedule('0 9 * * *', () => checkSponsorRenewals().catch(()=>{}));
 
   // ── Daily 23:55 UTC: snapshot vote counts for Biggest Climber ───────────────
-  // cron.schedule('55 23 * * *', ...) — vote snapshot DISABLED
+  cron.schedule('55 23 * * *', async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await pool.query(`
+        INSERT INTO dir_vote_snapshots (listing_id, snapshot_date, vote_count)
+        SELECT id, $1::date, vote_count FROM directory_listings WHERE status='active'
+        ON CONFLICT (listing_id, snapshot_date) DO UPDATE SET vote_count=EXCLUDED.vote_count
+      `, [today]);
+      console.log('[cron] Daily vote snapshot saved for', today);
+    } catch(e) { console.error('[cron] vote-snapshot error:', e.message); }
+  });
 
   // ── Weekly Sunday 03:30 UTC: force-refresh brand marquee favicons ────────────
   // cron.schedule('30 3 * * 0', ...) — brand favicon refresh DISABLED
@@ -19947,7 +20069,7 @@ ${content}
   // });
 
   // ── Daily 10:00: notify claimed owners whose 30-day relaunch window just opened ──
-  // cron.schedule('0 10 * * *', ...) — relaunch window notifications DISABLED
+  cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
 
   // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
   // cron.schedule('0 4 * * *', ...) — batch friction scorer DISABLED
