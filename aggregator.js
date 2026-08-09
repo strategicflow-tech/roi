@@ -543,7 +543,7 @@ async function fetchSaaSTool(_limit = 60) { return []; }
  * Returns { new, skipped, errors, sources, newIds }
  */
 async function runAggregation(pool, opts = {}) {
-  const { verbose = true } = opts;
+  const { verbose = true, maxNew = 30 } = opts;
   const log = (...a) => { if (verbose) console.log('[aggregator]', ...a); };
 
   const stats = { new: 0, skipped: 0, errors: 0, sources: {}, newIds: [] };
@@ -599,6 +599,10 @@ async function runAggregation(pool, opts = {}) {
     return true;
   });
   log(`Truly new (not already in DB): ${truly_new.length}`);
+  if (truly_new.length > maxNew) {
+    log(`⚠️  Cap applied: limiting insertions to ${maxNew} (found ${truly_new.length} new). Pass maxNew option to raise the limit.`);
+    truly_new.splice(maxNew);
+  }
 
   // ── Resolve names/descriptions for entries that need a per-URL og fetch ──────
   const needsDesc = truly_new.filter(i => i._needsDesc);

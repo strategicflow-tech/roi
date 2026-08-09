@@ -20101,14 +20101,15 @@ ${content}
     } catch(e) { console.error('[cron] brand-favicon refresh error:', e.message); }
   });
 
-  // ── Weekly directory aggregation (Sunday 03:00) ────────────────────────────
-  cron.schedule('0 3 * * 0', async () => {
-    console.log('[cron] Weekly directory aggregation starting…');
-    try {
-      const stats = await runAggregation(pool);
-      console.log(`[cron] Aggregation done. New: ${stats.new}, Sources:`, stats.sources);
-    } catch(e) { console.error('[cron] Aggregation error:', e.message); }
-  });
+  // ── Weekly directory aggregation — DISABLED (was causing 300+ active insertions per run)
+  // Trigger manually via GET /admin/aggregate?key=… when needed.
+  // cron.schedule('0 3 * * 0', async () => {
+  //   console.log('[cron] Weekly directory aggregation starting…');
+  //   try {
+  //     const stats = await runAggregation(pool);
+  //     console.log(`[cron] Aggregation done. New: ${stats.new}, Sources:`, stats.sources);
+  //   } catch(e) { console.error('[cron] Aggregation error:', e.message); }
+  // });
 
   // ── Daily 10:00: notify claimed owners whose 30-day relaunch window just opened ──
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
