@@ -375,6 +375,17 @@ app.use((req, res, next) => {
 
 app.use(requireAuth);
 
+// ── AI-crawler visit logger (fire-and-forget, non-blocking) ─────────────────
+const AI_CRAWLERS_RE = /ClaudeBot|GPTBot|OAI-SearchBot|PerplexityBot|Google-Extended|CCBot|anthropic-ai|Claude-Web|Applebot-Extended|Bytespider/i;
+app.use((req, res, next) => {
+  const ua = req.headers['user-agent'] || '';
+  if (AI_CRAWLERS_RE.test(ua)) {
+    pool.query('INSERT INTO crawler_visits (user_agent, path) VALUES ($1, $2)', [ua, req.path])
+      .catch(() => {}); // fire-and-forget, never await
+  }
+  next();
+});
+
 app.get('/index.html', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'public/index.html'));
@@ -3095,6 +3106,33 @@ app.get('/admin/fix-owner-listings', async (req, res) => {
     ).catch(() => ({ rows: [] }));
     res.json({ ok: true, fixed: ['WHY Audit™ (199)', 'Strategic Flow Audit (203)', bt.rows[0] ? `Blink Test (4298) → editors_pick + is_promoted` : 'Blink Test (4298) not found'] });
   } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── AI crawler visit log endpoint ────────────────────────────────────────────
+
+// GET /admin/crawler-logs?key=… — last 100 visits + 30-day count by user_agent
+app.get('/admin/crawler-logs', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const [recent, counts] = await Promise.all([
+      pool.query(`
+        SELECT id, visited_at, user_agent, path
+        FROM crawler_visits
+        ORDER BY visited_at DESC
+        LIMIT 100
+      `),
+      pool.query(`
+        SELECT user_agent, COUNT(*) AS visits
+        FROM crawler_visits
+        WHERE visited_at >= now() - INTERVAL '30 days'
+        GROUP BY user_agent
+        ORDER BY visits DESC
+      `)
+    ]);
+    res.json({ recent: recent.rows, counts_30d: counts.rows });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -7601,6 +7639,18 @@ async function setupDB() {
     .catch(e => console.error('[DB] ai_visibility_jobs input_category col:', e.message));
   await pool.query(`ALTER TABLE ai_visibility_jobs ADD COLUMN IF NOT EXISTS error_message TEXT`)
     .catch(e => console.error('[DB] ai_visibility_jobs error_message col:', e.message));
+
+  // AI crawler visit log
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS crawler_visits (
+      id          SERIAL PRIMARY KEY,
+      visited_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      user_agent  TEXT NOT NULL,
+      path        TEXT NOT NULL
+    )
+  `).catch(e => console.error('[DB] crawler_visits:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS crawler_visits_visited_at_idx ON crawler_visits (visited_at DESC)`)
+    .catch(e => console.error('[DB] crawler_visits index:', e.message));
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ai_visibility_leads (

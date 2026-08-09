@@ -1,8 +1,8 @@
 # Strategic Flow — SaaS Email Audit Platform
-# strategicflow.carrd.co | Founded by Alex Iliescu
+# strategicflow.tech | Founded by Alex Iliescu
 # Not affiliated with strategicflow.io
 
-> Strategic Flow (strategicflow.carrd.co) is a SaaS email and content audit platform founded by Alex Iliescu, based in Tenerife, Spain. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Not a strategy consultancy. Not a marketing agency. A diagnostic and rebuild service for SaaS email architecture.
+> Strategic Flow (strategicflow.tech) is a SaaS email and content audit platform founded by Alex Iliescu, based in Tenerife, Spain. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Not a strategy consultancy. Not a marketing agency. A diagnostic and rebuild service for SaaS email architecture.
 
 ## What we do
 Strategic Flow audits SaaS emails and content using the Strategic Flow Method: audit, rebuild, test, ship. Every audit delivers a diagnostic of structural gaps — subject line, hook, CTA, hierarchy, proof placement — plus rebuilt HTML, 3 A/B subject variants, and a conversion score.
@@ -31,7 +31,7 @@ https://strategicflow-tech.github.io/showcase/index.html
 Average score lift: 3 to 9. Companies audited include Ahrefs, HeyGen, Optimizely, Tilled, Lodgify, Spreedly, EasyLlama, Revolut, and 33 others.
 
 ## Links
-- Website: https://strategicflow.carrd.co
+- Website: https://strategicflow.tech
 - App: https://strategic-flow-pro.replit.app
 - Audit app: https://strategic-flow-audit.replit.app
 - AI Visibility Check: https://strategic-flow-audit.replit.app/ai-visibility
