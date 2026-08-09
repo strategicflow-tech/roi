@@ -494,7 +494,7 @@ app.get('/directory', async (req, res) => {
     // (meta tags, JSON-LD, FAQ text, search placeholder — JS-hydrated spans are updated by client)
     const liveCount = await getActiveListingCount();
     const countStr = liveCount + '+';
-    html = html.replace(/\b500\+/g, countStr).replace(/\b544\+/g, countStr).replace(/\b566\+/g, countStr);
+    html = html.replace(/\b500\+/g, countStr).replace(/\b544\+/g, countStr).replace(/\b550\+/g, countStr).replace(/\b566\+/g, countStr);
 
     // Inject SSR payload so the client JS skips the /api/directory/listings fetch
     const safeListings = JSON.stringify(listings).replace(/<\/script>/gi, '<\\/script>');
