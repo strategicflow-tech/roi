@@ -7010,6 +7010,9 @@ app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname
 app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
 // ── GET /api/blog/latest — returns the most recently published blog post ─────
 const BLOG_POSTS = [
+  { slug: 'domain-rating-explained-dr86-vs-low-dr-backlinks', title: 'Domain Rating Explained: Why One DR 86 Backlink Beats 50 Low-DR Directory Listings', excerpt: 'Domain rating is the single most misunderstood metric in SaaS backlink strategy. Here is what it actually measures, why it does not scale linearly, and what that means for where you submit your product.', date: '2026-08-10', dateLabel: 'Aug 10, 2026 · 8 min read' },
+  { slug: 'directory-submission-times-2026',           title: 'Directory Submission Times in 2026: Which SaaS Directories Approve Instantly, and Which Make You Wait Weeks', excerpt: 'A real comparison of approval speed across the top SaaS directories in 2026. Some list your product in seconds. Others leave founders checking a status page for over a week with no answer.', date: '2026-08-09', dateLabel: 'Aug 9, 2026 · 9 min read' },
+  { slug: 'do-ai-search-engines-crawl-saas-directories', title: 'Do AI Search Engines Actually Crawl SaaS Directories? What ChatGPT, Perplexity and Claude Cite in 2026', excerpt: 'AI answer engines cite sources differently than Google. Here is what actually gets pulled into an AI answer when someone asks about SaaS tools, and where directory listings fit in.', date: '2026-08-09', dateLabel: 'Aug 9, 2026 · 8 min read' },
   { slug: 'best-free-saas-directories-2026',        title: 'The 9 Best Free SaaS Directories in 2026 — Ranked by Domain Rating', excerpt: 'One of them gives you a DR 86 dofollow backlink in under 60 seconds — no account required. We ranked every major free SaaS directory by real domain authority so you know which to hit first.', date: '2026-08-08', dateLabel: 'Aug 8, 2026 · 8 min read' },
   { slug: 'ai-overviews-saas-discovery-2026',       title: 'How AI Overviews Are Reshaping SaaS Discovery in 2026',             excerpt: 'Google AI Overviews now appear in 55%+ of SaaS-related searches. How they choose sources, why directories matter, and the 4 steps to get your product cited in AI-generated answers.', date: '2026-08-07', dateLabel: 'Aug 7, 2026 \u00b7 9 min read' },
   { slug: 'free-saas-backlinks-2026',               title: 'How to Get Your First 100 Backlinks as a SaaS Startup \u2014 Without Paying', excerpt: '5 proven sources of free high-DR backlinks for new SaaS products \u2014 with effort levels and realistic timelines. A focused founder can generate 20-40 high-DR backlinks in the first week.', date: '2026-08-06', dateLabel: 'Aug 6, 2026 \u00b7 10 min read' },
@@ -18685,6 +18688,9 @@ setupDB().then(async () => {
       { loc: `${base}/friction-model`,                           priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model/guide`,                     priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/blog`,                                          priority: '0.8', changefreq: 'weekly'  },
+      { loc: `${base}/blog/domain-rating-explained-dr86-vs-low-dr-backlinks`, priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/directory-submission-times-2026`,          priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/do-ai-search-engines-crawl-saas-directories`, priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/best-free-saas-directories-2026`,         priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/ai-overviews-saas-discovery-2026`,        priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/free-saas-backlinks-2026`,                priority: '0.9', changefreq: 'monthly' },

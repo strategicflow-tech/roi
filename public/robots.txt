@@ -70,3 +70,6 @@ Allow: /
 
 Sitemap: https://strategic-flow-audit.replit.app/sitemap.xml
 Sitemap: https://strategic-flow-audit.replit.app/sitemap-index.xml
+
+# AI-readable site description
+# llms.txt: https://strategic-flow-audit.replit.app/llms.txt
