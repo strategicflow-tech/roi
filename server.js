@@ -3877,6 +3877,130 @@ app.post('/admin/batch-insert', express.json({ limit: '2mb' }), async (req, res)
   res.json({ total: items.length, results });
 });
 
+// POST /admin/batch-update?key=… — bulk update url + email for listings (admin only).
+// Body: array of { id, url (string|null), email (string|null) }
+// url=null → SET url=NULL (clear); url omitted/undefined → skip url field
+// email=null → skip; email=string → SET submitter_email
+app.post('/admin/batch-update', express.json({ limit: '1mb' }), async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const items = Array.isArray(req.body) ? req.body : [];
+  if (!items.length) return res.status(400).json({ error: 'empty array' });
+  const results = [];
+  for (const item of items) {
+    const id = Number(item.id);
+    if (!id) { results.push({ id, status: 'skipped_no_id' }); continue; }
+    const setParts = [];
+    const vals = [];
+    let pi = 1;
+    if ('url' in item) {
+      setParts.push(`url = $${pi++}`);
+      vals.push(item.url ? item.url.toString().trim().slice(0, 300) : null);
+    }
+    if (item.email) {
+      setParts.push(`submitter_email = $${pi++}`);
+      vals.push(item.email.toString().trim().slice(0, 200));
+    }
+    if (!setParts.length) { results.push({ id, status: 'nothing_to_update' }); continue; }
+    vals.push(id);
+    try {
+      const r = await pool.query(
+        `UPDATE directory_listings SET ${setParts.join(', ')} WHERE id=$${pi} RETURNING id, name, url, submitter_email`,
+        vals
+      );
+      if (!r.rows.length) { results.push({ id, status: 'not_found' }); continue; }
+      results.push({ id, name: r.rows[0].name, url: r.rows[0].url, email: r.rows[0].submitter_email, status: 'updated' });
+    } catch(e) {
+      results.push({ id, status: 'error', error: e.message });
+    }
+  }
+  const updated = results.filter(r => r.status === 'updated').length;
+  res.json({ total: items.length, updated, results });
+});
+
+// POST /admin/bulk-delete?key=… — hard-delete listings by ID array (admin only).
+app.post('/admin/bulk-delete', express.json({ limit: '256kb' }), async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const ids = (Array.isArray(req.body) ? req.body : []).map(Number).filter(Boolean);
+  if (!ids.length) return res.status(400).json({ error: 'empty ids array' });
+  try {
+    const r = await pool.query(
+      `DELETE FROM directory_listings WHERE id = ANY($1) RETURNING id, name`,
+      [ids]
+    );
+    res.json({ deleted: r.rows.length, rows: r.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /admin/fix-peerlist-noclaim?key=… — one-time cleanup: delete placeholder-URL listings + set confirmed URLs+emails. Idempotent.
+app.get('/admin/fix-peerlist-noclaim', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    // 1. Delete all listings whose URL is still a toolindex-pending placeholder
+    const del = await pool.query(
+      `DELETE FROM directory_listings WHERE url LIKE 'https://toolindex-pending.app/%' RETURNING id, name`
+    );
+
+    // 2. Apply confirmed URLs + emails to the 38 listings that have real sites
+    const CONFIRMED = [
+      // [id, url, email|null]
+      [5058, 'https://retracekit.cloud',                  'retracekit@proton.me'],
+      [5054, null,                                         null], // PHPRunner — NOT FOUND, clear wrong guess
+      [5057, null,                                         null], // I Hate Converter — NOT FOUND, clear wrong guess
+      [5059, 'https://kingsedu.ac',                        null],
+      [5060, 'https://feedbackhi.com',                     null],
+      [5061, 'https://fursa.io',                           'kartik@fursa.io'],
+      [5063, 'https://mikatech-dev.github.io/sort-x/',     null],
+      [5065, 'https://www.calc-masters.com',               'contact@calc-masters.com'],
+      [5066, 'https://biomesh.online',                     null],
+      [5067, 'https://dsa-vault.shop',                     null],
+      [5068, 'https://rep-smarts.lovable.app',             'hello@northlightpress.net'],
+      [5069, 'https://remotestack.in',                     null],
+      [5072, 'https://www.formpilot.co.in',                null],
+      [5081, 'https://openfate.ai',                        'hi@openfate.ai'],
+      [5089, 'https://agent-one.dev',                      null],
+      [5094, 'https://trycalculatingnow.com',              null],
+      [5097, 'https://tendna.com',                         null],
+      [5103, 'https://reachook.com',                       null],
+      [5108, 'https://mavibot.ai',                         null],
+      [5110, 'https://callprep.app',                       null],
+      [5112, 'https://www.growthrail.dev',                 'contact@growthrail.dev'],
+      [5113, 'https://www.botric.ai',                      null],
+      [5114, 'https://reactorcoregames.github.io',         null],
+      [5115, 'https://sayora.ai',                          'hi@sayora.ai'],
+      [5119, 'https://unorouter.com',                      null],
+      [5120, 'https://getcreatorloop.com',                 null],
+      [5126, 'https://www.prismposter.com',                null],
+      [5134, 'https://www.pxlperfects.com',                'orders@pxlperfects.com'],
+      [5146, 'https://looops.ai',                          null],
+      [5150, 'https://looptroop.ovh',                      null],
+      [5152, 'https://researchmaster.ai',                  null],
+      [5156, 'https://cloudquell.com',                     null],
+      [5158, 'https://qoro.cc',                            'hello@qoro.cc'],
+    ];
+    const updated = []; const cleared = [];
+    for (const [id, url, email] of CONFIRMED) {
+      const parts = []; const vals = [];
+      if (url !== undefined) { parts.push(`url=$${parts.length+1}`); vals.push(url); }
+      else                   { parts.push(`url=NULL`); }
+      if (email)             { parts.push(`submitter_email=$${parts.length+1}`); vals.push(email); }
+      if (!parts.length) continue;
+      vals.push(id);
+      const r = await pool.query(
+        `UPDATE directory_listings SET ${parts.join(',')} WHERE id=$${vals.length} RETURNING id`,
+        vals
+      );
+      if (r.rows.length) (url ? updated : cleared).push(id);
+    }
+    res.end(JSON.stringify({
+      deleted: del.rows.length,
+      deleted_names: del.rows.map(r => r.name),
+      urls_set: updated.length,
+      urls_cleared: cleared.length,
+    }));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/insert-fetchrly?key=… — one-time insert of fetchrly.co.in active listing. Idempotent.
 app.get('/admin/insert-fetchrly', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
