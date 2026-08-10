@@ -1653,8 +1653,18 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .dir-latest-blog::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(0,210,190,.02) 40px,rgba(0,210,190,.02) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(0,210,190,.02) 40px,rgba(0,210,190,.02) 41px);pointer-events:none;}
 .dir-latest-blog-inner{max-width:700px;margin:0 auto;position:relative;}
 .dir-latest-blog-label{font-family:'SF Mono','Fira Code',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#00d4c8;margin-bottom:22px;opacity:.65;}
-.dir-latest-blog-card{display:block;background:rgba(0,210,190,.03);border:1px solid rgba(0,210,190,.17);border-radius:14px;padding:30px 34px;text-decoration:none;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s,transform .25s;}
-.dir-latest-blog-card:hover{border-color:rgba(0,210,190,.48);box-shadow:0 0 52px rgba(0,210,190,.1),inset 0 0 28px rgba(0,210,190,.03);transform:translateY(-3px);text-decoration:none;}
+.dir-latest-blog-card{display:block;background:rgba(0,210,190,.03);border:1px solid rgba(0,210,190,.17);border-radius:14px;padding:30px 34px;text-decoration:none;position:relative;overflow:hidden;transition:transform .25s;animation:dlbGlow 5s ease-in-out infinite;}
+.dir-latest-blog-card:hover{border-color:rgba(0,210,190,.52);box-shadow:0 0 60px rgba(0,210,190,.18),0 0 120px rgba(0,210,190,.07),inset 0 0 28px rgba(0,210,190,.05);transform:translateY(-3px);text-decoration:none;animation-play-state:paused;}
+@keyframes dlbGlow{
+  0%  {box-shadow:0 0 4px rgba(0,212,200,.03);border-color:rgba(0,210,190,.17);}
+  42% {box-shadow:0 0 4px rgba(0,212,200,.03);border-color:rgba(0,210,190,.17);}
+  48% {box-shadow:0 0 32px rgba(0,212,200,.30),0 0 72px rgba(0,212,200,.10),inset 0 0 20px rgba(0,212,200,.05);border-color:rgba(0,210,190,.58);}
+  51% {box-shadow:0 0 16px rgba(0,212,200,.14),0 0 40px rgba(0,212,200,.05),inset 0 0 10px rgba(0,212,200,.02);border-color:rgba(0,210,190,.30);}
+  55% {box-shadow:0 0 38px rgba(0,212,200,.34),0 0 90px rgba(0,212,200,.12),inset 0 0 24px rgba(0,212,200,.06);border-color:rgba(0,210,190,.65);}
+  62% {box-shadow:0 0 10px rgba(0,212,200,.08),0 0 20px rgba(0,212,200,.03);border-color:rgba(0,210,190,.22);}
+  70% {box-shadow:0 0 4px rgba(0,212,200,.03);border-color:rgba(0,210,190,.17);}
+  100%{box-shadow:0 0 4px rgba(0,212,200,.03);border-color:rgba(0,210,190,.17);}
+}
 .dir-latest-blog-badge{display:inline-block;font-family:'SF Mono','Fira Code',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#041214;background:#00d4c8;padding:3px 10px;border-radius:5px;margin-bottom:14px;font-weight:700;}
 .dir-latest-blog-date{font-size:11px;font-family:'SF Mono','Fira Code',monospace;color:#8a9ab0;margin-bottom:11px;opacity:.6;}
 .dir-latest-blog-title{font-size:clamp(18px,3.5vw,23px);font-weight:700;color:#e2e8f0;line-height:1.35;margin:0 0 13px;letter-spacing:-.01em;}
