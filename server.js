@@ -3830,6 +3830,53 @@ app.get('/admin/insert-directree', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /admin/batch-insert?key=… — bulk insert listings (admin only). Accepts JSON array.
+// Each item: { name, url (optional), category, description }
+// Products with url use ON CONFLICT (url) DO NOTHING; products without url get NULL url (no conflict).
+app.post('/admin/batch-insert', express.json({ limit: '2mb' }), async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const items = Array.isArray(req.body) ? req.body : [];
+  if (!items.length) return res.status(400).json({ error: 'empty array' });
+  const results = [];
+  for (const item of items) {
+    const name = (item.name || '').trim().slice(0, 80);
+    const url  = (item.url  || '').trim().slice(0, 300) || null;
+    const cat  = (item.category || 'General').trim().slice(0, 40);
+    const desc = (item.description || '').trim().slice(0, 500);
+    if (!name) { results.push({ name, status: 'skipped_no_name' }); continue; }
+    try {
+      let r;
+      if (url) {
+        r = await pool.query(
+          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, submitted_at)
+           VALUES ($1,$2,$3,$4,'active',false,false,true,'manual',NOW())
+           ON CONFLICT (url) DO NOTHING RETURNING id`,
+          [name, url, cat, desc]
+        );
+        if (!r.rows.length) {
+          const ex = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [url]);
+          results.push({ name, url, status: 'already_exists', id: ex.rows[0]?.id ?? null });
+          continue;
+        }
+      } else {
+        r = await pool.query(
+          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, submitted_at)
+           VALUES ($1,NULL,$2,$3,'active',false,false,true,'manual',NOW()) RETURNING id`,
+          [name, cat, desc]
+        );
+      }
+      const id = r.rows[0].id;
+      if (url) fetchProductLogo(url).then(logoUrl => {
+        if (logoUrl) pool.query('UPDATE directory_listings SET image_url=$1 WHERE id=$2', [logoUrl, id]).catch(()=>{});
+      }).catch(()=>{});
+      results.push({ name, url: url || null, status: 'inserted', id });
+    } catch(e) {
+      results.push({ name, url: url || null, status: 'error', error: e.message });
+    }
+  }
+  res.json({ total: items.length, results });
+});
+
 // GET /admin/insert-fetchrly?key=… — one-time insert of fetchrly.co.in active listing. Idempotent.
 app.get('/admin/insert-fetchrly', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
