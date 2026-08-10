@@ -3830,6 +3830,25 @@ app.get('/admin/insert-directree', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /admin/insert-fetchrly?key=… — one-time insert of fetchrly.co.in active listing. Idempotent.
+app.get('/admin/insert-fetchrly', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = 'https://www.fetchrly.co.in'`);
+    if (exists.rows.length) return res.json({ status: 'already exists', id: exists.rows[0].id });
+    const r = await pool.query(
+      `INSERT INTO directory_listings (name, url, description, category, source, status, is_seeded, is_auto_imported, score_pending, submitted_at)
+       VALUES ($1,$2,$3,'AI Tools','manual','active',false,false,true,NOW()) RETURNING id`,
+      [
+        'FetchrLy',
+        'https://www.fetchrly.co.in',
+        'AI-powered cold email agent that finds jobs, discovers recruiter contacts, and writes personalized outreach emails automatically.'
+      ]
+    );
+    res.json({ status: 'inserted', id: r.rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/insert-knight-leads?key=… — one-time insert of knightleads.com draft listing. Idempotent.
 app.get('/admin/insert-knight-leads', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
