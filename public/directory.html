@@ -2788,7 +2788,9 @@ function buildMarquee(){
     const cls=b.priority?'dir-marquee-item dir-marquee-priority':'dir-marquee-item';
     return `<a class="${cls}" href="${href}" title="${b.n} on ToolIndex">${star}<img class="dir-marquee-logo" src="${favSrc(b.d)}" alt="${b.n}" loading="lazy" onerror="${favErr(b.d)}"/>${b.n}</a>`;
   };
-  el.innerHTML=band1.map(mk).join('')+band1.map(mk).join('');
+  const peerlistBadge=`<a href="https://peerlist.io/strategiflow/project/toolindex" target="_blank" rel="noreferrer" style="flex-shrink:0;display:inline-flex;align-items:center;"><img src="https://peerlist.io/api/v1/projects/embed/PRJHP6LO87PQA77Q63ROA6EAJDQRN6?showUpvote=false&theme=dark" alt="ToolIndex" style="width:auto;height:72px;" loading="lazy"/></a>`;
+  const band1Html=band1.map(mk).join('');
+  el.innerHTML=band1Html+peerlistBadge+band1Html+peerlistBadge;
   if(el2) el2.innerHTML=band2.map(mk).join('')+band2.map(mk).join('');
 }
 
