@@ -1985,6 +1985,7 @@ window.addEventListener('DOMContentLoaded', () => {
           if (loadTitle) loadTitle.textContent = 'Analyzing... this can take up to 40 seconds';
           pollWhyJob(
             job.id,
+            job.token || '',
             (result) => { outputData = result; hideLoading(); renderOutput(result); },
             (errMsg) => { hideLoading(); resetLoadingSteps(); showError('Analysis failed: ' + errMsg); }
           );
@@ -2005,6 +2006,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const resumeFixInterval = animateFixSteps();
             pollWhyJob(
               job.id,
+              job.token || '',
               (result) => {
                 clearInterval(resumeFixInterval);
                 resetFixSteps();
@@ -2282,14 +2284,14 @@ function revealFixContent(text) {
 // ===== ASYNC JOB POLLING =====
 const WHY_JOB_KEY = 'why_pending_job';
 
-function savePendingJob(id, type) {
-  try { localStorage.setItem(WHY_JOB_KEY, JSON.stringify({ id, type, startedAt: Date.now() })); } catch (_) {}
+function savePendingJob(id, type, token) {
+  try { localStorage.setItem(WHY_JOB_KEY, JSON.stringify({ id, type, token: token || '', startedAt: Date.now() })); } catch (_) {}
 }
 function clearPendingJob() {
   try { localStorage.removeItem(WHY_JOB_KEY); } catch (_) {}
 }
 
-function pollWhyJob(jobId, onComplete, onError) {
+function pollWhyJob(jobId, token, onComplete, onError) {
   const started = Date.now();
   const MAX_WAIT = 300000;
   function check() {
@@ -2298,7 +2300,7 @@ function pollWhyJob(jobId, onComplete, onError) {
       onError('Timeout — please try again.');
       return;
     }
-    fetch('/api/why-job/' + jobId)
+    fetch('/api/why-job/' + jobId + (token ? '?token=' + encodeURIComponent(token) : ''))
       .then(r => r.json())
       .then(data => {
         if (data.status === 'complete') { clearPendingJob(); onComplete(data.result, data.jobType); return; }
@@ -2384,11 +2386,12 @@ ${input}`;
     }
     if (data.error) throw new Error(data.error);
 
-    savePendingJob(data.id, 'analyze');
+    savePendingJob(data.id, 'analyze', data.token || '');
     const loadTitle = document.querySelector('.loading-title');
     if (loadTitle) loadTitle.textContent = 'Analyzing... this can take up to 40 seconds';
     pollWhyJob(
       data.id,
+      data.token || '',
       (result) => {
         clearInterval(loadInterval);
         outputData = result;
@@ -2729,10 +2732,11 @@ ${input}`;
     }
     if (data.error) throw new Error(data.error);
 
-    savePendingJob(data.id, 'rebuild');
+    savePendingJob(data.id, 'rebuild', data.token || '');
     fixBtn.textContent = 'Rebuilding... (up to 40s)';
     pollWhyJob(
       data.id,
+      data.token || '',
       (result) => {
         clearInterval(fixStepInterval);
         resetFixSteps();

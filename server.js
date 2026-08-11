@@ -52,7 +52,7 @@ async function getActiveListingCount() {
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // ── DECISION FRICTION INDEX ──────────────────────────────────────────────────
 const INDEX_ADMIN_KEY = process.env.INDEX_ADMIN_KEY || '';
@@ -11440,14 +11440,14 @@ app.post('/admin/upgrade', async (req, res) => {
 });
 
 // ── OWNER PANEL ──
-const OWNER_PASSWORD = 'SFowner2026AAI24!';
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD;
 
 app.get('/owner', (req, res) => {
   res.sendFile('owner.html', { root: 'public' });
 });
 
 app.post('/owner-auth', (req, res) => {
-  if (req.body.password === OWNER_PASSWORD) return res.json({ ok: true });
+  if (OWNER_PASSWORD && req.body.password === OWNER_PASSWORD) return res.json({ ok: true });
   res.status(403).json({ ok: false });
 });
 
@@ -17873,6 +17873,14 @@ setupDB().then(async () => {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // HMAC token for /api/why-job/:id — prevents guessing sequential job IDs
+  function whyJobToken(jobId) {
+    return crypto.createHmac('sha256', process.env.SESSION_SECRET || 'why-job-hmac-fallback')
+      .update(String(jobId))
+      .digest('hex')
+      .slice(0, 32);
+  }
+
   app.post('/api/why-analyze', async (req, res) => {
     const rawIp = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
     const ipParts = rawIp.split('.');
@@ -17925,7 +17933,7 @@ setupDB().then(async () => {
     } catch (dbErr) {
       return res.status(500).json({ error: 'job_create_failed' });
     }
-    res.json({ id: jobId });
+    res.json({ id: jobId, token: whyJobToken(jobId) });
 
     // Phase 2: fire-and-forget — completely separate from res lifecycle
     try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-analyze', content_type: contentType || 'unknown', char_count: charCount, status: 'queued' }); } catch (_) {}
@@ -18051,7 +18059,7 @@ setupDB().then(async () => {
     } catch (dbErr) {
       return res.status(500).json({ error: 'job_create_failed' });
     }
-    res.json({ id: jobId });
+    res.json({ id: jobId, token: whyJobToken(jobId) });
 
     // Phase 2: fire-and-forget — completely separate from res lifecycle
     try { appendWhyLog({ timestamp: new Date().toISOString(), ip: anonIp, route: '/api/why-rebuild', content_type: contentType || 'unknown', char_count: charCount, status: 'queued' }); } catch (_) {}
@@ -18102,6 +18110,11 @@ setupDB().then(async () => {
   app.get('/api/why-job/:id', async (req, res) => {
     try {
       const { id } = req.params;
+      const expectedToken = whyJobToken(id);
+      const providedToken = req.query.token || '';
+      if (!providedToken || providedToken !== expectedToken) {
+        return res.status(401).json({ error: 'unauthorized' });
+      }
       const r = await pool.query(
         `SELECT status, job_type, result_json, error_message FROM why_jobs
          WHERE id = $1 AND created_at > NOW() - INTERVAL '2 hours'`,
@@ -19692,7 +19705,7 @@ setupDB().then(async () => {
   // GET /ga-report?top=20&start=7daysAgo&end=today   (explicit top N)
   app.get('/ga-report', async (req, res) => {
     const adminKey = req.headers['x-admin-key'] || req.query.key;
-    if (adminKey !== process.env.WHY_ADMIN_KEY && adminKey !== ADMIN_PASSWORD) {
+    if (!adminKey || (adminKey !== process.env.WHY_ADMIN_KEY && (!ADMIN_PASSWORD || adminKey !== ADMIN_PASSWORD))) {
       return res.status(401).json({ error: 'Unauthorized — pass X-Admin-Key header or ?key= param' });
     }
     try {
