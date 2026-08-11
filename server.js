@@ -329,7 +329,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000
@@ -13892,6 +13892,7 @@ app.post('/architecture-signup', async (req, res) => {
 });
 
 app.get('/test-sequence', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
   const email = (req.query.email || '').toLowerCase().trim();
   if (!email) return res.status(400).json({ error: 'Provide ?email=...' });
   const results = [];
