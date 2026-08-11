@@ -2585,10 +2585,10 @@ async function loadFeatured(){
             <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(badgeLabel)}</span>
             ${until?`<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">until ${until}</span>`:''}
           </div>
-          <div class="dir-featured-name">${escHtml(l.name)}</div>
+          <a class="dir-featured-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;display:block;">${escHtml(l.name)}</a>
           <div class="dir-featured-desc">${escHtml((l.description||'').slice(0,120))}</div>
           <div class="dir-featured-footer">
-            <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener">Visit ${escHtml(domain)} →</a>
+            <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
             <div class="dir-featured-votes">▲ ${l.vote_count||0}</div>
           </div>
         </div>`;

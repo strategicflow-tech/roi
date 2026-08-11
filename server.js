@@ -7968,10 +7968,11 @@ async function setupDB() {
     SET featured_tier='premium', featured_until='2099-12-31', is_promoted=TRUE
     WHERE id IN (199, 203)
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
-  // Blink Test — Premium tier badge (separate from Founder Pack)
+  // Blink Test — Premium tier badge + fix URL to point directly to /blink-test
   await pool.query(`
     UPDATE directory_listings
-    SET featured_tier='premium_listing', featured_until='2099-12-31', is_promoted=TRUE
+    SET featured_tier='premium_listing', featured_until='2099-12-31', is_promoted=TRUE,
+        url='https://strategic-flow-audit.replit.app/blink-test'
     WHERE id = 4298
   `).catch((e) => { console.error('[startup] premium_listing migration err:', e.message); });
   // TheSaaSDir (5380) — keep as draft, wipe votes (founder email sent before activation)
