@@ -5663,8 +5663,8 @@ app.get('/api/directory/leaderboard', async (req, res) => {
     let q;
     if (period === 'daily') {
       // Daily tab = listings with the most real organic votes cast today.
-      // Counts actual dir_votes rows for today, excluding synthetic hashes.
-      // Numbers are always <= weekly which are <= all-time. Founder Pack last.
+      // Owner's own apps (199,203,4298) excluded — they're already featured in the grid.
+      // Numbers are always <= weekly which are <= all-time.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending,
                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
@@ -5672,7 +5672,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes,
-                  (dl.id = ANY(ARRAY[199,203,4298]))                                     AS is_founder_pack,
+                  FALSE                                                                  AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
                    AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
@@ -5683,16 +5683,13 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dv.voter_hash NOT LIKE 'claimed_boost_%'
              AND dv.voter_hash NOT LIKE 'seed_%'
            WHERE dl.status='active'
+             AND dl.id NOT IN (199,203,4298)
            GROUP BY dl.id
            HAVING COUNT(dv.id) > 0
-           ORDER BY
-             (dl.id = ANY(ARRAY[199,203,4298])) ASC,
-             period_votes DESC,
-             dl.vote_count DESC
+           ORDER BY period_votes DESC, dl.vote_count DESC
            LIMIT 25`;
     } else if (period === 'weekly') {
-      // Same logic for weekly: Founder Pack shown at bottom without numbered rank.
-      // Listings sorted strictly by period_votes then all-time vote_count.
+      // Weekly: organic votes this week, owner apps excluded (already featured in grid).
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending,
                    CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
@@ -5700,7 +5697,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                         ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes,
-                  (dl.id = ANY(ARRAY[199,203,4298]))                                     AS is_founder_pack,
+                  FALSE                                                                  AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
                    AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
@@ -5711,12 +5708,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dv.voter_hash NOT LIKE 'claimed_boost_%'
              AND dv.voter_hash NOT LIKE 'seed_%'
            WHERE dl.status='active'
+             AND dl.id NOT IN (199,203,4298)
            GROUP BY dl.id
            HAVING COUNT(dv.id) > 0
-           ORDER BY
-             (dl.id = ANY(ARRAY[199,203,4298])) ASC,
-             period_votes DESC,
-             dl.vote_count DESC
+           ORDER BY period_votes DESC, dl.vote_count DESC
            LIMIT 25`;
     } else if (period === 'trending') {
       // Biggest vote velocity in the last 24 hours. Pinned listings always appear
