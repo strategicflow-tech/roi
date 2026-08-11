@@ -5523,6 +5523,19 @@ app.get('/api/directory/daily', async (req, res) => {
   }
 });
 
+// ── Vote rate limit: max 20 votes per IP per 10 minutes ──────────────────────
+const _voteRateLimit = new Map(); // ip → [timestamps]
+function voteRateLimited(ip) {
+  const now = Date.now();
+  const window = 10 * 60 * 1000; // 10 minutes
+  const max = 20;
+  const times = (_voteRateLimit.get(ip) || []).filter(t => now - t < window);
+  if (times.length >= max) return true;
+  times.push(now);
+  _voteRateLimit.set(ip, times);
+  return false;
+}
+
 // ── POST /api/directory/vote/:id ──────────────────────────────────────────────
 app.post('/api/directory/vote/:id', async (req, res) => {
   const lid = parseInt(req.params.id, 10);
@@ -5531,6 +5544,10 @@ app.post('/api/directory/vote/:id', async (req, res) => {
   // Fingerprint: SHA256(IP | first-30-chars-UA | listing_id)
   const ip  = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
   const ua  = (req.headers['user-agent'] || '').slice(0, 30);
+
+  // IP-level rate limit (catches proxy/VPN rotation abuse)
+  if (voteRateLimited(ip)) return res.status(429).json({ error: 'rate_limited', message: 'Too many votes from this IP. Try again later.' });
+
   const hash = crypto.createHash('sha256').update(`${ip}|${ua}|${lid}`).digest('hex');
 
   try {
@@ -5815,13 +5832,30 @@ function emailMatchesDomain(email, productUrl) {
 
 // ── POST /api/directory/claim/start ──────────────────────────────────────────
 // OTP rate limiting: max 1 email per listing+email combo every 5 minutes
-const _otpRateLimit = new Map();
-const OTP_COOLDOWN_MS = 5 * 60 * 1000;
+// + IP-level cap: max 10 OTP requests per IP per hour (prevents multi-listing spam)
+const _otpRateLimit    = new Map();
+const _otpIpRateLimit  = new Map(); // ip → [timestamps]
+const OTP_COOLDOWN_MS  = 5 * 60 * 1000;
+
+function otpIpRateLimited(ip) {
+  const now = Date.now();
+  const window = 60 * 60 * 1000; // 1 hour
+  const max = 10;
+  const times = (_otpIpRateLimit.get(ip) || []).filter(t => now - t < window);
+  if (times.length >= max) return true;
+  times.push(now);
+  _otpIpRateLimit.set(ip, times);
+  return false;
+}
 
 app.post('/api/directory/claim/start', async (req, res) => {
   const { listing_id, email } = req.body || {};
   if (!listing_id || !email || !email.includes('@'))
     return res.status(400).json({ error: 'listing_id and valid email required' });
+
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  if (otpIpRateLimited(ip))
+    return res.status(429).json({ error: 'rate_limited', message: 'Too many verification requests from this IP. Try again in an hour.' });
 
   const rlKey = `${email.toLowerCase()}:${listing_id}`;
   const lastSent = _otpRateLimit.get(rlKey);
@@ -7278,6 +7312,7 @@ app.get('/admin/users', async (req, res) => {
 // ─── END AUTH BLOCK ───────────────────────────────────────────────────────────
 
 app.get('/debug/server', (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
   try {
     const content = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -7288,6 +7323,7 @@ app.get('/debug/server', (req, res) => {
 });
 
 app.get('/debug/prompt', (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
   try {
     const content = fs.readFileSync(path.join(__dirname, 'system-prompt.js'), 'utf8');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -11291,7 +11327,9 @@ app.post('/human-review', async (req, res) => {
 
 // ── ADMIN STATS ──
 app.get('/admin/stats', async (req, res) => {
-  if (!isAdmin(req.headers['x-admin-email'])) return res.status(403).json({ error: 'Forbidden' });
+  const adminOk = isAdmin(req.session?.userEmail) ||
+    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
+  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
   try {
     const [tiers, totU, totN, recent] = await Promise.all([
       pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC'),
@@ -11305,7 +11343,9 @@ app.get('/admin/stats', async (req, res) => {
 
 // ── ADMIN LEARNING INSIGHTS ──
 app.get('/admin/learning-insights', async (req, res) => {
-  if (!isAdmin(req.headers['x-admin-email'])) return res.status(403).json({ error: 'Forbidden' });
+  const adminOk = isAdmin(req.session?.userEmail) ||
+    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
+  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
   try {
     const [industriesRes, lengthRes, recentRes, subjectsRes] = await Promise.all([
       pool.query(`
@@ -11362,7 +11402,9 @@ app.get('/admin/learning-insights', async (req, res) => {
 
 // ── ADMIN USERS ──
 app.get('/admin/users', async (req, res) => {
-  if (!isAdmin(req.headers['x-admin-email'])) return res.status(403).json({ error: 'Forbidden' });
+  const adminOk = isAdmin(req.session?.userEmail) ||
+    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
+  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
   try {
     const q = req.query.q ? `%${req.query.q}%` : '%';
     const r = await pool.query(
@@ -11374,7 +11416,9 @@ app.get('/admin/users', async (req, res) => {
 
 // ── ADMIN UPGRADE ──
 app.post('/admin/upgrade', async (req, res) => {
-  if (!isAdmin(req.headers['x-admin-email'])) return res.status(403).json({ error: 'Forbidden' });
+  const adminOk = isAdmin(req.session?.userEmail) ||
+    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
+  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
   try {
     const { email, tier } = req.body;
     if (!email || !TIER_CONFIGS[tier]) return res.status(400).json({ error: 'Invalid' });
