@@ -5689,29 +5689,23 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            ORDER BY period_votes DESC, dl.vote_count DESC
            LIMIT 25`;
     } else if (period === 'weekly') {
-      // Weekly: organic votes this week, owner apps excluded (already featured in grid).
+      // Weekly: total accumulated votes (synthetic + real) — always larger than daily
+      // organic-only count. Owner apps excluded; sorted by all-time vote_count.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending,
                    CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
                         WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
                         ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                  COUNT(dv.id)::int AS period_votes,
+                  dl.vote_count                                                          AS period_votes,
                   FALSE                                                                  AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
                    AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
-           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
-             AND dv.voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
-             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
-             AND dv.voter_hash NOT LIKE 'daily_growth_%'
-             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
-             AND dv.voter_hash NOT LIKE 'seed_%'
            WHERE dl.status='active'
              AND dl.id NOT IN (199,203,4298)
-           GROUP BY dl.id
-           HAVING COUNT(dv.id) > 0
-           ORDER BY period_votes DESC, dl.vote_count DESC
+             AND dl.vote_count > 0
+           ORDER BY dl.vote_count DESC
            LIMIT 25`;
     } else if (period === 'trending') {
       // Biggest vote velocity in the last 24 hours. Pinned listings always appear
