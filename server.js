@@ -5666,7 +5666,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   dl.vote_count AS period_votes,
-                  (dl.id = ANY(ARRAY[199,203])) AS is_founder_pack,
+                  (dl.id = ANY(ARRAY[199,203,4298])) AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
                    AND dl.claimed_by IS NOT NULL) AS claimed_today
            FROM directory_listings dl
@@ -5674,7 +5674,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
              AND dds.display_date = CURRENT_DATE
            WHERE dl.status = 'active'
            ORDER BY
-             (dl.id = ANY(ARRAY[199,203])) ASC,
+             (dl.id = ANY(ARRAY[199,203,4298])) ASC,
              dl.vote_count DESC
            LIMIT 12`;
     } else if (period === 'weekly') {
@@ -5687,7 +5687,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                         ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
                   COUNT(dv.id)::int AS period_votes,
-                  (dl.id = ANY(ARRAY[199,203]))                                          AS is_founder_pack,
+                  (dl.id = ANY(ARRAY[199,203,4298]))                                     AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
                    AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
@@ -5701,7 +5701,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            GROUP BY dl.id
            HAVING COUNT(dv.id) > 0
            ORDER BY
-             (dl.id = ANY(ARRAY[199,203])) ASC,
+             (dl.id = ANY(ARRAY[199,203,4298])) ASC,
              period_votes DESC,
              dl.vote_count DESC
            LIMIT 25`;
@@ -7958,6 +7958,15 @@ async function setupDB() {
     SET featured_tier='premium', featured_until='2099-12-31', is_promoted=TRUE
     WHERE id IN (199, 203)
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
+  // Blink Test — Premium tier badge (separate from Founder Pack)
+  await pool.query(`
+    UPDATE directory_listings
+    SET featured_tier='premium_listing', featured_until='2099-12-31', is_promoted=TRUE
+    WHERE id = 4298
+  `).catch((e) => { console.error('[startup] premium_listing migration err:', e.message); });
+  // TheSaaSDir (5380) — keep as draft, wipe votes (founder email sent before activation)
+  await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE id=5380`).catch(()=>{});
+  await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
 
   // Manual draft listings — insert on startup if missing (idempotent, keyed by URL)
   const manualDrafts = [
