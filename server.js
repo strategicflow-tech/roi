@@ -5274,6 +5274,9 @@ app.get('/api/directory/activity-feed', async (req, res) => {
           FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
           WHERE dl.status='active'
             AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+            AND dv.voter_hash NOT LIKE 'daily_growth_%'
+            AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+            AND dv.voter_hash NOT LIKE 'seed_%'
           GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
         ),
         fallback AS (
@@ -5281,6 +5284,9 @@ app.get('/api/directory/activity-feed', async (req, res) => {
           FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
           WHERE dl.status='active'
             AND dv.voted_at >= NOW() - INTERVAL '7 days'
+            AND dv.voter_hash NOT LIKE 'daily_growth_%'
+            AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+            AND dv.voter_hash NOT LIKE 'seed_%'
           GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
         )
         SELECT *, (SELECT COUNT(*) FROM today) > 0 AS is_today
