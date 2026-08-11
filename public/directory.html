@@ -417,7 +417,7 @@ a:hover{text-decoration:underline;}
 .dir-activity-stats-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px;flex-shrink:0;animation:pulse 2s infinite;}
 .dir-activity-stats-sep{color:rgba(0,212,200,0.22);padding:0 4px;}
 .dir-milestone{font-family:var(--mono);font-size:10.5px;color:#f59e0b;margin-top:4px;padding:3px 7px;border:1px solid rgba(245,158,11,0.25);border-radius:5px;background:rgba(245,158,11,0.06);width:fit-content;}
-.dir-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px;transition:border-color .2s,transform .2s;}
+.dir-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px;transition:border-color .2s,transform .2s;min-width:0;}
 .dir-card:hover{border-color:var(--border2);transform:translateY(-2px);}
 .dir-card.is-featured{border-color:rgba(245,158,11,0.3);background:linear-gradient(135deg,rgba(245,158,11,0.05),var(--bg2));}
 .dir-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
@@ -429,7 +429,7 @@ a:hover{text-decoration:underline;}
 .dir-cat-tag{display:inline-block;font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
 .dir-desc{font-size:14px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .dir-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
-.dir-card-actions{display:flex;align-items:center;gap:8px;}
+.dir-card-actions{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;}
 .dir-visit{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--teal);font-family:var(--mono);transition:opacity .2s;}
 .dir-visit:hover{opacity:.8;text-decoration:none;}
 .dir-source-tag{font-size:10px;font-family:var(--mono);color:var(--muted);opacity:.7;letter-spacing:.04em;transition:opacity .2s;}
@@ -799,7 +799,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
   .dir-card-name{font-size:17px;}
   .dir-cat-tag{font-size:12px;}
   .dir-desc{font-size:15px;-webkit-line-clamp:4;}
-  .dir-visit{font-size:14px;}
+  .dir-visit{font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .dir-vote-btn{font-size:13px;padding:8px 14px;}
   .dir-vote-btn .vote-arrow{font-size:14px;}
   .dir-boost-btn{font-size:12px;padding:6px 12px;}
