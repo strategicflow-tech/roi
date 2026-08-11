@@ -61,6 +61,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <input type="password" id="adminKey" placeholder="Admin key (WHY_ADMIN_KEY)" />
   <button class="btn" onclick="loadAll()">Load dashboard</button>
 </div>
+<div id="globalErr" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;font-size:12px;font-family:monospace;padding:10px 14px;border-radius:6px;margin-bottom:16px"></div>
 
 <!-- Stats -->
 <div class="stats-grid" id="statsGrid" style="display:none">
@@ -132,48 +133,47 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 
 <script>
-// Auto-fill key from URL ?key= param so dashboard loads immediately on mobile
-(function() {
-  const p = new URLSearchParams(window.location.search).get('key');
-  if (p) { window.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('adminKey');
-    if (el) { el.value = p; loadAll(); }
-  }); }
-})();
-
 const KEY = () => document.getElementById('adminKey').value.trim();
 let currentPage = 1, debTimer = null;
 
 async function api(path, opts={}) {
   const sep = path.includes('?') ? '&' : '?';
   const r = await fetch(path + sep + 'key=' + encodeURIComponent(KEY()), opts);
+  if (!r.ok && r.status === 403) throw new Error('forbidden');
   return r.json();
 }
 
 async function loadAll() {
+  const errEl = document.getElementById('globalErr');
+  errEl.style.display = 'none';
   if (!KEY()) { alert('Enter admin key first'); return; }
-  await Promise.all([loadStats(), loadContacts(1)]);
-  document.getElementById('statsGrid').style.display = '';
-  document.getElementById('uploadPanel').style.display = '';
-  document.getElementById('batchPanel').style.display = '';
-  document.getElementById('contactsPanel').style.display = '';
+  try {
+    await Promise.all([loadStats(), loadContacts(1)]);
+    document.getElementById('statsGrid').style.display = '';
+    document.getElementById('uploadPanel').style.display = '';
+    document.getElementById('batchPanel').style.display = '';
+    document.getElementById('contactsPanel').style.display = '';
+  } catch(e) {
+    errEl.style.display = '';
+    errEl.textContent = 'API error: ' + e.message + ' — check the admin key.';
+  }
 }
 
 async function loadStats() {
   const d = await api('/admin/seq-stats');
-  if (d.error) return;
+  if (d.error) throw new Error(d.error);
   const s = d.stats;
-  document.getElementById('sTotal').textContent   = s.total;
-  document.getElementById('sStep1').textContent   = s.step1_done;
-  document.getElementById('sStep2').textContent   = s.step2_done;
-  document.getElementById('sStep3').textContent   = s.step3_done;
-  document.getElementById('sS1Pend').textContent  = s.step1_pending;
-  document.getElementById('sS2Ready').textContent = s.step2_ready;
-  document.getElementById('sS3Ready').textContent = s.step3_ready;
-  document.getElementById('sStopped').textContent = s.stopped;
-  document.getElementById('sA').textContent       = s.cluster_a;
-  document.getElementById('sB').textContent       = s.cluster_b;
-  document.getElementById('sC').textContent       = s.cluster_c;
+  document.getElementById('sTotal').textContent   = s.total   ?? '?';
+  document.getElementById('sStep1').textContent   = s.step1_done ?? '?';
+  document.getElementById('sStep2').textContent   = s.step2_done ?? '?';
+  document.getElementById('sStep3').textContent   = s.step3_done ?? '?';
+  document.getElementById('sS1Pend').textContent  = s.step1_pending ?? '?';
+  document.getElementById('sS2Ready').textContent = s.step2_ready ?? '?';
+  document.getElementById('sS3Ready').textContent = s.step3_ready ?? '?';
+  document.getElementById('sStopped').textContent = s.stopped  ?? '?';
+  document.getElementById('sA').textContent       = s.cluster_a ?? '?';
+  document.getElementById('sB').textContent       = s.cluster_b ?? '?';
+  document.getElementById('sC').textContent       = s.cluster_c ?? '?';
   document.getElementById('capLabel').textContent = d.daily_cap;
 }
 
@@ -269,6 +269,13 @@ async function runBatch() {
 
 function debounceLoad() { clearTimeout(debTimer); debTimer=setTimeout(()=>loadContacts(1),400); }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Script is at bottom of <body> — DOM is ready, async functions are hoisted.
+// Auto-fill key from ?key= and load immediately if present.
+(function() {
+  const k = new URLSearchParams(window.location.search).get('key');
+  if (k) { document.getElementById('adminKey').value = k; loadAll(); }
+})();
 </script>
 </body>
 </html>
