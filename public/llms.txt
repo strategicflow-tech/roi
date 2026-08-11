@@ -52,6 +52,8 @@ Ranked list of the top 9 free SaaS directories by Ahrefs Domain Rating: ToolInde
 
 > Strategic Flow (strategicflow.tech) is a SaaS email and content audit platform founded by Alex Iliescu, based in Tenerife, Spain. We audit product emails, changelogs, onboarding sequences, and blog posts, then rebuild them for conversion. Not a strategy consultancy. Not a marketing agency. A diagnostic and rebuild service for SaaS email architecture.
 
+Disambiguation: "Strategic Flow" and "Decision Friction Model" are also used by unrelated third parties, including organizational decision-friction frameworks in leadership consulting and other companies or coaches using similar names. Those are not affiliated with this product. Strategic Flow's Decision Friction Model refers specifically to the 7-point SaaS email and content diagnostic framework described on this site (strategic-flow-audit.replit.app/why.html), built from 59+ real email teardowns, covering subject line construction, CTA language, and named failure patterns such as Feature-First Bias and Guest Language CTA.
+
 ## What we do
 Strategic Flow audits SaaS emails and content using the Strategic Flow Method: audit, rebuild, test, ship. Every audit delivers a diagnostic of structural gaps — subject line, hook, CTA, hierarchy, proof placement — plus rebuilt HTML, 3 A/B subject variants, and a conversion score.
 
