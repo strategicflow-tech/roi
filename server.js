@@ -7990,13 +7990,6 @@ async function setupDB() {
       description: 'CodeTrendy is a curated directory of newly launched startups, SaaS tools, and indie products, each listing is human-reviewed and organized by category, with 449+ products already listed. Founders can submit a product URL and details, free submissions get reviewed before going live while paid plans go live instantly. Free listings get a permanent public profile with a nofollow link, premium listings get a DR 58 dofollow backlink. The platform includes gamification, users earn engagement points, climb tiers, and appear on real-time leaderboards based on actual community votes. A weekly digest newsletter features top listings and community activity.',
       category: 'Directories',
     },
-    {
-      name: 'BetterClaw',
-      url: 'https://www.betterclaw.io/',
-      description: 'No-code AI agent builder for teams that need agents working, not infrastructure. Describe a job in chat and your agent runs it — on schedule, across Slack, Telegram, Discord and Gmail, with your tools connected. Free forever, bring your own LLM key. Runs any OpenClaw skill, works with 28+ LLM providers. ISO 27001 certified.',
-      category: 'AI Tools',
-      image_url: 'https://www.betterclaw.io/img/logos/betterclaw-logo.png',
-    },
   ];
   for (const d of manualDrafts) {
     const exists = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [d.url]).catch(() => ({ rows: [1] }));
