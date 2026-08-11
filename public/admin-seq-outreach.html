@@ -132,6 +132,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 
 <script>
+// Auto-fill key from URL ?key= param so dashboard loads immediately on mobile
+(function() {
+  const p = new URLSearchParams(window.location.search).get('key');
+  if (p) { window.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('adminKey');
+    if (el) { el.value = p; loadAll(); }
+  }); }
+})();
+
 const KEY = () => document.getElementById('adminKey').value.trim();
 let currentPage = 1, debTimer = null;
 
