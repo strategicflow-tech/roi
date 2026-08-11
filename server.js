@@ -5875,6 +5875,14 @@ app.post('/api/directory/claim/start', async (req, res) => {
     if (listing.claimed_by && listing.claimed_by !== email.toLowerCase())
       return res.status(409).json({ error: 'claimed_by_other' });
 
+    // Soft domain-mismatch check — OTP is still sent, frontend shows a warning
+    const emailDomain = email.toLowerCase().split('@')[1] || '';
+    let listingDomain = '';
+    try { listingDomain = new URL(listing.url).hostname.replace(/^www\./, ''); } catch {}
+    // Mismatch if neither domain is a suffix of the other
+    const domain_mismatch = !!(listingDomain && emailDomain &&
+      !listingDomain.endsWith(emailDomain) && !emailDomain.endsWith(listingDomain));
+
     const otp     = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -5901,8 +5909,8 @@ app.post('/api/directory/claim/start', async (req, res) => {
     });
 
     _otpRateLimit.set(rlKey, Date.now());
-    console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}`);
-    res.json({ ok: true });
+    console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}${domain_mismatch ? ' [domain_mismatch]' : ''}`);
+    res.json({ ok: true, domain_mismatch, listing_domain: listingDomain });
   } catch(err) {
     console.error('[dir-claim/start]', err.message);
     res.status(500).json({ error: 'server_error' });
