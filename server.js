@@ -3576,6 +3576,239 @@ app.get('/admin/outreach', (req, res) => {
 });
 
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ── 3-STEP COLD EMAIL SEQUENCE SYSTEM ────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+const OUTREACH_DAILY_CAP = parseInt(process.env.OUTREACH_DAILY_CAP || '25', 10);
+
+const SEQ_TEMPLATES = {
+  A_PMM: {
+    1: { subject: 'launch emails have a blind spot',
+         body: `Hi {{first_name}},\n\nReviewing product launch emails lately, I kept seeing the same thing. The email announces the feature. The reader still has to work out why it matters to them before they click.\n\nAt {{company}}, that's probably the email that goes out right before a launch hits the whole list.\n\nUsually it gets opened. Then nothing happens. No clicks, no forwards, no real movement.\n\nCurious what click rates typically look like on your launch emails?` },
+    2: { subject: 'same feature, two different reactions',
+         body: `Hi {{first_name}},\n\nSame pattern, different company, every time.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nI've been documenting this across SaaS launch emails. Happy to send a few examples if useful.` },
+    3: { subject: '59 launches later, one recurring bug',
+         body: `Hi {{first_name}},\n\nLast note from me.\n\nI've audited 59 SaaS launch and product update emails this year. Average score before rebuild: 3.4/10. After: 9/10.\n\nSame structural bug almost every time: the CTA describes what the product does, not what the reader gets to fix, unlock, or avoid.\n\nBuilt a free diagnostic around it. Paste an email in, 60 seconds, no signup. It shows the score and the exact friction points.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+  },
+  B_Lifecycle: {
+    1: { subject: "day 7 still hasn't said why",
+         body: `Hi {{first_name}},\n\nReviewing onboarding sequences lately, I kept seeing the same structural gap. Day 1 explains the feature. Day 3 repeats it. Day 7 still hasn't said why any of it matters to this specific user.\n\nAt {{company}}, that's usually the sequence deciding whether a trial converts, before anyone on the team notices it's leaking.\n\nCurious how activation looks between day 1 and day 7 right now?` },
+    2: { subject: 'same slot, different job',
+         body: `Hi {{first_name}},\n\nSame gap, every lifecycle sequence I've audited this year.\n\nBEFORE (Day 3): "Here's how [Feature] works"\nAFTER (Day 3): "You haven't used [Feature] yet, here's what that's costing you"\n\nSame email slot. Different job.\n\nDocumenting these patterns across SaaS onboarding flows. Happy to send a few if useful.` },
+    3: { subject: 'the pattern across 59 sequences',
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 email sequences audited this year, SaaS onboarding and product updates. Average score before: 3.4/10. After rebuild: 9/10.\n\nThe recurring bug in lifecycle sequences specifically: emails are ordered by feature, not by the moment the user is actually stuck.\n\nBuilt a free diagnostic. Paste an email in, 60 seconds, no signup. Shows the score and exact friction points.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+  },
+  C_EmailMgr: {
+    1: { subject: "it's rarely the subject line",
+         body: `Hi {{first_name}},\n\nReviewing email programs lately, I kept seeing the same thing. Subject line creates curiosity. Body opens with the feature. CTA says "Learn more."\n\nAt {{company}}, that's probably one of the sends going out to the full list this month.\n\nCurious what average CTR looks like across those sends?` },
+    2: { subject: "two paragraphs in, that's the bottleneck",
+         body: `Hi {{first_name}},\n\nTeams spend weeks on subject lines. The bottleneck is usually two paragraphs in.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nDocumenting this across dozens of SaaS email programs. Happy to send examples if useful.` },
+    3: { subject: '59 audits, one bug that keeps repeating',
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 emails audited this year. Average score before: 3.4/10. After rebuild: 9/10. Same 3-4 structural bugs, almost every time.\n\nBuilt a free diagnostic around the pattern. Paste an email in, 60 seconds, no signup.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+  },
+};
+
+// Shared signature — identical to buildClaimOutreachEmail
+const SEQ_SIG_HTML = `<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p><p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>`;
+const SEQ_SIG_TEXT = `\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain\n\nReply to let us know if you'd rather not hear from us again.`;
+
+function buildSeqEmail(contact, stepNum) {
+  const tpl = SEQ_TEMPLATES[contact.cluster]?.[stepNum];
+  if (!tpl) throw new Error(`No template: cluster=${contact.cluster} step=${stepNum}`);
+  const merge = s => s
+    .replace(/\{\{first_name\}\}/g, contact.first_name || 'there')
+    .replace(/\{\{company\}\}/g,   contact.company    || 'your company');
+  const bodyText = merge(tpl.body);
+  const bodyHtml = bodyText.split('\n\n')
+    .map(p => `<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.65;">${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+  return {
+    subject: tpl.subject,
+    html:    `<div style="font-family:Georgia,serif;max-width:580px;margin:auto;padding:32px 24px;color:#1f2937;background:#ffffff;">${bodyHtml}${SEQ_SIG_HTML}</div>`,
+    text:    bodyText + SEQ_SIG_TEXT,
+  };
+}
+
+// CSV parser (no external library needed)
+function parseCsvLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  result.push(cur);
+  return result;
+}
+function parseSeqCsv(csvText) {
+  const lines = csvText.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if (!lines.length) return [];
+  const hdr = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g,''));
+  const col = k => hdr.findIndex(h => h === k);
+  const eIdx = col('to_email'); const cIdx = col('cluster');
+  if (eIdx < 0 || cIdx < 0) throw new Error('CSV must have columns: to_email, cluster');
+  const fnIdx = col('first_name'); const coIdx = col('company'); const tIdx = col('title');
+  const VALID = new Set(['A_PMM','B_Lifecycle','C_EmailMgr']);
+  const seen = new Map();
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim(); if (!line) continue;
+    const cols = parseCsvLine(line);
+    const email = (cols[eIdx]||'').trim().toLowerCase();
+    if (!email || !email.includes('@') || seen.has(email)) continue;
+    const cluster = (cols[cIdx]||'').trim();
+    if (!VALID.has(cluster)) continue;
+    seen.set(email, {
+      to_email:   email,
+      first_name: fnIdx >= 0 ? (cols[fnIdx]||'').trim() : '',
+      company:    coIdx >= 0 ? (cols[coIdx]||'').trim() : '',
+      title:      tIdx  >= 0 ? (cols[tIdx] ||'').trim() : '',
+      cluster,
+    });
+  }
+  return [...seen.values()];
+}
+
+// Core batch runner — returns {sent, errors, log[]}
+async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
+  const r = await pool.query(`
+    SELECT id, to_email, first_name, company, cluster, step, priority_at FROM (
+      SELECT id, to_email, first_name, company, cluster, 1 AS step, imported_at AS priority_at
+      FROM outreach_seq_contacts
+      WHERE stop_sequence = false AND step1_sent_at IS NULL
+      UNION ALL
+      SELECT id, to_email, first_name, company, cluster, 2, step1_sent_at
+      FROM outreach_seq_contacts
+      WHERE stop_sequence = false AND step1_sent_at IS NOT NULL
+        AND step2_sent_at IS NULL AND step1_sent_at <= NOW() - INTERVAL '4 days'
+      UNION ALL
+      SELECT id, to_email, first_name, company, cluster, 3, step2_sent_at
+      FROM outreach_seq_contacts
+      WHERE stop_sequence = false AND step2_sent_at IS NOT NULL
+        AND step3_sent_at IS NULL AND step1_sent_at <= NOW() - INTERVAL '8 days'
+    ) q ORDER BY step ASC, priority_at ASC LIMIT $1`, [cap]);
+  let sent = 0, errors = 0; const log = [];
+  for (const contact of r.rows) {
+    try {
+      const { subject, html, text } = buildSeqEmail(contact, contact.step);
+      await resend.emails.send({ from: SENDER, to: contact.to_email, replyTo: 'strategicflow@proton.me', subject, html, text });
+      const col = `step${contact.step}_sent_at`;
+      await pool.query(`UPDATE outreach_seq_contacts SET ${col}=NOW() WHERE id=$1`, [contact.id]);
+      log.push(`✓ step${contact.step} → ${contact.to_email}`); sent++;
+    } catch(e) {
+      const col = `step${contact.step}_error`;
+      await pool.query(`UPDATE outreach_seq_contacts SET ${col}=$1 WHERE id=$2`, [e.message.slice(0,500), contact.id]).catch(()=>{});
+      log.push(`✗ step${contact.step} → ${contact.to_email}: ${e.message}`); errors++;
+    }
+    await new Promise(res => setTimeout(res, 120)); // pace sends
+  }
+  return { sent, errors, total: r.rows.length, log };
+}
+
+// Multer instance for CSV uploads
+const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// ── GET /admin/seq-outreach?key=… — admin dashboard page ─────────────────────
+app.get('/admin/seq-outreach', (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
+  res.sendFile(path.join(__dirname, 'public', 'admin-seq-outreach.html'));
+});
+
+// ── POST /admin/seq-upload-csv?key=… — import contacts from CSV ───────────────
+app.post('/admin/seq-upload-csv', csvUpload.single('csv'), async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const contacts = parseSeqCsv(req.file.buffer.toString('utf8'));
+    if (!contacts.length) return res.status(400).json({ error: 'No valid contacts found in CSV' });
+    let imported = 0, skipped = 0;
+    for (const c of contacts) {
+      const r = await pool.query(
+        `INSERT INTO outreach_seq_contacts (to_email, first_name, company, title, cluster)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT (to_email) DO NOTHING`,
+        [c.to_email, c.first_name, c.company, c.title, c.cluster]
+      );
+      if (r.rowCount > 0) imported++; else skipped++;
+    }
+    console.log(`[seq-outreach] CSV import: ${imported} imported, ${skipped} skipped (duplicates)`);
+    res.json({ ok: true, imported, skipped, total_in_file: contacts.length });
+  } catch(e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ── GET /admin/seq-stats?key=… — campaign statistics ─────────────────────────
+app.get('/admin/seq-stats', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        COUNT(*)                                          AS total,
+        COUNT(*) FILTER (WHERE stop_sequence)            AS stopped,
+        COUNT(*) FILTER (WHERE step1_sent_at IS NOT NULL) AS step1_done,
+        COUNT(*) FILTER (WHERE step2_sent_at IS NOT NULL) AS step2_done,
+        COUNT(*) FILTER (WHERE step3_sent_at IS NOT NULL) AS step3_done,
+        COUNT(*) FILTER (WHERE step1_sent_at IS NULL AND NOT stop_sequence) AS step1_pending,
+        COUNT(*) FILTER (WHERE step1_sent_at IS NOT NULL AND step2_sent_at IS NULL AND NOT stop_sequence
+                          AND step1_sent_at <= NOW()-INTERVAL '4 days') AS step2_ready,
+        COUNT(*) FILTER (WHERE step2_sent_at IS NOT NULL AND step3_sent_at IS NULL AND NOT stop_sequence
+                          AND step1_sent_at <= NOW()-INTERVAL '8 days') AS step3_ready,
+        COUNT(*) FILTER (WHERE cluster='A_PMM')          AS cluster_a,
+        COUNT(*) FILTER (WHERE cluster='B_Lifecycle')     AS cluster_b,
+        COUNT(*) FILTER (WHERE cluster='C_EmailMgr')      AS cluster_c
+      FROM outreach_seq_contacts`);
+    res.json({ ok: true, stats: rows[0], daily_cap: OUTREACH_DAILY_CAP });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── GET /admin/seq-contacts?key=…&page=N&q=…&cluster=… — paginated list ──────
+app.get('/admin/seq-contacts', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const page = Math.max(1, parseInt(req.query.page || '1', 10));
+  const limit = 50; const offset = (page - 1) * limit;
+  const q = req.query.q ? `%${req.query.q}%` : null;
+  const cluster = req.query.cluster || null;
+  try {
+    const params = [limit, offset];
+    let where = 'WHERE 1=1';
+    if (q)       { params.push(q); where += ` AND (to_email ILIKE $${params.length} OR first_name ILIKE $${params.length} OR company ILIKE $${params.length})`; }
+    if (cluster) { params.push(cluster); where += ` AND cluster=$${params.length}`; }
+    const { rows } = await pool.query(
+      `SELECT id, to_email, first_name, company, title, cluster,
+              step1_sent_at, step2_sent_at, step3_sent_at,
+              step1_error, step2_error, step3_error,
+              stop_sequence, imported_at
+       FROM outreach_seq_contacts ${where}
+       ORDER BY imported_at DESC LIMIT $1 OFFSET $2`, params);
+    const tot = await pool.query(`SELECT COUNT(*) FROM outreach_seq_contacts ${where}`,
+      params.slice(2));
+    res.json({ ok: true, contacts: rows, total: parseInt(tot.rows[0].count, 10), page, limit });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/seq-stop-contact?key=…&id=…&stop=0|1 — toggle stop ───────────
+app.post('/admin/seq-stop-contact', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const id = parseInt(req.query.id || req.body?.id, 10);
+  const stop = (req.query.stop ?? req.body?.stop) !== '0';
+  if (!id) return res.status(400).json({ error: 'missing id' });
+  await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=$1 WHERE id=$2`, [stop, id]);
+  res.json({ ok: true, id, stop_sequence: stop });
+});
+
+// ── POST /admin/seq-run-batch?key=…&cap=N — manually trigger a batch ─────────
+app.post('/admin/seq-run-batch', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const cap = Math.min(parseInt(req.query.cap || String(OUTREACH_DAILY_CAP), 10), 100);
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const result = await runSeqOutreachBatch(cap);
+    console.log(`[seq-outreach] manual batch: ${result.sent} sent, ${result.errors} errors`);
+    res.json({ ok: true, ...result });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── GET /admin/run-vote-growth?key=… — manually trigger daily vote growth cron ─
 app.get('/admin/run-vote-growth', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -8188,6 +8421,28 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] dir_vote_snapshots:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dvs_date ON dir_vote_snapshots(snapshot_date DESC)`).catch(()=>{});
+
+  // ── 3-step cold email outreach sequence contacts ─────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outreach_seq_contacts (
+      id             SERIAL PRIMARY KEY,
+      to_email       TEXT NOT NULL UNIQUE,
+      first_name     TEXT NOT NULL DEFAULT '',
+      company        TEXT NOT NULL DEFAULT '',
+      title          TEXT NOT NULL DEFAULT '',
+      cluster        TEXT NOT NULL CHECK (cluster IN ('A_PMM','B_Lifecycle','C_EmailMgr')),
+      step1_sent_at  TIMESTAMPTZ,
+      step2_sent_at  TIMESTAMPTZ,
+      step3_sent_at  TIMESTAMPTZ,
+      step1_error    TEXT,
+      step2_error    TEXT,
+      step3_error    TEXT,
+      stop_sequence  BOOLEAN NOT NULL DEFAULT FALSE,
+      imported_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] outreach_seq_contacts:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_cluster ON outreach_seq_contacts(cluster)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_stop ON outreach_seq_contacts(stop_sequence) WHERE stop_sequence = false`).catch(()=>{});
 
   // ── Force-deactivate known non-SaaS listings (runs on every deploy) ─────
   await pool.query(
@@ -20402,6 +20657,14 @@ ${content}
 
   // ── Daily 10:00: notify claimed owners whose 30-day relaunch window just opened ──
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
+
+  // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
+  cron.schedule('0 7 * * *', async () => {
+    try {
+      const result = await runSeqOutreachBatch(OUTREACH_DAILY_CAP);
+      console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
+    } catch(e) { console.error('[seq-outreach] cron error:', e.message); }
+  });
 
   // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
   // cron.schedule('0 4 * * *', ...) — batch friction scorer DISABLED

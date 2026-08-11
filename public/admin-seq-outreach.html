@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outreach Sequence — Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#060e1c;color:#e2e8f0;min-height:100vh;padding:24px}
+h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px}
+.sub{font-size:12px;color:#64748b;font-family:monospace;margin-bottom:28px}
+.key-form{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}
+.key-form input{background:#0d1929;border:1px solid #1e3a5f;color:#e2e8f0;padding:8px 12px;border-radius:6px;font-size:13px;width:320px}
+.key-form button,.btn{background:#00d4c8;color:#041214;font-weight:700;font-size:12px;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-family:monospace;letter-spacing:.04em;white-space:nowrap}
+.btn-red{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.btn-ghost{background:rgba(255,255,255,.06);color:#94a3b8;border:1px solid #1e3a5f}
+.btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:default}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+.stat-card{background:#0d1929;border:1px solid #1e3a5f;border-radius:10px;padding:16px 18px}
+.stat-val{font-size:28px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1}
+.stat-lbl{font-size:11px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:.08em}
+.stat-card.gold .stat-val{color:#f59e0b}
+.stat-card.purple .stat-val{color:#a78bfa}
+.stat-card.red .stat-val{color:#f87171}
+.panel{background:#0d1929;border:1px solid #1e3a5f;border-radius:12px;padding:20px;margin-bottom:20px}
+.panel h2{font-size:13px;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin-bottom:16px}
+.upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.upload-row input[type=file]{background:#060e1c;border:1px solid #1e3a5f;color:#94a3b8;padding:6px 10px;border-radius:6px;font-size:12px;flex:1;min-width:200px}
+.msg{font-size:12px;font-family:monospace;padding:10px 14px;border-radius:6px;margin-top:12px;line-height:1.5}
+.msg.ok{background:rgba(0,212,200,.1);border:1px solid rgba(0,212,200,.25);color:#00d4c8}
+.msg.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters input,.filters select{background:#060e1c;border:1px solid #1e3a5f;color:#e2e8f0;padding:7px 10px;border-radius:6px;font-size:12px}
+.filters input{width:200px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;color:#64748b;font-family:monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid #1e3a5f}
+td{padding:9px 10px;border-bottom:1px solid rgba(30,58,95,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;font-size:10px;font-family:monospace;padding:2px 7px;border-radius:4px;font-weight:600}
+.badge-a{background:rgba(0,212,200,.15);color:#00d4c8;border:1px solid rgba(0,212,200,.25)}
+.badge-b{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}
+.badge-c{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.25)}
+.step-dot{display:inline-block;width:14px;height:14px;border-radius:50%;font-size:9px;text-align:center;line-height:14px;font-weight:700;margin:0 2px}
+.dot-done{background:#00d4c8;color:#041214}
+.dot-pending{background:#1e3a5f;color:#4a6a8a}
+.dot-error{background:#f87171;color:#fff}
+.stopped{opacity:.45}
+.pagination{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:16px}
+.batch-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.batch-log{background:#060e1c;border:1px solid #1e3a5f;border-radius:6px;padding:12px;font-family:monospace;font-size:11px;color:#94a3b8;max-height:200px;overflow-y:auto;margin-top:12px;white-space:pre-wrap;display:none}
+.cap-input{background:#060e1c;border:1px solid #1e3a5f;color:#e2e8f0;padding:7px 10px;border-radius:6px;font-size:12px;width:70px;font-family:monospace}
+</style>
+</head>
+<body>
+
+<h1>📧 3-Step Cold Email Sequence</h1>
+<div class="sub">noreply@strategicflow.tech · reply-to: strategicflow@proton.me · daily cap: <span id="capLabel">25</span></div>
+
+<div class="key-form">
+  <input type="password" id="adminKey" placeholder="Admin key (WHY_ADMIN_KEY)" />
+  <button class="btn" onclick="loadAll()">Load dashboard</button>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid" id="statsGrid" style="display:none">
+  <div class="stat-card"><div class="stat-val" id="sTotal">—</div><div class="stat-lbl">Total contacts</div></div>
+  <div class="stat-card gold"><div class="stat-val" id="sStep1">—</div><div class="stat-lbl">Step 1 sent</div></div>
+  <div class="stat-card gold"><div class="stat-val" id="sStep2">—</div><div class="stat-lbl">Step 2 sent</div></div>
+  <div class="stat-card gold"><div class="stat-val" id="sStep3">—</div><div class="stat-lbl">Step 3 sent</div></div>
+  <div class="stat-card"><div class="stat-val" id="sS1Pend">—</div><div class="stat-lbl">Step 1 pending</div></div>
+  <div class="stat-card"><div class="stat-val" id="sS2Ready">—</div><div class="stat-lbl">Step 2 ready now</div></div>
+  <div class="stat-card"><div class="stat-val" id="sS3Ready">—</div><div class="stat-lbl">Step 3 ready now</div></div>
+  <div class="stat-card red"><div class="stat-val" id="sStopped">—</div><div class="stat-lbl">Stopped</div></div>
+  <div class="stat-card"><div class="stat-val" id="sA">—</div><div class="stat-lbl">A_PMM</div></div>
+  <div class="stat-card"><div class="stat-val" id="sB">—</div><div class="stat-lbl">B_Lifecycle</div></div>
+  <div class="stat-card purple"><div class="stat-val" id="sC">—</div><div class="stat-lbl">C_EmailMgr</div></div>
+</div>
+
+<!-- CSV Upload -->
+<div class="panel" id="uploadPanel" style="display:none">
+  <h2>Import Contacts (CSV)</h2>
+  <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Required columns: <code style="color:#00d4c8">to_email</code>, <code style="color:#00d4c8">cluster</code> (A_PMM / B_Lifecycle / C_EmailMgr). Optional: <code style="color:#94a3b8">first_name</code>, <code style="color:#94a3b8">company</code>, <code style="color:#94a3b8">title</code>. Duplicates are skipped.</p>
+  <div class="upload-row">
+    <input type="file" id="csvFile" accept=".csv,text/csv" />
+    <button class="btn" id="uploadBtn" onclick="uploadCsv()">Upload CSV</button>
+  </div>
+  <div id="uploadMsg" style="display:none" class="msg"></div>
+</div>
+
+<!-- Manual Batch Run -->
+<div class="panel" id="batchPanel" style="display:none">
+  <h2>Run Batch Now</h2>
+  <div class="batch-row">
+    <label style="font-size:12px;color:#94a3b8">Cap for this run:</label>
+    <input class="cap-input" type="number" id="batchCap" value="25" min="1" max="100" />
+    <button class="btn" id="batchBtn" onclick="runBatch()">▶ Run batch</button>
+    <button class="btn btn-ghost" onclick="loadAll()">↻ Refresh stats</button>
+  </div>
+  <div id="batchLog" class="batch-log"></div>
+  <div id="batchMsg" style="display:none;margin-top:10px" class="msg"></div>
+</div>
+
+<!-- Contacts Table -->
+<div class="panel" id="contactsPanel" style="display:none">
+  <h2>Contacts <span id="contactTotal" style="font-weight:400;color:#94a3b8"></span></h2>
+  <div class="filters">
+    <input type="text" id="fSearch" placeholder="Search email / name / company…" oninput="debounceLoad()" />
+    <select id="fCluster" onchange="loadContacts(1)">
+      <option value="">All clusters</option>
+      <option value="A_PMM">A_PMM</option>
+      <option value="B_Lifecycle">B_Lifecycle</option>
+      <option value="C_EmailMgr">C_EmailMgr</option>
+    </select>
+    <button class="btn btn-ghost" onclick="loadContacts(1)">Filter</button>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Company</th>
+        <th>Cluster</th>
+        <th>Steps</th>
+        <th>Imported</th>
+        <th>Action</th>
+      </tr></thead>
+      <tbody id="contactsTbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<script>
+const KEY = () => document.getElementById('adminKey').value.trim();
+let currentPage = 1, debTimer = null;
+
+async function api(path, opts={}) {
+  const sep = path.includes('?') ? '&' : '?';
+  const r = await fetch(path + sep + 'key=' + encodeURIComponent(KEY()), opts);
+  return r.json();
+}
+
+async function loadAll() {
+  if (!KEY()) { alert('Enter admin key first'); return; }
+  await Promise.all([loadStats(), loadContacts(1)]);
+  document.getElementById('statsGrid').style.display = '';
+  document.getElementById('uploadPanel').style.display = '';
+  document.getElementById('batchPanel').style.display = '';
+  document.getElementById('contactsPanel').style.display = '';
+}
+
+async function loadStats() {
+  const d = await api('/admin/seq-stats');
+  if (d.error) return;
+  const s = d.stats;
+  document.getElementById('sTotal').textContent   = s.total;
+  document.getElementById('sStep1').textContent   = s.step1_done;
+  document.getElementById('sStep2').textContent   = s.step2_done;
+  document.getElementById('sStep3').textContent   = s.step3_done;
+  document.getElementById('sS1Pend').textContent  = s.step1_pending;
+  document.getElementById('sS2Ready').textContent = s.step2_ready;
+  document.getElementById('sS3Ready').textContent = s.step3_ready;
+  document.getElementById('sStopped').textContent = s.stopped;
+  document.getElementById('sA').textContent       = s.cluster_a;
+  document.getElementById('sB').textContent       = s.cluster_b;
+  document.getElementById('sC').textContent       = s.cluster_c;
+  document.getElementById('capLabel').textContent = d.daily_cap;
+}
+
+async function loadContacts(page) {
+  currentPage = page || currentPage;
+  const q = document.getElementById('fSearch').value.trim();
+  const cluster = document.getElementById('fCluster').value;
+  let url = `/admin/seq-contacts?page=${currentPage}`;
+  if (q) url += '&q=' + encodeURIComponent(q);
+  if (cluster) url += '&cluster=' + encodeURIComponent(cluster);
+  const d = await api(url);
+  if (d.error) return;
+  document.getElementById('contactTotal').textContent = `(${d.total})`;
+  renderContacts(d.contacts);
+  renderPagination(d.total, d.page, d.limit);
+}
+
+function renderContacts(contacts) {
+  const tbody = document.getElementById('contactsTbody');
+  if (!contacts.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#4a6a8a;padding:24px">No contacts found</td></tr>'; return; }
+  tbody.innerHTML = contacts.map(c => {
+    const cls = c.stop_sequence ? 'stopped' : '';
+    const clsBadge = {A_PMM:'badge-a',B_Lifecycle:'badge-b',C_EmailMgr:'badge-c'}[c.cluster] || '';
+    const dot = (v, e) => `<span class="step-dot ${e ? 'dot-error' : v ? 'dot-done' : 'dot-pending'}" title="${e || (v ? new Date(v).toISOString().slice(0,10) : 'not sent')}">${e ? '!' : v ? '✓' : '·'}</span>`;
+    const imported = c.imported_at ? new Date(c.imported_at).toISOString().slice(0,10) : '—';
+    const stopLabel = c.stop_sequence ? 'Unstopp' : 'Stop';
+    const stopCls = c.stop_sequence ? 'btn' : 'btn btn-red';
+    return `<tr class="${cls}">
+      <td style="font-family:monospace;font-size:11px">${esc(c.to_email)}</td>
+      <td>${esc(c.first_name)}</td>
+      <td style="font-size:11px">${esc(c.company)}</td>
+      <td><span class="badge ${clsBadge}">${c.cluster}</span></td>
+      <td>${dot(c.step1_sent_at,c.step1_error)}${dot(c.step2_sent_at,c.step2_error)}${dot(c.step3_sent_at,c.step3_error)}</td>
+      <td style="font-size:11px;color:#4a6a8a">${imported}</td>
+      <td><button class="${stopCls}" style="font-size:10px;padding:4px 10px" onclick="toggleStop(${c.id},${c.stop_sequence})">${stopLabel}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPagination(total, page, limit) {
+  const pages = Math.ceil(total / limit);
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML=''; return; }
+  let html = '';
+  if (page > 1) html += `<button class="btn btn-ghost" onclick="loadContacts(${page-1})">← Prev</button>`;
+  html += `<span style="font-size:12px;color:#64748b">Page ${page} / ${pages}</span>`;
+  if (page < pages) html += `<button class="btn btn-ghost" onclick="loadContacts(${page+1})">Next →</button>`;
+  el.innerHTML = html;
+}
+
+async function toggleStop(id, currentStop) {
+  const stop = currentStop ? 0 : 1;
+  await api(`/admin/seq-stop-contact?id=${id}&stop=${stop}`, { method: 'POST' });
+  loadContacts();
+}
+
+async function uploadCsv() {
+  const file = document.getElementById('csvFile').files[0];
+  if (!file) { alert('Select a CSV file first'); return; }
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+  const fd = new FormData(); fd.append('csv', file);
+  try {
+    const d = await api('/admin/seq-upload-csv', { method: 'POST', body: fd });
+    const el = document.getElementById('uploadMsg');
+    el.style.display = '';
+    if (d.error) { el.className='msg err'; el.textContent='Error: '+d.error; }
+    else { el.className='msg ok'; el.textContent=`✓ Imported ${d.imported} contacts. Skipped ${d.skipped} duplicates. Total in file: ${d.total_in_file}.`; loadAll(); }
+  } catch(e) { const el=document.getElementById('uploadMsg'); el.style.display=''; el.className='msg err'; el.textContent='Network error'; }
+  finally { btn.disabled=false; btn.textContent='Upload CSV'; }
+}
+
+async function runBatch() {
+  const cap = parseInt(document.getElementById('batchCap').value,10) || 25;
+  const btn = document.getElementById('batchBtn');
+  btn.disabled=true; btn.textContent='Running…';
+  const logEl = document.getElementById('batchLog');
+  const msgEl = document.getElementById('batchMsg');
+  logEl.style.display='none'; msgEl.style.display='none';
+  try {
+    const d = await api(`/admin/seq-run-batch?cap=${cap}`, { method: 'POST' });
+    msgEl.style.display='';
+    if (d.error) { msgEl.className='msg err'; msgEl.textContent='Error: '+d.error; }
+    else {
+      msgEl.className='msg ok';
+      msgEl.textContent=`✓ Batch complete: ${d.sent} sent, ${d.errors} errors, ${d.total} queued.`;
+      if (d.log && d.log.length) { logEl.textContent=d.log.join('\n'); logEl.style.display=''; }
+      loadAll();
+    }
+  } catch(e) { msgEl.style.display=''; msgEl.className='msg err'; msgEl.textContent='Network error'; }
+  finally { btn.disabled=false; btn.textContent='▶ Run batch'; }
+}
+
+function debounceLoad() { clearTimeout(debTimer); debTimer=setTimeout(()=>loadContacts(1),400); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
