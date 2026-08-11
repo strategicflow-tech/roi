@@ -1274,7 +1274,8 @@ app.get('/directory/:slug', async (req, res) => {
     }
 
     const mainR = await pool.query(
-      `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+      `SELECT dl.id, dl.name, dl.url, dl.category,
+              COALESCE(dl.owner_description, dl.description) AS description,
               dl.status,
               CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text ELSE dl.image_url END AS image_url,
               dl.vote_count, dl.featured_tier, dl.is_auto_imported,
@@ -1516,6 +1517,10 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
       ? `⏳ Available in ${relaunchDaysRemaining} day${relaunchDaysRemaining !== 1 ? 's' : ''}`
       : '🔄 Relaunch — push back to "New Today"'}
   </button>
+  ${relaunchDaysRemaining > 0 ? `
+  <button type="button" class="pp-instant-relaunch-btn" onclick="ppCheckout('founder_pack')">
+    ⚡ Want instant relaunch? <span class="pp-instant-relaunch-tag">Founder Pack — $49</span>
+  </button>` : ''}
   <div class="pp-relaunch-msg" id="ppRelaunchMsg"></div>
 </div>`;
 
@@ -1870,6 +1875,9 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .pp-relaunch-btn:hover:not(:disabled){background:rgba(0,212,200,.16);border-color:rgba(0,212,200,.55)}
 .pp-relaunch-btn:disabled{opacity:.45;cursor:not-allowed}
 .pp-relaunch-msg{font-size:12px;font-family:var(--mono);margin-top:8px;min-height:16px}
+.pp-instant-relaunch-btn{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 16px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(167,139,250,.06));border:1px solid rgba(167,139,250,.35);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:#a78bfa;cursor:pointer;transition:background .2s,border-color .2s;letter-spacing:.02em;width:100%;text-align:left}
+.pp-instant-relaunch-btn:hover{background:linear-gradient(135deg,rgba(167,139,250,.22),rgba(167,139,250,.12));border-color:rgba(167,139,250,.6)}
+.pp-instant-relaunch-tag{margin-left:auto;font-size:11px;font-weight:700;color:#c4b5fd;opacity:.85}
 /* Similar tools */
 .similar-section{margin-bottom:24px}
 .similar-title{font-size:13px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
