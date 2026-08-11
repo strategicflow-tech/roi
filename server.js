@@ -5656,27 +5656,34 @@ app.get('/api/directory/leaderboard', async (req, res) => {
   try {
     let q;
     if (period === 'daily') {
-      // Daily tab = today's curated picks (dir_daily_section) sorted by vote_count.
-      // Shows the same 10-12 rotating listings as "Today's Picks", ranked by votes.
-      // Founder Pack IDs (199,203) sorted last so they don't occupy top spots.
+      // Daily tab = listings with the most real organic votes cast today.
+      // Counts actual dir_votes rows for today, excluding synthetic hashes.
+      // Numbers are always <= weekly which are <= all-time. Founder Pack last.
       q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
                   dl.friction_score, dl.score_pending,
                   CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
                        WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
                        ELSE NULL END AS image_url, dl.source, dl.source_url,
                   dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                  dl.vote_count AS period_votes,
-                  (dl.id = ANY(ARRAY[199,203,4298])) AS is_founder_pack,
+                  COUNT(dv.id)::int AS period_votes,
+                  (dl.id = ANY(ARRAY[199,203,4298]))                                     AS is_founder_pack,
                   (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-                   AND dl.claimed_by IS NOT NULL) AS claimed_today
+                   AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
            FROM directory_listings dl
-           JOIN dir_daily_section dds ON dds.listing_id = dl.id
-             AND dds.display_date = CURRENT_DATE
-           WHERE dl.status = 'active'
+           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
+             AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
+             AND dv.voter_hash NOT LIKE 'daily_growth_%'
+             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+             AND dv.voter_hash NOT LIKE 'seed_%'
+           WHERE dl.status='active'
+           GROUP BY dl.id
+           HAVING COUNT(dv.id) > 0
            ORDER BY
              (dl.id = ANY(ARRAY[199,203,4298])) ASC,
+             period_votes DESC,
              dl.vote_count DESC
-           LIMIT 12`;
+           LIMIT 25`;
     } else if (period === 'weekly') {
       // Same logic for weekly: Founder Pack shown at bottom without numbered rank.
       // Listings sorted strictly by period_votes then all-time vote_count.
