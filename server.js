@@ -1585,7 +1585,7 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
 </div>`;
 
     // ── premium badge ─────────────────────────────────────────────────────────
-    const premiumBadge = l.featured_tier === 'premium'
+    const premiumBadge = (l.featured_tier === 'premium' || l.featured_tier === 'premium_listing')
       ? ' <span class="pp-premium-badge">💎 Premium</span>' : '';
     // ── verified badge ────────────────────────────────────────────────────────
     const verifiedBadge = l.verified

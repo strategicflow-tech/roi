@@ -334,6 +334,7 @@ a:hover{text-decoration:underline;}
 .dir-featured-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:10px;font-weight:600;}
 .badge-weekly_feature{background:rgba(245,158,11,0.15);color:var(--gold);border:1px solid rgba(245,158,11,0.3);}
 .badge-premium{background:linear-gradient(135deg,rgba(0,212,200,0.25),rgba(167,139,250,0.2));color:#e0fffe;border:1px solid rgba(0,212,200,0.55);font-weight:700;letter-spacing:.1em;text-shadow:0 0 8px rgba(0,212,200,0.4);}
+.badge-premium_listing{background:linear-gradient(135deg,rgba(167,139,250,0.28),rgba(99,102,241,0.18));color:#e0d4ff;border:1px solid rgba(167,139,250,0.55);font-weight:700;letter-spacing:.1em;text-shadow:0 0 8px rgba(167,139,250,0.35);}
 .badge-daily_top{background:rgba(0,212,200,0.15);color:var(--teal);border:1px solid rgba(0,212,200,0.3);}
 .dir-card.is-premium{position:relative;overflow:hidden;border-color:rgba(0,212,200,0.5);background:linear-gradient(135deg,rgba(0,212,200,0.07) 0%,rgba(167,139,250,0.05) 50%,var(--bg2) 100%);box-shadow:0 0 0 1px rgba(0,212,200,0.12),0 4px 20px rgba(0,212,200,0.07);}
 .dir-card.is-premium:hover{border-color:rgba(0,212,200,0.75);transform:translateY(-3px);box-shadow:0 0 0 1px rgba(0,212,200,0.28),0 8px 32px rgba(0,212,200,0.13);}
@@ -2311,7 +2312,7 @@ function renderCard(l){
   if(l.verified) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Paid verified founder badge">✓ Verified Founder</span>`);
   const spBadgeRow = spBadges.length ? `<div class="dir-badge-row">${spBadges.join('')}</div>` : '';
 
-  return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
+  return `<div class="dir-card${isFeat?' is-featured':''}${(l.featured_tier==='premium'||l.featured_tier==='premium_listing')?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
     <div class="dir-card-top">
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
