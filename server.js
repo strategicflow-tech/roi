@@ -51,7 +51,7 @@ async function getActiveListingCount() {
 }
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
-const BYPASS_EMAILS  = new Set(['strategicflow@proton.me', 'consultantcalatorii@gmail.com', 'alex@strategicflow.tech']);
+const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sfadmin2026';
 
 // ── DECISION FRICTION INDEX ──────────────────────────────────────────────────
