@@ -8392,9 +8392,46 @@ async function setupDB() {
   await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
   // Invisible Exit — always keep as unclaimed draft regardless of how it was inserted
   await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE url='https://invisibleexit.com/' AND claimed_by IS NULL`).catch(()=>{});
-  // Outreach contact emails — set where still empty
-  await pool.query(`UPDATE directory_listings SET contact_email='andrew@thesaasdir.com', contact_email_status='found', outreach_emailed_at=COALESCE(outreach_emailed_at,NOW()) WHERE url='https://thesaasdir.com' AND (contact_email IS NULL OR contact_email='')`).catch(()=>{});
-  await pool.query(`UPDATE directory_listings SET contact_email='vlad@nocodewebsitebuilder.com', contact_email_status='found', outreach_emailed_at=COALESCE(outreach_emailed_at,NOW()) WHERE url='https://nocodewebsitebuilder.com' AND (contact_email IS NULL OR contact_email='')`).catch(()=>{});
+  // Outreach contact emails — set where still empty (idempotent, only fills blank contact_email)
+  const _outreachContacts = [
+    ['support@datablur.app',          '%datablur.app%'],
+    ['admin@soloop.io',               '%soloop.io%'],
+    ['support@sluqe.com',             '%sluqe.com%'],
+    ['support@lokuma.ai',             '%lokuma.ai%'],
+    ['hello@langsync.ai',             '%langsync.ai%'],
+    ['hello@inngest.com',             '%inngest.com%'],
+    ['support@greenmormail.com',      '%greenmormail.com%'],
+    ['support@moldledger.com',        '%moldledger.com%'],
+    ['support@mediapronet.com',       '%mediapronet.com%'],
+    ['info@cfeedback.com',            '%cfeedback.com%'],
+    ['support@byterivet.com',         '%byterivet.com%'],
+    ['support@autovirality.com',      '%autovirality.com%'],
+    ['support@any2url.com',           '%any2url.com%'],
+    ['support@ucpradar.com',          '%ucpradar.com%'],
+    ['support@tokenharbor.ai',        '%tokenharbor.ai%'],
+    ['contact@heypostcard.com',       '%heypostcard.com%'],
+    ['support@aveiro.app',            '%aveiro.app%'],
+    ['hello@trycalculatingnow.com',   '%trycalculatingnow.com%'],
+    ['hello@agent-one.dev',           '%agent-one.dev%'],
+    ['legal@remotestack.in',          '%remotestack.in%'],
+    ['hello@speechmark.co',           '%speechmark.co%'],
+    ['sys@search1api.com',            '%search1api.com%'],
+    ['support@easyrakh.com',          '%easyrakh.com%'],
+    ['contact@rawpixel.com',          '%rawpixel.com%'],
+    ['support@pitch.com',             '%pitch.com%'],
+    ['hello@noodleseed.com',          '%noodleseed.com%'],
+    ['andrew@thesaasdir.com',         '%thesaasdir.com%'],
+    ['vlad@nocodewebsitebuilder.com', '%nocodewebsitebuilder.com%'],
+  ];
+  for (const [email, urlPattern] of _outreachContacts) {
+    await pool.query(
+      `UPDATE directory_listings
+       SET contact_email=$1, contact_email_status='found',
+           outreach_emailed_at=COALESCE(outreach_emailed_at,NOW())
+       WHERE url ILIKE $2 AND (contact_email IS NULL OR contact_email='')`,
+      [email, urlPattern]
+    ).catch(() => {});
+  }
 
   // Manual draft listings — insert on startup if missing (idempotent, keyed by URL)
   const manualDrafts = [
