@@ -8392,6 +8392,9 @@ async function setupDB() {
   await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
   // Invisible Exit — always keep as unclaimed draft regardless of how it was inserted
   await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE url='https://invisibleexit.com/' AND claimed_by IS NULL`).catch(()=>{});
+  // Outreach contact emails — set where still empty
+  await pool.query(`UPDATE directory_listings SET contact_email='andrew@thesaasdir.com', contact_email_status='found', outreach_emailed_at=COALESCE(outreach_emailed_at,NOW()) WHERE url='https://thesaasdir.com' AND (contact_email IS NULL OR contact_email='')`).catch(()=>{});
+  await pool.query(`UPDATE directory_listings SET contact_email='vlad@nocodewebsitebuilder.com', contact_email_status='found', outreach_emailed_at=COALESCE(outreach_emailed_at,NOW()) WHERE url='https://nocodewebsitebuilder.com' AND (contact_email IS NULL OR contact_email='')`).catch(()=>{});
 
   // Manual draft listings — insert on startup if missing (idempotent, keyed by URL)
   const manualDrafts = [
