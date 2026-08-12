@@ -8276,6 +8276,12 @@ async function setupDB() {
       description: 'CodeTrendy is a curated directory of newly launched startups, SaaS tools, and indie products, each listing is human-reviewed and organized by category, with 449+ products already listed. Founders can submit a product URL and details, free submissions get reviewed before going live while paid plans go live instantly. Free listings get a permanent public profile with a nofollow link, premium listings get a DR 58 dofollow backlink. The platform includes gamification, users earn engagement points, climb tiers, and appear on real-time leaderboards based on actual community votes. A weekly digest newsletter features top listings and community activity.',
       category: 'Directories',
     },
+    {
+      name: 'Supa Launch',
+      url: 'https://supalaun.ch/',
+      description: 'Supa Launch is a premium product discovery and launch platform where makers submit tech products to be voted on and featured in daily, weekly, and monthly trending lists. Products are organized across categories including AI, Productivity, Marketing, and Developer Tools, giving launched products targeted exposure to buyers actively browsing in their niche. Submitted products earn a public profile page and community visibility through leaderboards and curated digests sent to an engaged audience of early adopters and founders.',
+      category: 'Directories',
+    },
   ];
   for (const d of manualDrafts) {
     const exists = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [d.url]).catch(() => ({ rows: [1] }));
