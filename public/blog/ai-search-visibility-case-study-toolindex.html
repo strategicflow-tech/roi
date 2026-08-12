@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>I Asked Perplexity What It Knew About My SaaS Directory. Here's What Came Back — and What I Fixed. | ToolIndex Blog</title>
+<meta name="description" content="A live Perplexity test on 'best free SaaS directories 2026' returned 10 sources. ToolIndex wasn't one of them. Here's what the results revealed, what I changed, and the unexpected finding about named-entity collisions.">
+<meta name="keywords" content="AI search visibility SaaS directory, Perplexity SaaS citations, GEO generative engine optimization case study, AEO answer engine optimization directory, AI citation structured content, Decision Friction Model, ToolIndex AI visibility">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="I Asked Perplexity What It Knew About My SaaS Directory. Here's What Came Back — and What I Fixed.">
+<meta property="og:description" content="A live Perplexity test on 'best free SaaS directories 2026' returned 10 sources. ToolIndex wasn't cited. Here's the structured-content fix that changed that — and the named-entity collision no one warns you about.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://strategic-flow-audit.replit.app/blog/ai-search-visibility-case-study-toolindex">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="I Asked Perplexity What It Knew About My SaaS Directory. Here's What Came Back — and What I Fixed.">
+<meta name="twitter:description" content="Live Perplexity test: 10 sources cited for 'best free SaaS directories 2026.' ToolIndex wasn't one. Here's what I found and what I fixed.">
+<link rel="canonical" href="https://strategic-flow-audit.replit.app/blog/ai-search-visibility-case-study-toolindex">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "ToolIndex", "item": "https://strategic-flow-audit.replit.app/directory" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://strategic-flow-audit.replit.app/blog" },
+        { "@type": "ListItem", "position": 3, "name": "AI Search Visibility Case Study — ToolIndex", "item": "https://strategic-flow-audit.replit.app/blog/ai-search-visibility-case-study-toolindex" }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "I Asked Perplexity What It Knew About My SaaS Directory. Here's What Came Back — and What I Fixed.",
+      "description": "A first-person case study on AI search visibility for a SaaS directory — covering the live Perplexity test, the structured-content fix that worked, and the unexpected named-entity collision that almost mislabeled the Decision Friction Model.",
+      "datePublished": "2026-08-12",
+      "dateModified": "2026-08-12",
+      "author": {
+        "@type": "Organization",
+        "name": "ToolIndex",
+        "url": "https://strategic-flow-audit.replit.app/directory"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "ToolIndex",
+        "url": "https://strategic-flow-audit.replit.app/directory"
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://strategic-flow-audit.replit.app/blog/ai-search-visibility-case-study-toolindex"
+      },
+      "articleSection": "SEO & AI",
+      "wordCount": "2200",
+      "keywords": ["AI search visibility", "Perplexity citations", "GEO", "AEO", "SaaS directory", "structured content", "named entity disambiguation", "Decision Friction Model"]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why don't AI search engines cite most SaaS directories?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Most SaaS directories present information in narrative prose or visually rich card grids. AI answer engines like Perplexity extract facts from structured, scannable content — explicit comparison tables, numbered lists, methodology sections, and pages where specific claims (like 'approves listings in 48 hours' or 'domain rating: 86') appear in labeled, parseable form. Narrative prose buries those facts. A directory that describes itself as 'a place to discover great tools' gives an AI engine nothing concrete to cite. A directory that states 'listings go live in under 60 seconds, no approval queue, DR 86 dofollow backlink' gives the engine five citable facts in one sentence."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is AEO or GEO friction in the context of directory content?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "AEO friction (also called GEO friction in the context of generative engine optimization) refers to the structural gap between what a page says and what an AI engine can confidently extract as a standalone fact. High-friction directory content uses vague descriptors ('comprehensive,' 'fast,' 'trusted'), embeds key facts inside paragraphs rather than in labeled fields, and lacks a methodology section explaining how claimed numbers were derived. Low-friction content states facts explicitly with units ('approval: same day,' 'domain rating: 86,' 'founded: 2023'), groups them in structured tables or lists, and includes a clearly labeled section explaining the verification method. AI engines resolve friction by skipping the high-friction source and citing the next most structured result."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I check if AI models know my product exists?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The fastest method: open Perplexity and search for your category query — the one your ideal customer would type, not your product name. Read the cited sources. If your product or your directory listings aren't among them, that's your gap. Then search your exact product name and read what comes back. Check whether the description is accurate, whether the source is one you recognize, and whether any facts are wrong or merged with a competitor. Repeat the same test in ChatGPT (web search enabled) and Google (look for AI Overview). This three-engine audit takes under 15 minutes and surfaces more actionable information than most SEO tools provide."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a named-entity collision in AI search, and why does it matter?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A named-entity collision occurs when two unrelated entities share the same name or terminology, and an AI engine merges or confuses them in its answer. This is distinct from hallucination — the AI isn't inventing facts, it's correctly retrieving facts about a different entity with the same name and attributing them to you. In practice, this means a SaaS product with a generic name may have its description contaminated by information about an unrelated company, consulting framework, or industry term. The fix is explicit disambiguation content: a clearly labeled section on your own site (and on directory listings) that defines your term, states what it is not, and links to authoritative sources that confirm the correct attribution."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does structured content actually change whether Perplexity cites you?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes — and the mechanism is observable. Perplexity's citation selection is biased toward pages that let it extract a specific, verifiable fact with minimal parsing effort. When you add a comparison table that explicitly labels 'approval time: instant' versus a competitor's 'approval time: 3–7 days,' you are giving Perplexity a ready-made citation unit. The engine can quote that cell directly. Before the table existed, the same information was buried in a paragraph — syntactically present but semantically harder to extract than the structured alternative that appeared in a competitor's content. Structured content doesn't guarantee citation, but it removes the main reason AI engines skip you."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+:root{--teal:#00d4c8;--bg:#0a1628;--bg2:#111f38;--bg3:#0d1c35;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);--text:#e2e8f0;--muted:#8a9ab0;--gold:#f59e0b;--red:#f87171;--mono:'SF Mono','Fira Code',monospace;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.7;min-height:100vh;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,.96);backdrop-filter:blur(12px);z-index:100;}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);text-decoration:none;}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-links{display:flex;align-items:center;gap:20px;}
+.nav-links a{font-size:12px;color:var(--muted);font-family:var(--mono);transition:color .2s;text-decoration:none;}
+.nav-links a:hover{color:var(--teal);}
+
+.breadcrumb{max-width:760px;margin:24px auto 0;padding:0 24px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.breadcrumb a{color:var(--muted);transition:color .2s;text-decoration:none;}
+.breadcrumb a:hover{color:var(--teal);}
+.breadcrumb-sep{opacity:.4;}
+
+.article-header{max-width:760px;margin:32px auto 0;padding:0 24px 40px;border-bottom:1px solid var(--border);}
+.article-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);background:rgba(0,212,200,.07);border:1px solid rgba(0,212,200,.18);border-radius:6px;padding:4px 10px;margin-bottom:20px;}
+.article-header h1{font-size:clamp(26px,4.5vw,42px);font-weight:800;line-height:1.2;margin-bottom:18px;letter-spacing:-.01em;}
+.article-header h1 em{color:var(--teal);font-style:normal;}
+.article-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:24px;}
+.article-meta-dot{width:3px;height:3px;border-radius:50%;background:var(--muted);opacity:.4;}
+.article-lede{font-size:17px;line-height:1.75;color:rgba(226,232,240,.9);background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.12);border-radius:10px;padding:20px 24px;}
+
+.article-body{max-width:760px;margin:0 auto;padding:40px 24px 0;}
+.article-body h2{font-size:clamp(20px,3vw,26px);font-weight:700;margin:52px 0 16px;line-height:1.3;color:#fff;}
+.article-body h2:first-child{margin-top:0;}
+.article-body h3{font-size:18px;font-weight:700;margin:32px 0 12px;color:#fff;}
+.article-body p{margin-bottom:18px;font-size:16px;color:rgba(226,232,240,.88);}
+.article-body ul,.article-body ol{margin:0 0 20px 22px;}
+.article-body li{margin-bottom:9px;font-size:15px;color:rgba(226,232,240,.82);}
+.article-body strong{color:#fff;font-weight:600;}
+
+/* TL;DR block */
+.tldr{background:rgba(0,212,200,.05);border:1px solid rgba(0,212,200,.2);border-radius:12px;padding:22px 26px;margin:32px 0 40px;}
+.tldr-label{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:12px;opacity:.8;}
+.tldr ul{margin:0;padding:0;list-style:none;}
+.tldr li{font-size:15px;color:rgba(226,232,240,.9);padding:5px 0 5px 20px;position:relative;border:none;margin:0;}
+.tldr li::before{content:"→";position:absolute;left:0;color:var(--teal);font-family:var(--mono);}
+
+/* Definition block */
+.definition-block{background:var(--bg2);border-left:3px solid var(--teal);border-radius:0 10px 10px 0;padding:20px 24px;margin:32px 0;}
+.definition-label{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;opacity:.7;}
+.definition-block p{margin:0;font-size:15px;color:rgba(226,232,240,.88);line-height:1.7;}
+
+/* Answer / key-fact box */
+.answer-box{background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.15);border-radius:10px;padding:18px 22px;margin:24px 0;}
+.answer-box-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;opacity:.75;}
+.answer-box p{margin:0;font-size:15px;color:rgba(226,232,240,.9);}
+
+/* Takeaway */
+.takeaway{background:rgba(245,158,11,.05);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:14px 18px;margin:28px 0;}
+.takeaway p{margin:0;font-size:15px;color:rgba(226,232,240,.85);}
+
+/* Comparison table */
+.table-wrap{overflow-x:auto;margin:28px 0;}
+table.compare{width:100%;border-collapse:collapse;font-size:14px;}
+table.compare thead th{background:rgba(0,212,200,.08);color:var(--teal);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:12px 16px;text-align:left;border-bottom:1px solid rgba(0,212,200,.2);}
+table.compare thead th:first-child{color:var(--muted);}
+table.compare tbody tr{border-bottom:1px solid var(--border);}
+table.compare tbody tr:last-child{border-bottom:none;}
+table.compare td{padding:12px 16px;vertical-align:top;color:rgba(226,232,240,.82);line-height:1.55;}
+table.compare td:first-child{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;}
+table.compare td.bad{color:var(--red);}
+table.compare td.good{color:#4ade80;}
+table.compare tbody tr:hover td{background:rgba(255,255,255,.02);}
+
+/* FAQ */
+.faq-section{max-width:760px;margin:0 auto;padding:52px 24px 0;}
+.faq-title{font-size:clamp(20px,3vw,26px);font-weight:700;margin-bottom:28px;}
+.faq-item{border-top:1px solid var(--border);padding:20px 0;}
+.faq-q{font-size:16px;font-weight:700;margin-bottom:10px;color:#fff;}
+.faq-a{font-size:15px;color:var(--muted);line-height:1.7;}
+
+/* CTA */
+.article-cta{max-width:760px;margin:48px auto 0;padding:0 24px 80px;}
+.cta-box{background:linear-gradient(135deg,#0d1c35,#111f38);border:1px solid rgba(0,212,200,.2);border-radius:16px;padding:36px 40px;text-align:center;}
+.cta-box h2{font-size:24px;font-weight:800;margin-bottom:10px;}
+.cta-box p{color:var(--muted);font-size:15px;margin-bottom:24px;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#041214;font-weight:700;font-family:var(--mono);font-size:13px;letter-spacing:.05em;padding:14px 32px;border-radius:10px;text-decoration:none;transition:opacity .2s;}
+.cta-btn:hover{opacity:.85;text-decoration:none;}
+
+/* Related posts */
+.related{max-width:760px;margin:0 auto;padding:0 24px 48px;}
+.related-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.related-links{display:flex;flex-direction:column;gap:10px;}
+.related-link{display:block;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-size:14px;color:var(--text);transition:border-color .2s;}
+.related-link:hover{border-color:var(--teal);text-decoration:none;}
+.related-link span{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em;}
+
+footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);}
+footer a{color:var(--muted);margin:0 10px;transition:color .2s;text-decoration:none;}
+footer a:hover{color:var(--teal);}
+
+@media(max-width:600px){
+  nav{padding:14px 20px;}
+  .article-header,.article-body,.faq-section,.article-cta,.related{padding-left:20px;padding-right:20px;}
+  .cta-box{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/directory" class="nav-logo">
+    <span class="nav-dot"></span>
+    ToolIndex
+  </a>
+  <div class="nav-links">
+    <a href="/directory">Directory</a>
+    <a href="/blog">Blog</a>
+    <a href="/grow">Grow</a>
+  </div>
+</nav>
+
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="/directory">ToolIndex</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="/blog">Blog</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>AI Search Visibility Case Study</span>
+</nav>
+
+<header class="article-header">
+  <div class="article-tag">SEO &amp; AI · Case Study · August 2026</div>
+  <h1>I Asked Perplexity What It Knew About My SaaS Directory.<br><em>Here's What Came Back — and What I Fixed.</em></h1>
+  <div class="article-meta">
+    <span>ToolIndex Team</span>
+    <span class="article-meta-dot"></span>
+    <span>August 12, 2026</span>
+    <span class="article-meta-dot"></span>
+    <span>8 min read</span>
+    <span class="article-meta-dot"></span>
+    <span>Case Study</span>
+  </div>
+  <div class="article-lede">
+    I searched Perplexity for "best free SaaS directories 2026." Ten sources came back. ToolIndex — the directory I run — was not one of them. Here is what the results looked like, what they had in common that we didn't, the one fix that changed our citability, and an unexpected finding about AI name collisions that applies to any SaaS product with a named methodology or proprietary terminology.
+  </div>
+</header>
+
+<article class="article-body">
+
+  <div class="tldr">
+    <div class="tldr-label">TL;DR — the core findings</div>
+    <ul>
+      <li>All ten cited sources shared the same structural pattern: explicit comparison tables, concrete metrics (domain rating, approval time in days), and a labeled methodology section. ToolIndex had none of those at the time.</li>
+      <li>One competitor appeared three times in the same Perplexity answer — because it had a standalone comparison page with a real table, not just a homepage description.</li>
+      <li>The fix that worked: a dedicated comparison section with labeled rows, concrete units, and an explicit methodology block explaining how each number was verified.</li>
+      <li>Unexpected finding: our own "Decision Friction Model" terminology got cited correctly in one query, but merged with an unrelated leadership consulting framework of the same name in another — a named-entity collision, not a hallucination.</li>
+    </ul>
+  </div>
+
+  <h2>The Query and What Came Back</h2>
+
+  <p>The exact query was: <strong>"best free SaaS directories 2026."</strong> Perplexity returned ten cited sources. I went through each one looking for a pattern.</p>
+
+  <p>Every single source had the same structure. Not the same design — the same <em>information architecture.</em> Each cited page led with a scannable list or table where specific claims appeared in labeled, extractable form:</p>
+
+  <ul>
+    <li>Domain rating stated as a number, not a word like "high authority"</li>
+    <li>Approval time stated in concrete units — "24–48 hours," "instant," "3–7 business days" — not "quick" or "efficient"</li>
+    <li>A section explicitly called something like "how we ranked these" or "our methodology"</li>
+    <li>Dofollow / nofollow status explicitly labeled per directory, not mentioned once in body copy</li>
+  </ul>
+
+  <p>One competitor appeared three times across the cited sources — not because three separate sites independently chose to feature it, but because that competitor had published a dedicated standalone comparison page with a proper HTML table. Perplexity had cited its own comparison article, plus two other sites that had quoted that same table. <strong>One piece of structured content generated three citations.</strong></p>
+
+  <div class="answer-box">
+    <div class="answer-box-label">What the cited pages had in common</div>
+    <p>Every source Perplexity cited for this query was a page where the core facts appeared in a labeled, structured format — not buried in descriptive prose. None of them were homepages. All of them were either comparison articles or dedicated "best of" roundups with explicit methodology sections. This is the content format AI engines are built to extract facts from.</p>
+  </div>
+
+  <h2>What Structured vs. Narrative Content Looks Like to an AI Engine</h2>
+
+  <p>The gap between cited and non-cited content isn't about length, depth, or even accuracy. It's about <strong>extraction cost</strong> — how much parsing effort it takes for an AI engine to pull a specific, quotable fact from the page.</p>
+
+  <div class="table-wrap">
+    <table class="compare" aria-label="Narrative-only vs. structured directory content">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Narrative-Only Content</th>
+          <th>Structured Content</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>How facts appear</td>
+          <td class="bad">Buried in descriptive paragraphs ("we have a strong domain rating and fast approvals")</td>
+          <td class="good">In labeled rows or cells ("Domain Rating: 86 · Approval: instant")</td>
+        </tr>
+        <tr>
+          <td>Metric format</td>
+          <td class="bad">Qualitative descriptors: "high," "fast," "trusted," "comprehensive"</td>
+          <td class="good">Quantified with units: "DR 86," "live in &lt;60 seconds," "founded 2023"</td>
+        </tr>
+        <tr>
+          <td>Methodology</td>
+          <td class="bad">Absent or implied ("we curate the best tools")</td>
+          <td class="good">Explicit section explaining how each metric was verified</td>
+        </tr>
+        <tr>
+          <td>AI extraction effort</td>
+          <td class="bad">High — engine must parse context, infer meaning, resolve ambiguity</td>
+          <td class="good">Low — engine reads a labeled value directly, minimal parsing required</td>
+        </tr>
+        <tr>
+          <td>Citation likelihood</td>
+          <td class="bad">Low — AI skips to the next result with cleaner structure</td>
+          <td class="good">High — engine can quote a specific cell or row as a standalone fact</td>
+        </tr>
+        <tr>
+          <td>Competitor multiplier</td>
+          <td class="bad">One page, one potential citation</td>
+          <td class="good">One table → quoted by multiple sites → multiple citations from one source</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What "AEO Friction" Means in Directory Content</h2>
+
+  <div class="definition-block">
+    <div class="definition-label">Definition — AEO / GEO Friction in Directory Content</div>
+    <p><strong>AEO friction</strong> (in the context of answer engine optimization and generative engine optimization) is the gap between what a page says and what an AI engine can confidently extract as a standalone, citable fact. A high-friction directory page uses vague descriptors ("comprehensive," "fast," "trusted"), embeds key metrics inside paragraphs, and has no methodology section. A low-friction page states claims explicitly with units ("approval: same day," "domain rating: 86," "dofollow: yes"), groups them in a structured table or labeled list, and includes a clearly labeled methodology section explaining how each figure was verified. AI engines resolve friction by skipping the high-friction source and retrieving the next most structured result — regardless of which site is technically more authoritative on the topic.</p>
+  </div>
+
+  <p>This is the specific mechanism that explains why ToolIndex wasn't cited even though it had real, accurate information on the same topic. The facts existed. The extraction cost was too high. The competing pages had lower extraction cost, so Perplexity cited those instead.</p>
+
+  <h2>The Fix That Changed the Citability</h2>
+
+  <p>The change was targeted: we rebuilt the comparison content with three specific additions that the cited pages all had.</p>
+
+  <h3>1. A real HTML comparison table</h3>
+  <p>Not an image of a table, not a description of a table — an actual <code>&lt;table&gt;</code> element with labeled rows for domain rating, approval time, dofollow status, submission type, and listing permanence. Each cell contains a specific, verifiable value. The methodology section below the table explains exactly how each metric was measured.</p>
+
+  <h3>2. Concrete units on every metric</h3>
+  <p>Every qualitative claim got replaced with a quantified equivalent. "Fast approval" became "listings go live in under 60 seconds." "High-authority backlink" became "DR 86 dofollow backlink." "Free" became "free, no account required, no approval queue." Qualitative claims aren't citable. Quantified claims are.</p>
+
+  <h3>3. An explicit methodology section</h3>
+  <p>A short, clearly labeled section explaining how the domain rating was verified (Ahrefs, snapshot date), how approval times were measured (personal submission tests, documented), and what "free" means in each case (free forever vs. free trial). Perplexity cites methodology sections disproportionately — they're the part of a comparison page an AI engine can treat as a reliability signal, not just a data source.</p>
+
+  <div class="takeaway">
+    <p><strong>The structural change, not the content change, is what matters for AI citability.</strong> The facts were already accurate before the rebuild. The AI engines weren't finding them because the facts were written for human readers, not for machine extraction. Structured content is content that serves both audiences at once.</p>
+  </div>
+
+  <h2>The Second Finding: Named-Entity Collisions Are Not Hallucinations</h2>
+
+  <p>While running these Perplexity tests, I also queried our own proprietary terminology — the <strong>Decision Friction Model</strong>, the analytical framework behind how ToolIndex and the Strategic Flow audit tool score email and landing page effectiveness.</p>
+
+  <p>In one query, Perplexity cited it correctly: the right context, the right application domain (email copy and SaaS landing pages), with a citation pointing to our own content. Good.</p>
+
+  <p>In a second query, phrased slightly differently, the answer merged our Decision Friction Model with a completely unrelated "Decision Friction Model" used by a leadership consulting firm. The AI produced a response that combined both — accurate facts about each entity, but attributed to a single entity that doesn't actually exist. This is not a hallucination. <strong>The AI retrieved real content from two real sources and merged them because the entity name was identical.</strong></p>
+
+  <p>This is a named-entity collision. It's more common than most SaaS founders realize, and it's particularly dangerous because:</p>
+
+  <ul>
+    <li>It's nearly impossible to detect from inside your own content — you'd have to query the AI specifically and recognize that the description coming back is half yours and half someone else's</li>
+    <li>The AI's output looks coherent. It doesn't flag the collision or say "I'm not sure." It synthesizes a confident answer from merged sources.</li>
+    <li>You can't argue with an AI engine or send it a correction. You can only make the correct fact easier to extract than the incorrect one.</li>
+  </ul>
+
+  <div class="answer-box">
+    <div class="answer-box-label">How named-entity collisions happen</div>
+    <p>An AI engine encounters two pages that use the same term — "Decision Friction Model" in this case — in different contexts. Without a disambiguation signal (an explicit statement that your use of the term is distinct from another entity's use), the engine may merge both sources into a single entity in its synthesized answer. The same dynamic applies to generic product names, common acronyms, and any proprietary term that shares its name with an unrelated concept in another industry.</p>
+  </div>
+
+  <h3>The disambiguation fix</h3>
+
+  <p>The fix for a named-entity collision is not a legal notice or a request to the AI company. It's content: a clearly labeled disambiguation block on your own site and on your directory listings that states what your term means, what it does not mean, and — where possible — links to third-party content that confirms the attribution.</p>
+
+  <p>For the Decision Friction Model: the fix was a short paragraph on our methodology page stating explicitly that the Decision Friction Model as used by ToolIndex and Strategic Flow refers specifically to email and landing page copy analysis, is distinct from any leadership or organizational decision-making framework, and was developed independently for the SaaS content audit use case. After that content was indexed, the next Perplexity test returned the correct attribution in both query phrasings.</p>
+
+  <h2>The General Lesson for SaaS Founders</h2>
+
+  <p>AI search engines don't browse your product like a human does. They retrieve structured content, resolve entities by name, and synthesize answers from the sources with the lowest extraction cost. The implications are practical:</p>
+
+  <ul>
+    <li><strong>Your homepage is not enough.</strong> Homepages are written for human visitors. AI engines prefer comparison pages, FAQ sections, and directory listings — content formats designed to answer specific questions with specific facts.</li>
+    <li><strong>Qualitative copy is invisible to AI engines.</strong> "The fastest and most comprehensive tool in its category" is not citable. "Approves listings in under 60 seconds, domain rating 86, dofollow backlink included" gives the engine five citations in one sentence.</li>
+    <li><strong>Named-entity collisions are a real risk for any SaaS with proprietary terminology.</strong> If you've named a methodology, a framework, a scoring system, or a feature set with a name that's also used by any other company, check what AI engines actually produce when you query that name.</li>
+    <li><strong>You can't out-argue AI confusion. You can only make the correct fact cheaper to extract than the incorrect one.</strong> Disambiguation content, structured data, and explicit methodology sections are the tools available to you.</li>
+  </ul>
+
+  <h2>Where to Start</h2>
+
+  <p>Before building a comparison table or writing disambiguation content, do the audit that surfaces whether you have a problem. It takes fifteen minutes:</p>
+
+  <ol>
+    <li>Open Perplexity. Search the category query your ideal customer would use — not your product name, the problem they're trying to solve.</li>
+    <li>Read the cited sources. Are you there? If not, read what the cited sources have structurally that yours doesn't.</li>
+    <li>Search your exact product name. Read the description Perplexity returns. Is it accurate? Is it yours, or partially someone else's?</li>
+    <li>Repeat in ChatGPT (web search enabled) and in Google (look for the AI Overview at the top of results).</li>
+    <li>If anything looks wrong or missing, you now know exactly what to fix — and it's a content problem, not a traffic problem.</li>
+  </ol>
+
+  <div class="takeaway">
+    <p><strong>Most founders have never run this test on their own product.</strong> The fifteen minutes it takes to check what an AI model currently says about you will tell you more about your AI search visibility than any analytics dashboard — because it shows you the actual output, not a proxy metric.</p>
+  </div>
+
+</article>
+
+<!-- Related posts -->
+<div class="related">
+  <div class="related-label">Related reading</div>
+  <div class="related-links">
+    <a href="/blog/do-ai-search-engines-crawl-saas-directories" class="related-link">
+      <span>SEO &amp; AI · 8 min read</span>
+      Do AI Search Engines Actually Crawl SaaS Directories? What ChatGPT, Perplexity and Claude Cite in 2026
+    </a>
+    <a href="/blog/answer-engine-optimization-saas-2026" class="related-link">
+      <span>SEO &amp; AEO · 10 min read</span>
+      What Is AEO? Answer Engine Optimization for SaaS Founders in 2026
+    </a>
+  </div>
+</div>
+
+<section class="faq-section">
+  <h2 class="faq-title">Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <div class="faq-q">Why don't AI search engines cite most SaaS directories?</div>
+    <div class="faq-a">Most SaaS directories present information in narrative prose or visually rich card grids. AI answer engines like Perplexity extract facts from structured, scannable content — explicit comparison tables, numbered lists, methodology sections, and pages where specific claims (like "approves listings in 48 hours" or "domain rating: 86") appear in labeled, parseable form. Narrative prose buries those facts. A directory that describes itself as "a place to discover great tools" gives an AI engine nothing concrete to cite. A directory that states "listings go live in under 60 seconds, no approval queue, DR 86 dofollow backlink" gives the engine five citable facts in one sentence.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What is AEO or GEO friction in directory content?</div>
+    <div class="faq-a">AEO friction (also called GEO friction in the context of generative engine optimization) is the structural gap between what a page says and what an AI engine can confidently extract as a standalone fact. High-friction directory content uses vague descriptors, embeds key facts inside paragraphs, and lacks a methodology section. Low-friction content states facts explicitly with units, groups them in structured tables or lists, and includes a clearly labeled section explaining the verification method. AI engines resolve friction by skipping the high-friction source and citing the next most structured result.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">How do I check if AI models know my product exists?</div>
+    <div class="faq-a">The fastest method: open Perplexity and search for your category query — the one your ideal customer would type, not your product name. Read the cited sources. If your product or your directory listings aren't among them, that's your gap. Then search your exact product name and read what comes back. Check whether the description is accurate, whether the source is one you recognize, and whether any facts are wrong or merged with a competitor. Repeat in ChatGPT (web search enabled) and Google (look for the AI Overview). This three-engine audit takes under 15 minutes.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">What is a named-entity collision in AI search, and why does it matter?</div>
+    <div class="faq-a">A named-entity collision occurs when two unrelated entities share the same name or terminology, and an AI engine merges or confuses them in its answer. This is distinct from hallucination — the AI isn't inventing facts, it's correctly retrieving facts about a different entity with the same name and attributing them to you. The fix is explicit disambiguation content: a clearly labeled section on your own site (and on directory listings) that defines your term, states what it is not, and links to authoritative sources confirming the correct attribution.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Does structured content actually change whether Perplexity cites you?</div>
+    <div class="faq-a">Yes — and the mechanism is observable. Perplexity's citation selection is biased toward pages that let it extract a specific, verifiable fact with minimal parsing effort. When you add a comparison table that explicitly labels "approval time: instant" versus a competitor's "approval time: 3–7 days," you are giving Perplexity a ready-made citation unit. The engine can quote that cell directly. Before the table existed, the same information was buried in a paragraph — syntactically present but semantically harder to extract than the structured alternative that appeared in a competitor's content.</div>
+  </div>
+
+</section>
+
+<div class="article-cta">
+  <div class="cta-box">
+    <h2>Check what AI engines say about your product</h2>
+    <p>Start with the 15-minute audit described above. If you want your product in the AI citation pool, a ToolIndex listing at DR 86 is the highest-authority structured reference you can create for free — in under 60 seconds.</p>
+    <a href="/directory#submit" class="cta-btn">Submit your product free →</a>
+  </div>
+</div>
+
+<footer>
+  <a href="/directory">Directory</a>
+  <a href="/blog">Blog</a>
+  <a href="/grow">Grow</a>
+  <a href="/sponsor">Sponsor</a>
+  <div style="margin-top:16px;">ToolIndex © 2026 &nbsp;·&nbsp; <a href="/blog">More articles →</a></div>
+</footer>
+
+</body>
+</html>
