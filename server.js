@@ -4052,6 +4052,42 @@ app.get('/admin/insert-batch2', async (req, res) => {
   res.end();
 });
 
+// GET /admin/send-blog-newsletter?key=&slug= — manually trigger newsletter for a specific post. Idempotent.
+// Add ?force=1 to resend even if already sent (use with caution — will duplicate emails).
+app.get('/admin/send-blog-newsletter', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const slug = (req.query.slug || '').trim();
+  if (!slug) return res.status(400).json({ error: 'slug required', available: BLOG_POSTS.map(p => p.slug) });
+
+  const post = BLOG_POSTS.find(p => p.slug === slug);
+  if (!post) return res.status(404).json({ error: 'post not found', available: BLOG_POSTS.map(p => p.slug) });
+
+  // Count recipients without sending (dry-run mode)
+  if (req.query.dry === '1') {
+    const emailsR = await pool.query(`
+      SELECT COUNT(DISTINCT lower(trim(email)))::int AS n FROM (
+        SELECT claimed_by      AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
+        UNION
+        SELECT submitter_email AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
+      ) t WHERE email IS NOT NULL AND email != ''
+    `).catch(() => ({ rows: [{ n: 0 }] }));
+    const alreadySent = await pool.query(`SELECT sent_at, recipient_count FROM blog_newsletter_log WHERE slug=$1`, [slug]);
+    return res.json({ slug, dry_run: true, estimated_recipients: emailsR.rows[0].n, already_sent: alreadySent.rows[0] || null });
+  }
+
+  // Force-resend: delete log entry first
+  if (req.query.force === '1') {
+    await pool.query(`DELETE FROM blog_newsletter_log WHERE slug=$1`, [slug]);
+  }
+
+  try {
+    const result = await sendBlogNewsletter(post);
+    res.json({ ok: true, slug, ...result });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /admin/insert-invisible-exit?key=… — one-time insert of invisibleexit.com draft listing. Idempotent.
 app.get('/admin/insert-invisible-exit', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -5227,6 +5263,85 @@ async function checkRelaunchWindows() {
     }
   } catch (e) {
     console.error('[relaunch-notify] error:', e.message);
+  }
+}
+
+// ── Blog newsletter — send to all directory contacts when a new post is published ──
+async function sendBlogNewsletter(post) {
+  // post: { slug, title, excerpt, dateLabel }
+  const { slug, title, excerpt, dateLabel } = post;
+
+  // Idempotency guard — never send twice for the same slug
+  const already = await pool.query(`SELECT slug FROM blog_newsletter_log WHERE slug=$1`, [slug]);
+  if (already.rows.length) {
+    console.log(`[blog-newsletter] already sent for "${slug}" — skipping`);
+    return { skipped: true };
+  }
+
+  // Build deduplicated recipient list:
+  // 1. claimed_by      — verified listing owners
+  // 2. submitter_email — founders who submitted but haven't claimed
+  const emailsR = await pool.query(`
+    SELECT DISTINCT lower(trim(email)) AS email FROM (
+      SELECT claimed_by       AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
+      UNION
+      SELECT submitter_email  AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
+    ) t
+    WHERE email IS NOT NULL AND email != ''
+  `);
+
+  const postUrl = `https://strategic-flow-audit.replit.app/blog/${slug}`;
+  let sent = 0, errors = 0;
+
+  for (const { email } of emailsR.rows) {
+    if (BYPASS_EMAILS.has(email)) continue;           // skip internal/admin
+    if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) continue;
+    try {
+      await resend.emails.send({
+        from:    SENDER,
+        replyTo: 'strategicflow@proton.me',
+        to:      email,
+        subject: `New on ToolIndex: ${title}`,
+        html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;background:#060e1c;color:#e2e8f0;padding:32px 28px;border-radius:12px;">
+          <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:18px;">ToolIndex Blog</div>
+          <h2 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px;line-height:1.3;">${title}</h2>
+          <p style="font-size:13px;font-family:monospace;color:#4a7a9a;margin:0 0 16px;">${dateLabel}</p>
+          <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
+          <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
+          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product is listed on the ToolIndex directory. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+        </div>`
+      });
+      sent++;
+    } catch(e) {
+      errors++;
+      console.error(`[blog-newsletter] send error → ${email}:`, e.message);
+    }
+    await new Promise(r => setTimeout(r, 120)); // 120 ms between sends
+  }
+
+  // Record as sent — prevents duplicates on future cron runs
+  await pool.query(
+    `INSERT INTO blog_newsletter_log (slug, sent_at, recipient_count) VALUES ($1, NOW(), $2) ON CONFLICT (slug) DO NOTHING`,
+    [slug, sent]
+  );
+  console.log(`[blog-newsletter] "${slug}" → ${sent} sent, ${errors} errors`);
+  return { sent, errors, total: emailsR.rows.length };
+}
+
+// ── Check for unpublished blog posts and send newsletters ─────────────────────
+async function checkBlogNewsletters() {
+  try {
+    const sentR = await pool.query(`SELECT slug FROM blog_newsletter_log`);
+    const sentSlugs = new Set(sentR.rows.map(r => r.slug));
+
+    for (const post of BLOG_POSTS) {
+      if (sentSlugs.has(post.slug)) continue;  // already sent
+      console.log(`[blog-newsletter] new post detected: "${post.slug}" — sending newsletter`);
+      await sendBlogNewsletter(post);
+      break; // send one per cron run to avoid bursts; next run handles any remaining
+    }
+  } catch(e) {
+    console.error('[blog-newsletter] check error:', e.message);
   }
 }
 
@@ -8429,6 +8544,15 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_boost_schedule:', e.message));
+
+  // ── Blog newsletter log — tracks which posts have had newsletters sent ──────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blog_newsletter_log (
+      slug             TEXT PRIMARY KEY,
+      sent_at          TIMESTAMPTZ DEFAULT NOW(),
+      recipient_count  INTEGER DEFAULT 0
+    )
+  `).catch(e => console.error('[DB] blog_newsletter_log:', e.message));
 
   // ── Daily section picks — what appears in the "Daily" UI strip each day ──
   await pool.query(`
@@ -20689,8 +20813,11 @@ ${content}
   //   } catch(e) { console.error('[cron] Aggregation error:', e.message); }
   // });
 
-  // ── Daily 10:00: notify claimed owners whose 30-day relaunch window just opened ──
+  // ── Daily 10:00: notify claimed owners whose relaunch window just opened ──────
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
+
+  // ── Daily 11:00: send blog newsletter for any newly published posts ───────────
+  cron.schedule('0 11 * * *', () => checkBlogNewsletters().catch(()=>{}));
 
   // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
   cron.schedule('0 7 * * *', async () => {
