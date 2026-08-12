@@ -4052,6 +4052,25 @@ app.get('/admin/insert-batch2', async (req, res) => {
   res.end();
 });
 
+// GET /admin/insert-invisible-exit?key=… — one-time insert of invisibleexit.com draft listing. Idempotent.
+app.get('/admin/insert-invisible-exit', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const exists = await pool.query(`SELECT id FROM directory_listings WHERE url = 'https://invisibleexit.com/'`);
+    if (exists.rows.length) return res.json({ status: 'already_exists', id: exists.rows[0].id });
+    const r = await pool.query(
+      `INSERT INTO directory_listings (name, url, description, category, source, status, is_auto_imported, submitted_at)
+       VALUES ($1,$2,$3,'Founder Resources','manual','draft',false,NOW()) RETURNING id`,
+      [
+        'Invisible Exit',
+        'https://invisibleexit.com/',
+        'Invisible Exit is a resource hub for people building a side business anonymously while still employed. It includes a freedom-number calculator that helps founders figure out how much runway they need before going full-time, an IP assignment and contract audit checklist for reviewing employment agreements before starting any side project, and practical guidance on staying anonymous while building — covering entity setup, payment processing, and public-facing identity separation.'
+      ]
+    );
+    res.json({ status: 'inserted', id: r.rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/insert-directree?key=… — one-time insert of directree.io draft listing. Idempotent.
 app.get('/admin/insert-directree', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -8256,6 +8275,8 @@ async function setupDB() {
   // TheSaaSDir (5380) — keep as draft, wipe votes (founder email sent before activation)
   await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE id=5380`).catch(()=>{});
   await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
+  // Invisible Exit — always keep as unclaimed draft regardless of how it was inserted
+  await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE url='https://invisibleexit.com/' AND claimed_by IS NULL`).catch(()=>{});
 
   // Manual draft listings — insert on startup if missing (idempotent, keyed by URL)
   const manualDrafts = [
@@ -8282,6 +8303,12 @@ async function setupDB() {
       url: 'https://supalaun.ch/',
       description: 'Supa Launch is a premium product discovery and launch platform where makers submit tech products to be voted on and featured in daily, weekly, and monthly trending lists. Products are organized across categories including AI, Productivity, Marketing, and Developer Tools, giving launched products targeted exposure to buyers actively browsing in their niche. Submitted products earn a public profile page and community visibility through leaderboards and curated digests sent to an engaged audience of early adopters and founders.',
       category: 'Directories',
+    },
+    {
+      name: 'Invisible Exit',
+      url: 'https://invisibleexit.com/',
+      description: 'Invisible Exit is a resource hub for people building a side business anonymously while still employed. It includes a freedom-number calculator that helps founders figure out how much runway they need before going full-time, an IP assignment and contract audit checklist for reviewing employment agreements before starting any side project, and practical guidance on staying anonymous while building — covering entity setup, payment processing, and public-facing identity separation.',
+      category: 'Founder Resources',
     },
   ];
   for (const d of manualDrafts) {
