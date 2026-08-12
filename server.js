@@ -4062,6 +4062,28 @@ app.get('/admin/send-blog-newsletter', async (req, res) => {
   const post = BLOG_POSTS.find(p => p.slug === slug);
   if (!post) return res.status(404).json({ error: 'post not found', available: BLOG_POSTS.map(p => p.slug) });
 
+  // Test send — delivers to a single address only, does NOT mark as sent
+  if (req.query.test_to) {
+    const testAddr = req.query.test_to;
+    const { slug, title, excerpt, dateLabel } = post;
+    const postUrl = `https://strategic-flow-audit.replit.app/blog/${slug}`;
+    try {
+      await resend.emails.send({
+        from: SENDER, replyTo: 'strategicflow@proton.me', to: testAddr,
+        subject: `[TEST] New on ToolIndex: ${title}`,
+        html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;background:#060e1c;color:#e2e8f0;padding:32px 28px;border-radius:12px;">
+          <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:18px;">ToolIndex Blog</div>
+          <h2 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px;line-height:1.3;">${title}</h2>
+          <p style="font-size:13px;font-family:monospace;color:#4a7a9a;margin:0 0 16px;">${dateLabel}</p>
+          <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
+          <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
+          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product is listed on the ToolIndex directory. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+        </div>`
+      });
+      return res.json({ ok: true, test_to: testAddr, slug });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   // Count recipients without sending (dry-run mode)
   if (req.query.dry === '1') {
     const emailsR = await pool.query(`
