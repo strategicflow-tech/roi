@@ -5177,7 +5177,7 @@ async function checkRelaunchWindows() {
        WHERE dl.status = 'active'
          AND dl.claimed_by IS NOT NULL
          AND dl.claimed_by != ''
-         AND dl.submitted_at <= NOW() - INTERVAL '30 days'
+         AND dl.submitted_at <= NOW() - INTERVAL '7 days'
          AND (dl.relaunch_notified_at IS NULL OR dl.relaunch_notified_at < dl.submitted_at)
        ORDER BY dl.submitted_at ASC`
     );
