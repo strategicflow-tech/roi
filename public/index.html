@@ -2022,8 +2022,73 @@ function animateLoading(phase) {
   }, 1200);
 }
 
+// ─── FREE DIAGNOSTIC RESULT (free_trial tier — diagnostic-only, rebuild locked) ───
+function showFreeDiagnosticResult(gen) {
+  showOnly('stateResult');
+
+  // Hide download buttons — no rebuild to download
+  ['downloadHTML','downloadAuditReport','showcaseBtn','downloadShowcaseBtn','downloadNewsletterBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Tier badge
+  const badgeEl = document.getElementById('resTierBadge');
+  if (badgeEl) badgeEl.innerHTML = '<span class="tier-badge">Free Diagnostic</span>';
+  hide('resTypeBadge'); hide('resVipBadge'); hide('resAnalyzedPageNote');
+
+  // Mask subject line — show partial preview + lock
+  const subjectEl = document.getElementById('resSubject');
+  const subjectPreview = gen.rebuild_preview?.subject_preview || '';
+  if (subjectEl) {
+    subjectEl.innerHTML = subjectPreview
+      ? `<span style="opacity:0.45;">${subjectPreview}</span><span style="margin-left:8px;font-size:12px;background:rgba(255,68,34,0.12);color:#ff4422;padding:2px 8px;border-radius:3px;font-family:monospace;letter-spacing:0.04em;">🔒 Locked</span>`
+      : `<span style="font-style:italic;opacity:0.4;">Rebuilt subject — locked</span><span style="margin-left:8px;font-size:12px;background:rgba(255,68,34,0.12);color:#ff4422;padding:2px 8px;border-radius:3px;font-family:monospace;">🔒</span>`;
+  }
+
+  // Hide conversion hook
+  const hookWrap = document.getElementById('resHook');
+  if (hookWrap && hookWrap.closest) { const c = hookWrap.closest('[style*="border-left"]'); if (c) c.style.display = 'none'; }
+
+  // Replace rebuilt body with locked upgrade card
+  const bodyEl = document.getElementById('resBody');
+  if (bodyEl) {
+    const bodyWrap = bodyEl.closest('[style*="border-left"]') || bodyEl.parentElement;
+    bodyWrap.innerHTML = `
+      <div style="padding:28px 24px;border:1px solid rgba(255,68,34,0.3);background:rgba(255,68,34,0.03);text-align:center;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#ff4422;margin-bottom:12px;">Rebuilt version — locked</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text1);margin-bottom:6px;">Your email scored below 4/10.</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:480px;margin:0 auto 20px;">
+          We found <strong>${(gen.key_changes || []).length} structural bugs</strong> costing you opens and clicks.<br>
+          Unlock the full rebuild: rewritten subject line, corrected CTA, downloadable HTML.
+        </div>
+        <a href="https://strategic-flow-pro.replit.app/packages" target="_blank"
+          style="display:inline-block;background:#ff4422;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:6px;letter-spacing:0.02em;">
+          Unlock full rebuild — $49 one-time →
+        </a>
+      </div>`;
+  }
+
+  // What Changed: show diagnostic bugs found (key_changes)
+  const changesEl = document.getElementById('resChanges');
+  if (changesEl) {
+    changesEl.innerHTML = (gen.key_changes || []).map(c => `<div class="change-item">${c}</div>`).join('') ||
+      '<div style="color:var(--muted);font-size:13px;">Structural bugs identified — unlock rebuild for details.</div>';
+  }
+
+  // Hide before/after card and score card
+  hide('baCard'); hide('scoreCard');
+
+  // Hide Pro CTA block (replaced by the inline unlock above)
+  const proBlock = document.getElementById('pro-conversion-block');
+  if (proBlock) proBlock.style.display = 'none';
+}
+
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
 function showResults(gen) {
+  // Free-trial: show diagnostic-only view
+  if (gen.is_free_diagnostic) { showFreeDiagnosticResult(gen); return; }
+
   showOnly('stateResult');
   // Always show Pro CTA after any successful generation
   const proBlock = document.getElementById('pro-conversion-block');

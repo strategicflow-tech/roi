@@ -1155,6 +1155,114 @@
 
   .next-step-cta:hover { opacity: 0.88; }
 
+  /* Fix preview lock overlay */
+  .fix-preview-locked {
+    position: relative;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(255,68,34,0.04);
+    border: 1px solid rgba(255,68,34,0.18);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .fix-preview-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,68,34,0.55);
+    margin-bottom: 6px;
+  }
+  .fix-preview-blurred {
+    font-size: 13px;
+    color: rgba(255,255,255,0.15);
+    font-style: italic;
+    filter: blur(4px);
+    user-select: none;
+    pointer-events: none;
+  }
+  .fix-preview-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: rgba(10,10,10,0.25);
+  }
+  .fix-lock-icon { font-size: 13px; }
+  .fix-lock-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.05em;
+  }
+  /* Question answer locked */
+  .q-answer-locked {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .q-a-preview {
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    filter: blur(2.5px);
+    user-select: none;
+    pointer-events: none;
+  }
+  .q-a-lock {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,68,34,0.65);
+    letter-spacing: 0.05em;
+  }
+  /* Upgrade CTA block (free-tier post-diagnostic) */
+  .free-upgrade-cta {
+    margin-top: 32px;
+    padding: 28px 28px 24px;
+    border: 1px solid rgba(255,68,34,0.35);
+    border-left: 4px solid var(--red);
+    background: rgba(255,68,34,0.03);
+  }
+  .free-upgrade-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+  .free-upgrade-headline {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1.45;
+    margin-bottom: 8px;
+  }
+  .free-upgrade-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #888888;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  .free-upgrade-btn {
+    display: inline-block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0a0a0a;
+    background: var(--red);
+    padding: 11px 22px;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+  }
+  .free-upgrade-btn:hover { opacity: 0.88; }
+
   /* Footer */
   .page-footer {
     text-align: center;
@@ -2333,15 +2441,16 @@ async function runAnalysis() {
   "summary": "<2-sentence diagnosis of the core structural problem>",
   "friction_points": [
     {
-      "title": "<friction point name, 3-6 words>",
-      "description": "<specific explanation referencing the actual content, 1-2 sentences>",
+      "title": "<friction point name, 3-6 words — use a recognized structural pattern name>",
+      "description": "<WHY this is a structural failure and what decision cost it places on the reader — NOT the fix, 1-2 sentences>",
+      "fix_preview": "<first 8 words of the corrected version of this specific element — stop at exactly 8 words, no ellipsis, no preamble>",
       "impact": "<HIGH|MID|LOW>"
     }
   ],
   "questions": [
     {
       "q": "<question the reader will inevitably ask>",
-      "a": "<direct answer that addresses the question, 1-2 sentences. If the content answers it, extract the answer. If it does not, say what is missing and what the author should add.>"
+      "a": "<name the structural failure category that causes this question to go unanswered — do NOT provide the corrective copy or rewrite>"
     }
   ]
 }
@@ -2352,7 +2461,8 @@ Rules:
 - Be brutally specific - reference actual phrases, structure, or decisions in the content
 - Never say "the document" - say what type it is
 - questions should sound like real humans asking them, not consultants
-- answers should be blunt - if the content does not answer the question, say so directly and state what is missing
+- answers must identify the structural failure category only — never provide the corrective text, rewrite, or fix
+- fix_preview: EXACTLY 8 words from the corrected version — no more, no ellipsis, no explanation
 - friction_points titles must be unique - no two points can have the same title
 - Return ONLY valid JSON, no markdown, no backticks, no explanation
 ${contentTypeContext ? `\nSpecific failure patterns to prioritize for this content type:\n${contentTypeContext}\n` : ''}
@@ -2444,11 +2554,19 @@ function renderOutput(data) {
     const impactClass = point.impact === 'HIGH' ? 'impact-high' : point.impact === 'MID' ? 'impact-mid' : 'impact-low';
     const el = document.createElement('div');
     el.className = 'friction-item';
+    const fixBlock = !window.isWhyPro && point.fix_preview
+      ? `<div class="fix-preview-locked">
+          <div class="fix-preview-label">Fix preview</div>
+          <div class="fix-preview-blurred">${point.fix_preview}…</div>
+          <div class="fix-preview-overlay"><span class="fix-lock-icon">🔒</span><span class="fix-lock-text">Unlock full fix with rebuild</span></div>
+        </div>`
+      : '';
     el.innerHTML = `
       <div class="friction-rank">0${i + 1}</div>
       <div class="friction-content">
         <div class="friction-title">${point.title}</div>
         <div class="friction-desc">${point.description}</div>
+        ${fixBlock}
       </div>
       <div class="friction-impact">
         <span class="impact-badge ${impactClass}">${point.impact}</span>
@@ -2465,11 +2583,20 @@ function renderOutput(data) {
     const answer = typeof q === 'object' ? q.a : null;
     const el = document.createElement('div');
     el.className = 'question-item' + (answer ? ' has-answer' : '');
+    let answerHtml = '';
+    if (answer) {
+      if (window.isWhyPro) {
+        answerHtml = `<div class="q-answer">${answer}</div>`;
+      } else {
+        const preview = answer.split(' ').slice(0, 6).join(' ');
+        answerHtml = `<div class="q-answer q-answer-locked"><span class="q-a-preview">${preview}…</span><span class="q-a-lock">🔒 Full answer in rebuild</span></div>`;
+      }
+    }
     el.innerHTML = `
       <div class="q-num">${i + 1}</div>
       <div class="q-body">
         <div class="q-text">${question}</div>
-        ${answer ? `<div class="q-answer">${answer}</div>` : ''}
+        ${answerHtml}
       </div>
     `;
     qList.appendChild(el);
@@ -2487,25 +2614,31 @@ function renderOutput(data) {
   const hliText = document.getElementById('hli-text');
   if (hliBlock && hliText && data.friction_points && data.friction_points.length > 0) {
     const top = data.friction_points[0];
-    const insightMap = {
-      'Feature-First Bias': 'Your content talks about <strong>what you built</strong>.<br>Not <strong>what changed for the reader</strong>.<br>Move the consequence before the feature - everything else is secondary.',
-      'Guest Language CTA': 'Your CTA belongs to <strong>your company</strong>, not your reader.<br>"Learn more" is your language. "See if this applies to me" is theirs.<br>Own the language of the decision, not the action.',
-      'Filing Label Subject': 'Your subject line announces a <strong>category</strong>, not a <strong>consequence</strong>.<br>The reader already knows what you do. They need to know what changes for them.',
-      'Consequence-After-Caveat': 'The most important line in your content is <strong>buried</strong>.<br>Move it to line one. The reader who needed to act already left.',
-      'Missing Visual Hierarchy': 'Everything looks equally important, so <strong>nothing is</strong>.<br>The reader\'s eye needs a path. Give it one.',
-      'Zero Social Proof': 'You are asking for trust <strong>before delivering proof</strong>.<br>One specific result, one real number, one named outcome - that is all you need.',
-    };
-    let insight = null;
-    for (const [key, val] of Object.entries(insightMap)) {
-      if (top.title && top.title.toLowerCase().includes(key.toLowerCase().split(' ')[0])) {
-        insight = val;
-        break;
+    if (window.isWhyPro) {
+      const insightMap = {
+        'Feature-First Bias': 'Your content talks about <strong>what you built</strong>.<br>Not <strong>what changed for the reader</strong>.<br>Move the consequence before the feature - everything else is secondary.',
+        'Guest Language CTA': 'Your CTA belongs to <strong>your company</strong>, not your reader.<br>"Learn more" is your language. "See if this applies to me" is theirs.<br>Own the language of the decision, not the action.',
+        'Filing Label Subject': 'Your subject line announces a <strong>category</strong>, not a <strong>consequence</strong>.<br>The reader already knows what you do. They need to know what changes for them.',
+        'Consequence-After-Caveat': 'The most important line in your content is <strong>buried</strong>.<br>Move it to line one. The reader who needed to act already left.',
+        'Missing Visual Hierarchy': 'Everything looks equally important, so <strong>nothing is</strong>.<br>The reader\'s eye needs a path. Give it one.',
+        'Zero Social Proof': 'You are asking for trust <strong>before delivering proof</strong>.<br>One specific result, one real number, one named outcome - that is all you need.',
+      };
+      let insight = null;
+      for (const [key, val] of Object.entries(insightMap)) {
+        if (top.title && top.title.toLowerCase().includes(key.toLowerCase().split(' ')[0])) {
+          insight = val;
+          break;
+        }
       }
+      if (!insight) {
+        insight = `Your content has friction where it needs flow.<br><strong>${top.title}</strong> is costing you readers before they reach the action.<br>Fix that first. Everything else is secondary.`;
+      }
+      hliText.innerHTML = insight;
+    } else {
+      // Free users: name the structural failure, not the fix
+      const highCount = data.friction_points.filter(p => p.impact === 'HIGH').length;
+      hliText.innerHTML = `<strong>${top.title}</strong> is the primary structural failure in this content.<br>${highCount} of ${data.friction_points.length} identified friction points are rated HIGH impact — each one is costing you reader decisions before they reach your CTA.`;
     }
-    if (!insight) {
-      insight = `Your content has friction where it needs flow.<br><strong>${top.title}</strong> is costing you readers before they reach the action.<br>Fix that first. Everything else is secondary.`;
-    }
-    hliText.innerHTML = insight;
     hliBlock.style.display = 'block';
     setTimeout(() => {
       hliBlock.style.opacity = '1';
@@ -2527,9 +2660,29 @@ function renderOutput(data) {
     setTimeout(() => el.classList.add('visible'), 500 + i * 50);
   });
 
-  // Show next step block
+  // Show next step block — upgrade CTA for free users, SF link for Pro
   const nextStep = document.getElementById('next-step-block');
   if (nextStep) {
+    if (!window.isWhyPro) {
+      const bugCount = data.friction_points.length;
+      nextStep.innerHTML = `<div class="next-step-inner">
+        <div class="next-step-check">!</div>
+        <div class="next-step-content">
+          <div class="next-step-label">Diagnosis complete — rebuild locked</div>
+          <div class="next-step-text">Your content scored <strong>${data.friction_score}/10</strong>. We found <strong>${bugCount} structural ${bugCount === 1 ? 'bug' : 'bugs'}</strong> costing you opens and clicks.<br><span style="font-size:13px;color:#AAAAAA;font-weight:400;">Unlock the full rebuild: rewritten subject line, corrected CTA, downloadable HTML — $49 one-time.</span></div>
+          <a href="https://strategic-flow-pro.replit.app/packages" class="next-step-cta" target="_blank">Unlock full rebuild →</a>
+        </div>
+      </div>`;
+    } else {
+      nextStep.innerHTML = `<div class="next-step-inner">
+        <div class="next-step-check">✓</div>
+        <div class="next-step-content">
+          <div class="next-step-label">You've found the friction.</div>
+          <div class="next-step-text">Now remove it.<br><span style="font-size:13px;color:#AAAAAA;font-weight:400;">Run it through Strategic Flow's full Architecture Audit.</span></div>
+          <a href="https://strategic-flow-audit.replit.app" class="next-step-cta" target="_blank">Continue to Strategic Flow →</a>
+        </div>
+      </div>`;
+    }
     nextStep.style.display = 'block';
     setTimeout(() => {
       nextStep.style.opacity = '1';

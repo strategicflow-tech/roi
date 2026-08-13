@@ -11059,21 +11059,16 @@ async function handleGenerate(req, res) {
                   heroImageUrl: cachedOgImage,
                   labelBefore: _cachedLabels.before, labelAfter: _cachedLabels.after }
               ));
+              // Free-trial cached: return diagnostic only — same gate as fresh rebuild
+              const _cachedSubjectWords = (n.rebuilt_subject || '').split(' ').slice(0, 4).join(' ');
               return res.json({
-                rebuilt_subject:  n.rebuilt_subject,
-                rebuilt_body:     n.rebuilt_body,
-                previewBody,
-                downloadHtml,
-                tier:             n.tier || 'free_trial',
-                emailType:        n.email_type || null,
-                key_changes:      n.key_changes || [],
-                conversion_hook:  n.conversion_hook || '',
-                og_image:         n.og_image || null,
-                ab_subjects:      n.ab_subjects      || [],
-                segments:         n.audience_segments || [],
-                follow_ups:       n.content_calendar  || [],
-                cohesion:         n.cohesion_check    || null,
-                cached:           true
+                is_free_diagnostic: true,
+                tier:            n.tier || 'free_trial',
+                key_changes:     n.key_changes || [],
+                conversion_hook: n.conversion_hook || '',
+                rebuild_preview: { subject_preview: _cachedSubjectWords ? _cachedSubjectWords + '…' : null },
+                emailType:       n.email_type || null,
+                cached:          true
               });
             }
           }
@@ -11694,7 +11689,22 @@ async function handleGenerate(req, res) {
       ? _origBodyStripped.substring(0, 500) + '...'
       : _origBodyStripped;
     const _newCount = adminAccess ? user.newsletter_count : user.newsletter_count + 1;
-    res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient, newsletterCount: _newCount });
+    // Free-trial diagnostic gate: return diagnosis only — full rebuild is stored in DB via side-effects below
+    if (tier === 'free_trial') {
+      const subjectWords = (result.rebuilt_subject || '').split(' ').slice(0, 4).join(' ');
+      res.json({
+        is_free_diagnostic: true,
+        tier: 'free_trial',
+        key_changes:    result.key_changes    || [],
+        conversion_hook: result.conversion_hook || '',
+        rebuild_preview: { subject_preview: subjectWords ? subjectWords + '…' : null },
+        newsletterId,
+        newsletterCount: _newCount,
+        emailType: finalEmailType,
+      });
+    } else {
+      res.json({ ...result, newsletterId, emailType: finalEmailType, downloadHtml, previewBody, tier, analyzedPage, rebuildPath: 'rebuilt', originalScore: null, inferredBrandDNA: brandDNASource ? effectiveBrandDNA : undefined, showcaseHtml, originalBody: _origBodyClient, newsletterCount: _newCount });
+    }
     console.log('STEP 7: Response sent');
 
     // ── SIDE EFFECTS (fire-and-forget — never affect the user response) ──
