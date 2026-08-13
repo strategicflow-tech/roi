@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<!-- ═══════════════════════════════════════════════════════════
+     REPLACE ALL {{PLACEHOLDERS}} before publishing
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- Primary meta -->
+<title>{{POST_TITLE_FULL}} | Strategic Flow Blog</title>
+<meta name="description" content="{{META_DESCRIPTION — 140–160 chars, plain sentence, no quotes}}">
+<meta name="keywords" content="{{keyword 1}}, {{keyword 2}}, {{keyword 3}}, {{keyword 4}}, {{keyword 5}}">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph -->
+<meta property="og:title" content="{{OG_TITLE — can match <title> or be slightly shorter}}">
+<meta property="og:description" content="{{OG_DESCRIPTION — 120–160 chars}}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://strategicflow.tech/blog/{{POST_SLUG}}.html">
+
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{TWITTER_TITLE}}">
+<meta name="twitter:description" content="{{TWITTER_DESCRIPTION — 120 chars}}">
+
+<!-- Canonical -->
+<link rel="canonical" href="https://strategicflow.tech/blog/{{POST_SLUG}}.html">
+
+<!-- ═══════════════════════════════════════════════════════════
+     JSON-LD — 3 blocks in a single @graph
+     ═══════════════════════════════════════════════════════════ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Strategic Flow", "item": "https://strategicflow.tech" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://strategicflow.tech/blog.html" },
+        { "@type": "ListItem", "position": 3, "name": "{{BREADCRUMB_LABEL — short article name}}", "item": "https://strategicflow.tech/blog/{{POST_SLUG}}.html" }
+      ]
+    },
+    {
+      "@type": "Article",
+      "headline": "{{ARTICLE_HEADLINE — exact same as <title> minus site name}}",
+      "description": "{{ARTICLE_DESCRIPTION — 1–2 sentences, factual summary}}",
+      "datePublished": "{{YYYY-MM-DD}}",
+      "dateModified": "{{YYYY-MM-DD}}",
+      "author": {
+        "@type": "Organization",
+        "name": "Strategic Flow",
+        "url": "https://strategicflow.tech"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Strategic Flow",
+        "url": "https://strategicflow.tech"
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://strategicflow.tech/blog/{{POST_SLUG}}.html"
+      },
+      "articleSection": "{{SECTION — e.g. SEO & AI, SaaS Growth, Email Marketing}}",
+      "wordCount": "{{APPROX_WORD_COUNT}}",
+      "keywords": ["{{kw1}}", "{{kw2}}", "{{kw3}}", "{{kw4}}", "{{kw5}}"]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "{{FAQ QUESTION 1 — full question as users would type it}}",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "{{ANSWER 1 — 2–5 sentences, no HTML, plain text only}}"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "{{FAQ QUESTION 2}}",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "{{ANSWER 2}}"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "{{FAQ QUESTION 3}}",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "{{ANSWER 3}}"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "{{FAQ QUESTION 4}}",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "{{ANSWER 4}}"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "{{FAQ QUESTION 5 — optional, delete if not needed}}",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "{{ANSWER 5}}"
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     STYLES — dark theme, no external dependencies
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+:root{
+  --teal:#00d4c8;
+  --bg:#0a1628;
+  --bg2:#111f38;
+  --bg3:#0d1c35;
+  --border:rgba(255,255,255,.08);
+  --border2:rgba(255,255,255,.15);
+  --text:#e2e8f0;
+  --muted:#8a9ab0;
+  --gold:#f59e0b;
+  --red:#f87171;
+  --mono:'SF Mono','Fira Code',monospace;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.7;min-height:100vh;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ── Nav ── */
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(10,22,40,.96);backdrop-filter:blur(12px);z-index:100;}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);text-decoration:none;}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-links{display:flex;align-items:center;gap:20px;}
+.nav-links a{font-size:12px;color:var(--muted);font-family:var(--mono);transition:color .2s;text-decoration:none;}
+.nav-links a:hover{color:var(--teal);}
+
+/* ── Breadcrumb ── */
+.breadcrumb{max-width:760px;margin:24px auto 0;padding:0 24px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.breadcrumb a{color:var(--muted);transition:color .2s;text-decoration:none;}
+.breadcrumb a:hover{color:var(--teal);}
+.breadcrumb-sep{opacity:.4;}
+
+/* ── Article header ── */
+.article-header{max-width:760px;margin:32px auto 0;padding:0 24px 40px;border-bottom:1px solid var(--border);}
+.article-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);background:rgba(0,212,200,.07);border:1px solid rgba(0,212,200,.18);border-radius:6px;padding:4px 10px;margin-bottom:20px;}
+.article-header h1{font-size:clamp(26px,4.5vw,42px);font-weight:800;line-height:1.2;margin-bottom:18px;letter-spacing:-.01em;}
+.article-header h1 em{color:var(--teal);font-style:normal;}
+.article-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:24px;}
+.article-meta-dot{width:3px;height:3px;border-radius:50%;background:var(--muted);opacity:.4;}
+.article-lede{font-size:17px;line-height:1.75;color:rgba(226,232,240,.9);background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.12);border-radius:10px;padding:20px 24px;}
+
+/* ── Article body ── */
+.article-body{max-width:760px;margin:0 auto;padding:40px 24px 0;}
+.article-body h2{font-size:clamp(20px,3vw,26px);font-weight:700;margin:52px 0 16px;line-height:1.3;color:#fff;}
+.article-body h2:first-child{margin-top:0;}
+.article-body h3{font-size:18px;font-weight:700;margin:32px 0 12px;color:#fff;}
+.article-body p{margin-bottom:18px;font-size:16px;color:rgba(226,232,240,.88);}
+.article-body ul,.article-body ol{margin:0 0 20px 22px;}
+.article-body li{margin-bottom:9px;font-size:15px;color:rgba(226,232,240,.82);}
+.article-body strong{color:#fff;font-weight:600;}
+.article-body code{font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px;}
+
+/* ── TL;DR block ── */
+.tldr{background:rgba(0,212,200,.05);border:1px solid rgba(0,212,200,.2);border-radius:12px;padding:22px 26px;margin:32px 0 40px;}
+.tldr-label{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:12px;opacity:.8;}
+.tldr ul{margin:0;padding:0;list-style:none;}
+.tldr li{font-size:15px;color:rgba(226,232,240,.9);padding:5px 0 5px 20px;position:relative;border:none;margin:0;}
+.tldr li::before{content:"→";position:absolute;left:0;color:var(--teal);font-family:var(--mono);}
+
+/* ── Definition block ── */
+.definition-block{background:var(--bg2);border-left:3px solid var(--teal);border-radius:0 10px 10px 0;padding:20px 24px;margin:32px 0;}
+.definition-label{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;opacity:.7;}
+.definition-block p{margin:0;font-size:15px;color:rgba(226,232,240,.88);line-height:1.7;}
+
+/* ── Answer / key-fact box ── */
+.answer-box{background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.15);border-radius:10px;padding:18px 22px;margin:24px 0;}
+.answer-box-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;opacity:.75;}
+.answer-box p{margin:0;font-size:15px;color:rgba(226,232,240,.9);}
+
+/* ── Takeaway / callout ── */
+.takeaway{background:rgba(245,158,11,.05);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:14px 18px;margin:28px 0;}
+.takeaway p{margin:0;font-size:15px;color:rgba(226,232,240,.85);}
+
+/* ── Comparison table ── */
+.table-wrap{overflow-x:auto;margin:28px 0;}
+table.compare{width:100%;border-collapse:collapse;font-size:14px;}
+table.compare thead th{background:rgba(0,212,200,.08);color:var(--teal);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:12px 16px;text-align:left;border-bottom:1px solid rgba(0,212,200,.2);}
+table.compare thead th:first-child{color:var(--muted);}
+table.compare tbody tr{border-bottom:1px solid var(--border);}
+table.compare tbody tr:last-child{border-bottom:none;}
+table.compare td{padding:12px 16px;vertical-align:top;color:rgba(226,232,240,.82);line-height:1.55;}
+table.compare td:first-child{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;}
+table.compare td.bad{color:var(--red);}
+table.compare td.good{color:#4ade80;}
+table.compare tbody tr:hover td{background:rgba(255,255,255,.02);}
+
+/* ── FAQ section ── */
+.faq-section{max-width:760px;margin:0 auto;padding:52px 24px 0;}
+.faq-title{font-size:clamp(20px,3vw,26px);font-weight:700;margin-bottom:28px;}
+.faq-item{border-top:1px solid var(--border);padding:20px 0;}
+.faq-q{font-size:16px;font-weight:700;margin-bottom:10px;color:#fff;}
+.faq-a{font-size:15px;color:var(--muted);line-height:1.7;}
+
+/* ── CTA box ── */
+.article-cta{max-width:760px;margin:48px auto 0;padding:0 24px 80px;}
+.cta-box{background:linear-gradient(135deg,#0d1c35,#111f38);border:1px solid rgba(0,212,200,.2);border-radius:16px;padding:36px 40px;text-align:center;}
+.cta-box h2{font-size:24px;font-weight:800;margin-bottom:10px;}
+.cta-box p{color:var(--muted);font-size:15px;margin-bottom:24px;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#041214;font-weight:700;font-family:var(--mono);font-size:13px;letter-spacing:.05em;padding:14px 32px;border-radius:10px;text-decoration:none;transition:opacity .2s;}
+.cta-btn:hover{opacity:.85;text-decoration:none;}
+
+/* ── Related posts ── */
+.related{max-width:760px;margin:0 auto;padding:0 24px 48px;}
+.related-label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.related-links{display:flex;flex-direction:column;gap:10px;}
+.related-link{display:block;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-size:14px;color:var(--text);transition:border-color .2s;}
+.related-link:hover{border-color:var(--teal);text-decoration:none;}
+.related-link span{display:block;font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── Footer ── */
+footer{border-top:1px solid var(--border);padding:32px 40px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);}
+footer a{color:var(--muted);margin:0 10px;transition:color .2s;text-decoration:none;}
+footer a:hover{color:var(--teal);}
+
+/* ── Mobile ── */
+@media(max-width:600px){
+  nav{padding:14px 20px;}
+  .article-header,.article-body,.faq-section,.article-cta,.related{padding-left:20px;padding-right:20px;}
+  .cta-box{padding:24px 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Nav ─────────────────────────────────────────────────── -->
+<nav>
+  <a href="https://strategicflow.tech" class="nav-logo">
+    <span class="nav-dot"></span>
+    Strategic Flow
+  </a>
+  <div class="nav-links">
+    <a href="https://strategicflow.tech/blog.html">Blog</a>
+    <a href="https://strategicflow.tech/about.html">About</a>
+    <a href="https://strategic-flow-audit.replit.app/directory">ToolIndex</a>
+  </div>
+</nav>
+
+<!-- ── Breadcrumb ─────────────────────────────────────────── -->
+<nav aria-label="Breadcrumb" class="breadcrumb">
+  <a href="https://strategicflow.tech">Strategic Flow</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="https://strategicflow.tech/blog.html">Blog</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>{{BREADCRUMB_LABEL}}</span>
+</nav>
+
+<!-- ── Article header ─────────────────────────────────────── -->
+<header class="article-header">
+  <!-- Tag: category · type · Month Year -->
+  <div class="article-tag">{{CATEGORY}} · {{POST_TYPE e.g. Guide / Case Study / Analysis}} · {{Month YYYY}}</div>
+
+  <!-- h1: main title; wrap key phrase in <em> for teal highlight -->
+  <h1>{{TITLE LINE 1}}<br><em>{{TITLE LINE 2 — highlighted phrase}}</em></h1>
+
+  <div class="article-meta">
+    <span>Strategic Flow</span>
+    <span class="article-meta-dot"></span>
+    <span>{{Month DD, YYYY}}</span>
+    <span class="article-meta-dot"></span>
+    <span>{{X min read}}</span>
+    <span class="article-meta-dot"></span>
+    <span>{{Post type}}</span>
+  </div>
+
+  <!-- Lede: 2–4 sentence hook, plain, no links -->
+  <div class="article-lede">
+    {{LEDE — the strongest hook sentence(s). What does the reader learn? What's the surprising finding?}}
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════
+     ARTICLE BODY
+     Available blocks (use in any order, repeat as needed):
+       tldr · h2 · h3 · p · ul/ol · answer-box · definition-block
+       takeaway · table.compare · code
+     ════════════════════════════════════════════════════════════ -->
+<article class="article-body">
+
+  <!-- TL;DR — 3–5 bullet findings, always first -->
+  <div class="tldr">
+    <div class="tldr-label">TL;DR — {{core finding label}}</div>
+    <ul>
+      <li>{{Finding 1}}</li>
+      <li>{{Finding 2}}</li>
+      <li>{{Finding 3}}</li>
+      <li>{{Finding 4 — optional}}</li>
+    </ul>
+  </div>
+
+  <h2>{{Section 1 heading}}</h2>
+  <p>{{Body text…}}</p>
+  <ul>
+    <li>{{Point}}</li>
+    <li>{{Point}}</li>
+  </ul>
+
+  <!-- Answer box — key fact or summary for AI extraction -->
+  <div class="answer-box">
+    <div class="answer-box-label">{{Box label e.g. "What this means in practice"}}</div>
+    <p>{{2–3 sentences. Make this independently citable — a standalone fact an AI engine can quote.}}</p>
+  </div>
+
+  <h2>{{Section 2 heading}}</h2>
+  <p>{{Body text…}}</p>
+
+  <!-- Comparison table — use when comparing options/approaches -->
+  <div class="table-wrap">
+    <table class="compare" aria-label="{{Accessible table description}}">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>{{Option A}}</th>
+          <th>{{Option B}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{Row label}}</td>
+          <td class="bad">{{Negative value}}</td>
+          <td class="good">{{Positive value}}</td>
+        </tr>
+        <tr>
+          <td>{{Row label}}</td>
+          <td class="bad">{{Value}}</td>
+          <td class="good">{{Value}}</td>
+        </tr>
+        <!-- add rows as needed -->
+      </tbody>
+    </table>
+  </div>
+
+  <h2>{{Section 3 heading}}</h2>
+
+  <!-- Definition block — for key terms / proprietary concepts -->
+  <div class="definition-block">
+    <div class="definition-label">Definition — {{Term}}</div>
+    <p><strong>{{Term}}</strong> {{plain-language definition. Use explicit, verifiable language — "X means Y, measured as Z" not "X is a comprehensive approach".}}</p>
+  </div>
+
+  <p>{{Body text…}}</p>
+
+  <h3>{{Sub-section heading}}</h3>
+  <p>{{Body text…}}</p>
+
+  <!-- Takeaway / callout — bold insight, max 2 sentences -->
+  <div class="takeaway">
+    <p><strong>{{Callout opening clause.}}</strong> {{Supporting sentence.}}</p>
+  </div>
+
+  <h2>{{Section 4 heading}}</h2>
+  <p>{{Body text…}}</p>
+  <ol>
+    <li>{{Numbered step}}</li>
+    <li>{{Numbered step}}</li>
+    <li>{{Numbered step}}</li>
+  </ol>
+
+  <!-- Final takeaway -->
+  <div class="takeaway">
+    <p><strong>{{Bold insight.}}</strong> {{One closing sentence.}}</p>
+  </div>
+
+</article>
+
+<!-- ── Related posts ──────────────────────────────────────── -->
+<div class="related">
+  <div class="related-label">Related reading</div>
+  <div class="related-links">
+    <a href="{{URL_OF_RELATED_POST_1}}" class="related-link">
+      <span>{{Category · X min read}}</span>
+      {{Title of related post 1}}
+    </a>
+    <a href="{{URL_OF_RELATED_POST_2}}" class="related-link">
+      <span>{{Category · X min read}}</span>
+      {{Title of related post 2}}
+    </a>
+  </div>
+</div>
+
+<!-- ── FAQ — mirrors JSON-LD FAQPage exactly ─────────────── -->
+<section class="faq-section">
+  <h2 class="faq-title">Frequently Asked Questions</h2>
+
+  <!-- Each .faq-q and .faq-a must mirror the JSON-LD name/text above verbatim -->
+
+  <div class="faq-item">
+    <div class="faq-q">{{FAQ QUESTION 1}}</div>
+    <div class="faq-a">{{ANSWER 1 — same text as JSON-LD acceptedAnswer.text}}</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">{{FAQ QUESTION 2}}</div>
+    <div class="faq-a">{{ANSWER 2}}</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">{{FAQ QUESTION 3}}</div>
+    <div class="faq-a">{{ANSWER 3}}</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">{{FAQ QUESTION 4}}</div>
+    <div class="faq-a">{{ANSWER 4}}</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">{{FAQ QUESTION 5 — optional}}</div>
+    <div class="faq-a">{{ANSWER 5}}</div>
+  </div>
+
+</section>
+
+<!-- ── CTA ────────────────────────────────────────────────── -->
+<div class="article-cta">
+  <div class="cta-box">
+    <h2>{{CTA headline — action-oriented, 6–10 words}}</h2>
+    <p>{{CTA subtext — 1–2 sentences explaining what happens when they click}}</p>
+    <a href="{{CTA_URL}}" class="cta-btn">{{CTA button label}} →</a>
+  </div>
+</div>
+
+<!-- ── Footer ─────────────────────────────────────────────── -->
+<footer>
+  <a href="https://strategicflow.tech">Home</a>
+  <a href="https://strategicflow.tech/blog.html">Blog</a>
+  <a href="https://strategicflow.tech/about.html">About</a>
+  <a href="https://strategic-flow-audit.replit.app/directory">ToolIndex</a>
+  <div style="margin-top:16px;">Strategic Flow © 2026 &nbsp;·&nbsp; <a href="https://strategicflow.tech/blog.html">More articles →</a></div>
+</footer>
+
+</body>
+</html>
