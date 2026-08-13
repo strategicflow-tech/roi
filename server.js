@@ -1848,7 +1848,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
 .prod-name{font-size:26px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px;word-break:break-word}
 .prod-desc{font-size:14px;color:var(--sub);line-height:1.65;margin-bottom:20px}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn-visit{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:var(--teal);color:#0a1628;border-radius:8px;font-weight:700;font-size:14px;white-space:nowrap}
+.btn-visit{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:var(--teal);color:#0a1628;border-radius:8px;font-weight:700;font-size:14px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
 .btn-visit:hover{text-decoration:none;opacity:.9}
 .btn-vote{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;font-size:14px;font-family:var(--mono);cursor:pointer;transition:all .2s;white-space:nowrap}
 .btn-vote:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-dim)}
@@ -2054,7 +2054,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
       <h1 class="prod-name">${he(l.name)}${premiumBadge}${verifiedBadge}</h1>
       <p class="prod-desc">${he(l.description || `${l.name} is listed on ToolIndex.`)}</p>
       <div class="actions">
-        <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname)} →</a>
+        <a href="${he(l.url)}" class="btn-visit" target="_blank" rel="noopener">Visit ${he(hostname.length > 28 ? hostname.slice(0, 25) + '…' : hostname)} →</a>
         <button class="btn-vote" id="voteBtn">${votes > 0 ? `▲ ${votes.toLocaleString()} upvote${votes !== 1 ? 's' : ''}` : '▲ Upvote'}</button>
       </div>
     </div>
@@ -5235,7 +5235,7 @@ async function checkRelaunchWindows() {
        WHERE dl.status = 'active'
          AND dl.claimed_by IS NOT NULL
          AND dl.claimed_by != ''
-         AND dl.submitted_at <= NOW() - INTERVAL '7 days'
+         AND dl.submitted_at <= NOW() - INTERVAL '30 days'
          AND (dl.relaunch_notified_at IS NULL OR dl.relaunch_notified_at < dl.submitted_at)
        ORDER BY dl.submitted_at ASC`
     );
