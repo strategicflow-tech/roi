@@ -3475,7 +3475,7 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
 });
 
 // ── Shared helper: build catchy claim outreach email with AI profile preview ──
-function buildClaimOutreachEmail(name, listingUrl, aiInsights) {
+function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
   const ai = (typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights) || {};
   const rawSummary   = (ai.summary || '').trim();
   const snippet      = rawSummary.length > 230 ? rawSummary.slice(0, 230) + '…' : rawSummary;
@@ -3522,7 +3522,7 @@ ${checkList}
 <p>These are AI-inferred from ${name}'s homepage — accurate most of the time, but you can correct anything after claiming. Every listing also gets a permanent dofollow backlink from <strong>strategicflow.tech</strong> (DR&nbsp;86).</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">See the full profile + claim it free &rarr;</a></p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
-<p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>
+${buildUnsubFooterHtml(email || '')}
 </div>`;
 
   const textParts = [
@@ -3546,7 +3546,7 @@ ${checkList}
     'ToolIndex — https://strategic-flow-audit.replit.app/directory',
     'LinkedIn: https://www.linkedin.com/in/strategic-flow-tech',
     'Tenerife, Spain', '',
-    "Reply to let us know if you'd rather not hear from us again."
+    buildUnsubFooterText(email || '')
   );
 
   return {
@@ -3584,7 +3584,7 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     const slug = toListingSlug(listing.name, listing.id);
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
     const name = listing.name;
-    const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(name, listingUrl, listing.ai_insights);
+    const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(name, listingUrl, listing.ai_insights, listing.contact_email);
     await resend.emails.send({
       from:    SENDER,
       to:      listing.contact_email,
@@ -3649,8 +3649,31 @@ const SEQ_TEMPLATES = {
 };
 
 // Shared signature — identical to buildClaimOutreachEmail
-const SEQ_SIG_HTML = `<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p><p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p>`;
-const SEQ_SIG_TEXT = `\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain\n\nReply to let us know if you'd rather not hear from us again.`;
+const SEQ_SIG_HTML = `<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>`;
+const SEQ_SIG_TEXT = `\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+
+// ── Unsubscribe helpers — used across all marketing email types ───────────────
+function unsubToken(email) {
+  return crypto.createHmac('sha256', process.env.SESSION_SECRET || 'sf-unsub-key')
+    .update((email || '').toLowerCase().trim()).digest('hex').slice(0, 32);
+}
+function unsubLink(email) {
+  const e = encodeURIComponent((email || '').toLowerCase().trim());
+  return `https://strategic-flow-audit.replit.app/unsubscribe?email=${e}&token=${unsubToken(email)}`;
+}
+async function isUnsubscribed(email) {
+  if (!email) return false;
+  try {
+    const { rows } = await pool.query(`SELECT 1 FROM email_unsubscribes WHERE email=$1 LIMIT 1`, [(email).toLowerCase().trim()]);
+    return rows.length > 0;
+  } catch { return false; }
+}
+function buildUnsubFooterHtml(email) {
+  return `<p style="font-size:11px;color:#9ca3af;margin-top:8px;">Don&rsquo;t want to hear from us? <a href="${unsubLink(email)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a> from all ToolIndex emails.</p>`;
+}
+function buildUnsubFooterText(email) {
+  return `\n\nTo unsubscribe from all emails: ${unsubLink(email)}`;
+}
 
 function buildSeqEmail(contact, stepNum) {
   const tpl = SEQ_TEMPLATES[contact.cluster]?.[stepNum];
@@ -3662,10 +3685,11 @@ function buildSeqEmail(contact, stepNum) {
   const bodyHtml = bodyText.split('\n\n')
     .map(p => `<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.65;">${p.replace(/\n/g, '<br>')}</p>`)
     .join('');
+  const email = contact.to_email || '';
   return {
     subject: tpl.subject,
-    html:    `<div style="font-family:Georgia,serif;max-width:580px;margin:auto;padding:32px 24px;color:#1f2937;background:#ffffff;">${bodyHtml}${SEQ_SIG_HTML}</div>`,
-    text:    bodyText + SEQ_SIG_TEXT,
+    html:    `<div style="font-family:Georgia,serif;max-width:580px;margin:auto;padding:32px 24px;color:#1f2937;background:#ffffff;">${bodyHtml}${SEQ_SIG_HTML}${buildUnsubFooterHtml(email)}</div>`,
+    text:    bodyText + SEQ_SIG_TEXT + buildUnsubFooterText(email),
   };
 }
 
@@ -3729,6 +3753,10 @@ async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
     ) q ORDER BY step ASC, priority_at ASC LIMIT $1`, [cap]);
   let sent = 0, errors = 0; const log = [];
   for (const contact of r.rows) {
+    if (await isUnsubscribed(contact.to_email)) {
+      await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE id=$1`, [contact.id]);
+      log.push(`⊘ unsubscribed → ${contact.to_email}`); continue;
+    }
     try {
       const { subject, html, text } = buildSeqEmail(contact, contact.step);
       await resend.emails.send({ from: SENDER, to: contact.to_email, replyTo: 'strategicflow@proton.me', subject, html, text });
@@ -3865,12 +3893,15 @@ app.post('/admin/run-followup-batch', async (req, res) => {
       LIMIT $1`, [cap]);
     let sent = 0, errors = 0; const log = [];
     for (const listing of rows) {
+      if (await isUnsubscribed(listing.contact_email)) {
+        log.push(`⊘ unsubscribed → ${listing.contact_email} (${listing.name})`); continue;
+      }
       try {
         const slug = toListingSlug(listing.name, listing.id);
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
         const name = listing.name;
-        const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;"><p>Hi,</p><p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p><p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p><p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p><p style="font-size:13px;color:#6b7280;">If it&rsquo;s not your product or you&rsquo;d rather not hear from us, just reply and we&rsquo;ll stop.</p><p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p><p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p></div>`;
-        const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\nIf it's not your product or you'd rather not hear from us, just reply and we'll stop.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+        const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;"><p>Hi,</p><p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p><p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p><p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p><p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(listing.contact_email)}</div>`;
+        const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
         await resend.emails.send({
           from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
           subject: `Still unclaimed: ${name} on ToolIndex`,
@@ -3910,10 +3941,13 @@ app.post('/admin/send-claim-outreach-batch', async (req, res) => {
         await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
         continue;
       }
+      if (await isUnsubscribed(listing.contact_email)) {
+        log.push(`⊘ unsubscribed → ${listing.contact_email} (${listing.name})`); continue;
+      }
       try {
         const slug = toListingSlug(listing.name, listing.id);
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-        const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights);
+        const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights, listing.contact_email);
         await resend.emails.send({
           from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
           subject, html: htmlBody, text: textBody,
@@ -5540,6 +5574,7 @@ async function sendBlogNewsletter(post) {
   for (const { email } of emailsR.rows) {
     if (BYPASS_EMAILS.has(email)) continue;           // skip internal/admin
     if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) continue;
+    if (await isUnsubscribed(email)) continue;        // respect opt-out
     try {
       await resend.emails.send({
         from:    SENDER,
@@ -5553,6 +5588,7 @@ async function sendBlogNewsletter(post) {
           <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
           <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
           <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product is listed on the ToolIndex directory. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+          ${buildUnsubFooterHtml(email)}
         </div>`
       });
       sent++;
@@ -7671,6 +7707,51 @@ app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname
 
 // Growth / advertise hub
 app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'grow.html')));
+// ── GET /unsubscribe?email=&token= — one-click opt-out from all marketing emails ─
+app.get('/unsubscribe', async (req, res) => {
+  const { email, token } = req.query;
+  const norm = (email || '').toLowerCase().trim();
+  if (!norm || !token || token !== unsubToken(norm)) {
+    return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid link</title></head><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#333;"><h2>Invalid unsubscribe link</h2><p>This link may have expired or been modified. Please reply to any email from us to opt out.</p></body></html>`);
+  }
+  try {
+    await pool.query(`INSERT INTO email_unsubscribes (email, source) VALUES ($1,'link') ON CONFLICT DO NOTHING`, [norm]);
+    // Stop cold sequence too
+    await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE lower(to_email)=$1`, [norm]);
+    console.log(`[unsubscribe] ${norm} opted out`);
+  } catch(e) { console.error('[unsubscribe] db error:', e.message); }
+  res.send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unsubscribed — ToolIndex</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#060e1c;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.card{max-width:440px;width:100%;background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.2);border-radius:16px;padding:48px 40px;text-align:center;}
+.icon{font-size:40px;margin-bottom:20px;}
+h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:12px;}
+p{font-size:15px;color:#94a3b8;line-height:1.7;margin-bottom:8px;}
+.email{font-family:monospace;font-size:13px;color:#00d4c8;margin:16px 0;}
+a{color:#00d4c8;text-decoration:none;}a:hover{text-decoration:underline;}</style>
+</head><body>
+<div class="card">
+  <div class="icon">✓</div>
+  <h1>You're unsubscribed</h1>
+  <p class="email">${norm}</p>
+  <p>You won't receive any more marketing emails from ToolIndex or Strategic Flow.</p>
+  <p style="margin-top:24px;font-size:13px;">Changed your mind? <a href="https://strategic-flow-audit.replit.app/directory">Visit ToolIndex →</a></p>
+</div>
+</body></html>`);
+});
+
+// ── POST /admin/add-unsubscribe?key=&email= — manually opt out an address ───
+app.post('/admin/add-unsubscribe', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const email = (req.query.email || req.body?.email || '').toLowerCase().trim();
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'invalid email' });
+  await pool.query(`INSERT INTO email_unsubscribes (email, source) VALUES ($1,'admin') ON CONFLICT DO NOTHING`, [email]);
+  await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE lower(to_email)=$1`, [email]);
+  console.log(`[unsubscribe] admin opt-out: ${email}`);
+  res.json({ ok: true, email, unsubLink: unsubLink(email) });
+});
+
 // ── GET /api/blog/latest — returns the most recently published blog post ─────
 const BLOG_POSTS = [
   { slug: 'ai-search-visibility-case-study-toolindex', title: 'I Asked Perplexity What It Knew About My SaaS Directory. Here\'s What Came Back — and What I Fixed.', excerpt: 'A live Perplexity test on "best free SaaS directories 2026" returned 10 cited sources. ToolIndex wasn\'t one of them. Here\'s what all 10 had in common, the structured-content fix that changed our citability, and the unexpected named-entity collision that almost mislabeled our own methodology.', date: '2026-08-12', dateLabel: 'Aug 12, 2026 · 8 min read' },
@@ -7715,7 +7796,31 @@ app.get('/api/directory/startup-of-day', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html')));
+app.get('/blog', (req, res) => {
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
+    // Inject any auto-generated posts not already in the static file
+    const AUTO_POSTS_MARKER = '<div class="posts-grid">';
+    const markerIdx = html.indexOf(AUTO_POSTS_MARKER);
+    if (markerIdx !== -1) {
+      const autoCards = BLOG_POSTS
+        .filter(p => !html.includes(`/blog/${p.slug}`))
+        .map(p => {
+          const d = new Date(p.date + 'T12:00:00Z');
+          const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const mins = (p.dateLabel || '').match(/(\d+) min/) ? (p.dateLabel.match(/(\d+) min/)[1] + ' min read') : '8 min read';
+          const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          return `\n  <div class="post-card">\n    <a href="/blog/${p.slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr}</span><span>${mins}</span></div>\n      <h2>${esc(p.title)}</h2>\n      <p>${esc(p.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
+        }).join('\n');
+      if (autoCards) html = html.replace(AUTO_POSTS_MARKER, AUTO_POSTS_MARKER + autoCards);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  } catch(e) {
+    res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
+  }
+});
 app.get('/blog/:slug', (req, res) => {
   const fs = require('fs');
   const file = path.join(__dirname, 'public', 'blog', req.params.slug + '.html');
@@ -8828,6 +8933,15 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_boost_schedule:', e.message));
+
+  // ── Email unsubscribes — global opt-out list for all marketing emails ────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_unsubscribes (
+      email           TEXT PRIMARY KEY,
+      unsubscribed_at TIMESTAMPTZ DEFAULT NOW(),
+      source          TEXT DEFAULT 'link'
+    )
+  `).catch(e => console.error('[DB] email_unsubscribes:', e.message));
 
   // ── Blog newsletter log — tracks which posts have had newsletters sent ──────
   await pool.query(`
@@ -20776,6 +20890,20 @@ full HTML body here
     const post = { slug, title: article.title, excerpt: article.excerpt, date: today, dateLabel };
     if (!BLOG_POSTS.some(bp => bp.slug === slug)) BLOG_POSTS.unshift(post);
 
+    // Also prepend card to blog/index.html so the listing page stays current
+    try {
+      const idxPath = path.join(__dirname, 'public', 'blog', 'index.html');
+      let idxHtml = await fs.promises.readFile(idxPath, 'utf8');
+      if (!idxHtml.includes(`/blog/${slug}`)) {
+        const d2 = new Date(today + 'T12:00:00Z');
+        const dateStr2 = d2.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        const esc2 = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const card = `\n  <div class="post-card">\n    <a href="/blog/${slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr2}</span><span>${article.read_time || 8} min read</span></div>\n      <h2>${esc2(article.title)}</h2>\n      <p>${esc2(article.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
+        idxHtml = idxHtml.replace('<div class="posts-grid">', '<div class="posts-grid">' + card);
+        await fs.promises.writeFile(idxPath, idxHtml, 'utf8');
+      }
+    } catch(e) { console.error('[blog-auto] index update error:', e.message); }
+
     console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
 
     // Send newsletter to all ToolIndex contacts
@@ -21277,10 +21405,11 @@ full HTML body here
           await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
           skipped++; continue;
         }
+        if (await isUnsubscribed(listing.contact_email)) { skipped++; continue; }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-          const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights);
+          const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights, listing.contact_email);
           await resend.emails.send({ from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me', subject, html: htmlBody, text: textBody });
           await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listing.id]);
           sent++;
