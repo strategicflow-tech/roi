@@ -20904,6 +20904,19 @@ full HTML body here
       }
     } catch(e) { console.error('[blog-auto] index update error:', e.message); }
 
+    // Also update the static fallback in public/directory.html (blog card)
+    try {
+      const dirPath = path.join(__dirname, 'public', 'directory.html');
+      let dirHtml = await fs.promises.readFile(dirPath, 'utf8');
+      const d3 = new Date(today + 'T12:00:00Z');
+      const dateStr3 = d3.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      dirHtml = dirHtml.replace(/(id="latestBlogCard" href=")[^"]*"/, `$1/blog/${slug}"`);
+      dirHtml = dirHtml.replace(/(id="latestBlogDate">)[^<]*(<)/, `$1${dateStr3} · ${article.read_time || 8} min read$2`);
+      dirHtml = dirHtml.replace(/(id="latestBlogTitle">)[^<]*(<)/, `$1${article.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}$2`);
+      dirHtml = dirHtml.replace(/(id="latestBlogExcerpt">)[^<]*(<)/, `$1${article.excerpt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}$2`);
+      await fs.promises.writeFile(dirPath, dirHtml, 'utf8');
+    } catch(e) { console.error('[blog-auto] directory.html update error:', e.message); }
+
     console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
 
     // Send newsletter to all ToolIndex contacts
