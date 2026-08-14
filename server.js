@@ -7987,7 +7987,9 @@ app.get('/blog', async (req, res) => {
 });
 app.get('/blog/:slug', (req, res) => {
   const fs = require('fs');
-  const file = path.join(__dirname, 'public', 'blog', req.params.slug + '.html');
+  // Strip .html suffix if already present so both /blog/foo and /blog/foo.html work
+  const slug = req.params.slug.replace(/\.html$/i, '');
+  const file = path.join(__dirname, 'public', 'blog', slug + '.html');
   if (fs.existsSync(file)) return res.sendFile(file);
   res.status(404).sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
 });
