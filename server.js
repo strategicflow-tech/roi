@@ -2504,11 +2504,116 @@ function isJunkEmail(email) {
   if (/\.(png|svg|jpg|jpeg|gif|webp|ico|bmp|tiff?|avif)$/i.test(e)) return true;
   // Reject placeholder local parts
   if (/^(you|name|user|someone|your|test|example)@/i.test(e)) return true;
-  // Reject privacy / legal / compliance / abuse department inboxes
-  if (/^(privacy|legal|abuse|dpo|eudatarep|gdpr|compliance|heroku-abuse|noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe)@/i.test(e)) return true;
+  // Reject privacy / legal / compliance / abuse / press department inboxes
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe)@/i.test(e)) return true;
+  // Reject any -abuse@ pattern (e.g. heroku-abuse@, aws-abuse@)
+  if (/-abuse@/i.test(e)) return true;
   // Reject generic free-provider addresses used as placeholders
   if (/^(hello|support|contact|info|admin)@(gmail|yahoo|hotmail|outlook)\.com$/.test(e)) return true;
   return false;
+}
+
+// ── Large/established company blocklist — never send outreach to these ────────
+// Permanent hard rule: skip any listing whose name matches a known large brand.
+// Add to this list; never remove. Company size heuristic: ~500+ employees or
+// a widely-recognised SaaS/dev-tool brand regardless of exact headcount.
+const LARGE_COMPANY_BLOCKLIST = new Set([
+  // Explicitly flagged by operator
+  'anthropic','figma','salesforce','elevenlabs','crisp','framer','atlassian',
+  'digitalocean','airtable','vercel','supabase','raycast','clerk','cursor',
+  'windsurf','linear','netlify','cohere','railway','upstash','huggingface',
+  'superhuman','runway','postman',
+  // AI / LLM
+  'openai','mistral','groq','together ai','together','replicate','stability ai',
+  'stability','cohere','perplexity','character ai','character','inflection',
+  // Big tech
+  'google','microsoft','apple','amazon','meta','facebook','twitter','x corp',
+  'samsung','oracle','ibm','intel','nvidia','amd','qualcomm','cisco','sap',
+  // Dev infra / hosting
+  'github','gitlab','bitbucket','heroku','render','fly.io','platform.sh',
+  'cloudflare','fastly','akamai','linode','vultr','hetzner','ovh','digitalocean',
+  'aws','azure','gcp',
+  // Payments / fintech
+  'stripe','paypal','braintree','square','adyen','klarna','checkout.com','brex',
+  'ramp','mercury','wise','revolut','plaid','marqeta','dwolla',
+  // Comms / collab
+  'slack','zoom','teams','webex','whereby','loom','miro','notion','confluence',
+  'jira','trello','asana','monday','clickup','basecamp','linear','height',
+  'shortcut','pivotal tracker',
+  // CMS / website builders
+  'shopify','wix','squarespace','webflow','ghost','wordpress','contentful',
+  'sanity','strapi','directus',
+  // CRM / marketing
+  'hubspot','mailchimp','sendgrid','twilio','intercom','zendesk','freshdesk',
+  'freshworks','marketo','pardot','activecampaign','klaviyo','drip','convertkit',
+  'customer.io','loops','beehiiv','substack','mailgun','postmark','sparkpost',
+  'resend','brevo','sendinblue',
+  // Analytics / monitoring
+  'datadog','pagerduty','sentry','logrocket','fullstory','mixpanel','amplitude',
+  'segment','heap','hotjar','smartlook','clarity','posthog','grafana','newrelic',
+  'dynatrace','appdynamics','honeycomb','elastic','elasticsearch','opensearch',
+  // Auth / identity
+  'auth0','okta','onelogin','ping identity','duo','jumpcloud','rippling',
+  // Design
+  'figma','sketch','invision','invisionapp','zeplin','abstract',
+  // Forms / surveys
+  'typeform','surveymonkey','qualtrics','medallia','delighted',
+  // Databases / data
+  'mongodb','redis','cassandra','confluent','snowflake','databricks','dbt labs',
+  'fivetran','airbyte','planetscale','neon','turso','cockroachdb','fauna',
+  'supabase','firebase','appwrite',
+  // Search
+  'algolia','elastic','meilisearch','typesense',
+  // Low-code / automation
+  'retool','appsmith','budibase','tooljet','zapier','make','n8n','activepieces',
+  // CI/CD / devops
+  'buildkite','circleci','travis ci','jenkins','hashicorp','terraform','pulumi',
+  'ansible','puppet','chef','vault','consul','nomad','sonarqube','snyk',
+  // Sales / outreach
+  'salesloft','outreach','apollo','zoominfo','clearbit','hunter','lusha',
+  // HR / payroll
+  'gusto','workday','adp','paychex','bamboohr',
+  // Social / media
+  'tiktok','snapchat','pinterest','reddit','linkedin','spotify','canva','adobe',
+  'dropbox','box',
+  // Scheduling
+  'calendly','cal.com','savvycal','doodle',
+  // Testing / QA
+  'browserstack','saucelabs','testio','applause',
+  // Feature flags / experimentation
+  'launchdarkly','optimizely','growthbook','statsig',
+  // Support
+  'front','help scout','kayako','gladly','kustomer',
+  // CRMs
+  'pipedrive','close','copper','insightly',
+  // Misc well-known
+  'notion','coda','roam research','obsidian','logseq','grammarly','jasper',
+  'copy ai','writer','lemon squeezy','paddle','gumroad','lemonsqueezy',
+  'plausible','fathom','umami','pirsch','cal','dub','short.io',
+]);
+
+// Returns { blocked: true, reason } if the listing should be skipped for outreach,
+// or { blocked: false } if it is safe to contact.
+// PERMANENT RULE: call before every outreach send, no exceptions.
+function isBlockedOutreachTarget(listingName, email) {
+  const e = (email || '').toLowerCase().trim();
+
+  // Rule 1 — restricted email prefix (compliance / legal / press / abuse)
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security)@/i.test(e))
+    return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
+  if (/-abuse@/i.test(e))
+    return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
+
+  // Rule 2 — large / established company name match
+  const name = (listingName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const term of LARGE_COMPANY_BLOCKLIST) {
+    const t = term.toLowerCase();
+    // Match: exact, or term is a whole word at start/end/middle of listing name
+    if (name === t || name.startsWith(t + ' ') || name.endsWith(' ' + t) || name.includes(' ' + t + ' ')) {
+      return { blocked: true, reason: `large/established company ("${term}")` };
+    }
+  }
+  return { blocked: false };
 }
 
 // ── Contact email extractor ──────────────────────────────────────────────────
@@ -3611,6 +3716,8 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     const listing = rows[0];
     if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
     if (isJunkEmail(listing.contact_email)) return res.status(400).json({ error: 'junk_email', email: listing.contact_email });
+    const singleBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+    if (singleBlock.blocked) return res.status(403).json({ error: 'blocked_target', reason: singleBlock.reason, name: listing.name });
     if (listing.outreach_emailed_at) {
       return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
     }
@@ -3796,6 +3903,11 @@ async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
     if (await isUnsubscribed(contact.to_email)) {
       await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE id=$1`, [contact.id]);
       log.push(`⊘ unsubscribed → ${contact.to_email}`); continue;
+    }
+    const seqBlock = isBlockedOutreachTarget(contact.company, contact.to_email);
+    if (seqBlock.blocked) {
+      await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE id=$1`, [contact.id]);
+      log.push(`⊘ blocked (${seqBlock.reason}) → ${contact.to_email}`); continue;
     }
     try {
       const { subject, html, text } = buildSeqEmail(contact, contact.step);
@@ -3984,6 +4096,12 @@ app.post('/admin/send-claim-outreach-batch', async (req, res) => {
       if (await isUnsubscribed(listing.contact_email)) {
         log.push(`⊘ unsubscribed → ${listing.contact_email} (${listing.name})`); continue;
       }
+      const batchBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+      if (batchBlock.blocked) {
+        log.push(`⊘ blocked (${batchBlock.reason}) → ${listing.contact_email} (${listing.name})`);
+        await pool.query(`UPDATE directory_listings SET contact_email_status='excluded' WHERE id=$1`, [listing.id]);
+        continue;
+      }
       try {
         const slug = toListingSlug(listing.name, listing.id);
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
@@ -4077,6 +4195,12 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
           for (const listing of newLeads) {
             if (isJunkEmail(listing.contact_email)) {
               await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
+              autoSkipped++; continue;
+            }
+            const deepBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+            if (deepBlock.blocked) {
+              await pool.query(`UPDATE directory_listings SET contact_email_status='excluded' WHERE id=$1`, [listing.id]);
+              console.log(`[extract-deep] ⊘ blocked (${deepBlock.reason}) → ${listing.contact_email} (${listing.name})`);
               autoSkipped++; continue;
             }
             try {
@@ -21125,6 +21249,10 @@ full HTML body here
         if (await isUnsubscribed(listing.contact_email)) {
           console.log(`[cron-followup] ⊘ unsubscribed → ${listing.contact_email}`); continue;
         }
+        const fu1Block = isBlockedOutreachTarget(listing.name, listing.contact_email);
+        if (fu1Block.blocked) {
+          console.log(`[cron-followup] ⊘ blocked (${fu1Block.reason}) → ${listing.contact_email} (${listing.name})`); continue;
+        }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
@@ -21177,6 +21305,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
       for (const listing of rows) {
         if (await isUnsubscribed(listing.contact_email)) {
           console.log(`[cron-followup2] ⊘ unsubscribed → ${listing.contact_email}`); continue;
+        }
+        const fu2Block = isBlockedOutreachTarget(listing.name, listing.contact_email);
+        if (fu2Block.blocked) {
+          console.log(`[cron-followup2] ⊘ blocked (${fu2Block.reason}) → ${listing.contact_email} (${listing.name})`); continue;
         }
         try {
           const slug = toListingSlug(listing.name, listing.id);
@@ -21568,6 +21700,12 @@ ${buildUnsubFooterHtml(listing.contact_email)}
           skipped++; continue;
         }
         if (await isUnsubscribed(listing.contact_email)) { skipped++; continue; }
+        const cronBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+        if (cronBlock.blocked) {
+          await pool.query(`UPDATE directory_listings SET contact_email_status='excluded' WHERE id=$1`, [listing.id]);
+          console.log(`[outreach-cron] ⊘ blocked (${cronBlock.reason}) → ${listing.contact_email} (${listing.name})`);
+          skipped++; continue;
+        }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
