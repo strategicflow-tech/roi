@@ -3580,7 +3580,7 @@ app.get('/admin/outreach', (req, res) => {
 // ── 3-STEP COLD EMAIL SEQUENCE SYSTEM ────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
-const OUTREACH_DAILY_CAP = parseInt(process.env.OUTREACH_DAILY_CAP || '25', 10);
+const OUTREACH_DAILY_CAP = parseInt(process.env.OUTREACH_DAILY_CAP || '50', 10);
 
 const SEQ_TEMPLATES = {
   A_PMM: {
