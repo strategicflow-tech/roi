@@ -8809,6 +8809,32 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] blog_newsletter_log:', e.message));
 
+  // ── Auto-generated blog posts — persistent store across restarts ─────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS blog_auto_posts (
+      id               SERIAL PRIMARY KEY,
+      slug             TEXT NOT NULL UNIQUE,
+      title            TEXT NOT NULL,
+      excerpt          TEXT NOT NULL,
+      meta_description TEXT NOT NULL DEFAULT '',
+      keyword          TEXT NOT NULL DEFAULT '',
+      date             TEXT NOT NULL,
+      created_at       TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] blog_auto_posts:', e.message));
+
+  // Load previously auto-generated posts into in-memory BLOG_POSTS (prepend newest first)
+  try {
+    const { rows: autoPosts } = await pool.query(`SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY created_at ASC`);
+    for (const p of autoPosts) {
+      if (BLOG_POSTS.some(bp => bp.slug === p.slug)) continue;
+      const d = new Date(p.date + 'T12:00:00Z');
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · 8 min read';
+      BLOG_POSTS.unshift({ slug: p.slug, title: p.title, excerpt: p.excerpt, date: p.date, dateLabel });
+    }
+    if (autoPosts.length) console.log(`[blog-auto] Loaded ${autoPosts.length} auto-generated posts into BLOG_POSTS`);
+  } catch(e) { console.error('[blog-auto] load error:', e.message); }
+
   // ── Daily section picks — what appears in the "Daily" UI strip each day ──
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_daily_section (
@@ -20618,6 +20644,130 @@ ${content}
 </html>`;
   }
 
+  // ── Blog auto-generation: topic list + core function ────────────────────────
+  const BLOG_TOPICS = [
+    { kw: 'saas directory submission 2026',          topic: 'which SaaS directories in 2026 give the highest-DR dofollow backlinks, fastest approval, and most referral traffic — data and founder experience' },
+    { kw: 'product hunt alternative 2026',           topic: 'why Product Hunt alone is not enough for SaaS distribution in 2026 and which directory alternatives compound better over time' },
+    { kw: 'ai tools directory listing benefits',     topic: 'how getting listed on AI tool directories drives discovery through LLM citations, referral traffic, and structured data crawling' },
+    { kw: 'saas backlink strategy free',             topic: 'a systematic free backlink strategy for early-stage SaaS founders using directory listings as the foundation' },
+    { kw: 'how to write saas directory description', topic: 'the structural elements of a directory listing description that converts visitors to signups — what to include and what to cut' },
+    { kw: 'ai search saas discovery 2026',           topic: 'how ChatGPT, Perplexity, and Claude decide which SaaS tools to cite in answers and what structured signals directories provide' },
+    { kw: 'domain rating saas backlinks',            topic: 'why domain rating matters more than link quantity for early SaaS SEO and how to prioritize high-DR directory submissions' },
+    { kw: 'micro saas distribution channels',        topic: 'the distribution playbook for micro-SaaS and solo-founder tools with no marketing budget — starting with directories' },
+    { kw: 'toolindex claim listing benefits',        topic: 'what happens to SaaS traffic and backlinks after claiming a ToolIndex listing — the specific advantages of a verified listing' },
+    { kw: 'saas launch distribution checklist 2026', topic: 'the exact sequence for distributing a new SaaS product at launch, starting with no-code directory submissions' },
+    { kw: 'directory listing conversion optimization',topic: 'how to optimize a SaaS directory listing for clicks and conversions — title, description, screenshots, and category' },
+    { kw: 'b2b saas discovery channels 2026',        topic: 'which discovery channels actually drive B2B SaaS signups in 2026 — comparing directories, communities, cold email, and SEO' },
+    { kw: 'link velocity saas seo',                  topic: 'how many directory submissions per week is safe for SaaS SEO link velocity without triggering spam signals' },
+    { kw: 'perplexity cites saas tools',             topic: 'why Perplexity cites some SaaS tools in AI answers and ignores others — the structured data and authority signals that matter' },
+    { kw: 'saas zero budget marketing',              topic: 'the zero-budget marketing playbook for bootstrapped SaaS: directories, communities, cold DMs, and content — in the right order' },
+    { kw: 'saas backlink compounding effect',        topic: 'how early-stage SaaS directory backlinks compound over 12-18 months and why founders who delay lose the most ground' },
+    { kw: 'high converting saas directory listing',  topic: 'the anatomy of a high-converting SaaS directory listing from title to CTA with real before/after examples' },
+    { kw: 'saas directories vs guest posts seo',     topic: 'a direct comparison of directory backlinks vs guest post backlinks for early-stage SaaS — effort, DR, and traffic impact' },
+    { kw: 'indie hacker distribution playbook',      topic: 'how indie hackers and solo founders get their first 100 users without paid ads — directories as the first channel' },
+    { kw: 'saas idea validation using directories',  topic: 'how to validate a SaaS idea using directory listing traffic and engagement before writing a line of code' },
+    { kw: 'ai tool discovery 2026 trends',           topic: 'how AI tools are discovered in 2026 — the shift from Google to LLM recommendations and what it means for tool founders' },
+    { kw: 'saas structured data seo',               topic: 'why JSON-LD schema markup on SaaS directories gets your product cited in AI answers and rich snippets' },
+    { kw: 'saas category page seo',                 topic: 'how SaaS category pages on directories rank for competitive keywords and why your listing placement on them matters' },
+    { kw: 'niche saas directory benefits',           topic: 'why niche-specific SaaS directories convert better than broad directories — and how to find the right ones for your category' },
+    { kw: 'bootstrapped saas growth 2026',           topic: 'how bootstrapped founders scale to 10K MRR in 2026 without venture funding — distribution-first strategies starting with directories' },
+    { kw: 'saas dofollow backlinks 2026',            topic: 'which directories give genuine dofollow backlinks in 2026 (not nofollow, not redirects) and how to verify before submitting' },
+    { kw: 'saas founder cold outreach directory',    topic: 'how to combine directory listings with cold outreach for a 1-2 punch that converts — using the listing as social proof' },
+    { kw: 'saas comparison pages seo',              topic: 'how SaaS comparison pages on directories drive high-intent traffic and how to get your product featured in them' },
+    { kw: 'directory listing email capture',         topic: 'how SaaS founders use directory traffic to build email lists and retargeting audiences without ad spend' },
+    { kw: 'saas seo foundation 2026',               topic: 'the SEO foundation every SaaS needs before writing content — technical setup, backlinks, and directory presence in the right order' },
+  ];
+
+  async function generateAndPublishBlogPost() {
+    const { rows: [{ n }] } = await pool.query('SELECT COUNT(*)::int AS n FROM blog_auto_posts');
+    const topic = BLOG_TOPICS[n % BLOG_TOPICS.length];
+    const today = new Date().toISOString().split('T')[0];
+    console.log(`[blog-auto] Generating article — keyword: "${topic.kw}"`);
+
+    const prompt = `You are writing a long-form SEO article for the ToolIndex blog. ToolIndex is a SaaS tool directory at https://strategic-flow-audit.replit.app/directory that gives founders a free DR86 dofollow backlink when they claim their listing.
+
+Write an article about: ${topic.topic}
+Primary keyword: "${topic.kw}"
+
+REQUIREMENTS:
+- ~1500 words, specific, factual, punchy — no fluff, no generic intros
+- Mention ToolIndex naturally at least 2 times. Include one link: <a href="https://strategic-flow-audit.replit.app/directory">ToolIndex</a>
+- HTML only (no markdown). Elements available: h2 (section title), h3 (sub-point), p, ul>li, strong, a
+- Include exactly ONE data callout block using this exact format:
+  <div class="data-callout"><div class="data-callout-label">DATA</div><div class="data-row"><span class="data-pattern">Label</span><span class="data-pct">Value</span></div></div>
+- Include exactly ONE before/after block:
+  <div class="before-after"><div class="ba-box ba-before"><div class="ba-label">Before</div><div class="ba-text">text</div></div><div class="ba-box ba-after"><div class="ba-label">After</div><div class="ba-text">text</div></div></div>
+- End with a 2-sentence CTA paragraph mentioning ToolIndex
+
+Respond using EXACTLY these delimiters (one value per tag, no extra text outside tags):
+<TITLE>your title here</TITLE>
+<SLUG>url-slug-here</SLUG>
+<EXCERPT>160-char compelling summary</EXCERPT>
+<META>155-char SEO meta description</META>
+<CONTENT>
+full HTML body here
+</CONTENT>`;
+
+    const response = await claude.messages.create({
+      model: MODEL, max_tokens: 8000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const raw = (response.content.find(b => b.type === 'text') || response.content[0])?.text || '';
+    const get = (tag) => { const m = raw.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`)); return m ? m[1].trim() : ''; };
+    const article = {
+      title:            get('TITLE'),
+      slug:             get('SLUG'),
+      excerpt:          get('EXCERPT'),
+      meta_description: get('META'),
+      keyword:          topic.kw,
+      read_time:        8,
+      content:          get('CONTENT'),
+    };
+    if (!article.title || !article.content) throw new Error('[blog-auto] Claude response missing required fields');
+
+    // Sanitize slug, ensure uniqueness
+    let slug = (article.slug || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+    if (!slug) slug = topic.kw.replace(/\s+/g, '-');
+    const existing = await pool.query('SELECT slug FROM blog_auto_posts WHERE slug=$1', [slug]);
+    if (existing.rows.length) slug += '-' + Date.now().toString(36);
+
+    // Build and write HTML file
+    const html = buildBlogPage({ title: article.title, content: article.content, slug, meta_description: article.meta_description, keyword: article.keyword, date: today, read_time: article.read_time });
+    await fs.promises.writeFile(path.join(__dirname, 'public', 'blog', `${slug}.html`), html, 'utf8');
+
+    // Persist to DB
+    await pool.query(
+      `INSERT INTO blog_auto_posts (slug, title, excerpt, meta_description, keyword, date) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (slug) DO NOTHING`,
+      [slug, article.title, article.excerpt, article.meta_description, article.keyword, today]
+    );
+
+    // Prepend to live BLOG_POSTS array
+    const d = new Date(today + 'T12:00:00Z');
+    const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + (article.read_time || 8) + ' min read';
+    const post = { slug, title: article.title, excerpt: article.excerpt, date: today, dateLabel };
+    if (!BLOG_POSTS.some(bp => bp.slug === slug)) BLOG_POSTS.unshift(post);
+
+    console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
+
+    // Send newsletter to all ToolIndex contacts
+    const newsletterResult = await sendBlogNewsletter(post);
+    console.log(`[blog-auto] Newsletter: ${JSON.stringify(newsletterResult)}`);
+    return { slug, title: article.title, newsletter: newsletterResult };
+  }
+
+  // ── POST /admin/generate-blog-post?key= — manually trigger AI article generation ─
+  app.post('/admin/generate-blog-post', async (req, res) => {
+    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const result = await generateAndPublishBlogPost();
+      res.json({ ok: true, ...result });
+    } catch(e) {
+      console.error('[blog-auto] Manual trigger error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post('/distribb-publish', express.json({ limit: '2mb' }), async (req, res) => {
     const bearerToken = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
     const secret = bearerToken
@@ -21110,6 +21260,22 @@ ${content}
       }
       console.log(`[outreach-cron] ${sent} sent, ${skipped} junk skipped out of ${rows.length} candidates`);
     } catch(e) { console.error('[outreach-cron] error:', e.message); }
+  });
+
+  // ── Mon/Wed/Fri 08:00 UTC: auto-generate and publish a new blog article ──────
+  cron.schedule('0 8 * * 1,3,5', async () => {
+    try {
+      // Skip if already generated today (idempotency)
+      const { rows } = await pool.query(`SELECT created_at FROM blog_auto_posts ORDER BY created_at DESC LIMIT 1`);
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (rows.length && rows[0].created_at.toISOString().startsWith(todayStr)) {
+        console.log('[blog-auto] Already generated today, skipping cron.');
+        return;
+      }
+      console.log('[blog-auto] Starting scheduled article generation...');
+      const result = await generateAndPublishBlogPost();
+      console.log(`[blog-auto] Cron complete → "${result.title}"`);
+    } catch(e) { console.error('[blog-auto] Cron error:', e.message); }
   });
 
   // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
