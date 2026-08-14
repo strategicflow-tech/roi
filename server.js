@@ -500,7 +500,10 @@ app.get('/directory', async (req, res) => {
                 vote_count DESC, COALESCE(scored_at, submitted_at) DESC
        LIMIT 1000`
     );
-    const listings = r.rows;
+    const listings = r.rows.map(l => ({
+      ...l,
+      description: sanitizeDesc(l.name, l.description, l.url),
+    }));
 
     // 30-day click counts for each listing
     const cc = await pool.query(
