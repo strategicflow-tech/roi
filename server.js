@@ -19796,6 +19796,10 @@ setupDB().then(async () => {
       { loc: `${base}/blog/answer-engine-optimization-saas-2026`,    priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/product-hunt-vs-saas-directories-2026`,   priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/saas-launch-directory-checklist-2026`,    priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/saas-directories-2026-comparison`,        priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/product-hunt-vs-betalist-vs-toolindex`,   priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/free-saas-directories-instant-approval`,  priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/best-ai-tool-directories-2026`,           priority: '0.9', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
