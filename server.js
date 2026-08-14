@@ -519,6 +519,28 @@ app.get('/directory', async (req, res) => {
       ssrHtml
     );
 
+    // Inject latest blog post into the card (server-side so bots + first paint are correct)
+    const latest = BLOG_POSTS[0];
+    if (latest) {
+      const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      html = html.replace(
+        /(<a class="dir-latest-blog-card"[^>]*href=")[^"]*(")/,
+        `$1/blog/${esc(latest.slug)}$2`
+      );
+      html = html.replace(
+        /(<div class="dir-latest-blog-date"[^>]*>)[^<]*(<\/div>)/,
+        `$1${esc(latest.dateLabel)}$2`
+      );
+      html = html.replace(
+        /(<h3 class="dir-latest-blog-title"[^>]*>)[^<]*(<\/h3>)/,
+        `$1${esc(latest.title)}$2`
+      );
+      html = html.replace(
+        /(<p class="dir-latest-blog-excerpt"[^>]*>)[^<]*(<\/p>)/,
+        `$1${esc(latest.excerpt)}$2`
+      );
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
