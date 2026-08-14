@@ -5496,11 +5496,18 @@ async function sendBlogNewsletter(post) {
   // Build deduplicated recipient list:
   // 1. claimed_by      — verified listing owners
   // 2. submitter_email — founders who submitted but haven't claimed
+  // 3. contact_email   — all listing contacts where outreach was already sent (they know ToolIndex)
   const emailsR = await pool.query(`
     SELECT DISTINCT lower(trim(email)) AS email FROM (
-      SELECT claimed_by       AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
+      SELECT claimed_by      AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
       UNION
-      SELECT submitter_email  AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
+      SELECT submitter_email AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
+      UNION
+      SELECT contact_email   AS email FROM directory_listings
+        WHERE contact_email IS NOT NULL AND contact_email LIKE '%@%'
+          AND contact_email_status = 'found'
+          AND status = 'active'
+          AND outreach_emailed_at IS NOT NULL
     ) t
     WHERE email IS NOT NULL AND email != ''
   `);
