@@ -3809,6 +3809,149 @@ app.post('/admin/seq-run-batch', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── POST /admin/run-followup-batch?key=…&cap=N — send follow-ups to unclaimed listings ──
+app.post('/admin/run-followup-batch', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, contact_email
+      FROM directory_listings
+      WHERE outreach_emailed_at IS NOT NULL
+        AND follow_up_sent_at IS NULL
+        AND claimed_at IS NULL
+        AND outreach_emailed_at < NOW() - INTERVAL '7 days'
+        AND contact_email IS NOT NULL
+      ORDER BY outreach_emailed_at ASC
+      LIMIT $1`, [cap]);
+    let sent = 0, errors = 0; const log = [];
+    for (const listing of rows) {
+      try {
+        const slug = toListingSlug(listing.name, listing.id);
+        const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+        const name = listing.name;
+        const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;"><p>Hi,</p><p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p><p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p><p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p><p style="font-size:13px;color:#6b7280;">If it&rsquo;s not your product or you&rsquo;d rather not hear from us, just reply and we&rsquo;ll stop.</p><p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p><p style="font-size:11px;color:#9ca3af;">Reply to let us know if you&rsquo;d rather not hear from us again.</p></div>`;
+        const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\nIf it's not your product or you'd rather not hear from us, just reply and we'll stop.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+        await resend.emails.send({
+          from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
+          subject: `Still unclaimed: ${name} on ToolIndex`,
+          html: followUpHtml, text: followUpText,
+        });
+        await pool.query(`UPDATE directory_listings SET follow_up_sent_at=NOW() WHERE id=$1`, [listing.id]);
+        log.push(`✓ followup → ${listing.contact_email} (${name})`); sent++;
+      } catch(e) {
+        log.push(`✗ ${listing.contact_email}: ${e.message}`); errors++;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    console.log(`[followup-batch] ${sent} sent, ${errors} errors out of ${rows.length} queued`);
+    res.json({ ok: true, sent, errors, total: rows.length, log });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/send-claim-outreach-batch?key=…&cap=N — batch initial outreach ─
+app.post('/admin/send-claim-outreach-batch', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, contact_email, ai_insights
+      FROM directory_listings
+      WHERE contact_email_status = 'found'
+        AND outreach_emailed_at IS NULL
+        AND claimed_by IS NULL
+        AND status = 'active'
+        AND contact_email IS NOT NULL
+      ORDER BY id ASC
+      LIMIT $1`, [cap]);
+    let sent = 0, errors = 0; const log = [];
+    for (const listing of rows) {
+      try {
+        const slug = toListingSlug(listing.name, listing.id);
+        const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+        const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights);
+        await resend.emails.send({
+          from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
+          subject, html: htmlBody, text: textBody,
+        });
+        await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listing.id]);
+        log.push(`✓ outreach → ${listing.contact_email} (${listing.name})`); sent++;
+      } catch(e) {
+        log.push(`✗ ${listing.contact_email}: ${e.message}`); errors++;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+    console.log(`[outreach-batch] ${sent} sent, ${errors} errors out of ${rows.length} queued`);
+    res.json({ ok: true, sent, errors, total: rows.length, log });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/extract-contacts-deep?key=… — re-scan not_found listings with more pages ─
+let _deepScanRunning = false;
+app.post('/admin/extract-contacts-deep', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (_deepScanRunning) return res.json({ ok: false, message: 'already running' });
+  _deepScanRunning = true;
+  res.json({ ok: true, message: 'deep scan started in background' });
+
+  setImmediate(async () => {
+    const CONCURRENCY = 10;
+    const EMAIL_RE = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
+    const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your|admin|webmaster|info@example|hello@gmail|support@gmail|contact@gmail|you@|hello@email|hello@company|hello@lawfirm|footer_|logo@|gf-icn)/i;
+    const SKIP_D = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com|gmail\.com$|yahoo\.com$|hotmail\.com$/i;
+    const tf = (u) => { const c=new AbortController(); const t=setTimeout(()=>c.abort(),8000); return fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}}).finally(()=>clearTimeout(t)); };
+    const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
+    const getEmail = html => {
+      const text = cl(html);
+      const mt=[...text.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)].map(m=>m[1].split('?')[0].toLowerCase().trim()).filter(e=>/^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)&&!SKIP_L.test(e)&&!SKIP_D.test(e));
+      if(mt.length)return mt[0];
+      for(const m of [...text.matchAll(/(?:contact\s+us|email\s+us|reach\s+us|get\s+in\s+touch|hello@|hi@|support@|team@|info@|press@|partner)[\s\S]{0,400}/gi)]){
+        const em=[...m[0].matchAll(EMAIL_RE)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e));
+        if(em.length)return em[0];
+      }
+      const ft=text.match(/<footer[\s\S]{0,8000}/i)?.[0]||text.slice(-6000);
+      return([...ft.matchAll(EMAIL_RE)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e))[0])||null;
+    };
+    const getLI = html => { const m=[...html.matchAll(/https?:\/\/(?:www\.)?linkedin\.com\/(in|company)\/([a-zA-Z0-9_%-]{2,80})\/?/g)]; if(!m.length)return null; const p=m.find(x=>x[1]==='in')||m[0]; return`https://www.linkedin.com/${p[1]}/${p[2]}/`; };
+
+    try {
+      const { rows } = await pool.query(`SELECT id,name,url FROM directory_listings WHERE status='active' AND contact_email_status='not_found' ORDER BY id`);
+      console.log(`[extract-deep] Starting deep scan for ${rows.length} not_found listings at concurrency ${CONCURRENCY}`);
+      let done=0, found=0, li=0, i=0;
+      const EXTRA_PAGES = ['/contact', '/about', '/team', '/help', '/support', '/company', '/legal/privacy', '/privacy-policy', '/imprint'];
+      const worker = async () => {
+        while(i<rows.length){
+          const l=rows[i++];
+          try{
+            let base; try{base=new URL(l.url).origin;}catch{done++;continue;}
+            let email=null,linkedin=null,src=null;
+            const pages=[l.url,...EXTRA_PAGES.map(p=>`${base}${p}`)];
+            for(const pg of pages){
+              try{
+                const r=await tf(pg); if(!r||!r.ok)continue;
+                const html=await r.text().catch(()=>'');
+                if(!email){email=getEmail(html);if(email)src=pg;}
+                if(!linkedin)linkedin=getLI(html);
+                if(email&&linkedin)break;
+              }catch{}
+            }
+            const status=email?'found':'not_found';
+            const liQ=linkedin?`,social_linkedin=COALESCE(NULLIF(social_linkedin,''),$5)`:'';
+            await pool.query(`UPDATE directory_listings SET contact_email=$1,contact_email_status=$2,contact_email_source=$3,contact_email_fetched_at=NOW()${liQ} WHERE id=$4`,
+              linkedin?[email||null,status,src||null,l.id,linkedin]:[email||null,status,src||null,l.id]);
+            if(email){found++;console.log(`[extract-deep] ✓ ${l.name} → ${email}`);}
+            if(linkedin)li++; done++;
+            if(done%25===0)console.log(`[extract-deep] ${done}/${rows.length} — emails:${found} linkedin:${li}`);
+          }catch(e){ done++; }
+        }
+      };
+      await Promise.all(Array.from({length:CONCURRENCY},worker));
+      console.log(`[extract-deep] DONE — found:${found} linkedin:${li} / ${rows.length} scanned`);
+    } catch(e){ console.error('[extract-deep] FATAL:',e.message); }
+    finally { _deepScanRunning = false; }
+  });
+});
+
 // ── GET /admin/run-vote-growth?key=… — manually trigger daily vote growth cron ─
 app.get('/admin/run-vote-growth', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
