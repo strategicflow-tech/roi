@@ -21054,6 +21054,9 @@ full HTML body here
       `);
       console.log(`[cron-followup] ${dueListings.length} listings due for follow-up`);
       for (const listing of dueListings) {
+        if (await isUnsubscribed(listing.contact_email)) {
+          console.log(`[cron-followup] ⊘ unsubscribed → ${listing.contact_email}`); continue;
+        }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
@@ -21063,10 +21066,10 @@ full HTML body here
 <p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p>
 <p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p style="font-size:13px;color:#6b7280;">If it&rsquo;s not your product or you&rsquo;d rather not hear from us, just reply and we&rsquo;ll stop.</p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+${buildUnsubFooterHtml(listing.contact_email)}
 </div>`;
-          const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\nIf it's not your product or you'd rather not hear from us, just reply and we'll stop.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
+          const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
           await resend.emails.send({
             from:    SENDER,
             to:      listing.contact_email,
