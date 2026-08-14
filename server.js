@@ -2433,6 +2433,22 @@ async function fetchProductLogo(url) {
   }
 }
 
+// ── Junk email guard — rejects image filenames, placeholders, privacy inboxes ─
+// Applied before storing any email in DB and before sending any outreach email.
+function isJunkEmail(email) {
+  if (!email || typeof email !== 'string') return true;
+  const e = email.toLowerCase().trim();
+  // Reject image/asset file extension domains (e.g. arrow-down-footer@2x.png)
+  if (/\.(png|svg|jpg|jpeg|gif|webp|ico|bmp|tiff?|avif)$/i.test(e)) return true;
+  // Reject placeholder local parts
+  if (/^(you|name|user|someone|your|test|example)@/i.test(e)) return true;
+  // Reject privacy / legal / compliance / abuse department inboxes
+  if (/^(privacy|legal|abuse|dpo|eudatarep|gdpr|compliance|heroku-abuse|noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe)@/i.test(e)) return true;
+  // Reject generic free-provider addresses used as placeholders
+  if (/^(hello|support|contact|info|admin)@(gmail|yahoo|hotmail|outlook)\.com$/.test(e)) return true;
+  return false;
+}
+
 // ── Contact email extractor ──────────────────────────────────────────────────
 // Visits a product's own website and extracts publicly visible contact emails.
 // Only collects emails from mailto: links or text near contact keywords/footer.
@@ -3221,15 +3237,15 @@ app.post('/admin/extract-contacts-bg', async (req, res) => {
     const tf = (u) => { const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000); return fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}}).finally(()=>clearTimeout(t)); };
     const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
     const getEmail = html => {
-      const mt=[...html.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)].map(m=>m[1].split('?')[0].toLowerCase().trim()).filter(e=>/^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)&&!SKIP_L.test(e)&&!SKIP_D.test(e));
+      const mt=[...html.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)].map(m=>m[1].split('?')[0].toLowerCase().trim()).filter(e=>/^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)&&!SKIP_L.test(e)&&!SKIP_D.test(e)&&!isJunkEmail(e));
       if(mt.length)return mt[0];
       const text=cl(html);
       for(const m of [...text.matchAll(/(?:contact\s+us|email\s+us|reach\s+us|get\s+in\s+touch|hello@|hi@|support@|team@)[\s\S]{0,300}/gi)]){
-        const em=[...m[0].matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e));
+        const em=[...m[0].matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e)&&!isJunkEmail(e));
         if(em.length)return em[0];
       }
       const ft=text.match(/<footer[\s\S]{0,6000}/i)?.[0]||text.slice(-4000);
-      return([...ft.matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e))[0])||null;
+      return([...ft.matchAll(EMAIL_RE2)].map(e=>e[1].toLowerCase()).filter(e=>!SKIP_L.test(e)&&!SKIP_D.test(e)&&!isJunkEmail(e))[0])||null;
     };
     const getLI = html => { const m=[...html.matchAll(/https?:\/\/(?:www\.)?linkedin\.com\/(in|company)\/([a-zA-Z0-9_%-]{2,80})\/?/g)]; if(!m.length)return null; const p=m.find(x=>x[1]==='in')||m[0]; return`https://www.linkedin.com/${p[1]}/${p[2]}/`; };
 
@@ -3532,6 +3548,7 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'not_found' });
     const listing = rows[0];
     if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
+    if (isJunkEmail(listing.contact_email)) return res.status(400).json({ error: 'junk_email', email: listing.contact_email });
     if (listing.outreach_emailed_at) {
       return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
     }
@@ -3866,6 +3883,11 @@ app.post('/admin/send-claim-outreach-batch', async (req, res) => {
       LIMIT $1`, [cap]);
     let sent = 0, errors = 0; const log = [];
     for (const listing of rows) {
+      if (isJunkEmail(listing.contact_email)) {
+        log.push(`⚠ skipped junk: ${listing.contact_email} (${listing.name})`);
+        await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
+        continue;
+      }
       try {
         const slug = toListingSlug(listing.name, listing.id);
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
@@ -3947,6 +3969,34 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
       };
       await Promise.all(Array.from({length:CONCURRENCY},worker));
       console.log(`[extract-deep] DONE — found:${found} linkedin:${li} / ${rows.length} scanned`);
+      // Auto-send claim outreach to newly discovered emails
+      if (found > 0) {
+        try {
+          const { rows: newLeads } = await pool.query(`
+            SELECT id, name, contact_email, ai_insights FROM directory_listings
+            WHERE contact_email_status='found' AND outreach_emailed_at IS NULL
+              AND claimed_by IS NULL AND status='active' AND contact_email IS NOT NULL
+            ORDER BY id ASC`);
+          let autoSent = 0, autoSkipped = 0;
+          for (const listing of newLeads) {
+            if (isJunkEmail(listing.contact_email)) {
+              await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
+              autoSkipped++; continue;
+            }
+            try {
+              const slug = toListingSlug(listing.name, listing.id);
+              const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+              const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights);
+              await resend.emails.send({ from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me', subject, html: htmlBody, text: textBody });
+              await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listing.id]);
+              console.log(`[extract-deep] ✉ outreach → ${listing.contact_email} (${listing.name})`);
+              autoSent++;
+            } catch(e) { console.error(`[extract-deep] outreach error ${listing.contact_email}:`, e.message); }
+            await new Promise(r => setTimeout(r, 300));
+          }
+          console.log(`[extract-deep] Auto-outreach: ${autoSent} sent, ${autoSkipped} junk skipped`);
+        } catch(e) { console.error('[extract-deep] auto-outreach error:', e.message); }
+      }
     } catch(e){ console.error('[extract-deep] FATAL:',e.message); }
     finally { _deepScanRunning = false; }
   });
@@ -21033,6 +21083,34 @@ ${content}
 
   // ── Daily 11:00: send blog newsletter for any newly published posts ───────────
   cron.schedule('0 11 * * *', () => checkBlogNewsletters().catch(()=>{}));
+
+  // ── Daily 09:00 UTC: auto-send claim outreach to newly-discovered listing emails ─
+  cron.schedule('0 9 * * *', async () => {
+    try {
+      const { rows } = await pool.query(`
+        SELECT id, name, contact_email, ai_insights FROM directory_listings
+        WHERE contact_email_status='found' AND outreach_emailed_at IS NULL
+          AND claimed_by IS NULL AND status='active' AND contact_email IS NOT NULL
+        ORDER BY id ASC LIMIT 100`);
+      let sent = 0, skipped = 0;
+      for (const listing of rows) {
+        if (isJunkEmail(listing.contact_email)) {
+          await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
+          skipped++; continue;
+        }
+        try {
+          const slug = toListingSlug(listing.name, listing.id);
+          const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+          const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights);
+          await resend.emails.send({ from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me', subject, html: htmlBody, text: textBody });
+          await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listing.id]);
+          sent++;
+        } catch(e) { console.error(`[outreach-cron] error ${listing.contact_email}:`, e.message); }
+        await new Promise(r => setTimeout(r, 300));
+      }
+      console.log(`[outreach-cron] ${sent} sent, ${skipped} junk skipped out of ${rows.length} candidates`);
+    } catch(e) { console.error('[outreach-cron] error:', e.message); }
+  });
 
   // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
   cron.schedule('0 7 * * *', async () => {
