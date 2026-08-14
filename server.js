@@ -20887,7 +20887,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
   <div class="nav-links">
     <a href="https://strategicflow.tech/teardowns.html" class="nav-link">Teardowns</a>
     <a href="https://strategicflow.tech/glossary.html" class="nav-link">Glossary</a>
-    <a href="https://strategicflow.tech/blog.html" class="nav-link active">Blog</a>
+    <a href="/blog" class="nav-link active">Blog</a>
     <a href="https://strategic-flow-audit.replit.app" class="nav-link" target="_blank" rel="noopener">Free Audit</a>
     <a href="https://strategic-flow-pro.replit.app" class="nav-cta" target="_blank" rel="noopener">Rebuild Yours &rarr;</a>
   </div>
@@ -20896,7 +20896,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
 <div class="mobile-menu" id="mobile-menu">
   <a href="https://strategicflow.tech/teardowns.html" class="mm-item">Teardowns</a>
   <a href="https://strategicflow.tech/glossary.html" class="mm-item">Glossary</a>
-  <a href="https://strategicflow.tech/blog.html" class="mm-item" style="color:var(--green);">Blog</a>
+  <a href="/blog" class="mm-item" style="color:var(--green);">Blog</a>
   <a href="https://strategic-flow-audit.replit.app" class="mm-item" target="_blank" rel="noopener">Free Audit</a>
   <a href="https://strategic-flow-pro.replit.app" class="mm-cta" target="_blank" rel="noopener">Rebuild Yours &rarr;</a>
 </div>
@@ -20905,7 +20905,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;text-align:center;}
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="https://strategicflow.tech/">Strategic Flow</a>
     <span class="breadcrumb-sep">/</span>
-    <a href="https://strategicflow.tech/blog.html">Blog</a>
+    <a href="/blog">Blog</a>
     <span class="breadcrumb-sep">/</span>
     <span>${title}</span>
   </nav>
@@ -20931,7 +20931,7 @@ ${content}
     <a href="https://strategicflow.tech/">Strategic Flow</a>
     <a href="https://strategicflow.tech/teardowns.html">Teardowns</a>
     <a href="https://strategicflow.tech/glossary.html">Glossary</a>
-    <a href="https://strategicflow.tech/blog.html">Blog</a>
+    <a href="/blog">Blog</a>
     <a href="https://strategic-flow-audit.replit.app" target="_blank" rel="noopener">Free Audit</a>
     <a href="https://strategic-flow-pro.replit.app" target="_blank" rel="noopener">Pro Plans</a>
   </div>
