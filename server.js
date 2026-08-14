@@ -639,6 +639,15 @@ h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-
 .faq-item:last-child{border-bottom:none;}
 .faq-q{font-size:15px;font-weight:700;color:#fff;margin:0 0 8px;line-height:1.4;}
 .faq-a{font-size:13px;color:#94a3b8;line-height:1.75;margin:0;}
+/* Blog teaser */
+.blog-teaser{margin:52px 0 0;}
+.blog-teaser-label{font-family:monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#00d4c8;margin-bottom:14px;}
+.blog-teaser-card{display:block;background:#0e1c2e;border:1px solid #1a2640;border-radius:14px;padding:24px 28px;transition:border-color .2s;text-decoration:none;}
+.blog-teaser-card:hover{border-color:#00d4c8;text-decoration:none;}
+.blog-teaser-date{font-family:monospace;font-size:11px;color:#64748b;margin-bottom:8px;}
+.blog-teaser-title{font-size:17px;font-weight:700;color:#fff;line-height:1.35;margin-bottom:8px;}
+.blog-teaser-excerpt{font-size:13px;color:#94a3b8;line-height:1.65;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.blog-teaser-cta{font-family:monospace;font-size:12px;color:#00d4c8;}
 @media(max-width:600px){.grid{grid-template-columns:1fr;}.nav-links{display:none;}}
 </style>
 </head>
@@ -663,6 +672,20 @@ h2{font-size:20px;font-weight:700;color:#fff;margin:40px 0 16px;letter-spacing:-
     <p>Get a permanent dofollow backlink from a DR 86 domain. Instant approval, no review queue.</p>
     <a class="cta-btn" href="/directory#submit">Submit your product →</a>
   </div>
+  ${(() => {
+    const latest = BLOG_POSTS[0];
+    if (!latest) return '';
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return `<div class="blog-teaser">
+    <div class="blog-teaser-label">From the blog</div>
+    <a class="blog-teaser-card" href="/blog/${esc(latest.slug)}">
+      <div class="blog-teaser-date">${esc(latest.dateLabel || latest.date)}</div>
+      <div class="blog-teaser-title">${esc(latest.title)}</div>
+      <div class="blog-teaser-excerpt">${esc(latest.excerpt)}</div>
+      <div class="blog-teaser-cta">Read the full article →</div>
+    </a>
+  </div>`;
+  })()}
   <footer class="footer">ToolIndex · <a href="/directory">SaaS Directory</a> · Free dofollow backlinks · DR 86</footer>
 </div>
 </body>
@@ -7796,28 +7819,27 @@ app.get('/api/directory/startup-of-day', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/blog', (req, res) => {
+app.get('/blog', async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
-    // Inject any auto-generated posts not already in the static file
-    const AUTO_POSTS_MARKER = '<div class="posts-grid">';
-    const markerIdx = html.indexOf(AUTO_POSTS_MARKER);
-    if (markerIdx !== -1) {
-      const autoCards = BLOG_POSTS
-        .filter(p => !html.includes(`/blog/${p.slug}`))
-        .map(p => {
-          const d = new Date(p.date + 'T12:00:00Z');
-          const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-          const mins = (p.dateLabel || '').match(/(\d+) min/) ? (p.dateLabel.match(/(\d+) min/)[1] + ' min read') : '8 min read';
-          const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          return `\n  <div class="post-card">\n    <a href="/blog/${p.slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr}</span><span>${mins}</span></div>\n      <h2>${esc(p.title)}</h2>\n      <p>${esc(p.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
-        }).join('\n');
-      if (autoCards) html = html.replace(AUTO_POSTS_MARKER, AUTO_POSTS_MARKER + autoCards);
-    }
+    // Query DB directly — source of truth, works even if in-memory BLOG_POSTS is stale
+    const { rows: dbPosts } = await pool.query(
+      `SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY created_at DESC`
+    );
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const autoCards = dbPosts
+      .filter(p => !html.includes(`/blog/${p.slug}`))   // skip any already hardcoded
+      .map(p => {
+        const d = new Date(p.date + 'T12:00:00Z');
+        const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        return `\n  <div class="post-card">\n    <a href="/blog/${p.slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr}</span><span>8 min read</span></div>\n      <h2>${esc(p.title)}</h2>\n      <p>${esc(p.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
+      }).join('\n');
+    if (autoCards) html = html.replace('<div class="posts-grid">', '<div class="posts-grid">' + autoCards);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
     res.send(html);
   } catch(e) {
+    console.error('[/blog] render error:', e.message);
     res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
   }
 });
