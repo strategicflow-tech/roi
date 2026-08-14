@@ -20913,6 +20913,21 @@ full HTML body here
     const post = { slug, title: article.title, excerpt: article.excerpt, date: today, dateLabel };
     if (!BLOG_POSTS.some(bp => bp.slug === slug)) BLOG_POSTS.unshift(post);
 
+    // Also prepend entry to hardcoded BLOG_POSTS in server.js so production deploys
+    // pick it up without relying on the production DB (which is separate from dev)
+    try {
+      const serverPath = path.join(__dirname, 'server.js');
+      let serverSrc = await fs.promises.readFile(serverPath, 'utf8');
+      const marker = 'const BLOG_POSTS = [\n';
+      if (serverSrc.includes(marker) && !serverSrc.includes(`slug: '${slug}'`)) {
+        const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const entry = `  { slug: '${slug}', title: '${esc(article.title)}', excerpt: '${esc(article.excerpt)}', date: '${today}', dateLabel: '${dateLabel}' },\n`;
+        serverSrc = serverSrc.replace(marker, marker + entry);
+        await fs.promises.writeFile(serverPath, serverSrc, 'utf8');
+        console.log(`[blog-auto] Prepended entry to BLOG_POSTS in server.js`);
+      }
+    } catch(e) { console.error('[blog-auto] server.js BLOG_POSTS update error:', e.message); }
+
     // Also prepend card to blog/index.html so the listing page stays current
     try {
       const idxPath = path.join(__dirname, 'public', 'blog', 'index.html');
