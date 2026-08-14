@@ -417,6 +417,19 @@ function heDir(s) {
 
 // ── Server-side card renderer — mirrors client renderCard() in directory.html ──
 // Vote state is unknown server-side; cards render unvoted; JS hydrates from localStorage.
+// Returns the description if it's primarily Latin/English; otherwise a clean fallback.
+// Detects CJK, Arabic, Cyrillic-heavy, etc. by counting non-Basic-Latin chars.
+function sanitizeDesc(name, desc, url) {
+  if (!desc) return '';
+  const nonLatin = (desc.match(/[^\x00-\x7F]/g) || []).length;
+  if (nonLatin / desc.length > 0.25) {
+    let domain = '';
+    try { domain = new URL(url || '').hostname.replace(/^www\./, ''); } catch {}
+    return domain ? `Visit ${domain} to learn more about ${name}.` : `Learn more about ${name}.`;
+  }
+  return desc;
+}
+
 function ssrCard(l, clickMap) {
   const clicks = (clickMap && clickMap[l.id]) || 0;
   let domain = '';
@@ -465,7 +478,7 @@ function ssrCard(l, clickMap) {
 
   return `<div class="dir-card${isFeat?' is-featured':''}${l.featured_tier==='premium'?' is-premium':''}" data-id="${l.id}" data-cat="${heDir(cat)}" data-name="${heDir(name.toLowerCase())}" data-desc="${heDir((l.description||'').toLowerCase())}">
 <div class="dir-card-top"><div class="dir-card-left">${avatar}<div style="min-width:0;"><a class="dir-card-name" href="/directory/${toListingSlug(name,l.id)}">${heDir(name)}</a><div class="dir-cat-tag">${heDir(cat)}</div>${featBadge}</div></div></div>
-<p class="dir-desc">${heDir(l.description||'')}</p>
+<p class="dir-desc">${heDir(sanitizeDesc(l.name, l.description||'', l.url))}</p>
 <div class="dir-card-footer"><div class="dir-card-actions"><a href="${heDir(l.url)}" class="dir-visit" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${heDir(domain)} →</a><button class="dir-vote-btn" id="vbtn-${l.id}" onclick="castVote(${l.id},this)" title="Upvote this product"><span class="vote-arrow">▲</span><span class="vote-count" id="vc-${l.id}"${votes === 0 ? ' style="display:none"' : ''}>${votes}</span></button></div>${clickStat}<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${sourceTag}${claimSection}<button class="dir-boost-btn" onclick="scrollToPricing(${l.id},'${safeName}')">⚡ Boost from $9</button></div></div>
 </div>`;
 }
@@ -696,7 +709,7 @@ function listingCard(l) {
   const domain = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
   const gfav = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : '';
   const logoSrc = l.image_url || gfav;
-  const desc = (l.description || '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').slice(0, 160);
+  const desc = sanitizeDesc(l.name, (l.description || '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&'), l.url).slice(0, 160);
   return `<div class="card" itemscope itemtype="https://schema.org/SoftwareApplication">
     <div class="card-head">
       ${logoSrc ? `<img class="card-logo" src="${logoSrc}" alt="${l.name} logo" loading="lazy" onerror="this.style.display='none'"/>` : ''}
@@ -2365,6 +2378,7 @@ app.get('/api/directory/listings', async (req, res) => {
     const trendingMap = new Map(trending.map(t => [t.id, t.pct]));
     const listings = r.rows.map(l => ({
       ...l,
+      description:     sanitizeDesc(l.name, l.description, l.url),
       is_winner_day:   l.id === winners.day,
       is_winner_week:  l.id === winners.week,
       is_winner_month: l.id === winners.month,
