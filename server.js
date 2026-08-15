@@ -8350,6 +8350,7 @@ app.post('/admin/add-unsubscribe', async (req, res) => {
 
 // ── GET /api/blog/latest — returns the most recently published blog post ─────
 const BLOG_POSTS = [
+  { slug: 'audit-saas-product-emails-checklist', title: 'How to Audit SaaS Product Emails for Structural and Conversion Issues (7-Point Checklist)', excerpt: 'Opens are fine. Clicks aren\'t. A practical framework for diagnosing structural vs. deliverability failures in onboarding, trial, and promo emails — before touching a word of copy.', date: '2026-08-15', dateLabel: 'Aug 15, 2026 · 7 min read' },
   { slug: 'saas-directory-submission-2026', title: 'SaaS Directory Submission 2026: The Highest-DR Backlinks, Fastest Approvals, and Real Referral Traffic', excerpt: 'We tested SaaS directory submissions in 2026 for DR, approval speed, and referral traffic. Here\'s which directories actually move the needle for founders.', date: '2026-08-14', dateLabel: 'Aug 14, 2026 · 8 min read' },
   { slug: 'ai-search-visibility-case-study-toolindex', title: 'I Asked Perplexity What It Knew About My SaaS Directory. Here\'s What Came Back — and What I Fixed.', excerpt: 'A live Perplexity test on "best free SaaS directories 2026" returned 10 cited sources. ToolIndex wasn\'t one of them. Here\'s what all 10 had in common, the structured-content fix that changed our citability, and the unexpected named-entity collision that almost mislabeled our own methodology.', date: '2026-08-12', dateLabel: 'Aug 12, 2026 · 8 min read' },
   { slug: 'domain-rating-explained-dr86-vs-low-dr-backlinks', title: 'Domain Rating Explained: Why One DR 86 Backlink Beats 50 Low-DR Directory Listings', excerpt: 'Domain rating is the single most misunderstood metric in SaaS backlink strategy. Here is what it actually measures, why it does not scale linearly, and what that means for where you submit your product.', date: '2026-08-10', dateLabel: 'Aug 10, 2026 · 8 min read' },
@@ -20307,6 +20308,7 @@ setupDB().then(async () => {
       { loc: `${base}/blog/product-hunt-vs-betalist-vs-toolindex`,   priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/free-saas-directories-instant-approval`,  priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/best-ai-tool-directories-2026`,           priority: '0.9', changefreq: 'monthly' },
+      { loc: `${base}/blog/audit-saas-product-emails-checklist`,     priority: '0.9', changefreq: 'monthly' },
     ];
     const urls = staticUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
