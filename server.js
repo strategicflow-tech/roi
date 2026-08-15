@@ -4028,6 +4028,16 @@ app.post('/admin/seq-run-batch', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── POST /admin/run-weekly-spotlight?key=… — manually trigger the weekly spotlight newsletter ──
+app.post('/admin/run-weekly-spotlight', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const result = await runWeeklySpotlightNewsletter();
+    console.log(`[weekly-spotlight] manual trigger: ${result.sent} sent, ${result.skipped} skipped`);
+    res.json({ ok: true, ...result });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── POST /admin/run-followup-batch?key=…&cap=N — send follow-ups to unclaimed listings ──
 app.post('/admin/run-followup-batch', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -5787,6 +5797,224 @@ async function checkBlogNewsletters() {
   } catch(e) {
     console.error('[blog-newsletter] check error:', e.message);
   }
+}
+
+// ── Weekly Spotlight Newsletter — 4-template rotation ─────────────────────────
+// Sends every Tuesday 08:00 UTC to all claimed-listing owners.
+// Offer: Weekly Feature ($19) = 14-day Featured Slot + permanent Spotlight article.
+// Templates rotate per contact so no two consecutive weeks look the same.
+// All do-not-contact rules (isBlockedOutreachTarget, isUnsubscribed, BYPASS_EMAILS) apply.
+
+function buildWeeklySpotlightEmail(templateId, toolName, listingUrl, email, weeklyNewCount) {
+  const boostUrl   = `${listingUrl}?boost=1`;
+  const unsubHtml  = buildUnsubFooterHtml(email);
+  const unsubText  = buildUnsubFooterText(email);
+  const n          = weeklyNewCount || 0;
+
+  const WRAP_OPEN = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;background:#060e1c;color:#e2e8f0;padding:36px 32px;border-radius:14px;line-height:1.7;font-size:15px;">
+<div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:22px;">ToolIndex · Weekly Spotlight</div>`;
+  const WRAP_CLOSE = `</div>`;
+  const CTA = (label) => `<a href="${boostUrl}" style="display:inline-block;background:#00d4c8;color:#041214;text-decoration:none;padding:12px 26px;border-radius:8px;font-weight:700;font-size:13px;font-family:monospace;letter-spacing:.04em;">${label}</a>`;
+  const FOOTER_H = `<p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">Real votes still decide your ranking. A Featured Week is visibility, not vote manipulation.</p>${unsubHtml}`;
+  const FOOTER_T = `\nReal votes still decide your ranking. A Featured Week is visibility, not vote manipulation.\n${unsubText}`;
+
+  const templates = [
+    // ── 0: "Two things for one price" (user Template A) ──────────────────────
+    {
+      subject: `Two things for the price of one week`,
+      html: `${WRAP_OPEN}
+<p>Hi,</p>
+<p style="color:#94a3b8;">Your <strong style="color:#fff;">${toolName}</strong> listing is live — that's the hard part done. The next question is simple: how do more of the right people see it?</p>
+<p style="color:#94a3b8;">The <strong style="color:#fff;">Weekly Feature</strong> is one price with two deliverables:</p>
+<div style="background:#0d2137;border:1px solid rgba(0,212,200,.2);border-radius:10px;padding:20px 24px;margin:24px 0;">
+  <p style="margin:0 0 14px;"><strong style="color:#00d4c8;">① Featured Slot — 14 days</strong><br><span style="color:#94a3b8;font-size:14px;">Your tool takes the ToolIndex homepage Featured position, seen by every founder and developer who browses the directory.</span></p>
+  <p style="margin:0;"><strong style="color:#00d4c8;">② Permanent Spotlight Article</strong><br><span style="color:#94a3b8;font-size:14px;">We write and publish a dedicated article about <strong style="color:#fff;">${toolName}</strong> on the ToolIndex blog — dofollow link back to your listing and your site. The week ends. The article keeps working.</span></p>
+</div>
+<p style="color:#94a3b8;font-size:14px;">$19 for the week.</p>
+<p style="margin:28px 0;">${CTA(`Feature ${toolName} for $19 →`)}</p>
+${FOOTER_H}${WRAP_CLOSE}`,
+      text: `Hi,
+
+Your ${toolName} listing is live — that's the hard part done.
+
+The Weekly Feature is one price, two deliverables:
+
+① Featured Slot (14 days) — your tool takes the ToolIndex homepage Featured position.
+
+② Permanent Spotlight Article — we write and publish a dedicated article about ${toolName} on the ToolIndex blog, dofollow link included. The week ends, the article keeps working.
+
+$19 for the week.
+
+Feature ${toolName} for $19: ${boostUrl}
+${FOOTER_T}`,
+    },
+    // ── 1: "Cost of staying quiet" (user Template B) ─────────────────────────
+    {
+      subject: `Every day unfeatured is a day someone else gets the click`,
+      html: `${WRAP_OPEN}
+<p>Hi,</p>
+<p style="color:#94a3b8;">${n > 0 ? `<strong style="color:#fff;">${n} tools</strong> joined ToolIndex this week alone.` : `New tools join ToolIndex every week.`} Yours is live — but the homepage Featured slot only fits a few at a time.</p>
+<p style="color:#94a3b8;">This week's <strong style="color:#fff;">Weekly Feature</strong> includes something the standard boost alone doesn't:</p>
+<div style="background:#0d2137;border-left:3px solid #00d4c8;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0;">
+  <p style="margin:0;font-size:14px;">A <strong style="color:#00d4c8;">permanent Spotlight Article</strong> on the ToolIndex blog — dofollow link included — live long after your featured week ends.</p>
+</div>
+<p style="color:#94a3b8;font-size:14px;">$19, one time. The feature fades. The article doesn't.</p>
+<p style="margin:28px 0;">${CTA(`Claim this week's spotlight →`)}</p>
+${FOOTER_H}${WRAP_CLOSE}`,
+      text: `Hi,
+
+${n > 0 ? `${n} tools joined ToolIndex this week alone.` : `New tools join ToolIndex every week.`} Yours is live — but the homepage Featured slot only fits a few at a time.
+
+This week's Weekly Feature includes something the standard boost alone doesn't: a permanent Spotlight Article on the ToolIndex blog — dofollow link included — live long after your featured week ends.
+
+$19, one time. The feature fades. The article doesn't.
+
+Claim this week's spotlight: ${boostUrl}
+${FOOTER_T}`,
+    },
+    // ── 2: "The article doesn't fade" (Template C) ───────────────────────────
+    {
+      subject: `The featured week ends. The article doesn't.`,
+      html: `${WRAP_OPEN}
+<p>Hi,</p>
+<p style="color:#94a3b8;">Most directory boosts are rented attention. Your ranking goes up, the week ends, you're back where you started. The ToolIndex Weekly Feature is different because one half of it is permanent.</p>
+<table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:14px;">
+  <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+    <td style="padding:12px 0;"><strong style="color:#e2e8f0;">Featured Slot — 14 days</strong></td>
+    <td style="padding:12px 0;color:#4a7a9a;text-align:right;">temporary</td>
+  </tr>
+  <tr>
+    <td style="padding:12px 0;"><strong style="color:#00d4c8;">Spotlight Article</strong></td>
+    <td style="padding:12px 0;color:#00d4c8;font-weight:700;text-align:right;">permanent · dofollow · forever</td>
+  </tr>
+</table>
+<p style="color:#94a3b8;font-size:14px;">One price — $19 — covers both. We write the article. You get the backlink.</p>
+<p style="margin:28px 0;">${CTA(`Get the featured week + article →`)}</p>
+${FOOTER_H}${WRAP_CLOSE}`,
+      text: `Hi,
+
+Most directory boosts are rented attention. Your ranking goes up, the week ends, you're back where you started.
+
+The ToolIndex Weekly Feature is different because one half of it is permanent:
+
+  Featured Slot — 14 days   → temporary
+  Spotlight Article          → permanent · dofollow · forever
+
+One price — $19 — covers both. We write the article. You get the backlink.
+
+Get the featured week + article: ${boostUrl}
+${FOOTER_T}`,
+    },
+    // ── 3: "$19 once. Permanent DR 86 backlink." (Template D) ────────────────
+    {
+      subject: `$19 once. DR 86 backlink, permanently.`,
+      html: `${WRAP_OPEN}
+<p>Hi,</p>
+<p style="color:#94a3b8;">Most SaaS marketing spend is rented — ads, sponsored slots, promoted placements. When the budget stops, so does the traffic.</p>
+<p style="color:#94a3b8;">The ToolIndex <strong style="color:#fff;">Weekly Feature + Spotlight</strong> bundle works differently.</p>
+<div style="background:#0d2137;border:1px solid rgba(0,212,200,.15);border-radius:10px;padding:20px 24px;margin:24px 0;">
+  <p style="margin:0 0 6px;font-size:10px;font-family:monospace;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;">What you get for $19</p>
+  <p style="margin:10px 0;color:#e2e8f0;font-size:14px;">✓ <strong>14-day Featured placement</strong> on the ToolIndex homepage</p>
+  <p style="margin:0;color:#e2e8f0;font-size:14px;">✓ <strong>Permanent Spotlight Article</strong> published on the ToolIndex blog (DR 86) — a dofollow backlink to your site that keeps sending authority indefinitely</p>
+</div>
+<p style="color:#94a3b8;font-size:14px;">One payment. Two deliverables. One of them never expires.</p>
+<p style="margin:28px 0;">${CTA(`Feature ${toolName} this week →`)}</p>
+${FOOTER_H}${WRAP_CLOSE}`,
+      text: `Hi,
+
+Most SaaS marketing spend is rented. When the budget stops, so does the traffic.
+
+The ToolIndex Weekly Feature + Spotlight bundle works differently:
+
+  ✓ 14-day Featured placement on the ToolIndex homepage
+  ✓ Permanent Spotlight Article on ToolIndex blog (DR 86) — dofollow backlink, forever
+
+One payment. Two deliverables. One of them never expires.
+
+Feature ${toolName} this week: ${boostUrl}
+${FOOTER_T}`,
+    },
+  ];
+
+  const t = templates[templateId % templates.length];
+  return { subject: t.subject, html: t.html, text: t.text };
+}
+
+async function runWeeklySpotlightNewsletter() {
+  // Count new listings this week (for Template B copy)
+  const { rows: [{ n: weeklyNewCount }] } = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM directory_listings
+     WHERE status='active' AND created_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')`
+  );
+
+  // Target: all active claimed listings, one email per owner
+  const { rows: listings } = await pool.query(`
+    SELECT DISTINCT ON (lower(trim(claimed_by)))
+      id, name, url, lower(trim(claimed_by)) AS email
+    FROM directory_listings
+    WHERE claimed_by IS NOT NULL
+      AND claimed_by LIKE '%@%'
+      AND status = 'active'
+    ORDER BY lower(trim(claimed_by)), id ASC
+  `);
+
+  let sent = 0, skipped = 0, errors = 0;
+  const log = [];
+
+  for (const listing of listings) {
+    const email = listing.email;
+
+    // ── Do-not-contact gate (order matters) ────────────────────────────────
+    if (BYPASS_EMAILS.has(email))                              { skipped++; continue; }
+    if (isJunkEmail(email))                                    { skipped++; continue; }
+    const blk = isBlockedOutreachTarget(listing.name, email);
+    if (blk.blocked) { log.push(`⊘ blocked (${blk.reason}) → ${email}`); skipped++; continue; }
+    if (await isUnsubscribed(email)) { log.push(`⊘ unsub → ${email}`);   skipped++; continue; }
+
+    // ── One send per week guard ────────────────────────────────────────────
+    const { rows: thisWeek } = await pool.query(
+      `SELECT id FROM weekly_spotlight_log
+       WHERE email=$1 AND sent_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC') LIMIT 1`,
+      [email]
+    );
+    if (thisWeek.length) { skipped++; continue; }
+
+    // ── Choose next template (round-robin across the 4) ────────────────────
+    const { rows: [{ c }] } = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM weekly_spotlight_log WHERE email=$1`, [email]
+    );
+    const templateId = (c || 0) % 4;
+
+    const slug       = toListingSlug(listing.name, listing.id);
+    const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+    const { subject, html, text } = buildWeeklySpotlightEmail(
+      templateId, listing.name, listingUrl, email, weeklyNewCount
+    );
+
+    try {
+      await resend.emails.send({
+        from:    SENDER,
+        to:      email,
+        replyTo: 'strategicflow@proton.me',
+        subject,
+        html,
+        text,
+      });
+      await pool.query(
+        `INSERT INTO weekly_spotlight_log (email, listing_id, template_id) VALUES ($1, $2, $3)`,
+        [email, listing.id, templateId]
+      );
+      log.push(`✓ tpl${templateId} → ${email} (${listing.name})`);
+      sent++;
+    } catch(e) {
+      log.push(`✗ → ${email}: ${e.message.slice(0,120)}`);
+      errors++;
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  console.log(`[weekly-spotlight] ${sent} sent, ${skipped} skipped, ${errors} errors / ${listings.length} candidates`);
+  return { sent, skipped, errors, total: listings.length, log };
 }
 
 // ── Sponsor self-serve management routes (Task #37) ────────────────────────────
@@ -9117,6 +9345,19 @@ async function setupDB() {
       recipient_count  INTEGER DEFAULT 0
     )
   `).catch(e => console.error('[DB] blog_newsletter_log:', e.message));
+
+  // ── Weekly spotlight log — tracks which template was sent to which contact ───
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS weekly_spotlight_log (
+      id          SERIAL PRIMARY KEY,
+      email       TEXT NOT NULL,
+      listing_id  INTEGER,
+      template_id INTEGER NOT NULL DEFAULT 0,
+      sent_at     TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] weekly_spotlight_log:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_wsl_email ON weekly_spotlight_log(email, sent_at)`)
+    .catch(() => {});
 
   // ── Auto-generated blog posts — persistent store across restarts ─────────
   await pool.query(`
@@ -21740,6 +21981,14 @@ ${buildUnsubFooterHtml(listing.contact_email)}
       const result = await generateAndPublishBlogPost();
       console.log(`[blog-auto] Cron complete → "${result.title}"`);
     } catch(e) { console.error('[blog-auto] Cron error:', e.message); }
+  });
+
+  // ── Every Tuesday 08:00 UTC: weekly spotlight newsletter (4-template rotation) ──
+  cron.schedule('0 8 * * 2', async () => {
+    try {
+      const result = await runWeeklySpotlightNewsletter();
+      console.log(`[weekly-spotlight] cron done: ${result.sent} sent, ${result.skipped} skipped, ${result.errors} errors`);
+    } catch(e) { console.error('[weekly-spotlight] cron error:', e.message); }
   });
 
   // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
