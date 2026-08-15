@@ -22197,6 +22197,83 @@ ${buildUnsubFooterHtml(listing.contact_email)}
   //   } catch(e) { console.error('[cron] Aggregation error:', e.message); }
   // });
 
+  // ── One-shot 16 Aug 2026 10:00 UTC: publish Perplexity article to strategicflow.tech ──
+  cron.schedule('0 10 16 8 *', async () => {
+    try {
+      const https = require('https');
+      const REPO  = 'strategicflow-tech/showcase';
+      const TOKEN = process.env.GITHUB_TOKEN;
+      if (!TOKEN) { console.error('[pub-perplexity] GITHUB_TOKEN missing'); return; }
+
+      function ghRequest(method, path, body) {
+        return new Promise((resolve, reject) => {
+          const data = body ? JSON.stringify(body) : null;
+          const req  = https.request({
+            hostname: 'api.github.com', path, method,
+            headers: {
+              'Authorization': `token ${TOKEN}`,
+              'User-Agent': 'replit-agent',
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json',
+              ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {})
+            }
+          }, res => {
+            let raw = '';
+            res.on('data', d => raw += d);
+            res.on('end', () => resolve(JSON.parse(raw)));
+          });
+          req.on('error', reject);
+          if (data) req.write(data);
+          req.end();
+        });
+      }
+
+      // 1. Push article file
+      const articlePath = path.join(__dirname, 'public/drafts/perplexity-cited-strategic-flow-email-audit.html');
+      const articleContent = fs.readFileSync(articlePath);
+      const articleB64 = articleContent.toString('base64');
+      const pushResult = await ghRequest('PUT', `/repos/${REPO}/contents/blog/perplexity-cited-strategic-flow-email-audit.html`, {
+        message: 'Add: I Asked Perplexity Who Audits SaaS Emails. My Own Tool Answered Back.',
+        content: articleB64
+      });
+      console.log('[pub-perplexity] Article push:', pushResult.content ? pushResult.content.name : pushResult.message);
+
+      // 2. Update blog.html — add card at top of articles-grid
+      const blogMeta = await ghRequest('GET', `/repos/${REPO}/contents/blog.html`);
+      const blogHtml = Buffer.from(blogMeta.content.replace(/\n/g, ''), 'base64').toString('utf8');
+      const newCard = `    <a href="/blog/perplexity-cited-strategic-flow-email-audit.html" class="article-card">
+      <div class="article-meta">
+        <span class="article-date">16 Aug 2026</span>
+        <span class="article-tag">AI Visibility</span>
+      </div>
+      <h2 class="article-title">I Asked Perplexity Who Audits SaaS Emails. My Own Tool Answered Back.</h2>
+      <p class="article-excerpt">Chapter two of checking where you stand in AI search. This time the question wasn&#39;t about a directory &mdash; it was about the diagnostic underneath it.</p>
+      <span class="article-cta">Read article &rarr;</span>
+    </a>\n`;
+      const updatedBlog = blogHtml.replace('<div class="articles-grid">', '<div class="articles-grid">\n' + newCard);
+      const blogPush = await ghRequest('PUT', `/repos/${REPO}/contents/blog.html`, {
+        message: 'Add card: Perplexity cited Strategic Flow article',
+        content: Buffer.from(updatedBlog).toString('base64'),
+        sha: blogMeta.sha
+      });
+      console.log('[pub-perplexity] blog.html push:', blogPush.content ? blogPush.content.name : blogPush.message);
+
+      // 3. Update sitemap.xml
+      const sitemapMeta = await ghRequest('GET', `/repos/${REPO}/contents/sitemap.xml`);
+      const sitemapXml  = Buffer.from(sitemapMeta.content.replace(/\n/g, ''), 'base64').toString('utf8');
+      const newEntry    = `  <url>\n    <loc>https://strategicflow.tech/blog/perplexity-cited-strategic-flow-email-audit.html</loc>\n    <lastmod>2026-08-16</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>\n</urlset>`;
+      const updatedSitemap = sitemapXml.replace('</urlset>', newEntry);
+      const sitemapPush = await ghRequest('PUT', `/repos/${REPO}/contents/sitemap.xml`, {
+        message: 'Sitemap: add perplexity-cited-strategic-flow-email-audit',
+        content: Buffer.from(updatedSitemap).toString('base64'),
+        sha: sitemapMeta.sha
+      });
+      console.log('[pub-perplexity] sitemap push:', sitemapPush.content ? sitemapPush.content.name : sitemapPush.message);
+    } catch (e) {
+      console.error('[pub-perplexity] failed:', e.message);
+    }
+  });
+
   // ── Daily 10:00: notify claimed owners whose relaunch window just opened ──────
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
 
