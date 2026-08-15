@@ -6017,6 +6017,210 @@ async function runWeeklySpotlightNewsletter() {
   return { sent, skipped, errors, total: listings.length, log };
 }
 
+// ── Startup of the Week: SVG social-card generator ───────────────────────────
+// Returns a 1200×630 branded SVG string for a given listing object.
+function buildStartupOfWeekSvg(listing) {
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const name    = esc((listing.name || '').slice(0, 48));
+  const desc    = esc((listing.description || '').slice(0, 110));
+  const votes   = Number(listing.week_votes || listing.vote_count || 0).toLocaleString('en');
+  const initial = (listing.name || 'T').trim()[0].toUpperCase();
+
+  // Wrap description to ~55 chars per line
+  const words   = desc.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').split(' ');
+  const lines   = []; let cur = '';
+  for (const w of words) {
+    if ((cur + ' ' + w).trim().length > 56) { if(cur) lines.push(cur); cur = w; }
+    else cur = (cur ? cur + ' ' : '') + w;
+  }
+  if (cur) lines.push(cur);
+  const descLines = lines.slice(0, 2).map((l,i) =>
+    `<tspan x="260" dy="${i===0?'0':'1.55em'}">${l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</tspan>`
+  ).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#111820"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="85%" cy="15%" r="40%">
+      <stop offset="0%" stop-color="#f5c842" stop-opacity=".18"/>
+      <stop offset="100%" stop-color="#f5c842" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowbl" cx="10%" cy="85%" r="35%">
+      <stop offset="0%" stop-color="#00d4c8" stop-opacity=".1"/>
+      <stop offset="100%" stop-color="#00d4c8" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="logoClip"><rect width="100" height="100" rx="20"/></clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glowbl)"/>
+
+  <!-- Top accent line -->
+  <rect x="60" y="0" width="180" height="4" rx="2" fill="#f5c842" opacity=".9"/>
+
+  <!-- STARTUP OF THE WEEK label -->
+  <text x="60" y="80" font-family="'Courier New',monospace" font-size="16" fill="#f5c842" letter-spacing="5" text-anchor="start" opacity=".9">🏆  STARTUP OF THE WEEK</text>
+
+  <!-- Divider -->
+  <rect x="60" y="96" width="1080" height="1" fill="#f5c842" opacity=".15"/>
+
+  <!-- Logo placeholder circle -->
+  <rect x="60" y="130" width="100" height="100" rx="20" fill="#1c2433"/>
+  <text x="110" y="197" font-family="Arial,sans-serif" font-size="52" font-weight="900" fill="#f5c842" text-anchor="middle">${esc(initial)}</text>
+
+  <!-- Product name -->
+  <text x="185" y="185" font-family="Arial,sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="start">${name}</text>
+
+  <!-- Description -->
+  <text x="185" y="230" font-family="Arial,sans-serif" font-size="22" fill="#8899aa" text-anchor="start" line-height="1.5">${descLines || esc((listing.description||'').slice(0,110))}</text>
+
+  <!-- Vote count pill -->
+  <rect x="60" y="390" width="240" height="52" rx="26" fill="rgba(245,200,66,.12)" stroke="#f5c842" stroke-width="1.5" stroke-opacity=".4"/>
+  <text x="180" y="423" font-family="'Courier New',monospace" font-size="22" font-weight="700" fill="#f5c842" text-anchor="middle">▲ ${esc(votes)} votes this week</text>
+
+  <!-- ToolIndex brand bottom-right -->
+  <text x="1140" y="590" font-family="'Courier New',monospace" font-size="18" fill="#00d4c8" text-anchor="end" opacity=".8">toolindex.strategicflow.tech</text>
+  <rect x="1140" y="596" width="0" height="0"/>
+
+  <!-- Bottom accent -->
+  <rect x="0" y="626" width="1200" height="4" fill="url(#bg)"/>
+  <rect x="60" y="600" width="1080" height="1" fill="#f5c842" opacity=".1"/>
+
+  <!-- Corner mark -->
+  <text x="60" y="592" font-family="Arial,sans-serif" font-size="13" fill="#334455" opacity=".7">strategic-flow-audit.replit.app/directory</text>
+</svg>`;
+}
+
+// ── Startup of the Week: winner notification email ────────────────────────────
+// Called from the Monday cron after archiving the closed week's winner.
+// Looks up the listing's verified claimed owner, runs full do-not-contact gate,
+// deduplicates per-listing per-week, then sends a congratulatory email.
+async function sendStartupOfWeekEmail(listingId) {
+  try {
+    // Fetch listing + verified claim owner email
+    const { rows } = await pool.query(`
+      SELECT dl.id, dl.name, dl.url, dl.description, dl.vote_count,
+             dc.owner_email
+      FROM directory_listings dl
+      JOIN dir_claims dc ON dc.listing_id = dl.id AND dc.is_verified = TRUE
+      WHERE dl.id = $1 AND dl.status = 'active'
+      ORDER BY dc.created_at ASC
+      LIMIT 1
+    `, [listingId]);
+    if (!rows.length) return { skipped: 'no verified claim' };
+
+    const listing = rows[0];
+    const email   = (listing.owner_email || '').toLowerCase().trim();
+    if (!email || !email.includes('@')) return { skipped: 'no email' };
+
+    // ── Do-not-contact gate (same rules as all outreach) ──────────────────
+    if (BYPASS_EMAILS.has(email))                          return { skipped: 'bypass' };
+    if (isJunkEmail(email))                                return { skipped: 'junk email' };
+    const blk = isBlockedOutreachTarget(listing.name, email);
+    if (blk.blocked)                                       return { skipped: `blocked: ${blk.reason}` };
+    if (await isUnsubscribed(email))                       return { skipped: 'unsubscribed' };
+
+    // ── Dedup: only one notification per listing per calendar week ─────────
+    const { rows: already } = await pool.query(
+      `SELECT id FROM sotw_notifications_log
+       WHERE listing_id = $1
+         AND sent_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')
+       LIMIT 1`,
+      [listingId]
+    );
+    if (already.length) return { skipped: 'already notified this week' };
+
+    // ── Build email ────────────────────────────────────────────────────────
+    const slug       = toListingSlug(listing.name, listing.id);
+    const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+    const imageUrl   = `https://strategic-flow-audit.replit.app/api/startup-of-the-week/${listing.id}.svg`;
+    const subject    = `🏆 ${listing.name} is this week's Startup of the Week on ToolIndex`;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body style="margin:0;padding:0;background:#0d1117;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+  <!-- Header -->
+  <tr><td style="background:#111820;border:1px solid rgba(245,200,66,.25);border-radius:16px 16px 0 0;padding:32px 36px 24px;">
+    <p style="margin:0 0 6px;font-size:11px;font-family:'Courier New',monospace;letter-spacing:5px;color:#f5c842;text-transform:uppercase;">🏆 Startup of the Week</p>
+    <h1 style="margin:0;font-size:28px;font-weight:900;color:#ffffff;line-height:1.2;">${listing.name}</h1>
+    <p style="margin:10px 0 0;font-size:14px;color:#8899aa;line-height:1.6;">${(listing.description||'').slice(0,200)}</p>
+  </td></tr>
+
+  <!-- Shareable card -->
+  <tr><td style="padding:0;border-left:1px solid rgba(245,200,66,.25);border-right:1px solid rgba(245,200,66,.25);">
+    <a href="${listingUrl}" style="display:block;">
+      <img src="${imageUrl}" alt="Startup of the Week — ${listing.name}" width="600" style="display:block;width:100%;border:none;"/>
+    </a>
+  </td></tr>
+
+  <!-- Body -->
+  <tr><td style="background:#111820;border:1px solid rgba(245,200,66,.25);border-top:none;border-radius:0 0 16px 16px;padding:28px 36px 36px;">
+    <p style="margin:0 0 18px;font-size:15px;color:#c8d4e0;line-height:1.7;">Congratulations — your listing earned <strong style="color:#f5c842;">Startup of the Week</strong> on <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;text-decoration:none;">ToolIndex</a> based entirely on real votes from real people. No purchased placement, no algorithm boost — just the community picking you.</p>
+
+    <p style="margin:0 0 18px;font-size:15px;color:#c8d4e0;line-height:1.7;">A new week starts Monday. Share your win before then — the badge above is yours to post anywhere.</p>
+
+    <!-- CTA -->
+    <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      <tr><td style="background:#f5c842;border-radius:8px;padding:14px 28px;">
+        <a href="${listingUrl}" style="font-size:15px;font-weight:700;color:#0d1117;text-decoration:none;font-family:'Courier New',monospace;letter-spacing:.05em;">View your listing →</a>
+      </td></tr>
+    </table>
+
+    <p style="margin:0 0 8px;font-size:13px;color:#556677;line-height:1.6;">Want to lock in more visibility? <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;text-decoration:none;">Weekly Feature</a> keeps your listing at the top for 14 days + adds a permanent dofollow article on the ToolIndex blog.</p>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin:24px 0;"/>
+    <p style="margin:0;font-size:11px;color:#334455;line-height:1.6;">You're receiving this because your listing <strong>${listing.name}</strong> is claimed on ToolIndex. <a href="https://strategic-flow-audit.replit.app/unsubscribe?email=${encodeURIComponent(email)}" style="color:#334455;">Unsubscribe</a></p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body></html>`;
+
+    const text = `🏆 STARTUP OF THE WEEK — ${listing.name}
+
+Congratulations! Your listing earned Startup of the Week on ToolIndex based entirely on real votes from real people. No purchased placement — just the community picking you.
+
+A new week starts Monday. Share your win before then.
+
+View your listing: ${listingUrl}
+Your shareable card: ${imageUrl}
+
+Want to lock in more visibility? Weekly Feature keeps your listing at the top for 14 days + adds a permanent dofollow article: https://strategic-flow-audit.replit.app/directory
+
+—
+ToolIndex · strategicflow.tech
+Unsubscribe: https://strategic-flow-audit.replit.app/unsubscribe?email=${encodeURIComponent(email)}`;
+
+    await resend.emails.send({
+      from:    SENDER,
+      to:      email,
+      replyTo: 'strategicflow@proton.me',
+      subject,
+      html,
+      text,
+    });
+
+    await pool.query(
+      `INSERT INTO sotw_notifications_log (listing_id, email, sent_at) VALUES ($1, $2, NOW())`,
+      [listingId, email]
+    );
+
+    console.log(`[sotw-notify] Sent to ${email} for listing #${listingId}`);
+    return { sent: true, to: email };
+  } catch(e) {
+    console.error('[sendStartupOfWeekEmail]', e.message);
+    return { error: e.message };
+  }
+}
+
 // ── Sponsor self-serve management routes (Task #37) ────────────────────────────
 
 // POST /api/sponsor/manage/send-otp
@@ -8189,6 +8393,56 @@ app.get('/api/directory/startup-of-day', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── GET /api/directory/startup-of-week — live week winner full detail ────────
+// Uses the same computeWinners() cache as the badge system. Returns the listing
+// with the most votes since Monday 00:00 UTC. Refreshes every 5 min via cache.
+app.get('/api/directory/startup-of-week', async (req, res) => {
+  try {
+    const winners = await computeWinners();
+    if (!winners.week) return res.json({ listing: null });
+    const { rows } = await pool.query(`
+      SELECT dl.id, dl.name, dl.url, dl.category, dl.description, dl.vote_count,
+             CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                  WHEN dl.image_url IS NOT NULL AND dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                  ELSE NULL END AS image_url,
+             (SELECT COUNT(*)::int FROM dir_votes
+              WHERE listing_id = dl.id
+                AND voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')) AS week_votes
+      FROM directory_listings dl
+      WHERE dl.id = $1 AND dl.status = 'active'
+    `, [winners.week]);
+    if (!rows.length) return res.json({ listing: null });
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json({ listing: rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── GET /api/startup-of-the-week/:id.svg  (and .png alias) ──────────────────
+// Generates a branded 1200×630 SVG social card for the given listing.
+// Served as image/svg+xml so it works as an og:image and in emails.
+app.get('/api/startup-of-the-week/:id.svg', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).send('Invalid id');
+    const { rows } = await pool.query(`
+      SELECT dl.id, dl.name, dl.description, dl.vote_count,
+             (SELECT COUNT(*)::int FROM dir_votes
+              WHERE listing_id = dl.id
+                AND voted_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')) AS week_votes
+      FROM directory_listings dl WHERE dl.id = $1 AND dl.status = 'active'
+    `, [id]);
+    if (!rows.length) return res.status(404).send('Not found');
+    const svg = buildStartupOfWeekSvg(rows[0]);
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(svg);
+  } catch(e) { res.status(500).send(e.message); }
+});
+// PNG alias — serves the same SVG (widely accepted by social crawlers)
+app.get('/api/startup-of-the-week/:id.png', async (req, res) => {
+  res.redirect(301, `/api/startup-of-the-week/${req.params.id}.svg`);
+});
+
 app.get('/blog', async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
@@ -9357,6 +9611,18 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] weekly_spotlight_log:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_wsl_email ON weekly_spotlight_log(email, sent_at)`)
+    .catch(() => {});
+
+  // ── Startup of the Week winner notification log ───────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sotw_notifications_log (
+      id         SERIAL PRIMARY KEY,
+      listing_id INTEGER NOT NULL,
+      email      TEXT    NOT NULL,
+      sent_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] sotw_notifications_log:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_sotw_notif_listing ON sotw_notifications_log(listing_id, sent_at)`)
     .catch(() => {});
 
   // ── Auto-generated blog posts — persistent store across restarts ─────────
@@ -21874,6 +22140,9 @@ ${buildUnsubFooterHtml(listing.contact_email)}
         [winner, periodStart.toISOString(), periodEnd.toISOString()]
       );
       console.log(`[cron] Winner of week ${periodStart.toISOString().slice(0,10)}: listing #${winner}`);
+      // Notify the verified owner of the winning listing (respects full do-not-contact gate)
+      const notifResult = await sendStartupOfWeekEmail(winner);
+      console.log(`[cron] SOTW notification result: ${JSON.stringify(notifResult)}`);
     } catch(e) { console.error('[cron] week-winner error:', e.message); }
   }, { timezone: 'UTC' });
 
