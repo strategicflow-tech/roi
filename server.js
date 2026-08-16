@@ -3773,25 +3773,25 @@ const SEQ_TEMPLATES = {
     1: { subject: 'launch emails have a blind spot',
          body: `Hi {{first_name}},\n\nReviewing product launch emails lately, I kept seeing the same thing. The email announces the feature. The reader still has to work out why it matters to them before they click.\n\nAt {{company}}, that's probably the email that goes out right before a launch hits the whole list.\n\nUsually it gets opened. Then nothing happens. No clicks, no forwards, no real movement.\n\nCurious what click rates typically look like on your launch emails?` },
     2: { subject: 'same feature, two different reactions',
-         body: `Hi {{first_name}},\n\nSame pattern, different company, every time.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nI've been documenting this across SaaS launch emails. Happy to send a few examples if useful.` },
+         body: `Hi {{first_name}},\n\nSame pattern, different company, every time.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nI've been documenting this across SaaS launch emails. Want to see 3 more rewrites? Reply and I'll send them over.` },
     3: { subject: '59 launches later, one recurring bug',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\nI've audited 59 SaaS launch and product update emails this year. Average score before rebuild: 3.4/10. After: 9/10.\n\nSame structural bug almost every time: the CTA describes what the product does, not what the reader gets to fix, unlock, or avoid.\n\nBuilt a free diagnostic around it. Paste an email in, 60 seconds, no signup. It shows the score and the exact friction points.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\nI've audited 59 SaaS launch and product update emails this year. Average score before rebuild: 3.4/10. After: 9/10.\n\nSame structural bug almost every time: the CTA describes what the product does, not what the reader gets to fix, unlock, or avoid.\n\nBuilt a free diagnostic around it. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
   },
   B_Lifecycle: {
     1: { subject: "day 7 still hasn't said why",
          body: `Hi {{first_name}},\n\nReviewing onboarding sequences lately, I kept seeing the same structural gap. Day 1 explains the feature. Day 3 repeats it. Day 7 still hasn't said why any of it matters to this specific user.\n\nAt {{company}}, that's usually the sequence deciding whether a trial converts, before anyone on the team notices it's leaking.\n\nCurious how activation looks between day 1 and day 7 right now?` },
     2: { subject: 'same slot, different job',
-         body: `Hi {{first_name}},\n\nSame gap, every lifecycle sequence I've audited this year.\n\nBEFORE (Day 3): "Here's how [Feature] works"\nAFTER (Day 3): "You haven't used [Feature] yet, here's what that's costing you"\n\nSame email slot. Different job.\n\nDocumenting these patterns across SaaS onboarding flows. Happy to send a few if useful.` },
+         body: `Hi {{first_name}},\n\nSame gap, every lifecycle sequence I've audited this year.\n\nBEFORE (Day 3): "Here's how [Feature] works"\nAFTER (Day 3): "You haven't used [Feature] yet, here's what that's costing you"\n\nSame email slot. Different job.\n\nDocumenting these patterns across SaaS onboarding flows. Want to see 3 more from lifecycle sequences? Reply and I'll send them.` },
     3: { subject: 'the pattern across 59 sequences',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 email sequences audited this year, SaaS onboarding and product updates. Average score before: 3.4/10. After rebuild: 9/10.\n\nThe recurring bug in lifecycle sequences specifically: emails are ordered by feature, not by the moment the user is actually stuck.\n\nBuilt a free diagnostic. Paste an email in, 60 seconds, no signup. Shows the score and exact friction points.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 email sequences audited this year, SaaS onboarding and product updates. Average score before: 3.4/10. After rebuild: 9/10.\n\nThe recurring bug in lifecycle sequences specifically: emails are ordered by feature, not by the moment the user is actually stuck.\n\nBuilt a free diagnostic. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
   },
   C_EmailMgr: {
     1: { subject: "it's rarely the subject line",
          body: `Hi {{first_name}},\n\nReviewing email programs lately, I kept seeing the same thing. Subject line creates curiosity. Body opens with the feature. CTA says "Learn more."\n\nAt {{company}}, that's probably one of the sends going out to the full list this month.\n\nCurious what average CTR looks like across those sends?` },
     2: { subject: "two paragraphs in, that's the bottleneck",
-         body: `Hi {{first_name}},\n\nTeams spend weeks on subject lines. The bottleneck is usually two paragraphs in.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nDocumenting this across dozens of SaaS email programs. Happy to send examples if useful.` },
+         body: `Hi {{first_name}},\n\nTeams spend weeks on subject lines. The bottleneck is usually two paragraphs in.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nDocumenting this across dozens of SaaS email programs. Want to see 3 more from SaaS email programs? Reply and I'll send them.` },
     3: { subject: '59 audits, one bug that keeps repeating',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 emails audited this year. Average score before: 3.4/10. After rebuild: 9/10. Same 3-4 structural bugs, almost every time.\n\nBuilt a free diagnostic around the pattern. Paste an email in, 60 seconds, no signup.\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 emails audited this year. Average score before: 3.4/10. After rebuild: 9/10. Same 3-4 structural bugs, almost every time.\n\nBuilt a free diagnostic around the pattern. Paste an email in — score and friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
   },
 };
 
@@ -3817,6 +3817,47 @@ async function isUnsubscribed(email) {
 }
 function buildUnsubFooterHtml(email) {
   return `<p style="font-size:11px;color:#9ca3af;margin-top:8px;">Don&rsquo;t want to hear from us? <a href="${unsubLink(email)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a> from all ToolIndex emails.</p>`;
+}
+
+// ── Centralized stop-on-engagement gate — shared by every automated sequence ──
+// Checks unsubscribes + explicit engagement signals recorded via /admin/engage.
+// Call this BEFORE every scheduled send. Returns { halted, reason }.
+// Logs to sequence_halted_log whenever a send is prevented.
+async function isSequenceHalted(email, seqName) {
+  const norm = (email || '').toLowerCase().trim();
+  if (!norm) return { halted: false };
+
+  // 1. Global unsubscribe (highest priority)
+  if (await isUnsubscribed(norm)) {
+    await logSequenceHalt(norm, seqName, 'unsubscribed');
+    return { halted: true, reason: 'unsubscribed' };
+  }
+
+  // 2. Explicit engagement record — either for this sequence or global (seq_name IS NULL)
+  try {
+    const { rows } = await pool.query(
+      `SELECT reason FROM sequence_engagement
+       WHERE lower(email) = $1 AND (seq_name IS NULL OR seq_name = $2)
+       ORDER BY engaged_at DESC LIMIT 1`,
+      [norm, seqName]
+    );
+    if (rows.length) {
+      await logSequenceHalt(norm, seqName, rows[0].reason);
+      return { halted: true, reason: rows[0].reason };
+    }
+  } catch { /* table may not exist yet on first deploy — non-fatal */ }
+
+  return { halted: false };
+}
+
+async function logSequenceHalt(email, seqName, reason) {
+  try {
+    await pool.query(
+      `INSERT INTO sequence_halted_log (email, seq_name, reason) VALUES ($1, $2, $3)`,
+      [email, seqName, reason]
+    );
+    console.log(`[seq-halt] ${seqName || 'all'} → ${email} (${reason})`);
+  } catch { /* non-fatal */ }
 }
 function buildUnsubFooterText(email) {
   return `\n\nTo unsubscribe from all emails: ${unsubLink(email)}`;
@@ -3908,6 +3949,12 @@ async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
     if (seqBlock.blocked) {
       await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE id=$1`, [contact.id]);
       log.push(`⊘ blocked (${seqBlock.reason}) → ${contact.to_email}`); continue;
+    }
+    // Engagement stop — halts if recipient replied or took a meaningful action
+    const engCheck = await isSequenceHalted(contact.to_email, 'agency_outreach');
+    if (engCheck.halted) {
+      await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true, engaged_at=NOW(), engaged_reason=$2 WHERE id=$1`, [contact.id, engCheck.reason]);
+      log.push(`⊘ engagement-halted (${engCheck.reason}) → ${contact.to_email}`); continue;
     }
     try {
       const { subject, html, text } = buildSeqEmail(contact, contact.step);
@@ -4004,6 +4051,37 @@ app.get('/admin/seq-contacts', async (req, res) => {
       params.slice(2));
     res.json({ ok: true, contacts: rows, total: parseInt(tot.rows[0].count, 10), page, limit });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/engage?key=… — mark an email as engaged (replied / acted) ──────
+// Halts ALL automated sequences for that email unless seq_name scopes it.
+// Body: { email, reason = "replied", seq_name? }  (seq_name null = halt everywhere)
+app.post('/admin/engage', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const { email, reason = 'replied', seq_name } = req.body || {};
+  if (!email?.includes('@')) return res.status(400).json({ error: 'email_required' });
+  const norm = email.toLowerCase().trim();
+  try {
+    // Record in sequence_engagement (upsert)
+    await pool.query(
+      `INSERT INTO sequence_engagement (email, seq_name, reason)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (lower(email), coalesce(seq_name,''))
+       DO UPDATE SET reason = EXCLUDED.reason, engaged_at = NOW()`,
+      [norm, seq_name || null, reason]
+    );
+    // Also set stop_sequence on any outreach_seq_contacts row (agency outreach)
+    const { rowCount } = await pool.query(
+      `UPDATE outreach_seq_contacts
+       SET stop_sequence = true, engaged_at = NOW(), engaged_reason = $2
+       WHERE lower(to_email) = $1 AND stop_sequence = false`,
+      [norm, reason]
+    );
+    console.log(`[admin/engage] ${norm} marked as engaged (${reason}) — scope: ${seq_name || 'all'}, agency rows updated: ${rowCount}`);
+    res.json({ ok: true, email: norm, reason, seq_name: seq_name || null, agency_rows_stopped: rowCount });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── POST /admin/seq-stop-contact?key=…&id=…&stop=0|1 — toggle stop ───────────
@@ -5749,12 +5827,14 @@ async function sendBlogNewsletter(post) {
     if (BYPASS_EMAILS.has(email)) continue;           // skip internal/admin
     if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) continue;
     if (await isUnsubscribed(email)) continue;        // respect opt-out
+    // Engagement stop — halts if recipient replied or took a meaningful action
+    if ((await isSequenceHalted(email, 'blog_newsletter')).halted) continue;
     try {
       await resend.emails.send({
         from:    SENDER,
         replyTo: 'strategicflow@proton.me',
         to:      email,
-        subject: `New on ToolIndex: ${title}`,
+        subject: title,
         html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;background:#060e1c;color:#e2e8f0;padding:32px 28px;border-radius:12px;">
           <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:18px;">ToolIndex Blog</div>
           <h2 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px;line-height:1.3;">${title}</h2>
@@ -5821,7 +5901,7 @@ function buildWeeklySpotlightEmail(templateId, toolName, listingUrl, email, week
   const templates = [
     // ── 0: "Two things for one price" (user Template A) ──────────────────────
     {
-      subject: `Two things for the price of one week`,
+      subject: `14 days featured + a permanent dofollow article — one price`,
       html: `${WRAP_OPEN}
 <p>Hi,</p>
 <p style="color:#94a3b8;">Your <strong style="color:#fff;">${toolName}</strong> listing is live — that's the hard part done. The next question is simple: how do more of the right people see it?</p>
@@ -5970,6 +6050,9 @@ async function runWeeklySpotlightNewsletter() {
     const blk = isBlockedOutreachTarget(listing.name, email);
     if (blk.blocked) { log.push(`⊘ blocked (${blk.reason}) → ${email}`); skipped++; continue; }
     if (await isUnsubscribed(email)) { log.push(`⊘ unsub → ${email}`);   skipped++; continue; }
+    // Engagement stop — halts if recipient replied or took a meaningful action
+    const wslHalt = await isSequenceHalted(email, 'weekly_spotlight');
+    if (wslHalt.halted) { log.push(`⊘ engagement-halted (${wslHalt.reason}) → ${email}`); skipped++; continue; }
 
     // ── One send per week guard ────────────────────────────────────────────
     const { rows: thisWeek } = await pool.query(
@@ -6176,7 +6259,7 @@ async function sendStartupOfWeekEmail(listingId) {
     <p style="margin:0 0 8px;font-size:13px;color:#556677;line-height:1.6;">Want to lock in more visibility? <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;text-decoration:none;">Weekly Feature</a> keeps your listing at the top for 14 days + adds a permanent dofollow article on the ToolIndex blog.</p>
 
     <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin:24px 0;"/>
-    <p style="margin:0;font-size:11px;color:#334455;line-height:1.6;">You're receiving this because your listing <strong>${listing.name}</strong> is claimed on ToolIndex. <a href="https://strategic-flow-audit.replit.app/unsubscribe?email=${encodeURIComponent(email)}" style="color:#334455;">Unsubscribe</a></p>
+    <p style="margin:0;font-size:11px;color:#334455;line-height:1.6;">You're receiving this because your listing <strong>${listing.name}</strong> is claimed on ToolIndex. <a href="${unsubLink(email)}" style="color:#334455;">Unsubscribe</a></p>
   </td></tr>
 
 </table>
@@ -6197,7 +6280,7 @@ Want to lock in more visibility? Weekly Feature keeps your listing at the top fo
 
 —
 ToolIndex · strategicflow.tech
-Unsubscribe: https://strategic-flow-audit.replit.app/unsubscribe?email=${encodeURIComponent(email)}`;
+Unsubscribe: ${unsubLink(email)}`;
 
     await resend.emails.send({
       from:    SENDER,
@@ -9626,6 +9709,34 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_sotw_notif_listing ON sotw_notifications_log(listing_id, sent_at)`)
     .catch(() => {});
 
+  // ── Sequence engagement — records replies / meaningful actions that halt sequences ─
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sequence_engagement (
+      id         SERIAL PRIMARY KEY,
+      email      TEXT NOT NULL,
+      seq_name   TEXT,
+      reason     TEXT NOT NULL DEFAULT 'replied',
+      engaged_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] sequence_engagement:', e.message));
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_seq_eng_email_seq
+     ON sequence_engagement (lower(email), coalesce(seq_name, ''))`
+  ).catch(() => {});
+
+  // ── Sequence halted log — records every prevented automated send ──────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sequence_halted_log (
+      id        SERIAL PRIMARY KEY,
+      email     TEXT NOT NULL,
+      seq_name  TEXT,
+      reason    TEXT NOT NULL,
+      halted_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] sequence_halted_log:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_shl_email ON sequence_halted_log(email, halted_at)`)
+    .catch(() => {});
+
   // ── Auto-generated blog posts — persistent store across restarts ─────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS blog_auto_posts (
@@ -9699,6 +9810,8 @@ async function setupDB() {
   `).catch(e => console.error('[DB] outreach_seq_contacts:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_cluster ON outreach_seq_contacts(cluster)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_stop ON outreach_seq_contacts(stop_sequence) WHERE stop_sequence = false`).catch(()=>{});
+  await pool.query(`ALTER TABLE outreach_seq_contacts ADD COLUMN IF NOT EXISTS engaged_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE outreach_seq_contacts ADD COLUMN IF NOT EXISTS engaged_reason TEXT`).catch(()=>{});
 
   // ── Force-deactivate known non-SaaS listings (runs on every deploy) ─────
   await pool.query(
@@ -21768,24 +21881,29 @@ full HTML body here
         if (fu1Block.blocked) {
           console.log(`[cron-followup] ⊘ blocked (${fu1Block.reason}) → ${listing.contact_email} (${listing.name})`); continue;
         }
+        // Engagement stop — listing claimed or recipient replied
+        const fu1Halt = await isSequenceHalted(listing.contact_email, 'claim_followup');
+        if (fu1Halt.halted) {
+          console.log(`[cron-followup] ⊘ engagement-halted (${fu1Halt.reason}) → ${listing.contact_email} (${listing.name})`); continue;
+        }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
           const name = listing.name;
           const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
 <p>Hi,</p>
-<p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p>
-<p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p>
+<p><strong>${name}'s DR 86 dofollow backlink</strong> is sitting uncollected. Claiming the ToolIndex listing takes under a minute — it's free, and the backlink from <strong>strategicflow.tech</strong> is permanent.</p>
+<p>You can also edit the description, logo, and links after claiming.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
 ${buildUnsubFooterHtml(listing.contact_email)}
 </div>`;
-          const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
+          const followUpText = `Hi,\n\n${name}'s DR 86 dofollow backlink is sitting uncollected. Claiming the ToolIndex listing takes under a minute — it's free, and the backlink from strategicflow.tech is permanent.\n\nYou can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
           await resend.emails.send({
             from:    SENDER,
             to:      listing.contact_email,
             replyTo: 'strategicflow@proton.me',
-            subject: `Still unclaimed: ${name} on ToolIndex`,
+            subject: `Your DR 86 backlink for ${name} is waiting`,
             html:    followUpHtml,
             text:    followUpText,
           });
@@ -21824,6 +21942,11 @@ ${buildUnsubFooterHtml(listing.contact_email)}
         const fu2Block = isBlockedOutreachTarget(listing.name, listing.contact_email);
         if (fu2Block.blocked) {
           console.log(`[cron-followup2] ⊘ blocked (${fu2Block.reason}) → ${listing.contact_email} (${listing.name})`); continue;
+        }
+        // Engagement stop — listing claimed or recipient replied
+        const fu2Halt = await isSequenceHalted(listing.contact_email, 'claim_followup');
+        if (fu2Halt.halted) {
+          console.log(`[cron-followup2] ⊘ engagement-halted (${fu2Halt.reason}) → ${listing.contact_email} (${listing.name})`); continue;
         }
         try {
           const slug = toListingSlug(listing.name, listing.id);
