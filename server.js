@@ -54,6 +54,39 @@ const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+// ── Global 24-hour email cooldown — monkey-patch resend.emails.send ──────────
+// Prevents any two emails going to the same address within 24 hours,
+// regardless of which sequence or cron triggered the send.
+// Transactional/auth emails (OTPs, verifications, audit results, confirmations)
+// and admin/owner addresses are always exempt.
+{
+  const _origSend = resend.emails.send.bind(resend.emails);
+  resend.emails.send = async function patchedSend(params) {
+    const toRaw = Array.isArray(params.to) ? params.to[0] : (params.to || '');
+    const to    = toRaw.toLowerCase().trim();
+    const subj  = params.subject || '';
+
+    const isAdminAddr   = to === OWNER_EMAIL.toLowerCase() || BYPASS_EMAILS.has(to);
+    const isTransactional = /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
+
+    if (!isAdminAddr && !isTransactional) {
+      let blocked = false;
+      try { blocked = await wasEmailedRecently(to); } catch { /* non-fatal */ }
+      if (blocked) {
+        console.log(`[24h-cooldown] blocked → ${to} | subj: "${subj.slice(0,60)}"`);
+        return { id: 'cooldown-blocked', cooldownBlocked: true };
+      }
+    }
+
+    const result = await _origSend(params);
+
+    if (!isAdminAddr) {
+      recordEmailSent(to, subj).catch(() => {});   // fire-and-forget
+    }
+    return result;
+  };
+}
+
 // ── DECISION FRICTION INDEX ──────────────────────────────────────────────────
 const INDEX_ADMIN_KEY = process.env.INDEX_ADMIN_KEY || '';
 const INDEX_CANONICAL_PATTERNS = [
@@ -3815,6 +3848,32 @@ async function isUnsubscribed(email) {
     return rows.length > 0;
   } catch { return false; }
 }
+
+// ── 24-hour global cooldown helpers ─────────────────────────────────────────
+// Returns true if `email` received ANY email (non-transactional) in the last 24h.
+async function wasEmailedRecently(email, hours = 24) {
+  if (!email) return false;
+  try {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM global_email_log
+       WHERE lower(email) = $1 AND sent_at > NOW() - ($2 || ' hours')::INTERVAL
+       LIMIT 1`,
+      [email.toLowerCase().trim(), String(hours)]
+    );
+    return rows.length > 0;
+  } catch { return false; }
+}
+
+async function recordEmailSent(email, subject) {
+  if (!email) return;
+  try {
+    await pool.query(
+      `INSERT INTO global_email_log (email, email_subject) VALUES ($1, $2)`,
+      [email.toLowerCase().trim(), (subject || '').slice(0, 255)]
+    );
+  } catch { /* non-fatal — never block a send for a log failure */ }
+}
+
 function buildUnsubFooterHtml(email) {
   return `<p style="font-size:11px;color:#9ca3af;margin-top:8px;">Don&rsquo;t want to hear from us? <a href="${unsubLink(email)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a> from all ToolIndex emails.</p>`;
 }
@@ -9736,6 +9795,19 @@ async function setupDB() {
   `).catch(e => console.error('[DB] sequence_halted_log:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_shl_email ON sequence_halted_log(email, halted_at)`)
     .catch(() => {});
+
+  // ── Global 24-hour email cooldown log — one row per non-transactional send ─
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS global_email_log (
+      id            SERIAL PRIMARY KEY,
+      email         TEXT NOT NULL,
+      email_subject TEXT,
+      sent_at       TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] global_email_log:', e.message));
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_gel_email_sent ON global_email_log(lower(email), sent_at DESC)`
+  ).catch(() => {});
 
   // ── Auto-generated blog posts — persistent store across restarts ─────────
   await pool.query(`
