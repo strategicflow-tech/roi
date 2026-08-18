@@ -4782,6 +4782,18 @@ app.post('/admin/batch-update', express.json({ limit: '1mb' }), async (req, res)
       setParts.push(`submitter_email = $${pi++}`);
       vals.push(item.email.toString().trim().slice(0, 200));
     }
+    if ('description' in item) {
+      setParts.push(`description = $${pi++}`);
+      vals.push(item.description ? item.description.toString().trim().slice(0, 500) : null);
+    }
+    if ('category' in item) {
+      setParts.push(`category = $${pi++}`);
+      vals.push(item.category ? item.category.toString().trim().slice(0, 40) : null);
+    }
+    if ('status' in item && ['active','draft','inactive'].includes(item.status)) {
+      setParts.push(`status = $${pi++}`);
+      vals.push(item.status);
+    }
     if (!setParts.length) { results.push({ id, status: 'nothing_to_update' }); continue; }
     vals.push(id);
     try {
