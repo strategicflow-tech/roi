@@ -4717,19 +4717,23 @@ app.post('/admin/batch-insert', express.json({ limit: '2mb' }), async (req, res)
   if (!items.length) return res.status(400).json({ error: 'empty array' });
   const results = [];
   for (const item of items) {
-    const name = (item.name || '').trim().slice(0, 80);
-    const url  = (item.url  || '').trim().slice(0, 300) || null;
-    const cat  = (item.category || 'General').trim().slice(0, 40);
-    const desc = (item.description || '').trim().slice(0, 500);
+    const name     = (item.name || '').trim().slice(0, 80);
+    const url      = (item.url  || '').trim().slice(0, 300) || null;
+    const cat      = (item.category || 'General').trim().slice(0, 40);
+    const desc     = (item.description || '').trim().slice(0, 500);
+    const st       = ['active','draft','pending'].includes(item.status) ? item.status : 'active';
+    const src      = (item.source || 'manual').trim().slice(0, 80);
+    const srcUrl   = (item.source_url || '').trim().slice(0, 300) || null;
+    const imgUrl   = (item.image_url  || '').trim().slice(0, 500) || null;
     if (!name) { results.push({ name, status: 'skipped_no_name' }); continue; }
     try {
       let r;
       if (url) {
         r = await pool.query(
-          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, submitted_at)
-           VALUES ($1,$2,$3,$4,'active',false,false,true,'manual',NOW())
+          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, source_url, image_url, submitted_at)
+           VALUES ($1,$2,$3,$4,$5,false,true,true,$6,$7,$8,NOW())
            ON CONFLICT (url) DO NOTHING RETURNING id`,
-          [name, url, cat, desc]
+          [name, url, cat, desc, st, src, srcUrl, imgUrl]
         );
         if (!r.rows.length) {
           const ex = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [url]);
@@ -4738,9 +4742,9 @@ app.post('/admin/batch-insert', express.json({ limit: '2mb' }), async (req, res)
         }
       } else {
         r = await pool.query(
-          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, submitted_at)
-           VALUES ($1,NULL,$2,$3,'active',false,false,true,'manual',NOW()) RETURNING id`,
-          [name, cat, desc]
+          `INSERT INTO directory_listings (name, url, category, description, status, is_seeded, is_auto_imported, score_pending, source, source_url, image_url, submitted_at)
+           VALUES ($1,NULL,$2,$3,$4,false,true,true,$5,$6,$7,NOW()) RETURNING id`,
+          [name, cat, desc, st, src, srcUrl, imgUrl]
         );
       }
       const id = r.rows[0].id;
