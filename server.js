@@ -9548,6 +9548,8 @@ async function setupDB() {
   await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
   // Invisible Exit — always keep as unclaimed draft regardless of how it was inserted
   await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE url='https://invisibleexit.com/' AND claimed_by IS NULL`).catch(()=>{});
+  // OutageDeck (#4630) — fix AI-inferred hardcoded vendor count; use generic description
+  await pool.query(`UPDATE directory_listings SET description='Outage alerts for cloud and SaaS vendors, from official feeds' WHERE id=4630 AND description LIKE '%168%'`).catch(()=>{});
   // Outreach contact emails — set where still empty (idempotent, only fills blank contact_email)
   const _outreachContacts = [
     ['support@datablur.app',          '%datablur.app%'],
