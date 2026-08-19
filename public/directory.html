@@ -1889,6 +1889,10 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
     <!-- Step 1: email -->
     <div class="claim-step active" id="claimStep1">
       <input class="claim-input" type="email" id="claimEmail" placeholder="your@email.com" />
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:2px 2px 12px;font-size:12px;color:var(--muted);line-height:1.5;">
+        <input type="checkbox" id="claimNewsletterOptIn" style="margin-top:2px;accent-color:var(--teal);flex-shrink:0;width:15px;height:15px;"/>
+        <span>Email me ToolIndex founder updates and new articles on Mondays, Wednesdays, and Fridays. I can unsubscribe anytime. <strong style="display:block;color:var(--text);font-weight:600;margin-top:2px;">A confirmation email is required.</strong></span>
+      </label>
       <div class="claim-err" id="claimErr1"></div>
       <button class="claim-btn" id="claimSendBtn" onclick="claimSendOTP()">Send verification code →</button>
     </div>
@@ -1948,6 +1952,7 @@ fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
         <div style="font-size:16px;font-weight:700;margin-bottom:4px;">Listing claimed!</div>
         <div style="font-size:13px;color:var(--muted);">You'll be notified when your listing gets its first vote. Optionally update your description and screenshot below.</div>
       </div>
+      <div id="claimNewsletterNotice" style="display:none;background:rgba(0,212,200,.08);border:1px solid rgba(0,212,200,.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--teal);line-height:1.5;"></div>
       <div style="margin-bottom:4px;">
         <button id="claimRelaunchBtn" class="claim-relaunch-btn" onclick="claimRelaunch()">
           🔄 Relaunch — push back to "New Today"
@@ -3527,6 +3532,7 @@ function openClaimModal(id, name, domain) {
   // Fresh flow — show Step 1
   document.getElementById('claimProductName').textContent = name;
   document.getElementById('claimEmail').value = '';
+  document.getElementById('claimNewsletterOptIn').checked = false;
   document.getElementById('claimOTP').value   = '';
   document.getElementById('claimDesc').value      = '';
   document.getElementById('claimImageUrl').value  = '';
@@ -3572,6 +3578,20 @@ function claimCopyBadge() {
   }).catch(function(){});
 }
 
+function showClaimNewsletterNotice(newsletter) {
+  const el = document.getElementById('claimNewsletterNotice');
+  if (!el) return;
+  el.style.display = 'none';
+  if (!newsletter) return;
+  if (newsletter.confirmed) {
+    el.textContent = '✓ Your ToolIndex founder updates subscription is already confirmed.';
+    el.style.display = 'block';
+  } else if (newsletter.confirmationSent || newsletter.pending) {
+    el.textContent = '✉ Check your inbox and confirm your ToolIndex founder updates subscription.';
+    el.style.display = 'block';
+  }
+}
+
 async function claimConfirmBacklink() {
   const checked = document.getElementById('claimBacklinkCheck').checked;
   const backlinkUrl = (document.getElementById('claimBacklinkUrl').value || '').trim();
@@ -3591,6 +3611,7 @@ async function claimConfirmBacklink() {
     });
     const d = await r.json();
     if (d.ok) {
+      showClaimNewsletterNotice(d.newsletter);
       document.getElementById('claimStep3').classList.remove('active');
       document.getElementById('claimStep4').classList.add('active');
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
@@ -3614,6 +3635,7 @@ async function claimSkipBacklink() {
     });
     const d = await r.json();
     if (d.ok) {
+      showClaimNewsletterNotice(d.newsletter);
       document.getElementById('claimStep3').classList.remove('active');
       document.getElementById('claimStep4').classList.add('active');
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
@@ -3629,6 +3651,7 @@ async function claimSkipBacklink() {
 
 async function claimSendOTP() {
   const email = document.getElementById('claimEmail').value.trim();
+  const newsletterOptIn = document.getElementById('claimNewsletterOptIn').checked;
   const errEl = document.getElementById('claimErr1');
   errEl.style.display = 'none';
   if (!email || !email.includes('@')) { errEl.textContent = 'Enter a valid email address.'; errEl.style.display = 'block'; return; }
@@ -3639,7 +3662,7 @@ async function claimSendOTP() {
   try {
     const r = await fetch('/api/directory/claim/start', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_id: claimListingId, email })
+      body: JSON.stringify({ listing_id: claimListingId, email, newsletter_opt_in: newsletterOptIn })
     });
     const d = await r.json();
     if (d.ok) {
@@ -3691,6 +3714,7 @@ async function claimVerifyOTP() {
       // If listing already fully claimed (returning owner) → go to edit form
       // Otherwise → show backlink step first
       if (d.listing && d.listing.claimed_by) {
+        showClaimNewsletterNotice(d.newsletter);
         document.getElementById('claimStep4').classList.add('active');
         const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
         if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';

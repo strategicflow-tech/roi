@@ -62,12 +62,13 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 {
   const _origSend = resend.emails.send.bind(resend.emails);
   resend.emails.send = async function patchedSend(params) {
-    const toRaw = Array.isArray(params.to) ? params.to[0] : (params.to || '');
+    const { _skipGlobalCooldown = false, ...providerParams } = params;
+    const toRaw = Array.isArray(providerParams.to) ? providerParams.to[0] : (providerParams.to || '');
     const to    = toRaw.toLowerCase().trim();
-    const subj  = params.subject || '';
+    const subj  = providerParams.subject || '';
 
     const isAdminAddr   = to === OWNER_EMAIL.toLowerCase() || BYPASS_EMAILS.has(to);
-    const isTransactional = /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
+    const isTransactional = _skipGlobalCooldown || /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
 
     if (!isAdminAddr && !isTransactional) {
       let blocked = false;
@@ -78,9 +79,9 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
       }
     }
 
-    const result = await _origSend(params);
+    const result = await _origSend(providerParams);
 
-    if (!isAdminAddr) {
+    if (!isAdminAddr && !result?.error && !result?.cooldownBlocked) {
       recordEmailSent(to, subj).catch(() => {});   // fire-and-forget
     }
     return result;
@@ -2835,43 +2836,7 @@ app.post('/api/directory/submit', async (req, res) => {
             <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots by clicking the ✏️ Edit button on your listing card.</p>
             <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
           </div>
-          <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
-            <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
-            <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">The Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-              <tr>
-                <td width="32%" valign="top" style="padding-right:8px;">
-                  <div style="background:#0a1628;border:1px solid #1e3a5f;border-radius:10px;padding:14px 12px;">
-                    <div style="font-size:10px;font-family:monospace;color:#7a9ab8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Daily Boost</div>
-                    <div style="font-size:24px;font-weight:800;color:#00d4c8;font-family:monospace;line-height:1;">$9</div>
-                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
-                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>24h #1 slot in grid</li><li>Instant activation</li><li>No subscription</li></ul>
-                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#00d4c8;color:#041214;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Boost now →</a>
-                  </div>
-                </td>
-                <td width="36%" valign="top" style="padding-right:8px;">
-                  <div style="background:#0a1628;border:2px solid rgba(245,158,11,.55);border-radius:10px;padding:14px 12px;position:relative;">
-                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:9px;font-weight:800;font-family:monospace;padding:2px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.08em;">MOST POPULAR</div>
-                    <div style="font-size:10px;font-family:monospace;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Weekly Feature</div>
-                    <div style="font-size:24px;font-weight:800;color:#f59e0b;font-family:monospace;line-height:1;">$19</div>
-                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">14 days</div>
-                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>Featured spotlight section</li><li>Gold badge on card</li><li>Priority placement in grid</li></ul>
-                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:#f59e0b;color:#000;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;">Feature my listing →</a>
-                  </div>
-                </td>
-                <td width="32%" valign="top">
-                  <div style="background:#0a1628;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:14px 12px;">
-                    <div style="font-size:10px;font-family:monospace;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Founder Pack</div>
-                    <div style="font-size:24px;font-weight:800;color:#a78bfa;font-family:monospace;line-height:1;">$49</div>
-                    <div style="font-size:11px;color:#7a9ab8;margin-bottom:10px;">one time</div>
-                    <ul style="font-size:11px;color:#7a9ab8;padding-left:14px;margin:0 0 12px;line-height:1.7;"><li>10–15 votes/day automatic</li><li>Premium badge + top placement</li><li>Unlimited relaunches</li></ul>
-                    <a href="https://strategic-flow-audit.replit.app/directory#packages" style="display:block;text-align:center;background:rgba(167,139,250,.18);color:#a78bfa;font-weight:700;font-size:11px;padding:8px 4px;border-radius:7px;text-decoration:none;font-family:monospace;border:1px solid rgba(167,139,250,.4);">Go Founder Pack →</a>
-                  </div>
-                </td>
-              </tr>
-            </table>
-            <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
-          </div>
+          <p style="font-size:11px;color:#4a6a8a;margin-top:18px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
         </div>`
       }).catch(() => {});
     }
@@ -3861,6 +3826,22 @@ async function isUnsubscribed(email) {
   } catch { return false; }
 }
 
+async function isConfirmedNewsletterContact(email) {
+  const norm = (email || '').toLowerCase().trim();
+  if (!norm) return false;
+  const r = await pool.query(
+    `SELECT 1
+     FROM toolindex_newsletter_contacts c
+     WHERE c.email=$1 AND c.status='confirmed' AND c.confirmed_at IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
+       )
+     LIMIT 1`,
+    [norm]
+  );
+  return r.rows.length > 0;
+}
+
 // ── 24-hour global cooldown helpers ─────────────────────────────────────────
 // Returns true if `email` received ANY email (non-transactional) in the last 24h.
 async function wasEmailedRecently(email, hours = 24) {
@@ -3884,6 +3865,170 @@ async function recordEmailSent(email, subject) {
       [email.toLowerCase().trim(), (subject || '').slice(0, 255)]
     );
   } catch { /* non-fatal — never block a send for a log failure */ }
+}
+
+function newsletterConfirmTokenHash(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
+async function queueClaimNewsletterConfirmation(email, listingId, { newConsent = false } = {}) {
+  const norm = (email || '').toLowerCase().trim();
+  if (!norm || !norm.includes('@')) return { skipped: 'invalid_email' };
+
+  if (await isUnsubscribed(norm) && !newConsent) {
+    await pool.query(
+      `INSERT INTO toolindex_newsletter_contacts
+         (email, status, source, source_listing_id, consented_at, unsubscribed_at, last_synced_at, updated_at)
+       VALUES ($1, 'unsubscribed', 'claim', $2, NOW(), NOW(), NOW(), NOW())
+       ON CONFLICT (email) DO UPDATE SET
+         status='unsubscribed', unsubscribed_at=COALESCE(toolindex_newsletter_contacts.unsubscribed_at, NOW()),
+         source_listing_id=EXCLUDED.source_listing_id, last_synced_at=NOW(), updated_at=NOW()`,
+      [norm, listingId || null]
+    );
+    return { skipped: 'unsubscribed' };
+  }
+
+  const existingR = await pool.query(
+    `SELECT status, confirmation_sent_at, confirmation_send_reserved_at, confirmation_expires_at
+     FROM toolindex_newsletter_contacts WHERE email=$1 LIMIT 1`,
+    [norm]
+  );
+  const existing = existingR.rows[0];
+  if (existing?.status === 'confirmed') {
+    await pool.query(
+      `UPDATE toolindex_newsletter_contacts
+       SET source_listing_id=COALESCE($2, source_listing_id), last_synced_at=NOW(), updated_at=NOW()
+       WHERE email=$1`,
+      [norm, listingId || null]
+    );
+    return { confirmed: true };
+  }
+  if (existing?.status === 'unsubscribed' && !newConsent) {
+    return { skipped: 'unsubscribed' };
+  }
+  if (existing?.status === 'pending'
+      && existing.confirmation_sent_at
+      && existing.confirmation_expires_at
+      && new Date(existing.confirmation_expires_at) > new Date()) {
+    await pool.query(
+      `UPDATE toolindex_newsletter_contacts
+       SET source_listing_id=COALESCE($2, source_listing_id), last_synced_at=NOW(), updated_at=NOW()
+       WHERE email=$1`,
+      [norm, listingId || null]
+    );
+    return { pending: true, skipped: 'confirmation_already_sent' };
+  }
+  if (existing?.status === 'pending'
+      && existing.confirmation_send_reserved_at
+      && new Date(existing.confirmation_send_reserved_at) > new Date(Date.now() - 15 * 60 * 1000)) {
+    return { pending: true, skipped: 'confirmation_in_progress' };
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = newsletterConfirmTokenHash(token);
+  const reservation = await pool.query(
+    `INSERT INTO toolindex_newsletter_contacts
+       (email, status, source, source_listing_id, consented_at, confirmation_token_hash,
+        confirmation_expires_at, confirmation_send_reserved_at, last_synced_at, updated_at)
+     VALUES ($1, 'pending', 'claim', $2, NOW(), $3, NOW() + INTERVAL '7 days', NOW(), NOW(), NOW())
+     ON CONFLICT (email) DO UPDATE SET
+       status='pending', source='claim', source_listing_id=EXCLUDED.source_listing_id,
+       consented_at=NOW(), confirmation_token_hash=EXCLUDED.confirmation_token_hash,
+       confirmation_expires_at=EXCLUDED.confirmation_expires_at,
+       confirmation_sent_at=NULL, confirmation_send_reserved_at=NOW(),
+       confirmed_at=NULL, unsubscribed_at=NULL, last_synced_at=NOW(), updated_at=NOW()
+     WHERE toolindex_newsletter_contacts.status <> 'confirmed'
+       AND (
+         toolindex_newsletter_contacts.status='unsubscribed'
+         OR toolindex_newsletter_contacts.confirmation_expires_at <= NOW()
+         OR (
+           toolindex_newsletter_contacts.status='pending'
+           AND toolindex_newsletter_contacts.confirmation_sent_at IS NULL
+           AND (
+             toolindex_newsletter_contacts.confirmation_send_reserved_at IS NULL
+             OR toolindex_newsletter_contacts.confirmation_send_reserved_at < NOW() - INTERVAL '15 minutes'
+           )
+         )
+       )
+     RETURNING status`,
+    [norm, listingId || null, tokenHash]
+  );
+  if (!reservation.rows.length) {
+    const current = await pool.query(
+      `SELECT status FROM toolindex_newsletter_contacts WHERE email=$1 LIMIT 1`,
+      [norm]
+    );
+    return current.rows[0]?.status === 'confirmed'
+      ? { confirmed: true }
+      : { pending: true, skipped: 'confirmation_in_progress' };
+  }
+
+  const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+  const confirmUrl = `${baseUrl}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+  try {
+    const sendResult = await resend.emails.send({
+      _skipGlobalCooldown: true,
+      from: SENDER,
+      replyTo: 'strategicflow@proton.me',
+      to: norm,
+      subject: 'Confirm your ToolIndex founder updates',
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:32px auto;background:#060e1c;color:#e2e8f0;padding:36px 32px;border-radius:14px;line-height:1.7;">
+        <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:20px;">ToolIndex · Founder updates</div>
+        <h2 style="font-size:22px;color:#fff;margin:0 0 12px;">Confirm your subscription</h2>
+        <p style="font-size:15px;color:#94a3b8;margin:0 0 22px;">You asked to receive ToolIndex founder updates and new articles on Mondays, Wednesdays, and Fridays. Confirm below to join the list.</p>
+        <a href="${confirmUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;font-family:monospace;">Confirm founder updates →</a>
+        <p style="font-size:11px;color:#4a6a8a;margin-top:26px;">This link expires in 7 days. If you did not request these updates, ignore this email and you will not be subscribed.</p>
+      </div>`,
+      text: `Confirm your ToolIndex founder updates:\n${confirmUrl}\n\nYou will receive updates on Mondays, Wednesdays, and Fridays. If you did not request this, ignore this email.`,
+    });
+    if (sendResult?.cooldownBlocked) throw new Error('confirmation_cooldown_blocked');
+    if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected confirmation email');
+    await pool.query(
+      `UPDATE toolindex_newsletter_contacts
+       SET confirmation_sent_at=NOW(), confirmation_send_reserved_at=NULL, updated_at=NOW()
+       WHERE email=$1 AND confirmation_token_hash=$2`,
+      [norm, tokenHash]
+    );
+    return { confirmationSent: true };
+  } catch (e) {
+    await pool.query(
+      `UPDATE toolindex_newsletter_contacts
+       SET confirmation_send_reserved_at=NULL, updated_at=NOW()
+       WHERE email=$1 AND confirmation_token_hash=$2`,
+      [norm, tokenHash]
+    ).catch(()=>{});
+    console.error(`[newsletter-consent] confirmation send failed → ${norm}:`, e.message);
+    return { error: 'confirmation_send_failed' };
+  }
+}
+
+async function syncClaimedFounderNewsletterContacts() {
+  const { rows } = await pool.query(`
+    SELECT DISTINCT ON (lower(trim(dc.owner_email)))
+      dc.listing_id, lower(trim(dc.owner_email)) AS email
+    FROM dir_claims dc
+    JOIN directory_listings dl ON dl.id=dc.listing_id
+    WHERE dc.newsletter_opt_in=TRUE
+      AND dc.is_verified=TRUE
+      AND dl.claimed_by IS NOT NULL
+      AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
+      AND dl.status='active'
+    ORDER BY lower(trim(dc.owner_email)), dl.claimed_at DESC NULLS LAST, dc.listing_id DESC
+  `);
+  let confirmed = 0, pending = 0, skipped = 0, errors = 0;
+  for (const row of rows) {
+    try {
+      const result = await queueClaimNewsletterConfirmation(row.email, row.listing_id);
+      if (result.confirmed) confirmed++;
+      else if (result.confirmationSent || result.pending) pending++;
+      else skipped++;
+    } catch (e) {
+      errors++;
+      console.error(`[newsletter-sync] ${row.email}:`, e.message);
+    }
+  }
+  console.log(`[newsletter-sync] ${rows.length} opted-in claims → ${confirmed} confirmed, ${pending} pending, ${skipped} skipped, ${errors} errors`);
+  return { total: rows.length, confirmed, pending, skipped, errors };
 }
 
 function buildUnsubFooterHtml(email) {
@@ -4746,11 +4891,12 @@ app.get('/admin/send-blog-newsletter', async (req, res) => {
   // Count recipients without sending (dry-run mode)
   if (req.query.dry === '1') {
     const emailsR = await pool.query(`
-      SELECT COUNT(DISTINCT lower(trim(email)))::int AS n FROM (
-        SELECT claimed_by      AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
-        UNION
-        SELECT submitter_email AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
-      ) t WHERE email IS NOT NULL AND email != ''
+      SELECT COUNT(*)::int AS n
+      FROM toolindex_newsletter_contacts c
+      WHERE c.status='confirmed' AND c.confirmed_at IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
+        )
     `).catch(() => ({ rows: [{ n: 0 }] }));
     const alreadySent = await pool.query(`SELECT sent_at, recipient_count FROM blog_newsletter_log WHERE slug=$1`, [slug]);
     return res.json({ slug, dry_run: true, estimated_recipients: emailsR.rows[0].n, already_sent: alreadySent.rows[0] || null });
@@ -5621,8 +5767,15 @@ async function handleDirectoryPayment(session) {
                  AND vote_count > dl.vote_count) AS cat_rank
        FROM directory_listings dl
        JOIN dir_claims dc ON dc.listing_id=dl.id AND dc.is_verified=TRUE
+        JOIN toolindex_newsletter_contacts nc
+          ON nc.email=lower(trim(dc.owner_email))
+         AND nc.status='confirmed' AND nc.confirmed_at IS NOT NULL
        WHERE dl.status='active' AND dl.category=$2 AND dl.id!=$1
-         AND dc.owner_email IS NOT NULL`,
+          AND dc.owner_email IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM email_unsubscribes u
+            WHERE lower(u.email)=lower(trim(dc.owner_email))
+          )`,
       [lid, category]
     );
 
@@ -5637,7 +5790,7 @@ async function handleDirectoryPayment(session) {
           <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 16px;">Your listing <strong>${escHtml(comp.name)}</strong> is now <strong>#${comp.cat_rank + 1}</strong> in the ${escHtml(category)} category.</p>
           <p style="font-size:13px;color:#94a3b8;">Want to reclaim the top spot? A Daily Boost ($9) pins you to #1 for 24 hours.</p>
           <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#00d4c8;color:#041214;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">View Directory →</a>
-          <p style="color:#475569;font-size:11px;margin-top:20px;">You're receiving this because you claimed ${escHtml(comp.name)} on ToolIndex.</p>
+          ${buildUnsubFooterHtml(comp.owner_email)}
         </div>`
       }).catch(() => {});
     }
@@ -5913,7 +6066,7 @@ async function checkRelaunchWindows() {
          AND dl.claimed_by != ''
          AND dl.submitted_at <= NOW() - INTERVAL '30 days'
          AND (dl.relaunch_notified_at IS NULL OR dl.relaunch_notified_at < dl.submitted_at)
-       ORDER BY dl.submitted_at ASC`
+         ORDER BY dl.submitted_at ASC`
     );
 
     if (!r.rows.length) {
@@ -5929,6 +6082,7 @@ async function checkRelaunchWindows() {
 
       const slug    = toListingSlug(row.name, row.id);
       const pageUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+      const marketingEligible = await isConfirmedNewsletterContact(row.claimed_by);
 
       try {
         await resend.emails.send({
@@ -5945,7 +6099,7 @@ async function checkRelaunchWindows() {
               <p style="margin:0 0 18px;font-size:14px;color:#1e3a5f;line-height:1.6;">Relaunching resets your listing to the top of the <strong>New Today</strong> feed, giving fresh visitors a first look at your product.</p>
               <a href="${pageUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:12px 26px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:.02em;">Relaunch ${row.name} now →</a>
               <p style="margin:20px 0 0;font-size:12px;color:#7a9ab8;line-height:1.5;">You'll see the Relaunch button on your listing page once you verify ownership. Your next window opens 30 days after you relaunch.</p>
-              <p style="margin:12px 0 0;font-size:11px;color:#aabdd0;">Want unlimited relaunches with no 30-day wait? <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#0ea5e9;">Upgrade to Founder Pack →</a></p>
+              ${marketingEligible ? `<p style="margin:12px 0 0;font-size:11px;color:#aabdd0;">Want unlimited relaunches with no 30-day wait? <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#0ea5e9;">Upgrade to Founder Pack →</a></p>${buildUnsubFooterHtml(row.claimed_by)}` : ''}
             </div>
           </div>`
         });
@@ -5969,43 +6123,44 @@ async function sendBlogNewsletter(post) {
   // post: { slug, title, excerpt, dateLabel }
   const { slug, title, excerpt, dateLabel } = post;
 
-  // Idempotency guard — never send twice for the same slug
-  const already = await pool.query(`SELECT slug FROM blog_newsletter_log WHERE slug=$1`, [slug]);
-  if (already.rows.length) {
+  // Atomically reserve the post so cron/admin concurrency cannot double-send it.
+  const reservation = await pool.query(
+    `INSERT INTO blog_newsletter_log (slug, sent_at, recipient_count)
+     VALUES ($1, NOW(), -1)
+     ON CONFLICT (slug) DO NOTHING
+     RETURNING slug`,
+    [slug]
+  );
+  if (!reservation.rows.length) {
     console.log(`[blog-newsletter] already sent for "${slug}" — skipping`);
     return { skipped: true };
   }
 
-  // Build deduplicated recipient list:
-  // 1. claimed_by      — verified listing owners
-  // 2. submitter_email — founders who submitted but haven't claimed
-  // 3. contact_email   — all listing contacts where outreach was already sent (they know ToolIndex)
+  // Confirmed double-opt-in audience only. Claim, submitter, and extracted
+  // contact addresses never become marketing recipients implicitly.
   const emailsR = await pool.query(`
-    SELECT DISTINCT lower(trim(email)) AS email FROM (
-      SELECT claimed_by      AS email FROM directory_listings WHERE claimed_by IS NOT NULL AND claimed_by LIKE '%@%'
-      UNION
-      SELECT submitter_email AS email FROM directory_listings WHERE submitter_email IS NOT NULL AND submitter_email LIKE '%@%'
-      UNION
-      SELECT contact_email   AS email FROM directory_listings
-        WHERE contact_email IS NOT NULL AND contact_email LIKE '%@%'
-          AND contact_email_status = 'found'
-          AND status = 'active'
-          AND outreach_emailed_at IS NOT NULL
-    ) t
-    WHERE email IS NOT NULL AND email != ''
+    SELECT c.email
+    FROM toolindex_newsletter_contacts c
+    WHERE c.status='confirmed'
+      AND c.confirmed_at IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
+      )
+    ORDER BY c.confirmed_at ASC
   `);
 
   const postUrl = `https://strategic-flow-audit.replit.app/blog/${slug}`;
-  let sent = 0, errors = 0;
+  let sent = 0, skipped = 0, errors = 0;
 
   for (const { email } of emailsR.rows) {
-    if (BYPASS_EMAILS.has(email)) continue;           // skip internal/admin
-    if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) continue;
-    if (await isUnsubscribed(email)) continue;        // respect opt-out
+    if (BYPASS_EMAILS.has(email)) { skipped++; continue; }           // skip internal/admin
+    if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) { skipped++; continue; }
+    if (await isUnsubscribed(email)) { skipped++; continue; }        // respect opt-out
     // Engagement stop — halts if recipient replied or took a meaningful action
-    if ((await isSequenceHalted(email, 'blog_newsletter')).halted) continue;
+    if ((await isSequenceHalted(email, 'blog_newsletter')).halted) { skipped++; continue; }
+    if (await wasEmailedRecently(email, 24)) { skipped++; continue; }
     try {
-      await resend.emails.send({
+      const sendResult = await resend.emails.send({
         from:    SENDER,
         replyTo: 'strategicflow@proton.me',
         to:      email,
@@ -6016,10 +6171,12 @@ async function sendBlogNewsletter(post) {
           <p style="font-size:13px;font-family:monospace;color:#4a7a9a;margin:0 0 16px;">${dateLabel}</p>
           <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
           <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
-          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product is listed on the ToolIndex directory. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because you confirmed ToolIndex founder updates. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
           ${buildUnsubFooterHtml(email)}
         </div>`
       });
+      if (sendResult?.cooldownBlocked) { skipped++; continue; }
+      if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected newsletter email');
       sent++;
     } catch(e) {
       errors++;
@@ -6030,11 +6187,11 @@ async function sendBlogNewsletter(post) {
 
   // Record as sent — prevents duplicates on future cron runs
   await pool.query(
-    `INSERT INTO blog_newsletter_log (slug, sent_at, recipient_count) VALUES ($1, NOW(), $2) ON CONFLICT (slug) DO NOTHING`,
+    `UPDATE blog_newsletter_log SET sent_at=NOW(), recipient_count=$2 WHERE slug=$1`,
     [slug, sent]
   );
-  console.log(`[blog-newsletter] "${slug}" → ${sent} sent, ${errors} errors`);
-  return { sent, errors, total: emailsR.rows.length };
+  console.log(`[blog-newsletter] "${slug}" → ${sent} sent, ${skipped} skipped, ${errors} errors`);
+  return { sent, skipped, errors, total: emailsR.rows.length };
 }
 
 // ── Check for unpublished blog posts and send newsletters ─────────────────────
@@ -6202,19 +6359,28 @@ async function runWeeklySpotlightNewsletter() {
      WHERE status='active' AND created_at >= date_trunc('week', NOW() AT TIME ZONE 'UTC')`
   );
 
-  // Target: all active claimed listings, one email per owner
+  // Target: confirmed newsletter contacts who still own an active listing.
   const { rows: listings } = await pool.query(`
-    SELECT DISTINCT ON (lower(trim(claimed_by)))
-      id, name, url, lower(trim(claimed_by)) AS email
-    FROM directory_listings
-    WHERE claimed_by IS NOT NULL
-      AND claimed_by LIKE '%@%'
-      AND status = 'active'
-    ORDER BY lower(trim(claimed_by)), id ASC
+    SELECT DISTINCT ON (c.email)
+      dl.id, dl.name, dl.url, c.email
+    FROM toolindex_newsletter_contacts c
+    JOIN directory_listings dl
+      ON lower(trim(dl.claimed_by))=lower(c.email)
+     AND dl.status='active'
+    WHERE c.status='confirmed'
+      AND c.confirmed_at IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
+      )
+    ORDER BY c.email, dl.id ASC
   `);
 
   let sent = 0, skipped = 0, errors = 0;
   const log = [];
+  const now = new Date();
+  const utcDay = now.getUTCDay() || 7;
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - utcDay + 1));
+  const sendPeriod = monday.toISOString().slice(0, 10);
 
   for (const listing of listings) {
     const email = listing.email;
@@ -6228,6 +6394,7 @@ async function runWeeklySpotlightNewsletter() {
     // Engagement stop — halts if recipient replied or took a meaningful action
     const wslHalt = await isSequenceHalted(email, 'weekly_spotlight');
     if (wslHalt.halted) { log.push(`⊘ engagement-halted (${wslHalt.reason}) → ${email}`); skipped++; continue; }
+    if (await wasEmailedRecently(email, 24)) { log.push(`⊘ 24h-cooldown → ${email}`); skipped++; continue; }
 
     // ── One send per week guard ────────────────────────────────────────────
     const { rows: thisWeek } = await pool.query(
@@ -6249,8 +6416,18 @@ async function runWeeklySpotlightNewsletter() {
       templateId, listing.name, listingUrl, email, weeklyNewCount
     );
 
+    const reservation = await pool.query(
+      `INSERT INTO weekly_spotlight_log (email, listing_id, template_id, send_period)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email, send_period) DO NOTHING
+       RETURNING id`,
+      [email, listing.id, templateId, sendPeriod]
+    );
+    if (!reservation.rows.length) { skipped++; continue; }
+    const reservationId = reservation.rows[0].id;
+
     try {
-      await resend.emails.send({
+      const sendResult = await resend.emails.send({
         from:    SENDER,
         to:      email,
         replyTo: 'strategicflow@proton.me',
@@ -6258,13 +6435,16 @@ async function runWeeklySpotlightNewsletter() {
         html,
         text,
       });
-      await pool.query(
-        `INSERT INTO weekly_spotlight_log (email, listing_id, template_id) VALUES ($1, $2, $3)`,
-        [email, listing.id, templateId]
-      );
+      if (sendResult?.cooldownBlocked) {
+        await pool.query(`DELETE FROM weekly_spotlight_log WHERE id=$1`, [reservationId]);
+        skipped++;
+        continue;
+      }
+      if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected spotlight email');
       log.push(`✓ tpl${templateId} → ${email} (${listing.name})`);
       sent++;
     } catch(e) {
+      await pool.query(`DELETE FROM weekly_spotlight_log WHERE id=$1`, [reservationId]).catch(()=>{});
       log.push(`✗ → ${email}: ${e.message.slice(0,120)}`);
       errors++;
     }
@@ -6363,7 +6543,16 @@ async function sendStartupOfWeekEmail(listingId) {
     // Fetch listing + verified claim owner email
     const { rows } = await pool.query(`
       SELECT dl.id, dl.name, dl.url, dl.description, dl.vote_count,
-             dc.owner_email
+             dc.owner_email,
+             EXISTS (
+               SELECT 1 FROM toolindex_newsletter_contacts nc
+               WHERE nc.email=lower(trim(dc.owner_email))
+                 AND nc.status='confirmed' AND nc.confirmed_at IS NOT NULL
+                 AND NOT EXISTS (
+                   SELECT 1 FROM email_unsubscribes u
+                   WHERE lower(u.email)=lower(nc.email)
+                 )
+             ) AS marketing_eligible
       FROM directory_listings dl
       JOIN dir_claims dc ON dc.listing_id = dl.id AND dc.is_verified = TRUE
       WHERE dl.id = $1 AND dl.status = 'active'
@@ -6398,6 +6587,15 @@ async function sendStartupOfWeekEmail(listingId) {
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
     const imageUrl   = `https://strategic-flow-audit.replit.app/api/startup-of-the-week/${listing.id}.svg`;
     const subject    = `🏆 ${listing.name} is this week's Startup of the Week on ToolIndex`;
+    const promoHtml  = listing.marketing_eligible
+      ? `<p style="margin:0 0 8px;font-size:13px;color:#556677;line-height:1.6;">Want to lock in more visibility? <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;text-decoration:none;">Weekly Feature</a> keeps your listing at the top for 14 days + adds a permanent dofollow article on the ToolIndex blog.</p>`
+      : '';
+    const promoText  = listing.marketing_eligible
+      ? `\nWant to lock in more visibility? Weekly Feature keeps your listing at the top for 14 days + adds a permanent dofollow article: https://strategic-flow-audit.replit.app/directory\n`
+      : '';
+    const footerHtml = listing.marketing_eligible
+      ? buildUnsubFooterHtml(email)
+      : `<p style="margin:0;font-size:11px;color:#334455;line-height:1.6;">You're receiving this operational notification because your listing <strong>${listing.name}</strong> is claimed on ToolIndex.</p>`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body style="margin:0;padding:0;background:#0d1117;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d1117;padding:40px 20px;">
@@ -6431,10 +6629,10 @@ async function sendStartupOfWeekEmail(listingId) {
       </td></tr>
     </table>
 
-    <p style="margin:0 0 8px;font-size:13px;color:#556677;line-height:1.6;">Want to lock in more visibility? <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;text-decoration:none;">Weekly Feature</a> keeps your listing at the top for 14 days + adds a permanent dofollow article on the ToolIndex blog.</p>
+    ${promoHtml}
 
     <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin:24px 0;"/>
-    <p style="margin:0;font-size:11px;color:#334455;line-height:1.6;">You're receiving this because your listing <strong>${listing.name}</strong> is claimed on ToolIndex. <a href="${unsubLink(email)}" style="color:#334455;">Unsubscribe</a></p>
+    ${footerHtml}
   </td></tr>
 
 </table>
@@ -6451,11 +6649,10 @@ A new week starts Monday. Share your win before then.
 View your listing: ${listingUrl}
 Your shareable card: ${imageUrl}
 
-Want to lock in more visibility? Weekly Feature keeps your listing at the top for 14 days + adds a permanent dofollow article: https://strategic-flow-audit.replit.app/directory
+${promoText}
 
 —
-ToolIndex · strategicflow.tech
-Unsubscribe: ${unsubLink(email)}`;
+ToolIndex · strategicflow.tech${listing.marketing_eligible ? `\nUnsubscribe: ${unsubLink(email)}` : ''}`;
 
     await resend.emails.send({
       from:    SENDER,
@@ -7104,8 +7301,15 @@ app.post('/api/directory/vote/:id', async (req, res) => {
                      AND vote_count > dl.vote_count) + 1 AS their_rank
            FROM directory_listings dl
            JOIN dir_claims dc ON dc.listing_id=dl.id AND dc.is_verified=TRUE
+           JOIN toolindex_newsletter_contacts nc
+             ON nc.email=lower(trim(dc.owner_email))
+            AND nc.status='confirmed' AND nc.confirmed_at IS NOT NULL
            WHERE dl.status='active' AND dl.category=$2 AND dl.id!=$1
              AND dc.owner_email IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM email_unsubscribes u
+               WHERE lower(u.email)=lower(trim(dc.owner_email))
+             )
              AND dl.vote_count = $3 - 1`,
           [lid, category, newCount]
         );
@@ -7127,7 +7331,7 @@ app.post('/api/directory/vote/:id', async (req, res) => {
               <h2 style="font-size:18px;margin:0 0 12px;"><strong>${escHtml(listingName)}</strong> moved ahead of <strong>${escHtml(comp.name)}</strong> in <strong>${escHtml(category)}</strong></h2>
               <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 16px;">Your listing is now <strong>#${comp.their_rank}</strong> in this category. A Daily Boost ($9) pins you back to #1 for 24 hours.</p>
               <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;margin-top:8px;padding:10px 20px;background:#00d4c8;color:#041214;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Reclaim your spot →</a>
-              <p style="color:#475569;font-size:11px;margin-top:20px;">You're receiving this because you claimed ${escHtml(comp.name)} on ToolIndex. One alert per day.</p>
+              ${buildUnsubFooterHtml(comp.owner_email)}
             </div>`
           }).catch(() => {});
           console.log(`[vote-rank-notif] alerted ${comp.name} owner (${email}) — overtaken by ${listingName} in "${category}"`);
@@ -7350,9 +7554,10 @@ function otpIpRateLimited(ip) {
 }
 
 app.post('/api/directory/claim/start', async (req, res) => {
-  const { listing_id, email } = req.body || {};
+  const { listing_id, email, newsletter_opt_in } = req.body || {};
   if (!listing_id || !email || !email.includes('@'))
     return res.status(400).json({ error: 'listing_id and valid email required' });
+  const newsletterOptIn = newsletter_opt_in === true;
 
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
   if (otpIpRateLimited(ip))
@@ -7388,11 +7593,17 @@ app.post('/api/directory/claim/start', async (req, res) => {
     const expires = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.query(
-      `INSERT INTO dir_claims (listing_id, owner_email, otp, otp_expires_at)
-       VALUES ($1,$2,$3,$4)
+      `INSERT INTO dir_claims
+         (listing_id, owner_email, otp, otp_expires_at, newsletter_opt_in, newsletter_opted_in_at)
+       VALUES ($1,$2,$3,$4,$5,CASE WHEN $5 THEN NOW() ELSE NULL END)
        ON CONFLICT (listing_id, owner_email)
-       DO UPDATE SET otp=$3, otp_expires_at=$4, is_verified=FALSE, verified_at=NULL`,
-      [listing_id, email.toLowerCase(), otp, expires]
+       DO UPDATE SET otp=$3, otp_expires_at=$4, is_verified=FALSE, verified_at=NULL,
+         newsletter_opt_in=$5,
+         newsletter_opted_in_at=CASE
+           WHEN $5 THEN COALESCE(dir_claims.newsletter_opted_in_at, NOW())
+           ELSE NULL
+         END`,
+      [listing_id, email.toLowerCase(), otp, expires, newsletterOptIn]
     );
 
     await resend.emails.send({
@@ -7411,7 +7622,7 @@ app.post('/api/directory/claim/start', async (req, res) => {
 
     _otpRateLimit.set(rlKey, Date.now());
     console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}${domain_mismatch ? ' [domain_mismatch]' : ''}`);
-    res.json({ ok: true, domain_mismatch, listing_domain: listingDomain });
+    res.json({ ok: true, domain_mismatch, listing_domain: listingDomain, newsletter_opt_in: newsletterOptIn });
   } catch(err) {
     console.error('[dir-claim/start]', err.message);
     res.status(500).json({ error: 'server_error' });
@@ -7491,10 +7702,20 @@ app.post('/api/directory/claim/verify', async (req, res) => {
               claimed_by
        FROM directory_listings WHERE id=$1`, [listing_id]);
     const row = listing.rows[0] || {};
+    let newsletter = null;
+    // Returning claimed owners may newly opt in while re-verifying ownership.
+    if (row.claimed_by && c.newsletter_opt_in) {
+      try {
+        newsletter = await queueClaimNewsletterConfirmation(email, listing_id, { newConsent: true });
+      } catch (e) {
+        console.error('[newsletter-consent] returning owner:', e.message);
+        newsletter = { error: 'confirmation_queue_failed' };
+      }
+    }
 
     console.log(`[dir-claim] OTP verified: ${email} → listing ${listing_id}${c.is_verified ? ' (returning)' : ' (new)'}`);
     res.json({
-      ok: true, edit_token: editToken,
+      ok: true, edit_token: editToken, newsletter,
       listing: {
         claimed_by:     row.claimed_by     || null,
         description:    row.description    || '',
@@ -7566,19 +7787,8 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
     if (!alreadyClaimed) {
       const nameR = await pool.query(`SELECT name FROM directory_listings WHERE id=$1`, [listing_id]);
       const name = nameR.rows[0]?.name || 'your product';
-      resend.emails.send({
-        from:    SENDER,
-        replyTo: 'strategicflow@proton.me',
-        to:      email,
-        subject: `You've claimed "${name}" on ToolIndex ✓`,
-        html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
-          <div style="margin-bottom:24px;">
-            <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
-            <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
-            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
-            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card.</p>
-            <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
-          </div>
+      const marketingEligible = await isConfirmedNewsletterContact(email);
+      const promotionHtml = marketingEligible ? `
           <div style="border-top:1px solid #1a2e45;padding-top:22px;margin-top:4px;">
             <p style="font-size:13px;font-weight:700;color:#f59e0b;margin:0 0 4px;font-family:monospace;letter-spacing:.06em;text-transform:uppercase;">⚡ Stand out before competitors claim the top spots</p>
             <p style="font-size:13px;color:#7a9ab8;margin:0 0 18px;">Today your listing is visible — but the Daily leaderboard resets every 24 hours. A boost keeps you at the top when real buyers are browsing.</p>
@@ -7615,13 +7825,38 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
               </tr>
             </table>
             <p style="font-size:11px;color:#4a6a8a;margin-top:14px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
+            ${buildUnsubFooterHtml(email)}
+          </div>` : '';
+      resend.emails.send({
+        from:    SENDER,
+        replyTo: 'strategicflow@proton.me',
+        to:      email,
+        subject: `You've claimed "${name}" on ToolIndex ✓`,
+        html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
+            <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
+            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card.</p>
+            <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
           </div>
+          ${promotionHtml}
         </div>`
       }).catch(() => {});
     }
 
+    let newsletter = null;
+    if (c.newsletter_opt_in) {
+      try {
+        newsletter = await queueClaimNewsletterConfirmation(email, listing_id, { newConsent: true });
+      } catch (e) {
+        console.error('[newsletter-consent] new claim:', e.message);
+        newsletter = { error: 'confirmation_queue_failed' };
+      }
+    }
+
     console.log(`[dir-claim] claim completed: ${email} → listing ${listing_id} (backlink_confirmed=${!skipped})`);
-    res.json({ ok: true });
+    res.json({ ok: true, newsletter });
   } catch(err) {
     console.error('[dir-claim/confirm-backlink]', err.message);
     res.status(500).json({ error: 'server_error' });
@@ -8570,6 +8805,12 @@ app.get('/unsubscribe', async (req, res) => {
   }
   try {
     await pool.query(`INSERT INTO email_unsubscribes (email, source) VALUES ($1,'link') ON CONFLICT DO NOTHING`, [norm]);
+    await pool.query(
+      `UPDATE toolindex_newsletter_contacts
+       SET status='unsubscribed', unsubscribed_at=NOW(), updated_at=NOW()
+       WHERE email=$1`,
+      [norm]
+    ).catch(() => {});
     // Stop cold sequence too
     await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE lower(to_email)=$1`, [norm]);
     console.log(`[unsubscribe] ${norm} opted out`);
@@ -8601,9 +8842,81 @@ app.post('/admin/add-unsubscribe', async (req, res) => {
   const email = (req.query.email || req.body?.email || '').toLowerCase().trim();
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'invalid email' });
   await pool.query(`INSERT INTO email_unsubscribes (email, source) VALUES ($1,'admin') ON CONFLICT DO NOTHING`, [email]);
+  await pool.query(
+    `UPDATE toolindex_newsletter_contacts
+     SET status='unsubscribed', unsubscribed_at=NOW(), updated_at=NOW()
+     WHERE email=$1`,
+    [email]
+  ).catch(() => {});
   await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE lower(to_email)=$1`, [email]);
   console.log(`[unsubscribe] admin opt-out: ${email}`);
   res.json({ ok: true, email, unsubLink: unsubLink(email) });
+});
+
+// ── GET /newsletter/confirm?token= — double opt-in for ToolIndex updates ──────
+app.get('/newsletter/confirm', async (req, res) => {
+  const token = String(req.query.token || '');
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid confirmation</title></head><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#333;"><h2>Invalid confirmation link</h2><p>Please request a new confirmation from the ToolIndex claim flow.</p></body></html>`);
+  }
+  try {
+    const tokenHash = newsletterConfirmTokenHash(token);
+    const { rows } = await pool.query(
+      `SELECT c.email, c.status, c.consented_at, c.confirmation_expires_at,
+              (SELECT MAX(u.unsubscribed_at) FROM email_unsubscribes u
+               WHERE lower(u.email)=lower(c.email)) AS global_unsubscribed_at
+       FROM toolindex_newsletter_contacts c
+       WHERE c.confirmation_token_hash=$1 LIMIT 1`,
+      [tokenHash]
+    );
+    const contact = rows[0];
+    if (!contact || contact.status === 'unsubscribed'
+        || (contact.status !== 'confirmed' && (!contact.confirmation_expires_at || new Date(contact.confirmation_expires_at) < new Date()))) {
+      return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Expired confirmation</title></head><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#333;"><h2>This confirmation link has expired</h2><p>Open your ToolIndex listing and repeat the claim flow to request a new link.</p></body></html>`);
+    }
+    if (contact.status === 'pending') {
+      if (contact.global_unsubscribed_at
+          && new Date(contact.global_unsubscribed_at) >= new Date(contact.consented_at)) {
+        return res.status(400).send('This confirmation link predates your unsubscribe. Please opt in again to request a new link.');
+      }
+      const confirmed = await pool.query(
+        `UPDATE toolindex_newsletter_contacts
+         SET status='confirmed', confirmed_at=NOW(), unsubscribed_at=NULL,
+             last_synced_at=NOW(), updated_at=NOW()
+         WHERE email=$1 AND status='pending'
+           AND confirmation_token_hash=$2
+           AND confirmation_expires_at > NOW()
+         RETURNING email`,
+        [contact.email, tokenHash]
+      );
+      if (!confirmed.rows.length) {
+        return res.status(400).send('This confirmation link is no longer valid.');
+      }
+      // A fresh, successful double opt-in supersedes a previous global unsubscribe.
+      await pool.query(`DELETE FROM email_unsubscribes WHERE email=$1`, [contact.email]);
+    }
+    const safeEmail = contact.email.replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+    return res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Subscription confirmed — ToolIndex</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#060e1c;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.card{max-width:460px;width:100%;background:rgba(0,212,200,.04);border:1px solid rgba(0,212,200,.22);border-radius:16px;padding:48px 40px;text-align:center}h1{font-size:23px;color:#fff;margin-bottom:12px}p{font-size:15px;color:#94a3b8;line-height:1.7}.email{font-family:monospace;font-size:13px;color:#00d4c8;margin:16px 0}a{color:#00d4c8;text-decoration:none}</style></head><body><div class="card"><h1>Founder updates confirmed</h1><p class="email">${safeEmail}</p><p>You are subscribed to ToolIndex updates sent on Mondays, Wednesdays, and Fridays.</p><p style="margin-top:24px;font-size:13px;"><a href="/directory">Return to ToolIndex →</a></p></div></body></html>`);
+  } catch (e) {
+    console.error('[newsletter-confirm] error:', e.message);
+    return res.status(500).send('Unable to confirm right now. Please try again.');
+  }
+});
+
+// ── GET /admin/newsletter-contacts?key= — consented audience status ───────────
+app.get('/admin/newsletter-contacts', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const [countsR, recentR] = await Promise.all([
+      pool.query(`SELECT status, COUNT(*)::int AS count FROM toolindex_newsletter_contacts GROUP BY status ORDER BY status`),
+      pool.query(`SELECT email, status, source, source_listing_id, consented_at, confirmation_sent_at, confirmed_at, unsubscribed_at, last_synced_at
+                  FROM toolindex_newsletter_contacts ORDER BY updated_at DESC LIMIT 100`),
+    ]);
+    res.json({ ok: true, counts: countsR.rows, recent: recentR.rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── GET /api/blog/latest — returns the most recently published blog post ─────
@@ -9860,6 +10173,30 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] email_unsubscribes:', e.message));
 
+  // ── Confirmed ToolIndex marketing audience — explicit double opt-in only ────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_newsletter_contacts (
+      email                    TEXT PRIMARY KEY,
+      status                   TEXT NOT NULL DEFAULT 'pending'
+                               CHECK (status IN ('pending','confirmed','unsubscribed')),
+      source                   TEXT NOT NULL DEFAULT 'claim',
+      source_listing_id        INTEGER,
+      consented_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      confirmation_token_hash  TEXT UNIQUE,
+      confirmation_sent_at     TIMESTAMPTZ,
+      confirmation_send_reserved_at TIMESTAMPTZ,
+      confirmation_expires_at  TIMESTAMPTZ,
+      confirmed_at             TIMESTAMPTZ,
+      unsubscribed_at          TIMESTAMPTZ,
+      last_synced_at           TIMESTAMPTZ DEFAULT NOW(),
+      created_at               TIMESTAMPTZ DEFAULT NOW(),
+      updated_at               TIMESTAMPTZ DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] toolindex_newsletter_contacts:', e.message));
+  await pool.query(`ALTER TABLE toolindex_newsletter_contacts ADD COLUMN IF NOT EXISTS confirmation_send_reserved_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_tinc_status ON toolindex_newsletter_contacts(status, confirmed_at)`)
+    .catch(() => {});
+
   // ── Blog newsletter log — tracks which posts have had newsletters sent ──────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS blog_newsletter_log (
@@ -9879,7 +10216,10 @@ async function setupDB() {
       sent_at     TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] weekly_spotlight_log:', e.message));
+  await pool.query(`ALTER TABLE weekly_spotlight_log ADD COLUMN IF NOT EXISTS send_period TEXT`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_wsl_email ON weekly_spotlight_log(email, sent_at)`)
+    .catch(() => {});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_wsl_email_period ON weekly_spotlight_log(email, send_period)`)
     .catch(() => {});
 
   // ── Startup of the Week winner notification log ───────────────────────────
@@ -10127,6 +10467,8 @@ async function setupDB() {
       UNIQUE(listing_id, owner_email)
     )
   `).catch(e => console.error('[DB] dir_claims:', e.message));
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS newsletter_opted_in_at TIMESTAMPTZ`).catch(()=>{});
 
   // ── Listing analytics tables ──────────────────────────────────────────────
   await pool.query(`
@@ -22618,8 +22960,16 @@ ${buildUnsubFooterHtml(listing.contact_email)}
   // ── Daily 10:00: notify claimed owners whose relaunch window just opened ──────
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
 
-  // ── Daily 11:00: send blog newsletter for any newly published posts ───────────
-  cron.schedule('0 11 * * *', () => checkBlogNewsletters().catch(()=>{}));
+  // ── Mon/Wed/Fri 11:00 UTC: send newsletter for newly published posts ─────────
+  cron.schedule('0 11 * * 1,3,5', () => checkBlogNewsletters().catch(()=>{}));
+
+  // ── Daily 07:00 UTC: reconcile opted-in claimed founders with audience ────────
+  cron.schedule('0 7 * * *', async () => {
+    try {
+      const result = await syncClaimedFounderNewsletterContacts();
+      console.log(`[newsletter-sync] cron: ${result.total} opted-in claims checked`);
+    } catch(e) { console.error('[newsletter-sync] cron error:', e.message); }
+  });
 
   // ── Daily 09:00 UTC: auto-send claim outreach to newly-discovered listing emails ─
   cron.schedule('0 9 * * *', async () => {

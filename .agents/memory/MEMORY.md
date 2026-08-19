@@ -3,3 +3,4 @@
 - [ToolIndex owned-listing vote integrity](toolindex-owned-listing-votes.md) — WHY Audit, Strategic Flow Audit, and Blink Test must not receive synthetic seed or boost votes.
 - [ToolIndex blog cadence](toolindex-blog-cadence.md) — publish ToolIndex blog posts on Mondays, Wednesdays, and Fridays at 08:00 UTC; keep listings newest-first.
 - [ToolIndex generated article persistence](toolindex-generated-article-persistence.md) — generated article metadata survives deployment, but its HTML body must also be durable or the URL can become a 404.
+- [ToolIndex newsletter consent](toolindex-newsletter-consent.md) — promotional founder emails require explicit double opt-in; operational owner notices must omit promos unless confirmed.
