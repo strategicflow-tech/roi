@@ -22648,8 +22648,8 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     } catch(e) { console.error('[weekly-spotlight] cron error:', e.message); }
   });
 
-  // ── Daily 07:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
-  cron.schedule('0 7 * * *', async () => {
+  // ── Daily 13:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
+  cron.schedule('0 13 * * *', async () => {
     try {
       const result = await runSeqOutreachBatch(OUTREACH_DAILY_CAP);
       console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
