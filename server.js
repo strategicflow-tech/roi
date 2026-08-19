@@ -3829,6 +3829,18 @@ const SEQ_TEMPLATES = {
 };
 
 // Shared signature — identical to buildClaimOutreachEmail
+// ── Step 3 A/B variants — paid offer, same for all clusters ─────────────────
+const SEQ_STEP3_AB = {
+  A: {
+    subject: '59 emails, same pattern',
+    body: `Hi {{first_name}},\n\nOne last note.\n\nAcross 59 SaaS emails I've analyzed, the recurring problem wasn't opens. It was what happened after them: 96% failed the CTA ownership test, and the average structural score was 3.4/10.\n\nI'm now applying the same 7-point Decision Friction Model to individual SaaS emails, including the diagnosis, three highest-friction points, and a full rebuild.\n\n$149. No discovery call.\n\nhttps://strategic-flow-pro.replit.app/decision-friction-review\n\nEither way, I'll close the loop here.`,
+  },
+  B: {
+    subject: '59 emails, same pattern',
+    body: `Hi {{first_name}},\n\nOne last note.\n\nAcross 59 SaaS emails I've analyzed, the recurring problem wasn't opens. It was what happened after them: 96% failed the CTA ownership test.\n\nI'm opening a small number of $149 Decision Friction Reviews: one email, seven structural checks, three highest-friction points, and a full rebuild.\n\nNo discovery call.\n\nWorth sending you the details?`,
+  },
+};
+
 const SEQ_SIG_HTML = `<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>`;
 const SEQ_SIG_TEXT = `\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain`;
 
@@ -3923,15 +3935,26 @@ function buildUnsubFooterText(email) {
 }
 
 function buildSeqEmail(contact, stepNum) {
-  const tpl = SEQ_TEMPLATES[contact.cluster]?.[stepNum];
-  if (!tpl) throw new Error(`No template: cluster=${contact.cluster} step=${stepNum}`);
+  // Step 3: use A/B paid-offer variant if assigned, fall back to cluster template
+  let tpl;
+  if (stepNum === 3 && contact.ab_variant && SEQ_STEP3_AB[contact.ab_variant]) {
+    tpl = SEQ_STEP3_AB[contact.ab_variant];
+  } else {
+    tpl = SEQ_TEMPLATES[contact.cluster]?.[stepNum];
+  }
+  if (!tpl) throw new Error(`No template: cluster=${contact.cluster} step=${stepNum} variant=${contact.ab_variant}`);
   const merge = s => s
     .replace(/\{\{first_name\}\}/g, contact.first_name || 'there')
     .replace(/\{\{company\}\}/g,   contact.company    || 'your company');
   const bodyText = merge(tpl.body);
-  const bodyHtml = bodyText.split('\n\n')
-    .map(p => `<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.65;">${p.replace(/\n/g, '<br>')}</p>`)
-    .join('');
+  // Variant A: render the URL line as a proper CTA button
+  const bodyHtml = bodyText.split('\n\n').map(p => {
+    const urlMatch = p.match(/^https?:\/\/\S+$/);
+    if (urlMatch) {
+      return `<p style="margin:0 0 18px;"><a href="${p.trim()}" style="display:inline-block;background:#00d4c8;color:#ffffff;font-family:Georgia,serif;font-size:14px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;">Decision Friction Review →</a></p>`;
+    }
+    return `<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.65;">${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
   const email = contact.to_email || '';
   return {
     subject: tpl.subject,
@@ -4162,6 +4185,71 @@ app.post('/admin/seq-run-batch', async (req, res) => {
     const result = await runSeqOutreachBatch(cap);
     console.log(`[seq-outreach] manual batch: ${result.sent} sent, ${result.errors} errors`);
     res.json({ ok: true, ...result });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/seq-send-step3-ab?key=…&cap=N&dry_run=1 — send A/B step 3 final email ──
+// Sends to contacts who got step1 but NOT step3 yet (bypasses step2 requirement by design).
+// dry_run=1 returns the queue without sending anything.
+app.post('/admin/seq-send-step3-ab', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const cap     = Math.min(parseInt(req.query.cap || '300', 10), 600);
+  const dryRun  = req.query.dry_run === '1';
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, to_email, first_name, company, cluster, ab_variant
+      FROM outreach_seq_contacts
+      WHERE stop_sequence = false
+        AND step1_sent_at IS NOT NULL
+        AND step3_sent_at IS NULL
+        AND ab_variant IS NOT NULL
+      ORDER BY imported_at
+      LIMIT $1`, [cap]);
+    if (dryRun) return res.json({ dry_run: true, total: rows.length, a: rows.filter(r=>r.ab_variant==='A').length, b: rows.filter(r=>r.ab_variant==='B').length, sample: rows.slice(0,3) });
+    let sent = 0, errors = 0; const log = [];
+    for (const contact of rows) {
+      if (await isUnsubscribed(contact.to_email)) {
+        await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true WHERE id=$1`, [contact.id]);
+        log.push(`⊘ unsub → ${contact.to_email}`); continue;
+      }
+      const engCheck = await isSequenceHalted(contact.to_email, 'agency_outreach');
+      if (engCheck.halted) {
+        await pool.query(`UPDATE outreach_seq_contacts SET stop_sequence=true, engaged_at=NOW(), engaged_reason=$2 WHERE id=$1`, [contact.id, engCheck.reason]);
+        log.push(`⊘ halted (${engCheck.reason}) → ${contact.to_email}`); continue;
+      }
+      try {
+        const { subject, html, text } = buildSeqEmail(contact, 3);
+        await resend.emails.send({ from: SENDER, to: contact.to_email, replyTo: 'strategicflow@proton.me', subject, html, text });
+        await pool.query(`UPDATE outreach_seq_contacts SET step3_sent_at=NOW() WHERE id=$1`, [contact.id]);
+        log.push(`✓ [${contact.ab_variant}] → ${contact.to_email}`); sent++;
+      } catch(e) {
+        await pool.query(`UPDATE outreach_seq_contacts SET step3_error=$1 WHERE id=$2`, [e.message.slice(0,500), contact.id]).catch(()=>{});
+        log.push(`✗ [${contact.ab_variant}] → ${contact.to_email}: ${e.message}`); errors++;
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+    console.log(`[seq-step3-ab] ${sent} sent (${rows.filter(r=>r.ab_variant==='A').length} A / ${rows.filter(r=>r.ab_variant==='B').length} B queued), ${errors} errors`);
+    res.json({ ok: true, sent, errors, total: rows.length, log });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── GET /admin/seq-step3-ab-stats?key=… — A/B variant engagement breakdown ──
+app.get('/admin/seq-step3-ab-stats', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        ab_variant,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE step3_sent_at IS NOT NULL) AS sent,
+        COUNT(*) FILTER (WHERE step3_sent_at IS NULL AND stop_sequence = false) AS pending,
+        COUNT(*) FILTER (WHERE engaged_at > step3_sent_at) AS engaged_after_step3,
+        COUNT(*) FILTER (WHERE stop_sequence = true) AS stopped
+      FROM outreach_seq_contacts
+      WHERE ab_variant IS NOT NULL
+      GROUP BY ab_variant ORDER BY ab_variant`);
+    res.json({ ok: true, variants: rows });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
