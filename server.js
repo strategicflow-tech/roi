@@ -4478,7 +4478,10 @@ app.get('/admin/run-vote-growth', async (req, res) => {
 
     // ── Promoted listings (is_promoted=TRUE): 10–14 votes/day, no cap ───────────
     const { rows: promoted } = await pool.query(
-      `SELECT id, name, vote_count FROM directory_listings WHERE is_promoted = TRUE AND status = 'active'`
+      `SELECT id, name, vote_count FROM directory_listings
+       WHERE is_promoted = TRUE AND status = 'active'
+         AND id <> ALL($1::int[])`,
+      [Array.from(SEED_VOTE_DISABLED_IDS)]
     );
     for (const listing of promoted) {
       const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
@@ -5172,11 +5175,8 @@ app.get('/admin/seed-votes', async (req, res) => {
     }
 
     // ── 1. vote_count column ────────────────────────────────────────────────────
-    // Owner/promoted listings: well above the 20-vote cap for free/unclaimed listings
-    await pool.query(`UPDATE directory_listings SET vote_count=135, is_promoted=TRUE WHERE id=199`);  // WHY Audit™
-    await pool.query(`UPDATE directory_listings SET vote_count=139, is_promoted=TRUE WHERE id=203`);  // Strategic Flow Audit
-    // Blink Test — owner's own tool, Editor's Pick + promoted
-    await pool.query(`UPDATE directory_listings SET vote_count=32, is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
+    // WHY, Strategic Flow Audit and the legacy Blink Test listing are excluded
+    // from synthetic seeding; their existing vote counts stay untouched.
 
     // ── 2. Specific vote_counts for key non-owner listings ──────────────────────
     // All under half of premium (<24), directory is new
@@ -5192,7 +5192,9 @@ app.get('/admin/seed-votes', async (req, res) => {
     // Reset remaining non-owner listings to power-law distribution
     const { rows: nonOwners } = await pool.query(
       `SELECT id FROM directory_listings WHERE status='active'
-       AND id NOT IN (199,203,${specificVC.map(x=>x.id).join(',')}) ORDER BY random()`
+       AND id <> ALL($1::int[])
+       AND id NOT IN (${specificVC.map(x=>x.id).join(',')}) ORDER BY random()`,
+      [Array.from(SEED_VOTE_DISABLED_IDS)]
     );
     // Directory is new: max 5 votes for non-key listings, power-law skewed to 1-2
     const vcCases = nonOwners.map((r, i) => ({
@@ -5212,17 +5214,18 @@ app.get('/admin/seed-votes', async (req, res) => {
     log(`vote_count set for all listings.`);
 
     // ── 3. Clear old seeded dir_votes ───────────────────────────────────────────
-    await pool.query(`DELETE FROM dir_votes WHERE voter_hash LIKE 'seed_%'`);
-    log('Old seed votes cleared.');
+    await pool.query(
+      `DELETE FROM dir_votes
+       WHERE voter_hash LIKE 'seed_%' AND listing_id <> ALL($1::int[])`,
+      [Array.from(SEED_VOTE_DISABLED_IDS)]
+    );
+    log('Old seed votes cleared for eligible listings; protected listings preserved.');
 
     // ── 4. Re-insert with full period distribution ───────────────────────────────
     // Key listings: exact buckets matching dev distribution
     // today=daily, tw=this-week-not-today, lw=last-week, old=older
     // Directory is new — keep numbers small and believable
     const keyListings = [
-      {id:199,  today:8,  tw:50, lw:65, old:57},  // WHY Audit™       total=180
-      {id:203,  today:6,  tw:42, lw:54, old:48},  // Strategic Flow   total=150
-      {id:4298, today:3,  tw:10, lw:11, old:8 },  // Blink Test       total=32
       {id:543, today:0, tw:5,  lw:4,  old:9},   // Twillot          total=18
       {id:165, today:0, tw:4,  lw:3,  old:9},   // Laike AI         total=16
       {id:248, today:0, tw:3,  lw:2,  old:9},   // Neon             total=14
@@ -5271,8 +5274,10 @@ app.get('/admin/seed-votes', async (req, res) => {
 
     // All other listings: pick ~30 to have 1–2 weekly votes, rest all older
     const { rows: others } = await pool.query(
-      `SELECT id, vote_count FROM directory_listings WHERE status='active' AND id!=ALL($1) AND vote_count>0 ORDER BY vote_count DESC`,
-      [Array.from(keyIds)]
+      `SELECT id, vote_count FROM directory_listings
+       WHERE status='active' AND id!=ALL($1) AND id <> ALL($2::int[]) AND vote_count>0
+       ORDER BY vote_count DESC`,
+      [Array.from(keyIds), Array.from(SEED_VOTE_DISABLED_IDS)]
     );
     // Only ~10 non-key listings get 1-2 weekly votes; rest are all-old (directory is new)
     const weeklyExtra = new Set(
@@ -5297,13 +5302,7 @@ app.get('/admin/seed-votes', async (req, res) => {
     `);
     log('vote_count synced from dir_votes.');
 
-    // ── 5b. Force premium listing vote_counts to canonical targets ───────────────
-    // The sync above counts ALL dir_votes (including real visitor votes).
-    // We override here so premium listings display exactly the intended totals.
-    await pool.query(`UPDATE directory_listings SET vote_count=135, is_promoted=TRUE WHERE id=199`);
-    await pool.query(`UPDATE directory_listings SET vote_count=139, is_promoted=TRUE WHERE id=203`);
-    await pool.query(`UPDATE directory_listings SET vote_count=32,  is_promoted=TRUE, editors_pick=TRUE WHERE id=4298`).catch(()=>{});
-    log('Owner vote_counts forced to 135 / 139 / 32.');
+    log('Protected owner listings were not seeded or overwritten.');
 
     // ── 6. Sanity check ──────────────────────────────────────────────────────────
     const { rows: [{ n: cnt }] } = await pool.query(`SELECT COUNT(*) n FROM dir_votes`);
@@ -5683,6 +5682,10 @@ async function activateScheduledBoosts() {
   } catch(e) { console.error('[activateScheduledBoosts]', e.message); }
 }
 
+// These owned listings must never receive synthetic/seed votes. Real visitor
+// votes continue to work normally; this only guards automated/admin seeding.
+const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298]);
+
 // ── Directory: seed the Daily section for today ───────────────────────────────
 // Called at 01:30 UTC (after PH import at 01:00) and at server startup.
 // Idempotent — skips if today already has ≥6 entries.
@@ -5714,8 +5717,9 @@ async function seedDailySection() {
           SELECT dl.id,
             NTILE(4) OVER (ORDER BY dl.vote_count DESC NULLS LAST) AS tier
           FROM directory_listings dl
-          WHERE dl.status='active'
+           WHERE dl.status='active'
             AND dl.is_seeded=FALSE
+             AND dl.id <> ALL($4::int[])
             AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
             AND dl.id != ALL($2::int[])
             AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
@@ -5729,7 +5733,7 @@ async function seedDailySection() {
         WHERE rn <= $3
         ORDER BY RANDOM()
         LIMIT $1
-      `, [needed, usedIds.length ? usedIds : [0], perTier]);
+      `, [needed, usedIds.length ? usedIds : [0], perTier, Array.from(SEED_VOTE_DISABLED_IDS)]);
       for (const r of fillRes.rows) picks.push({ id: r.id, source: 'db_pick' });
     }
 
@@ -22220,7 +22224,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     try {
       const { rows: promoted } = await pool.query(
-        `SELECT id, name FROM directory_listings WHERE is_promoted = TRUE AND status = 'active'`
+        `SELECT id, name FROM directory_listings
+         WHERE is_promoted = TRUE AND status = 'active'
+           AND id <> ALL($1::int[])`,
+        [Array.from(SEED_VOTE_DISABLED_IDS)]
       );
       for (const listing of promoted) {
         const toAdd = 10 + Math.floor(Math.random() * 5); // 10–14
@@ -22260,19 +22267,19 @@ ${buildUnsubFooterHtml(listing.contact_email)}
       const r = await pool.query(`
         UPDATE directory_listings
         SET vote_count = GREATEST(vote_count, 4 + ABS(hashtext(id::text)) % 52)
-        WHERE id NOT IN (199, 203)
+        WHERE id <> ALL($1::int[])
           AND status = 'active'
           AND is_seeded = FALSE
         RETURNING id, vote_count
-      `);
+      `, [Array.from(SEED_VOTE_DISABLED_IDS)]);
       log(`Updated ${r.rowCount} listings.`);
       // Quick distribution check
       const dist = await pool.query(`
         SELECT vote_count, COUNT(*)::int AS cnt
         FROM directory_listings
-        WHERE status='active' AND is_seeded=FALSE AND id NOT IN (199,203)
+        WHERE status='active' AND is_seeded=FALSE AND id <> ALL($1::int[])
         GROUP BY vote_count ORDER BY cnt DESC LIMIT 10
-      `);
+      `, [Array.from(SEED_VOTE_DISABLED_IDS)]);
       log('Top collisions after spread:');
       dist.rows.forEach(x => log(`  ${x.vote_count}v → ${x.cnt} listings`));
       log('Done.');
@@ -22302,6 +22309,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
           SELECT dl.id, NTILE(4) OVER (ORDER BY dl.vote_count DESC NULLS LAST) AS tier
           FROM directory_listings dl
           WHERE dl.status='active' AND dl.is_seeded=FALSE
+            AND dl.id <> ALL($3::int[])
             AND dl.description IS NOT NULL AND LENGTH(dl.description) > 20
             AND NOT EXISTS (SELECT 1 FROM dir_daily_section WHERE listing_id=dl.id)
         ),
@@ -22310,7 +22318,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
           FROM eligible
         )
         SELECT id FROM tier_picks WHERE rn <= $2 ORDER BY RANDOM() LIMIT $1
-      `, [needed, perTier]);
+      `, [needed, perTier, Array.from(SEED_VOTE_DISABLED_IDS)]);
       log(`Selected ${fillRes.rows.length} listings via tier sampling`);
       for (let i = 0; i < fillRes.rows.length; i++) {
         await pool.query(
@@ -22322,7 +22330,9 @@ ${buildUnsubFooterHtml(listing.contact_email)}
       const { rows } = await pool.query(`
         SELECT dl.id, dl.name, dl.vote_count, dds.position
         FROM directory_listings dl JOIN dir_daily_section dds ON dds.listing_id=dl.id
-        WHERE dds.display_date=$1 ORDER BY dds.position ASC`, [today]);
+        WHERE dds.display_date=$1
+          AND dl.id <> ALL($2::int[])
+        ORDER BY dds.position ASC`, [today, Array.from(SEED_VOTE_DISABLED_IDS)]);
       for (const l of rows) {
         const target = POS_CAP[l.position - 1] ?? 14;
         const diff = target - l.vote_count;
@@ -22352,8 +22362,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
         `SELECT dl.id, dl.name FROM directory_listings dl
          JOIN dir_daily_section dds ON dds.listing_id = dl.id
            AND dds.display_date = CURRENT_DATE
-         WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'`
-      );
+          WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'
+            AND dl.id <> ALL($1::int[])`,
+        [Array.from(SEED_VOTE_DISABLED_IDS)]
+       );
       log(`[claimed-boost] ${rows.length} daily-section claimed listings found`);
       for (const listing of rows) {
         const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
