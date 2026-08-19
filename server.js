@@ -4027,7 +4027,7 @@ async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
       SELECT id, to_email, first_name, company, cluster, ab_variant, 3, step2_sent_at
       FROM outreach_seq_contacts
       WHERE stop_sequence = false AND step2_sent_at IS NOT NULL
-        AND step3_sent_at IS NULL AND step1_sent_at <= NOW() - INTERVAL '8 days'
+        AND step3_sent_at IS NULL AND step2_sent_at <= NOW() - INTERVAL '5 days'
     ) q ORDER BY step ASC, priority_at ASC LIMIT $1`, [cap]);
   let sent = 0, errors = 0; const log = [];
   for (const contact of r.rows) {
