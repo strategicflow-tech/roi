@@ -1,3 +1,4 @@
 - [claude-sonnet-5 adaptive thinking](claude-sonnet-5-adaptive-thinking.md) — always use max_tokens:16000 + content.find(b=>b.type==='text') to extract response; content[0] is a thinking block.
 - [HTML tag audits: avoid single-line regex](html-tag-audit-false-positives.md) — grep/bash single-line patterns for <title>/<h1> give false "missing" results when tags have attributes or span lines; verify with a proper HTML parser before reporting/fixing.
 - [ToolIndex owned-listing vote integrity](toolindex-owned-listing-votes.md) — WHY Audit, Strategic Flow Audit, and Blink Test must not receive synthetic seed or boost votes.
+- [ToolIndex blog cadence](toolindex-blog-cadence.md) — publish ToolIndex blog posts on Mondays, Wednesdays, and Fridays at 08:00 UTC; keep listings newest-first.

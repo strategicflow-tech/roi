@@ -9943,13 +9943,14 @@ async function setupDB() {
 
   // Load previously auto-generated posts into in-memory BLOG_POSTS (prepend newest first)
   try {
-    const { rows: autoPosts } = await pool.query(`SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY created_at ASC`);
+    const { rows: autoPosts } = await pool.query(`SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY date ASC, created_at ASC`);
     for (const p of autoPosts) {
       if (BLOG_POSTS.some(bp => bp.slug === p.slug)) continue;
       const d = new Date(p.date + 'T12:00:00Z');
       const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · 8 min read';
       BLOG_POSTS.unshift({ slug: p.slug, title: p.title, excerpt: p.excerpt, date: p.date, dateLabel });
     }
+    BLOG_POSTS.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     if (autoPosts.length) console.log(`[blog-auto] Loaded ${autoPosts.length} auto-generated posts into BLOG_POSTS`);
   } catch(e) { console.error('[blog-auto] load error:', e.message); }
 
