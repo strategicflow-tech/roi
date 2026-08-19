@@ -8621,6 +8621,11 @@ const BLOG_POSTS = [
   { slug: 'product-hunt-vs-saas-directories-2026',  title: 'Product Hunt vs. SaaS Directories: Which Drives More Signups in 2026?', excerpt: 'Product Hunt gives you a launch-day spike. Directories give you compounding backlinks for years. The data-driven comparison and the exact sequence to maximize both channels.', date: '2026-08-04', dateLabel: 'Aug 4, 2026 \u00b7 9 min read' },
   { slug: 'saas-launch-directory-checklist-2026',   title: 'SaaS Launch Checklist: 23 Directories to Submit to Before You Go Live', excerpt: 'Before your public launch, submit to at least 10 high-DR directories. The full ranked list with submission tips, expected approval times, and a prep template that cuts total time in half.', date: '2026-08-03', dateLabel: 'Aug 3, 2026 \u00b7 10 min read' },
 ];
+// This former generated card has no persisted article body. Keep its inbound
+// URL useful, but never advertise a redirect/404 as a crawlable article.
+const BLOG_LEGACY_REDIRECTS = Object.freeze({
+  'saas-directory-submission-2026-best-backlinks': 'saas-directory-submission-2026',
+});
 app.get('/api/blog/latest', (req, res) => {
   // Posts are sorted newest-first; return the first one
   res.json(BLOG_POSTS[0] || null);
@@ -8711,7 +8716,7 @@ app.get('/blog', async (req, res) => {
     );
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const autoCards = dbPosts
-      .filter(p => !html.includes(`/blog/${p.slug}`))   // skip any already hardcoded
+      .filter(p => !BLOG_LEGACY_REDIRECTS[p.slug] && !html.includes(`/blog/${p.slug}`))   // skip redirects and hardcoded posts
       .map(p => {
         const d = new Date(p.date + 'T12:00:00Z');
         const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -8730,6 +8735,9 @@ app.get('/blog/:slug', (req, res) => {
   const fs = require('fs');
   // Strip .html suffix if already present so both /blog/foo and /blog/foo.html work
   const slug = req.params.slug.replace(/\.html$/i, '');
+  if (BLOG_LEGACY_REDIRECTS[slug]) {
+    return res.redirect(301, `/blog/${BLOG_LEGACY_REDIRECTS[slug]}`);
+  }
   const file = path.join(__dirname, 'public', 'blog', slug + '.html');
   if (fs.existsSync(file)) return res.sendFile(file);
   res.status(404).sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
@@ -9945,7 +9953,7 @@ async function setupDB() {
   try {
     const { rows: autoPosts } = await pool.query(`SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY date ASC, created_at ASC`);
     for (const p of autoPosts) {
-      if (BLOG_POSTS.some(bp => bp.slug === p.slug)) continue;
+      if (BLOG_LEGACY_REDIRECTS[p.slug] || BLOG_POSTS.some(bp => bp.slug === p.slug)) continue;
       const d = new Date(p.date + 'T12:00:00Z');
       const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · 8 min read';
       BLOG_POSTS.unshift({ slug: p.slug, title: p.title, excerpt: p.excerpt, date: p.date, dateLabel });
@@ -20614,7 +20622,18 @@ setupDB().then(async () => {
       { loc: `${base}/blog/best-ai-tool-directories-2026`,           priority: '0.9', changefreq: 'monthly' },
       { loc: `${base}/blog/audit-saas-product-emails-checklist`,     priority: '0.9', changefreq: 'monthly' },
     ];
-    const urls = staticUrls.map(u =>
+    // Include every article known to the runtime, including auto-generated posts.
+    // De-duplicate against the legacy static list so each article has one sitemap URL.
+    const allUrls = [
+      ...staticUrls,
+      ...BLOG_POSTS.filter(post => !BLOG_LEGACY_REDIRECTS[post.slug]).map(post => ({
+        loc: `${base}/blog/${post.slug}`,
+        priority: '0.9',
+        changefreq: 'monthly',
+      })),
+    ];
+    const uniqueUrls = [...new Map(allUrls.map(u => [u.loc, u])).values()];
+    const urls = uniqueUrls.map(u =>
       `  <url><loc>${u.loc}</loc><lastmod>${now}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`
     ).join('\n');
     res.setHeader('Content-Type', 'application/xml');
