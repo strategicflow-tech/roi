@@ -29,6 +29,7 @@ const path   = require('path');
 const fs     = require('fs');
 
 const app    = express();
+app.set('trust proxy', 1);
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL });
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -57,8 +58,9 @@ Use the fallback EXACTLY as written below, and ONLY when the user asks for a ref
 Do not add any other words when using the fallback.`;
 
 const WIDGET_CHAT_RATE_LIMIT = 20;
-const WIDGET_CHAT_RATE_WINDOW_MS = 60 * 1000;
-const widgetChatRateByIp = new Map();
+const WIDGET_CHAT_RATE_CLEANUP_INTERVAL_MS = 60 * 1000;
+const WIDGET_CHAT_RATE_CLEANUP_BATCH_SIZE = 1000;
+let widgetChatRateLastCleanupAt = 0;
 
 function widgetChatCors(req, res, next) {
   // This is route-local. The existing global CORS middleware remains unchanged.
@@ -68,33 +70,83 @@ function widgetChatCors(req, res, next) {
   next();
 }
 
-function widgetChatRateLimit(req, res, next) {
+function widgetChatClientIp(req) {
+  return String(req.ip || req.socket?.remoteAddress || 'unknown').trim();
+}
+
+function maybeCleanupWidgetChatRateLimits() {
   const now = Date.now();
-  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
-  let entry = widgetChatRateByIp.get(ip);
+  if (now - widgetChatRateLastCleanupAt < WIDGET_CHAT_RATE_CLEANUP_INTERVAL_MS) return;
+  widgetChatRateLastCleanupAt = now;
+  pool.query(`
+    WITH stale AS (
+      SELECT ip_key
+      FROM widget_chat_rate_limits
+      WHERE updated_at < NOW() - INTERVAL '5 minutes'
+      ORDER BY updated_at
+      LIMIT $1
+    )
+    DELETE FROM widget_chat_rate_limits AS rate_limit
+    USING stale
+    WHERE rate_limit.ip_key = stale.ip_key
+  `, [WIDGET_CHAT_RATE_CLEANUP_BATCH_SIZE]).catch(err => {
+    console.error('[widget-chat] Rate-limit cleanup error:', err.message);
+  });
+}
 
-  if (!entry || now - entry.windowStartedAt >= WIDGET_CHAT_RATE_WINDOW_MS) {
-    entry = { windowStartedAt: now, count: 0 };
-  }
-  entry.count += 1;
-  widgetChatRateByIp.set(ip, entry);
+async function widgetChatRateLimit(req, res, next) {
+  const ipKey = crypto
+    .createHash('sha256')
+    .update(widgetChatClientIp(req))
+    .digest('hex');
 
-  // Keep stale entries from accumulating indefinitely in a long-lived process.
-  if (widgetChatRateByIp.size > 10000) {
-    for (const [key, value] of widgetChatRateByIp) {
-      if (now - value.windowStartedAt >= WIDGET_CHAT_RATE_WINDOW_MS) {
-        widgetChatRateByIp.delete(key);
-      }
+  try {
+    const result = await pool.query(`
+      INSERT INTO widget_chat_rate_limits (
+        ip_key,
+        request_count,
+        window_started_at,
+        updated_at
+      )
+      VALUES ($1, 1, NOW(), NOW())
+      ON CONFLICT (ip_key) DO UPDATE SET
+        request_count = CASE
+          WHEN widget_chat_rate_limits.window_started_at <= NOW() - INTERVAL '1 minute' THEN 1
+          ELSE widget_chat_rate_limits.request_count + 1
+        END,
+        window_started_at = CASE
+          WHEN widget_chat_rate_limits.window_started_at <= NOW() - INTERVAL '1 minute' THEN NOW()
+          ELSE widget_chat_rate_limits.window_started_at
+        END,
+        updated_at = NOW()
+      RETURNING
+        request_count,
+        GREATEST(
+          1,
+          CEIL(EXTRACT(EPOCH FROM (
+            window_started_at + INTERVAL '1 minute' - NOW()
+          )))
+        )::INTEGER AS retry_after_seconds
+    `, [ipKey]);
+
+    maybeCleanupWidgetChatRateLimits();
+
+    const entry = result.rows[0];
+    if (entry.request_count > WIDGET_CHAT_RATE_LIMIT) {
+      const retryAfter = entry.retry_after_seconds || 1;
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`
+      });
     }
-  }
 
-  if (entry.count > WIDGET_CHAT_RATE_LIMIT) {
-    const retryAfter = Math.max(1, Math.ceil((entry.windowStartedAt + WIDGET_CHAT_RATE_WINDOW_MS - now) / 1000));
-    res.setHeader('Retry-After', String(retryAfter));
-    return res.status(429).json({ answer: WIDGET_CHAT_FALLBACK });
+    return next();
+  } catch (err) {
+    console.error('[widget-chat] Persistent rate-limit error:', err.message);
+    return res.status(503).json({
+      error: 'Chat is temporarily unavailable. Please try again shortly.'
+    });
   }
-
-  next();
 }
 
 // ── Cached active listing count (refreshes every 5 minutes) ──────────────────
@@ -9395,6 +9447,14 @@ async function setupDB() {
       value      TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS widget_chat_rate_limits (
+      ip_key            CHAR(64) PRIMARY KEY,
+      request_count     INTEGER NOT NULL DEFAULT 0,
+      window_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_widget_chat_rate_limits_updated
+      ON widget_chat_rate_limits(updated_at);
   `);
   // Add guest trial columns if not present (idempotent)
   await pool.query(`
