@@ -4006,17 +4006,17 @@ function parseSeqCsv(csvText) {
 // Core batch runner — returns {sent, errors, log[]}
 async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
   const r = await pool.query(`
-    SELECT id, to_email, first_name, company, cluster, step, priority_at FROM (
-      SELECT id, to_email, first_name, company, cluster, 1 AS step, imported_at AS priority_at
+    SELECT id, to_email, first_name, company, cluster, ab_variant, step, priority_at FROM (
+      SELECT id, to_email, first_name, company, cluster, ab_variant, 1 AS step, imported_at AS priority_at
       FROM outreach_seq_contacts
       WHERE stop_sequence = false AND step1_sent_at IS NULL
       UNION ALL
-      SELECT id, to_email, first_name, company, cluster, 2, step1_sent_at
+      SELECT id, to_email, first_name, company, cluster, ab_variant, 2, step1_sent_at
       FROM outreach_seq_contacts
       WHERE stop_sequence = false AND step1_sent_at IS NOT NULL
         AND step2_sent_at IS NULL AND step1_sent_at <= NOW() - INTERVAL '4 days'
       UNION ALL
-      SELECT id, to_email, first_name, company, cluster, 3, step2_sent_at
+      SELECT id, to_email, first_name, company, cluster, ab_variant, 3, step2_sent_at
       FROM outreach_seq_contacts
       WHERE stop_sequence = false AND step2_sent_at IS NOT NULL
         AND step3_sent_at IS NULL AND step1_sent_at <= NOW() - INTERVAL '8 days'
