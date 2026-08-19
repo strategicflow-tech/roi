@@ -10169,6 +10169,12 @@ async function setupDB() {
       description: 'Invisible Exit is a resource hub for people building a side business anonymously while still employed. It includes a freedom-number calculator that helps founders figure out how much runway they need before going full-time, an IP assignment and contract audit checklist for reviewing employment agreements before starting any side project, and practical guidance on staying anonymous while building — covering entity setup, payment processing, and public-facing identity separation.',
       category: 'Founder Resources',
     },
+    {
+      name: 'Techietribe AI',
+      url: 'https://techietribe.ai',
+      description: 'AI-assisted business website builder with a built-in directory listing. Sites launch in under 10 minutes, no coding required, automatic SEO-friendly directory presence included. Pricing: Free plan (1 landing page, 5 AI actions/day, 50MB storage) and Pro plan at $7/month early bird (renews at $9/month), unlimited blog posts, custom domain, 100 AI actions/day.',
+      category: 'AI Website Builder / Business Directory (SaaS)',
+    },
   ];
   for (const d of manualDrafts) {
     const exists = await pool.query(`SELECT id FROM directory_listings WHERE url=$1`, [d.url]).catch(() => ({ rows: [1] }));
@@ -10206,6 +10212,17 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS platform            TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pricing_model       TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS launch_date         DATE`).catch(()=>{});
+  // Techietribe AI — preserve manually supplied contact and pricing details while
+  // it remains an unclaimed draft; no claim state or public listing fields change.
+  await pool.query(`
+    UPDATE directory_listings
+    SET contact_email='info@thetechietribe.com',
+        contact_email_status='pending',
+        pricing_model='Freemium'
+    WHERE url='https://techietribe.ai'
+      AND status='draft'
+      AND claimed_by IS NULL
+  `).catch(e => console.error('[startup] Techietribe AI draft metadata:', e.message));
   // Level-up package columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited    BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee      BOOLEAN DEFAULT FALSE`).catch(()=>{});
