@@ -35,6 +35,56 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MODEL          = 'claude-sonnet-5';
 
+// ── EXTERNAL STRATEGIC FLOW WIDGET CHAT ──────────────────────────────────────
+// This endpoint is intentionally isolated from the audit/scoring flows below.
+const WIDGET_CHAT_FALLBACK = "I'll connect you with Alex directly for this.";
+const WIDGET_CHAT_SYSTEM_PROMPT = `You are the Strategic Flow website assistant. Strategic Flow is an email architecture audit service for B2B SaaS, founded by Alex Iliescu. Diagnose why SaaS emails get opened but do not generate clicks using the Decision Friction Model, a seven-point framework.
+
+Current prices are: $49 for a single audit, $299/month for Lite, $499/month for Growth, and $899/month for High-Impact. Strategic Flow has published 59 teardowns for companies including Semrush, HeyGen, and Revolut.
+
+Answer the user's question briefly and usefully in 2–3 sentences. If you do not know the answer, if the question requires a human, or if it asks for bespoke advice, account help, billing resolution, a guarantee, or anything outside the facts above, respond EXACTLY with: "${WIDGET_CHAT_FALLBACK}" Do not add any other words in that case. Do not invent facts, prices, results, or policies.`;
+
+const WIDGET_CHAT_RATE_LIMIT = 20;
+const WIDGET_CHAT_RATE_WINDOW_MS = 60 * 1000;
+const widgetChatRateByIp = new Map();
+
+function widgetChatCors(req, res, next) {
+  // This is route-local. The existing global CORS middleware remains unchanged.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+}
+
+function widgetChatRateLimit(req, res, next) {
+  const now = Date.now();
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  let entry = widgetChatRateByIp.get(ip);
+
+  if (!entry || now - entry.windowStartedAt >= WIDGET_CHAT_RATE_WINDOW_MS) {
+    entry = { windowStartedAt: now, count: 0 };
+  }
+  entry.count += 1;
+  widgetChatRateByIp.set(ip, entry);
+
+  // Keep stale entries from accumulating indefinitely in a long-lived process.
+  if (widgetChatRateByIp.size > 10000) {
+    for (const [key, value] of widgetChatRateByIp) {
+      if (now - value.windowStartedAt >= WIDGET_CHAT_RATE_WINDOW_MS) {
+        widgetChatRateByIp.delete(key);
+      }
+    }
+  }
+
+  if (entry.count > WIDGET_CHAT_RATE_LIMIT) {
+    const retryAfter = Math.max(1, Math.ceil((entry.windowStartedAt + WIDGET_CHAT_RATE_WINDOW_MS - now) / 1000));
+    res.setHeader('Retry-After', String(retryAfter));
+    return res.status(429).json({ answer: WIDGET_CHAT_FALLBACK });
+  }
+
+  next();
+}
+
 // ── Cached active listing count (refreshes every 5 minutes) ──────────────────
 let _cachedListingCount = null;
 let _cachedListingCountAt = 0;
@@ -19897,6 +19947,62 @@ email_html: complete standalone HTML email, inline styles only, no external CSS,
   } catch (e) {
     console.error('[release-note-system]', e.message);
     res.status(500).json({ error: 'Generation failed. Please try again.' });
+  }
+});
+
+// ── POST /api/widget-chat ─────────────────────────────────────────────────────
+// Public, intentionally separate from the audit/scoring endpoints. The route
+// accepts only a short question and never exposes the Anthropic credential.
+app.options('/api/widget-chat', widgetChatCors, (req, res) => {
+  res.sendStatus(204);
+});
+
+app.post('/api/widget-chat', widgetChatCors, widgetChatRateLimit, async (req, res) => {
+  if (!req.is('application/json')) {
+    return res.status(415).json({ answer: WIDGET_CHAT_FALLBACK });
+  }
+
+  const question = typeof req.body?.question === 'string'
+    ? req.body.question.trim()
+    : '';
+
+  if (!question) {
+    return res.status(400).json({ answer: 'Please provide a question.' });
+  }
+  if (question.length > 2000) {
+    return res.status(400).json({ answer: 'Please keep the question to 2000 characters or fewer.' });
+  }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('[widget-chat] ANTHROPIC_API_KEY is not configured');
+    return res.status(503).json({ answer: WIDGET_CHAT_FALLBACK });
+  }
+
+  try {
+    const response = await claude.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      system: WIDGET_CHAT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: question }]
+    });
+
+    const answer = response.content
+      ?.find(block => block.type === 'text')
+      ?.text
+      ?.trim();
+
+    if (!answer) {
+      console.error('[widget-chat] Claude returned no text content');
+      return res.status(502).json({ answer: WIDGET_CHAT_FALLBACK });
+    }
+
+    // Keep the required escalation string exact even if Claude wraps it in quotes.
+    const normalized = answer.replace(/^["']|["']$/g, '').trim();
+    return res.json({
+      answer: normalized === WIDGET_CHAT_FALLBACK ? WIDGET_CHAT_FALLBACK : answer
+    });
+  } catch (err) {
+    console.error('[widget-chat] Claude error:', err.message);
+    return res.status(502).json({ answer: WIDGET_CHAT_FALLBACK });
   }
 });
 
