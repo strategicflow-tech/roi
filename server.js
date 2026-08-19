@@ -4005,6 +4005,14 @@ function parseSeqCsv(csvText) {
 
 // Core batch runner — returns {sent, errors, log[]}
 async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
+  // Pause gate — set system_config key 'seq_outreach_paused'='true' to halt all sends
+  try {
+    const { rows } = await pool.query(`SELECT value FROM system_config WHERE key='seq_outreach_paused' LIMIT 1`);
+    if (rows[0]?.value === 'true') {
+      console.log('[seq-outreach] PAUSED — seq_outreach_paused=true in system_config');
+      return { sent: 0, errors: 0, total: 0, log: ['paused'] };
+    }
+  } catch { /* non-fatal — if table missing, continue */ }
   const r = await pool.query(`
     SELECT id, to_email, first_name, company, cluster, ab_variant, step, priority_at FROM (
       SELECT id, to_email, first_name, company, cluster, ab_variant, 1 AS step, imported_at AS priority_at
