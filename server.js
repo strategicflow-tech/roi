@@ -10218,7 +10218,8 @@ async function setupDB() {
     UPDATE directory_listings
     SET contact_email='info@thetechietribe.com',
         contact_email_status='pending',
-        pricing_model='Freemium'
+        pricing_model='Freemium',
+        image_url=COALESCE(NULLIF(image_url,''), 'https://www.techietribe.ai/assets/images/techietribe_logo.webp')
     WHERE url='https://techietribe.ai'
       AND status='draft'
       AND claimed_by IS NULL
