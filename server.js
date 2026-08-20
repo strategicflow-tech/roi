@@ -10224,6 +10224,21 @@ async function setupDB() {
       AND status='draft'
       AND claimed_by IS NULL
   `).catch(e => console.error('[startup] Techietribe AI draft metadata:', e.message));
+  // Remove the one historic automated promotion vote that left the two
+  // first-party listings one count apart. The CTE is idempotent: after the
+  // synthetic row is removed, subsequent startups leave both records intact.
+  await pool.query(`
+    WITH removed AS (
+      DELETE FROM dir_votes
+      WHERE listing_id=199
+        AND voter_hash='promoted_boost_199_20260819_0'
+      RETURNING listing_id
+    )
+    UPDATE directory_listings
+    SET vote_count=GREATEST(0, vote_count-1)
+    WHERE id=199
+      AND EXISTS (SELECT 1 FROM removed)
+  `).catch(e => console.error('[startup] WHY automated-vote correction:', e.message));
   // Level-up package columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_unlimited    BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS priority_marquee      BOOLEAN DEFAULT FALSE`).catch(()=>{});
