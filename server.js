@@ -6316,8 +6316,24 @@ async function checkBlogNewsletters() {
   try {
     const sentR = await pool.query(`SELECT slug FROM blog_newsletter_log`);
     const sentSlugs = new Set(sentR.rows.map(r => r.slug));
+    const generatedR = await pool.query(`
+      SELECT slug, title, excerpt, date, read_time
+      FROM blog_auto_posts
+      WHERE length(trim(content)) > 0
+      ORDER BY date DESC, created_at DESC
+    `);
+    const generatedPosts = generatedR.rows.map(post => {
+      const d = new Date(post.date + 'T12:00:00Z');
+      return {
+        ...post,
+        dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          + ' · ' + (post.read_time || 8) + ' min read'
+      };
+    });
+    const posts = [...generatedPosts, ...BLOG_POSTS.filter(post => !generatedPosts.some(generated => generated.slug === post.slug))]
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-    for (const post of BLOG_POSTS) {
+    for (const post of posts) {
       if (sentSlugs.has(post.slug)) continue;  // already sent
       console.log(`[blog-newsletter] new post detected: "${post.slug}" — sending newsletter`);
       await sendBlogNewsletter(post);
@@ -9036,7 +9052,7 @@ app.get('/admin/newsletter-contacts', async (req, res) => {
   }
 });
 
-// ── GET /api/blog/latest — returns the most recently published blog post ─────
+// ── GET /api/blog/latest — returns the most recently published readable post ─
 const BLOG_POSTS = [
   { slug: 'audit-saas-product-emails-checklist', title: 'How to Audit SaaS Product Emails for Structural and Conversion Issues (7-Point Checklist)', excerpt: 'Opens are fine. Clicks aren\'t. A practical framework for diagnosing structural vs. deliverability failures in onboarding, trial, and promo emails — before touching a word of copy.', date: '2026-08-15', dateLabel: 'Aug 15, 2026 · 7 min read' },
   { slug: 'saas-directory-submission-2026', title: 'SaaS Directory Submission 2026: The Highest-DR Backlinks, Fastest Approvals, and Real Referral Traffic', excerpt: 'We tested SaaS directory submissions in 2026 for DR, approval speed, and referral traffic. Here\'s which directories actually move the needle for founders.', date: '2026-08-14', dateLabel: 'Aug 14, 2026 · 8 min read' },
@@ -9056,8 +9072,28 @@ const BLOG_POSTS = [
 const BLOG_LEGACY_REDIRECTS = Object.freeze({
   'saas-directory-submission-2026-best-backlinks': 'saas-directory-submission-2026',
 });
-app.get('/api/blog/latest', (req, res) => {
-  // Posts are sorted newest-first; return the first one
+app.get('/api/blog/latest', async (req, res) => {
+  try {
+    // Do not advertise an auto-generated post unless its body survived restart.
+    const { rows } = await pool.query(`
+      SELECT slug, title, excerpt, date, read_time
+      FROM blog_auto_posts
+      WHERE length(trim(content)) > 0
+      ORDER BY date DESC, created_at DESC
+      LIMIT 1
+    `);
+    if (rows.length) {
+      const post = rows[0];
+      const d = new Date(post.date + 'T12:00:00Z');
+      return res.json({
+        ...post,
+        dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          + ' · ' + (post.read_time || 8) + ' min read'
+      });
+    }
+  } catch (e) {
+    console.error('[/api/blog/latest] database error:', e.message);
+  }
   res.json(BLOG_POSTS[0] || null);
 });
 
@@ -9142,7 +9178,10 @@ app.get('/blog', async (req, res) => {
     let html = fs.readFileSync(path.join(__dirname, 'public', 'blog', 'index.html'), 'utf8');
     // Query DB directly — source of truth, works even if in-memory BLOG_POSTS is stale
     const { rows: dbPosts } = await pool.query(
-      `SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY created_at DESC`
+      `SELECT slug, title, excerpt, date, read_time
+       FROM blog_auto_posts
+       WHERE length(trim(content)) > 0
+       ORDER BY date DESC, created_at DESC`
     );
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const autoCards = dbPosts
@@ -9150,7 +9189,7 @@ app.get('/blog', async (req, res) => {
       .map(p => {
         const d = new Date(p.date + 'T12:00:00Z');
         const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        return `\n  <div class="post-card">\n    <a href="/blog/${p.slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr}</span><span>8 min read</span></div>\n      <h2>${esc(p.title)}</h2>\n      <p>${esc(p.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
+        return `\n  <div class="post-card">\n    <a href="/blog/${p.slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr}</span><span>${p.read_time || 8} min read</span></div>\n      <h2>${esc(p.title)}</h2>\n      <p>${esc(p.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
       }).join('\n');
     if (autoCards) html = html.replace('<div class="posts-grid">', '<div class="posts-grid">' + autoCards);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -9161,7 +9200,7 @@ app.get('/blog', async (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
   }
 });
-app.get('/blog/:slug', (req, res) => {
+app.get('/blog/:slug', async (req, res) => {
   const fs = require('fs');
   // Strip .html suffix if already present so both /blog/foo and /blog/foo.html work
   const slug = req.params.slug.replace(/\.html$/i, '');
@@ -9170,6 +9209,17 @@ app.get('/blog/:slug', (req, res) => {
   }
   const file = path.join(__dirname, 'public', 'blog', slug + '.html');
   if (fs.existsSync(file)) return res.sendFile(file);
+  try {
+    const { rows } = await pool.query(`
+      SELECT slug, title, content, meta_description, keyword, date, read_time
+      FROM blog_auto_posts
+      WHERE slug=$1 AND length(trim(content)) > 0
+      LIMIT 1
+    `, [slug]);
+    if (rows.length) return res.type('html').send(buildBlogPage(rows[0]));
+  } catch (e) {
+    console.error('[/blog/:slug] durable post lookup failed:', e.message);
+  }
   res.status(404).sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
 });
 
@@ -10445,17 +10495,24 @@ async function setupDB() {
       meta_description TEXT NOT NULL DEFAULT '',
       keyword          TEXT NOT NULL DEFAULT '',
       date             TEXT NOT NULL,
+      content          TEXT NOT NULL DEFAULT '',
+      read_time        INTEGER NOT NULL DEFAULT 8,
       created_at       TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] blog_auto_posts:', e.message));
 
   // Load previously auto-generated posts into in-memory BLOG_POSTS (prepend newest first)
   try {
-    const { rows: autoPosts } = await pool.query(`SELECT slug, title, excerpt, date FROM blog_auto_posts ORDER BY date ASC, created_at ASC`);
+    const { rows: autoPosts } = await pool.query(`
+      SELECT slug, title, excerpt, date, read_time
+      FROM blog_auto_posts
+      WHERE length(trim(content)) > 0
+      ORDER BY date ASC, created_at ASC
+    `);
     for (const p of autoPosts) {
       if (BLOG_LEGACY_REDIRECTS[p.slug] || BLOG_POSTS.some(bp => bp.slug === p.slug)) continue;
       const d = new Date(p.date + 'T12:00:00Z');
-      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · 8 min read';
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + (p.read_time || 8) + ' min read';
       BLOG_POSTS.unshift({ slug: p.slug, title: p.title, excerpt: p.excerpt, date: p.date, dateLabel });
     }
     BLOG_POSTS.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -22438,10 +22495,13 @@ full HTML body here
     const html = buildBlogPage({ title: article.title, content: article.content, slug, meta_description: article.meta_description, keyword: article.keyword, date: today, read_time: article.read_time });
     await fs.promises.writeFile(path.join(__dirname, 'public', 'blog', `${slug}.html`), html, 'utf8');
 
-    // Persist to DB
+    // Persist the complete source of truth before updating temporary runtime files.
+    // The blog route can regenerate the page from this record after any restart.
     await pool.query(
-      `INSERT INTO blog_auto_posts (slug, title, excerpt, meta_description, keyword, date) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (slug) DO NOTHING`,
-      [slug, article.title, article.excerpt, article.meta_description, article.keyword, today]
+      `INSERT INTO blog_auto_posts (slug, title, excerpt, meta_description, keyword, date, content, read_time)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (slug) DO NOTHING`,
+      [slug, article.title, article.excerpt, article.meta_description, article.keyword, today, article.content, article.read_time]
     );
 
     // Prepend to live BLOG_POSTS array
@@ -22449,48 +22509,6 @@ full HTML body here
     const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + (article.read_time || 8) + ' min read';
     const post = { slug, title: article.title, excerpt: article.excerpt, date: today, dateLabel };
     if (!BLOG_POSTS.some(bp => bp.slug === slug)) BLOG_POSTS.unshift(post);
-
-    // Also prepend entry to hardcoded BLOG_POSTS in server.js so production deploys
-    // pick it up without relying on the production DB (which is separate from dev)
-    try {
-      const serverPath = path.join(__dirname, 'server.js');
-      let serverSrc = await fs.promises.readFile(serverPath, 'utf8');
-      const marker = 'const BLOG_POSTS = [\n';
-      if (serverSrc.includes(marker) && !serverSrc.includes(`slug: '${slug}'`)) {
-        const esc = s => s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        const entry = `  { slug: '${slug}', title: '${esc(article.title)}', excerpt: '${esc(article.excerpt)}', date: '${today}', dateLabel: '${dateLabel}' },\n`;
-        serverSrc = serverSrc.replace(marker, marker + entry);
-        await fs.promises.writeFile(serverPath, serverSrc, 'utf8');
-        console.log(`[blog-auto] Prepended entry to BLOG_POSTS in server.js`);
-      }
-    } catch(e) { console.error('[blog-auto] server.js BLOG_POSTS update error:', e.message); }
-
-    // Also prepend card to blog/index.html so the listing page stays current
-    try {
-      const idxPath = path.join(__dirname, 'public', 'blog', 'index.html');
-      let idxHtml = await fs.promises.readFile(idxPath, 'utf8');
-      if (!idxHtml.includes(`/blog/${slug}`)) {
-        const d2 = new Date(today + 'T12:00:00Z');
-        const dateStr2 = d2.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        const esc2 = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const card = `\n  <div class="post-card">\n    <a href="/blog/${slug}">\n      <div class="post-meta"><span class="post-tag">SEO &amp; Directories</span><span>${dateStr2}</span><span>${article.read_time || 8} min read</span></div>\n      <h2>${esc2(article.title)}</h2>\n      <p>${esc2(article.excerpt)}</p>\n      <span class="post-read">Read article →</span>\n    </a>\n  </div>`;
-        idxHtml = idxHtml.replace('<div class="posts-grid">', '<div class="posts-grid">' + card);
-        await fs.promises.writeFile(idxPath, idxHtml, 'utf8');
-      }
-    } catch(e) { console.error('[blog-auto] index update error:', e.message); }
-
-    // Also update the static fallback in public/directory.html (blog card)
-    try {
-      const dirPath = path.join(__dirname, 'public', 'directory.html');
-      let dirHtml = await fs.promises.readFile(dirPath, 'utf8');
-      const d3 = new Date(today + 'T12:00:00Z');
-      const dateStr3 = d3.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      dirHtml = dirHtml.replace(/(id="latestBlogCard" href=")[^"]*"/, `$1/blog/${slug}"`);
-      dirHtml = dirHtml.replace(/(id="latestBlogDate">)[^<]*(<)/, `$1${dateStr3} · ${article.read_time || 8} min read$2`);
-      dirHtml = dirHtml.replace(/(id="latestBlogTitle">)[^<]*(<)/, `$1${article.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}$2`);
-      dirHtml = dirHtml.replace(/(id="latestBlogExcerpt">)[^<]*(<)/, `$1${article.excerpt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}$2`);
-      await fs.promises.writeFile(dirPath, dirHtml, 'utf8');
-    } catch(e) { console.error('[blog-auto] directory.html update error:', e.message); }
 
     console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
 
@@ -23222,21 +23240,41 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     } catch(e) { console.error('[outreach-cron] error:', e.message); }
   });
 
-  // ── Mon/Wed/Fri 08:00 UTC: auto-generate and publish a new blog article ──────
-  cron.schedule('0 8 * * 1,3,5', async () => {
+  const isToolIndexPublishingDay = (date = new Date()) => [1, 3, 5].includes(date.getUTCDay());
+  let scheduledBlogGenerationInFlight = false;
+  async function publishScheduledToolIndexPost(source) {
+    if (!isToolIndexPublishingDay()) return { skipped: true, reason: 'not_publishing_day' };
+    if (scheduledBlogGenerationInFlight) return { skipped: true, reason: 'already_running' };
+    scheduledBlogGenerationInFlight = true;
     try {
-      // Skip if already generated today (idempotency)
-      const { rows } = await pool.query(`SELECT created_at FROM blog_auto_posts ORDER BY created_at DESC LIMIT 1`);
       const todayStr = new Date().toISOString().split('T')[0];
-      if (rows.length && rows[0].created_at.toISOString().startsWith(todayStr)) {
-        console.log('[blog-auto] Already generated today, skipping cron.');
-        return;
+      const { rows } = await pool.query(`SELECT slug FROM blog_auto_posts WHERE date=$1 LIMIT 1`, [todayStr]);
+      if (rows.length) {
+        console.log(`[blog-auto] ${source}: already generated for ${todayStr}, skipping.`);
+        return { skipped: true, reason: 'already_generated_today' };
       }
-      console.log('[blog-auto] Starting scheduled article generation...');
+      console.log(`[blog-auto] ${source}: starting scheduled article generation...`);
       const result = await generateAndPublishBlogPost();
-      console.log(`[blog-auto] Cron complete → "${result.title}"`);
-    } catch(e) { console.error('[blog-auto] Cron error:', e.message); }
-  });
+      console.log(`[blog-auto] ${source}: complete → "${result.title}"`);
+      return result;
+    } catch(e) {
+      console.error(`[blog-auto] ${source}: generation error:`, e.message);
+      return { error: e.message };
+    } finally {
+      scheduledBlogGenerationInFlight = false;
+    }
+  }
+
+  // ── Mon/Wed/Fri 08:00 UTC: auto-generate and publish a new blog article ──────
+  cron.schedule('0 8 * * 1,3,5', () => publishScheduledToolIndexPost('cron'), { timezone: 'UTC' });
+
+  // The main process also runs outbound email work. If a busy event loop misses
+  // the 08:00 tick, retry at :15 for the rest of that publishing day.
+  cron.schedule('15 8-23 * * 1,3,5', () => publishScheduledToolIndexPost('watchdog'), { timezone: 'UTC' });
+
+  // A workflow restart after 08:00 must not silently lose that day's scheduled post.
+  // It publishes at most one article for the current publishing day.
+  setTimeout(() => publishScheduledToolIndexPost('startup-recovery').catch(() => {}), 10_000);
 
   // ── Every Tuesday 08:00 UTC: weekly spotlight newsletter (4-template rotation) ──
   cron.schedule('0 8 * * 2', async () => {
