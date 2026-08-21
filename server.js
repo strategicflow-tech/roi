@@ -686,8 +686,9 @@ app.get('/directory', async (req, res) => {
       ssrHtml
     );
 
-    // Inject latest blog post into the card (server-side so bots + first paint are correct)
-    const latest = BLOG_POSTS[0];
+    // Inject the durable latest post so first paint never falls back to a stale
+    // in-memory/static card while the browser waits for the hydration request.
+    const latest = await getLatestReadableBlogPost();
     if (latest) {
       const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       html = html.replace(
@@ -9100,7 +9101,7 @@ const BLOG_POSTS = [
 const BLOG_LEGACY_REDIRECTS = Object.freeze({
   'saas-directory-submission-2026-best-backlinks': 'saas-directory-submission-2026',
 });
-app.get('/api/blog/latest', async (req, res) => {
+async function getLatestReadableBlogPost() {
   try {
     // Do not advertise an auto-generated post unless its body survived restart.
     const { rows } = await pool.query(`
@@ -9113,16 +9114,21 @@ app.get('/api/blog/latest', async (req, res) => {
     if (rows.length) {
       const post = rows[0];
       const d = new Date(post.date + 'T12:00:00Z');
-      return res.json({
+      return {
         ...post,
         dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           + ' · ' + (post.read_time || 8) + ' min read'
-      });
+      };
     }
   } catch (e) {
-    console.error('[/api/blog/latest] database error:', e.message);
+    console.error('[blog-latest] database error:', e.message);
   }
-  res.json(BLOG_POSTS[0] || null);
+  return BLOG_POSTS[0] || null;
+}
+
+app.get('/api/blog/latest', async (req, res) => {
+  res.set('Cache-Control', 'no-store, max-age=0');
+  res.json(await getLatestReadableBlogPost());
 });
 
 // ── GET /api/directory/startup-of-day — daily rotating featured listing ─────

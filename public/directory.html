@@ -1716,19 +1716,19 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 <section class="dir-latest-blog" aria-label="Latest from the ToolIndex blog">
   <div class="dir-latest-blog-inner">
     <div class="dir-latest-blog-label">◈ FROM THE BLOG</div>
-    <a class="dir-latest-blog-card" id="latestBlogCard" href="/blog/saas-directory-submission-2026">
+    <a class="dir-latest-blog-card" id="latestBlogCard" href="/blog/product-hunt-alternative-2026">
       <div class="dir-latest-blog-scan"></div>
       <div class="dir-latest-blog-badge">LATEST</div>
-      <div class="dir-latest-blog-date" id="latestBlogDate">Aug 14, 2026 · 8 min read</div>
-      <h3 class="dir-latest-blog-title" id="latestBlogTitle">SaaS Directory Submission 2026: The Highest-DR Backlinks, Fastest Approvals, and Real Referral Traffic</h3>
-      <p class="dir-latest-blog-excerpt" id="latestBlogExcerpt">We tested SaaS directory submissions in 2026 for DR, approval speed, and referral traffic. Here's which directories actually move the needle for founders.</p>
+      <div class="dir-latest-blog-date" id="latestBlogDate">Aug 21, 2026 · 8 min read</div>
+      <h3 class="dir-latest-blog-title" id="latestBlogTitle">Product Hunt Alternative 2026: Why One Launch Day Isn't a Distribution Strategy</h3>
+      <p class="dir-latest-blog-excerpt" id="latestBlogExcerpt">Product Hunt still helps on launch day, but its traffic decays fast. Here's why founders in 2026 need compounding directory alternatives like ToolIndex.</p>
       <div class="dir-latest-blog-cta">Read the full article <span class="dir-latest-blog-arrow">→</span></div>
     </a>
   </div>
 </section>
 <script>
 // Hydrate from API if a newer post exists
-fetch('/api/blog/latest').then(r=>r.json()).then(d=>{
+fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
   if(!d||!d.slug) return;
   const card=document.getElementById('latestBlogCard');
   if(card) card.href='/blog/'+d.slug;
