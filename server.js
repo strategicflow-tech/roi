@@ -4092,11 +4092,11 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:32px auto;background:#060e1c;color:#e2e8f0;padding:36px 32px;border-radius:14px;line-height:1.7;">
         <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:20px;">ToolIndex · Founder updates</div>
         <h2 style="font-size:22px;color:#fff;margin:0 0 12px;">Confirm your subscription</h2>
-        <p style="font-size:15px;color:#94a3b8;margin:0 0 22px;">You asked to receive ToolIndex founder updates and new articles on Mondays, Wednesdays, and Fridays. Confirm below to join the list.</p>
+        <p style="font-size:15px;color:#94a3b8;margin:0 0 22px;">You verified ownership of a product on ToolIndex. If you would like founder updates and new articles on Mondays, Wednesdays, and Fridays, confirm below to join the list.</p>
         <a href="${confirmUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;font-family:monospace;">Confirm founder updates →</a>
         <p style="font-size:11px;color:#4a6a8a;margin-top:26px;">This link expires in 7 days. If you did not request these updates, ignore this email and you will not be subscribed.</p>
       </div>`,
-      text: `Confirm your ToolIndex founder updates:\n${confirmUrl}\n\nYou will receive updates on Mondays, Wednesdays, and Fridays. If you did not request this, ignore this email.`,
+        text: `You verified ownership of a product on ToolIndex. If you would like founder updates and new articles, confirm here:\n${confirmUrl}\n\nYou will receive updates on Mondays, Wednesdays, and Fridays. If you did not request this, ignore this email.`,
     });
     if (sendResult?.cooldownBlocked) throw new Error('confirmation_cooldown_blocked');
     if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected confirmation email');
@@ -4119,22 +4119,31 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
   }
 }
 
-async function syncClaimedFounderNewsletterContacts() {
+async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false } = {}) {
   const { rows } = await pool.query(`
     SELECT DISTINCT ON (lower(trim(dc.owner_email)))
-      dc.listing_id, lower(trim(dc.owner_email)) AS email
+      dc.listing_id, lower(trim(dc.owner_email)) AS email, dl.name
     FROM dir_claims dc
     JOIN directory_listings dl ON dl.id=dc.listing_id
-    WHERE dc.newsletter_opt_in=TRUE
+    WHERE ($1::boolean OR dc.newsletter_opt_in=TRUE)
       AND dc.is_verified=TRUE
       AND dl.claimed_by IS NOT NULL
       AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
       AND dl.status='active'
     ORDER BY lower(trim(dc.owner_email)), dl.claimed_at DESC NULLS LAST, dc.listing_id DESC
-  `);
+  `, [includeAllVerified]);
   let confirmed = 0, pending = 0, skipped = 0, errors = 0;
   for (const row of rows) {
     try {
+      if (BYPASS_EMAILS.has(row.email) || isJunkEmail(row.email)) {
+        skipped++;
+        continue;
+      }
+      const blocked = isBlockedOutreachTarget(row.name, row.email);
+      if (blocked.blocked || await isUnsubscribed(row.email)) {
+        skipped++;
+        continue;
+      }
       const result = await queueClaimNewsletterConfirmation(row.email, row.listing_id);
       if (result.confirmed) confirmed++;
       else if (result.confirmationSent || result.pending) pending++;
@@ -4143,9 +4152,11 @@ async function syncClaimedFounderNewsletterContacts() {
       errors++;
       console.error(`[newsletter-sync] ${row.email}:`, e.message);
     }
+    await new Promise(resolve => setTimeout(resolve, 120));
   }
-  console.log(`[newsletter-sync] ${rows.length} opted-in claims → ${confirmed} confirmed, ${pending} pending, ${skipped} skipped, ${errors} errors`);
-  return { total: rows.length, confirmed, pending, skipped, errors };
+  const scope = includeAllVerified ? 'all verified claims' : 'opted-in claims';
+  console.log(`[newsletter-sync] ${rows.length} ${scope} → ${confirmed} confirmed, ${pending} pending, ${skipped} skipped, ${errors} errors`);
+  return { total: rows.length, confirmed, pending, skipped, errors, scope };
 }
 
 function buildUnsubFooterHtml(email) {
@@ -9049,6 +9060,23 @@ app.get('/admin/newsletter-contacts', async (req, res) => {
     res.json({ ok: true, counts: countsR.rows, recent: recentR.rows });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /admin/send-claim-newsletter-confirmations?key=&scope=all_verified_claims
+// Sends opt-in requests only. Confirmed recipients are never emailed again by this
+// action; existing unsubscribes, junk addresses, and blocked targets are skipped.
+app.post('/admin/send-claim-newsletter-confirmations', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (req.query.scope !== 'all_verified_claims') {
+    return res.status(400).json({ error: 'scope=all_verified_claims required' });
+  }
+  try {
+    const result = await syncClaimedFounderNewsletterContacts({ includeAllVerified: true });
+    res.json({ ok: true, action: 'confirmation_requests_sent', ...result });
+  } catch (e) {
+    console.error('[newsletter-consent] admin batch failed:', e.message);
+    res.status(500).json({ error: 'confirmation_batch_failed' });
   }
 });
 
