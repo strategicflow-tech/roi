@@ -67,10 +67,13 @@ const WIDGET_CHAT_RATE_CLEANUP_BATCH_SIZE = 1000;
 let widgetChatRateLastCleanupAt = 0;
 
 function widgetChatCors(req, res, next) {
-  // This is route-local. The existing global CORS middleware remains unchanged.
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const origin = req.get('origin');
+  if (origin && browserOrigins?.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
   next();
 }
 
@@ -466,13 +469,37 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '10mb' }));
 
+const browserOrigins = new Set(
+  [
+    process.env.APP_URL,
+    process.env.REPLIT_DEV_DOMAIN && `https://${process.env.REPLIT_DEV_DOMAIN}`,
+    'https://strategic-flow-audit.replit.app',
+    'https://strategicflow.tech',
+    'https://www.strategicflow.tech'
+  ].filter(Boolean)
+);
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  const origin = req.get('origin');
+  if (origin && browserOrigins.has(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  // A preflight from an untrusted origin receives no CORS grant, so the browser
+  // cannot expose the response to a third-party page.
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
+  const origin = req.get('origin');
+  if (!origin || !browserOrigins.has(origin)) return;
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Methods', methods);
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 // SESSION MIDDLEWARE
 app.use(session({
@@ -2970,6 +2997,23 @@ app.post('/api/directory/submit', async (req, res) => {
   if (!name || !url) return res.status(400).json({ error: 'name and url required' });
   let cleanUrl = url.trim();
   if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = 'https://' + cleanUrl;
+  try {
+    const parsed = new URL(cleanUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) throw new Error('invalid');
+    cleanUrl = parsed.toString();
+  } catch {
+    return res.status(400).json({ error: 'invalid_url', message: 'Enter a valid public website URL.' });
+  }
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'invalid_email' });
+  }
+  const submitAllowed = await consumeDirectoryRateLimit(
+    `directory-submit:${normalizedClientIp(req)}`, 5, 60 * 60
+  );
+  if (!submitAllowed) {
+    return res.status(429).json({ error: 'rate_limited', message: 'Too many submissions. Please try again later.' });
+  }
 
   // Block spam, gambling, and physical goods
   if (isSpamSubmission(name, description || '', cleanUrl)) {
@@ -2980,8 +3024,8 @@ app.post('/api/directory/submit', async (req, res) => {
   let rawLogo = null;
   if (logo_url) {
     const t = logo_url.trim();
-    if (t.startsWith('data:image/')) rawLogo = t;                                          // uploaded file (base64)
-    else if (/^https?:\/\/.+\.(png|jpg|jpeg|svg|webp|gif|ico)/i.test(t)) rawLogo = t;     // direct image URL
+    if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(t)) rawLogo = t;
+    else if (/^https:\/\/.+\.(png|jpg|jpeg|webp|gif|avif|ico)(?:[?#].*)?$/i.test(t)) rawLogo = t;
   }
   const _HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
   // Data URLs (uploaded files) are stored in full; external URLs are capped at 500 chars and checked against hero patterns.
@@ -2997,18 +3041,15 @@ app.post('/api/directory/submit', async (req, res) => {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
        VALUES ($1,$2,$3,$4,$5,$6,FALSE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
-      [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), email||null, suppliedLogo]
+       [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), normalizedEmail||null, suppliedLogo]
     );
     if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
     const id = r.rows[0].id;
-
-    // ── Auto-claim: submitter is the owner ───────────────────────────────────
-    if (email) {
-      await pool.query(
-        `UPDATE directory_listings SET claimed_by=$1, claimed_at=NOW(), backlink_confirmed=FALSE WHERE id=$2`,
-        [email.toLowerCase(), id]
-      ).catch(() => {});
-    }
+    await writeSecurityAudit('directory_listing_submitted', {
+      actorType: 'public',
+      listingId: id,
+      actorEmail: normalizedEmail || null
+    });
 
     // If no logo supplied, fetch one in the background
     if (!suppliedLogo) {
@@ -3018,17 +3059,17 @@ app.post('/api/directory/submit', async (req, res) => {
     }
 
     // ── Welcome email ─────────────────────────────────────────────────────────
-    if (email) {
+    if (normalizedEmail) {
       resend.emails.send({
         from:    SENDER,
-        to:      email,
+        to:      normalizedEmail,
         subject: `"${name.slice(0,60)}" is live on ToolIndex ✓`,
         html:    `<div style="font-family:sans-serif;max-width:520px;margin:auto;background:#060e1c;color:#e8f0fa;padding:32px 24px;border-radius:12px;">
           <div style="margin-bottom:24px;">
             <div style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin-bottom:10px;">ToolIndex — Strategic Flow Directory</div>
             <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Your listing is live ✓</h2>
-            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;"><strong style="color:#e8f0fa;">${name.slice(0,80)}</strong> has been added to ToolIndex and is already receiving its first votes.</p>
-            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots by clicking the ✏️ Edit button on your listing card.</p>
+            <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;"><strong style="color:#e8f0fa;">${escHtml(name.slice(0,80))}</strong> has been added to ToolIndex.</p>
+            <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">To become the verified owner and edit this listing, complete the one-time-code claim flow from the listing card.</p>
             <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
           </div>
           <p style="font-size:11px;color:#4a6a8a;margin-top:18px;font-family:monospace;">Questions? Reply to this email — we respond same day.</p>
@@ -3036,28 +3077,6 @@ app.post('/api/directory/submit', async (req, res) => {
       }).catch(() => {});
     }
 
-    // ── Gradual Daily boost: spread 4–7 votes over the next 2–6 hours ───────────
-    // voted_at is set in the future so they trickle into Daily naturally.
-    // The leaderboard query caps at <= NOW() so users see them appear one by one.
-    try {
-      const initVotes   = 4 + Math.floor(Math.random() * 4); // 4–7
-      const dateTag     = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const spreadMs    = (2 + Math.random() * 4) * 60 * 60 * 1000; // 2–6 h in ms
-      const voteRows    = Array.from({ length: initVotes }, (_, i) => {
-        const offsetMs  = Math.floor((i / initVotes) * spreadMs + Math.random() * (spreadMs / initVotes));
-        return `(${id}, 'submit_boost_${id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
-      }).join(',');
-      await pool.query(
-        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
-      );
-      await pool.query(
-        `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`,
-        [initVotes, id]
-      );
-      console.log(`[submit] gradual boost: +${initVotes} votes spread over ~${Math.round(spreadMs/3600000)}h → listing #${id} (${name})`);
-    } catch(e) {
-      console.error(`[submit] boost error:`, e.message);
-    }
     res.json({ success: true, id, name: name.slice(0,80) });
   } catch (err) {
     console.error('[directory] submit error:', err.message);
@@ -5860,6 +5879,67 @@ async function expireFeaturedListings() {
   } catch(e) { console.error('[dir-featured] expiry error:', e.message); }
 }
 
+async function writeSecurityAudit(action, { actorType = 'system', listingId = null, actorEmail = null, metadata = {} } = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO security_audit_log (action, actor_type, listing_id, actor_email, metadata)
+       VALUES ($1,$2,$3,$4,$5::jsonb)`,
+      [action, actorType, listingId, actorEmail && String(actorEmail).toLowerCase(), JSON.stringify(metadata)]
+    );
+  } catch (e) { console.error('[security-audit]', e.message); }
+}
+
+async function beginStripeWebhookEvent(event, endpoint) {
+  const sessionId = event.data?.object?.id || null;
+  const { rows } = await pool.query(
+    `INSERT INTO stripe_webhook_events (event_id, endpoint, event_type, status, session_id)
+     VALUES ($1,$2,$3,'processing',$4)
+     ON CONFLICT (event_id) DO UPDATE
+       SET status='processing', endpoint=EXCLUDED.endpoint, error_message=NULL, updated_at=NOW()
+       WHERE stripe_webhook_events.status='failed'
+     RETURNING event_id`,
+    [event.id, endpoint, event.type, sessionId]
+  );
+  return rows.length > 0;
+}
+
+async function finishStripeWebhookEvent(eventId, error = null) {
+  await pool.query(
+    `UPDATE stripe_webhook_events
+     SET status=$2, error_message=$3, processed_at=CASE WHEN $2='succeeded' THEN NOW() ELSE processed_at END,
+         updated_at=NOW()
+     WHERE event_id=$1`,
+    [eventId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null]
+  );
+}
+
+async function claimDirectoryFulfillment(session, listingId, tier, email) {
+  if (session.payment_status && session.payment_status !== 'paid') {
+    throw new Error('Directory payment is not marked paid');
+  }
+  const { rows } = await pool.query(
+    `INSERT INTO directory_payment_fulfillments
+       (stripe_session_id, listing_id, tier, payer_email, status)
+     VALUES ($1,$2,$3,$4,'processing')
+     ON CONFLICT (stripe_session_id) DO UPDATE
+       SET status='processing', failure_reason=NULL, updated_at=NOW()
+       WHERE directory_payment_fulfillments.status='failed'
+     RETURNING stripe_session_id`,
+    [session.id, listingId, tier, email || null]
+  );
+  return rows.length > 0;
+}
+
+async function finishDirectoryFulfillment(sessionId, error = null) {
+  await pool.query(
+    `UPDATE directory_payment_fulfillments
+     SET status=$2, fulfilled_at=CASE WHEN $2='succeeded' THEN NOW() ELSE fulfilled_at END,
+         failure_reason=$3, updated_at=NOW()
+     WHERE stripe_session_id=$1`,
+    [sessionId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null]
+  );
+}
+
 // ── Directory: handle post-payment placement ──────────────────────────────────
 async function handleDirectoryPayment(session) {
   const { listing_id, tier } = session.metadata || {};
@@ -5867,9 +5947,12 @@ async function handleDirectoryPayment(session) {
   const email       = (session.customer_details?.email || session.customer_email || '').toLowerCase();
   const lid         = parseInt(listing_id, 10);
   const listingName = (session.metadata.listing_name || `listing #${lid}`);
+  const shouldFulfill = await claimDirectoryFulfillment(session, lid, tier, email);
+  if (!shouldFulfill) return;
 
-  // ── Teardown tiers: admin notification only — manual delivery within 48-72h ─
-  if (tier === 'teardown_solo' || tier === 'teardown_pro') {
+  try {
+    // ── Teardown tiers: admin notification only — manual delivery within 48-72h ─
+    if (tier === 'teardown_solo' || tier === 'teardown_pro') {
     const tierLabel = DIR_PRICES[tier].label;
     resend.emails.send({
       from:    SENDER,
@@ -5885,16 +5968,32 @@ async function handleDirectoryPayment(session) {
         ${tier === 'teardown_pro' ? '<p><strong>Pro deliverables:</strong> LinkedIn feature + Startup of the Week placement</p>' : ''}
       </div>`
     }).catch(() => {});
-    console.log(`[dir-teardown] ${tier} ordered for listing ${lid} by ${email}`);
-    return;
-  }
+      console.log(`[dir-teardown] ${tier} ordered for listing ${lid} by ${email}`);
+      await finishDirectoryFulfillment(session.id);
+      await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
+      return;
+    }
 
-  // ── Verified Badge: permanent flag, no expiry, no dir_featured row ───────────
-  if (tier === 'verified_badge') {
-    await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
-    console.log(`[dir-verified] listing ${lid} verified permanently by ${email}`);
-    return;
-  }
+    // ── Verified Badge: OTP claim and Stripe customer must match exactly ───────
+    if (tier === 'verified_badge') {
+      const claimedOwner = String(session.metadata?.claim_owner_email || '').toLowerCase();
+      if (!email || !claimedOwner || email !== claimedOwner) {
+        throw new Error('Verified badge payer does not match claimed owner');
+      }
+      const owner = await pool.query(
+        `SELECT 1 FROM directory_listings dl
+         JOIN dir_claims dc ON dc.listing_id=dl.id
+         WHERE dl.id=$1 AND lower(dl.claimed_by)=lower($2)
+           AND dc.owner_email=$2 AND dc.is_verified=TRUE`,
+        [lid, email]
+      );
+      if (!owner.rows.length) throw new Error('Verified badge requires a completed ownership claim');
+      await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
+      console.log(`[dir-verified] listing ${lid} verified permanently by ${email}`);
+      await finishDirectoryFulfillment(session.id);
+      await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
+      return;
+    }
 
   // ── Daily Boost: book a date slot; activate now only if today ────────────
   if (tier === 'daily_top') {
@@ -6017,7 +6116,14 @@ async function handleDirectoryPayment(session) {
     console.error('[dir-competitor-notif]', e.message);
   }
 
-  console.log(`[dir-payment] ${tier} processed for listing ${lid}`);
+    console.log(`[dir-payment] ${tier} processed for listing ${lid}`);
+    await finishDirectoryFulfillment(session.id);
+    await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
+  } catch (e) {
+    await finishDirectoryFulfillment(session.id, e);
+    await writeSecurityAudit('directory_payment_failed', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id, reason: String(e.message || e).slice(0, 300) } });
+    throw e;
+  }
 }
 
 // ── Directory: activate scheduled Daily Boosts for today ─────────────────────
@@ -7107,10 +7213,23 @@ app.get('/sponsor', async (req, res) => {
 
 // ── POST /api/directory/checkout ──────────────────────────────────────────────
 app.post('/api/directory/checkout', async (req, res) => {
-  const { listing_id, tier, email, boost_date } = req.body || {};
+  const { listing_id, tier, email, edit_token, boost_date } = req.body || {};
   if (!listing_id || !DIR_PRICES[tier]) return res.status(400).json({ error: 'invalid_params' });
-  const listingRow = await pool.query('SELECT id, name FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
+  const listingRow = await pool.query('SELECT id, name, claimed_by FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
   if (!listingRow?.rows?.length) return res.status(404).json({ error: 'listing_not_found' });
+  const payerEmail = String(email || '').trim().toLowerCase();
+  let claimOwnerEmail = null;
+
+  if (tier === 'verified_badge') {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
+      return res.status(403).json({ error: 'ownership_required' });
+    }
+    const claim = await authorizeDirectoryClaim(req, listing_id, payerEmail, edit_token);
+    if (!claim || String(listingRow.rows[0].claimed_by || '').toLowerCase() !== payerEmail) {
+      return res.status(403).json({ error: 'ownership_required' });
+    }
+    claimOwnerEmail = payerEmail;
+  }
 
   // ── Daily Boost: validate the requested date is not already booked ─────────
   if (tier === 'daily_top') {
@@ -7130,10 +7249,11 @@ app.post('/api/directory/checkout', async (req, res) => {
       line_items: [{ price: DIR_PRICES[tier].price_id, quantity: 1 }],
       success_url: `${base}/directory?boosted=1&tier=${tier}&lid=${listing_id}`,
       cancel_url:  `${base}/directory`,
-      customer_email: email?.includes('@') ? email.toLowerCase() : undefined,
+      customer_email: payerEmail.includes('@') ? payerEmail : undefined,
       metadata: {
         source: 'directory', listing_id: String(listing_id), tier,
         listing_name: listingRow.rows[0].name.slice(0, 80),
+        ...(claimOwnerEmail ? { claim_owner_email: claimOwnerEmail } : {}),
         ...(tier === 'daily_top' ? { boost_date: targetDate } : {}),
       },
     });
@@ -7454,37 +7574,23 @@ app.get('/api/directory/daily', async (req, res) => {
   }
 });
 
-// ── Vote rate limit: max 20 votes per IP per 10 minutes ──────────────────────
-const _voteRateLimit = new Map(); // ip → [timestamps]
-function voteRateLimited(ip) {
-  const now = Date.now();
-  const window = 10 * 60 * 1000; // 10 minutes
-  const max = 20;
-  const times = (_voteRateLimit.get(ip) || []).filter(t => now - t < window);
-  if (times.length >= max) return true;
-  times.push(now);
-  _voteRateLimit.set(ip, times);
-  return false;
-}
-
 // ── POST /api/directory/vote/:id ──────────────────────────────────────────────
 app.post('/api/directory/vote/:id', async (req, res) => {
   const lid = parseInt(req.params.id, 10);
   if (!lid) return res.status(400).json({ error: 'bad_id' });
 
   // Fingerprint: SHA256(IP | first-30-chars-UA | listing_id)
-  const ip  = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  const ip  = normalizedClientIp(req);
   const ua  = (req.headers['user-agent'] || '').slice(0, 30);
-
-  // IP-level rate limit (catches proxy/VPN rotation abuse)
-  if (voteRateLimited(ip)) return res.status(429).json({ error: 'rate_limited', message: 'Too many votes from this IP. Try again later.' });
-
-  const hash = crypto.createHash('sha256').update(`${ip}|${ua}|${lid}`).digest('hex');
 
   try {
     // Check listing exists
     const listing = await pool.query('SELECT id, vote_count FROM directory_listings WHERE id=$1 AND status=\'active\'', [lid]);
     if (!listing.rows.length) return res.status(404).json({ error: 'not_found' });
+    const allowed = await consumeDirectoryRateLimit(`directory-vote:${ip}`, 12, 10 * 60);
+    if (!allowed) return res.status(429).json({ error: 'rate_limited', message: 'Too many votes from this IP. Try again later.' });
+
+    const hash = crypto.createHmac('sha256', claimSecret).update(`vote:${ip}|${ua}|${lid}`).digest('hex');
 
     // Insert vote (unique constraint prevents duplicates)
     const r = await pool.query(
@@ -7768,40 +7874,79 @@ function emailMatchesDomain(email, productUrl) {
   } catch { return false; }
 }
 
-// ── POST /api/directory/claim/start ──────────────────────────────────────────
-// OTP rate limiting: max 1 email per listing+email combo every 5 minutes
-// + IP-level cap: max 10 OTP requests per IP per hour (prevents multi-listing spam)
-const _otpRateLimit    = new Map();
-const _otpIpRateLimit  = new Map(); // ip → [timestamps]
-const OTP_COOLDOWN_MS  = 5 * 60 * 1000;
+// ── Directory claim security helpers ─────────────────────────────────────────
+const OTP_TTL_MS = 15 * 60 * 1000;
+const CLAIM_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const claimSecret = process.env.SESSION_SECRET || 'directory-claim';
 
-function otpIpRateLimited(ip) {
-  const now = Date.now();
-  const window = 60 * 60 * 1000; // 1 hour
-  const max = 10;
-  const times = (_otpIpRateLimit.get(ip) || []).filter(t => now - t < window);
-  if (times.length >= max) return true;
-  times.push(now);
-  _otpIpRateLimit.set(ip, times);
-  return false;
+function claimCredentialHash(kind, value) {
+  return crypto.createHmac('sha256', claimSecret).update(`${kind}:${value}`).digest('hex');
+}
+
+function normalizedClientIp(req) {
+  // Express honors the configured, single trusted proxy and avoids accepting a
+  // spoofed arbitrary x-forwarded-for chain directly from the client.
+  return String(req.ip || req.socket?.remoteAddress || 'unknown').slice(0, 128);
+}
+
+async function consumeDirectoryRateLimit(rateKey, maxHits, windowSeconds) {
+  const { rows } = await pool.query(
+    `INSERT INTO directory_rate_limits (rate_key, window_start, hit_count, updated_at)
+     VALUES ($1, NOW(), 1, NOW())
+     ON CONFLICT (rate_key) DO UPDATE
+       SET hit_count = CASE
+             WHEN directory_rate_limits.window_start < NOW() - $3::interval THEN 1
+             ELSE directory_rate_limits.hit_count + 1
+           END,
+           window_start = CASE
+             WHEN directory_rate_limits.window_start < NOW() - $3::interval THEN NOW()
+             ELSE directory_rate_limits.window_start
+           END,
+           updated_at = NOW()
+       WHERE directory_rate_limits.window_start < NOW() - $3::interval
+          OR directory_rate_limits.hit_count < $2
+     RETURNING hit_count`,
+    [rateKey, maxHits, `${windowSeconds} seconds`]
+  );
+  return rows.length > 0;
+}
+
+function setDirectoryClaimSession(req, listingId, email, token, expiresAt) {
+  if (!req.session) return;
+  req.session.directoryClaims = req.session.directoryClaims || {};
+  req.session.directoryClaims[String(listingId)] = {
+    email: String(email).toLowerCase(),
+    token,
+    expiresAt: new Date(expiresAt).getTime()
+  };
+}
+
+async function authorizeDirectoryClaim(req, listingId, email, suppliedToken) {
+  const saved = req.session?.directoryClaims?.[String(listingId)];
+  const normalizedEmail = String(email || saved?.email || '').trim().toLowerCase();
+  const token = String(suppliedToken || saved?.token || '').trim();
+  if (!listingId || !normalizedEmail || !token) return null;
+  if (saved && saved.expiresAt < Date.now()) {
+    delete req.session.directoryClaims[String(listingId)];
+    return null;
+  }
+  const { rows } = await pool.query(
+    `SELECT * FROM dir_claims
+     WHERE listing_id=$1 AND owner_email=$2 AND edit_token_hash=$3
+       AND is_verified=TRUE AND edit_token_revoked_at IS NULL
+       AND edit_token_expires_at > NOW()`,
+    [listingId, normalizedEmail, claimCredentialHash('edit', token)]
+  );
+  return rows[0] || null;
 }
 
 app.post('/api/directory/claim/start', async (req, res) => {
   const { listing_id, email, newsletter_opt_in } = req.body || {};
-  if (!listing_id || !email || !email.includes('@'))
+  const ownerEmail = String(email || '').trim().toLowerCase();
+  if (!listing_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail))
     return res.status(400).json({ error: 'listing_id and valid email required' });
   const newsletterOptIn = newsletter_opt_in === true;
-
-  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-  if (otpIpRateLimited(ip))
-    return res.status(429).json({ error: 'rate_limited', message: 'Too many verification requests from this IP. Try again in an hour.' });
-
-  const rlKey = `${email.toLowerCase()}:${listing_id}`;
-  const lastSent = _otpRateLimit.get(rlKey);
-  if (lastSent && Date.now() - lastSent < OTP_COOLDOWN_MS) {
-    const waitSec = Math.ceil((OTP_COOLDOWN_MS - (Date.now() - lastSent)) / 1000);
-    return res.status(429).json({ error: 'rate_limited', message: `Please wait ${waitSec}s before requesting another code.` });
-  }
 
   try {
     const row = await pool.query(
@@ -7811,37 +7956,53 @@ app.post('/api/directory/claim/start', async (req, res) => {
     if (!row.rows.length) return res.status(404).json({ error: 'listing_not_found' });
     const listing = row.rows[0];
 
-    if (listing.claimed_by && listing.claimed_by !== email.toLowerCase())
+    if (listing.claimed_by && listing.claimed_by !== ownerEmail)
       return res.status(409).json({ error: 'claimed_by_other' });
 
+    // Persistent limits survive restarts and are shared by all app instances.
+    const ipAllowed = await consumeDirectoryRateLimit(
+      `claim-otp-ip:${normalizedClientIp(req)}`, 10, 60 * 60
+    );
+    const emailAllowed = await consumeDirectoryRateLimit(
+      `claim-otp-email:${ownerEmail}:${listing_id}`, 1, 5 * 60
+    );
+    if (!ipAllowed || !emailAllowed) {
+      return res.status(429).json({
+        error: 'rate_limited',
+        message: 'Please wait before requesting another verification code.'
+      });
+    }
+
     // Soft domain-mismatch check — OTP is still sent, frontend shows a warning
-    const emailDomain = email.toLowerCase().split('@')[1] || '';
+    const emailDomain = ownerEmail.split('@')[1] || '';
     let listingDomain = '';
     try { listingDomain = new URL(listing.url).hostname.replace(/^www\./, ''); } catch {}
     // Mismatch if neither domain is a suffix of the other
     const domain_mismatch = !!(listingDomain && emailDomain &&
       !listingDomain.endsWith(emailDomain) && !emailDomain.endsWith(listingDomain));
 
-    const otp     = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    const otp     = crypto.randomInt(100000, 1000000).toString();
+    const expires = new Date(Date.now() + OTP_TTL_MS);
+    const otpHash = claimCredentialHash('otp', otp);
 
     await pool.query(
       `INSERT INTO dir_claims
-         (listing_id, owner_email, otp, otp_expires_at, newsletter_opt_in, newsletter_opted_in_at)
-       VALUES ($1,$2,$3,$4,$5,CASE WHEN $5 THEN NOW() ELSE NULL END)
+         (listing_id, owner_email, otp, otp_hash, otp_expires_at, otp_attempt_count, otp_locked_until, otp_sent_at, newsletter_opt_in, newsletter_opted_in_at)
+       VALUES ($1,$2,'[redacted]',$3,$4,0,NULL,NOW(),$5,CASE WHEN $5 THEN NOW() ELSE NULL END)
        ON CONFLICT (listing_id, owner_email)
-       DO UPDATE SET otp=$3, otp_expires_at=$4, is_verified=FALSE, verified_at=NULL,
+        DO UPDATE SET otp='[redacted]', otp_hash=$3, otp_expires_at=$4,
+          otp_attempt_count=0, otp_locked_until=NULL, otp_sent_at=NOW(),
          newsletter_opt_in=$5,
          newsletter_opted_in_at=CASE
            WHEN $5 THEN COALESCE(dir_claims.newsletter_opted_in_at, NOW())
            ELSE NULL
          END`,
-      [listing_id, email.toLowerCase(), otp, expires, newsletterOptIn]
+       [listing_id, ownerEmail, otpHash, expires, newsletterOptIn]
     );
 
     await resend.emails.send({
       from:    SENDER,
-      to:      email,
+       to:      ownerEmail,
       subject: `Verify you own "${listing.name}" on Strategic Flow Directory`,
       html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
         <h2 style="color:#00d4c8;">Claim your listing</h2>
@@ -7853,8 +8014,7 @@ app.post('/api/directory/claim/start', async (req, res) => {
       </div>`
     });
 
-    _otpRateLimit.set(rlKey, Date.now());
-    console.log(`[dir-claim] OTP sent to ${email} for listing ${listing_id}${domain_mismatch ? ' [domain_mismatch]' : ''}`);
+    console.log(`[dir-claim] OTP sent for listing ${listing_id}${domain_mismatch ? ' [domain_mismatch]' : ''}`);
     res.json({ ok: true, domain_mismatch, listing_domain: listingDomain, newsletter_opt_in: newsletterOptIn });
   } catch(err) {
     console.error('[dir-claim/start]', err.message);
@@ -7865,15 +8025,11 @@ app.post('/api/directory/claim/start', async (req, res) => {
 // ── GET /api/directory/claim/prefill/:id — returns editable fields for the owner's form ──
 app.get('/api/directory/claim/prefill/:id', async (req, res) => {
   const id    = parseInt(req.params.id, 10);
-  const email = (req.query.email || '').toLowerCase().trim();
-  const token = (req.query.token || '').trim();
-  if (!id || !email || !token) return res.status(400).json({ error: 'id, email, token required' });
+  const email = (req.query.email || req.session?.directoryClaims?.[String(id)]?.email || '').toLowerCase().trim();
+  if (!id || !email) return res.status(400).json({ error: 'id and email required' });
   try {
-    const auth = await pool.query(
-      `SELECT 1 FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
-      [id, email, token]
-    );
-    if (!auth.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const auth = await authorizeDirectoryClaim(req, id, email);
+    if (!auth) return res.status(403).json({ error: 'unauthorized' });
     const { rows } = await pool.query(
       `SELECT COALESCE(owner_description, description) AS description,
               COALESCE(owner_image_url, image_url) AS image_url,
@@ -7908,26 +8064,56 @@ app.get('/api/directory/claim/prefill/:id', async (req, res) => {
 // ── POST /api/directory/claim/verify ─────────────────────────────────────────
 app.post('/api/directory/claim/verify', async (req, res) => {
   const { listing_id, email, otp } = req.body || {};
-  if (!listing_id || !email || !otp)
+  const ownerEmail = String(email || '').trim().toLowerCase();
+  const submittedOtp = String(otp || '').trim();
+  if (!listing_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) || !/^\d{6}$/.test(submittedOtp))
     return res.status(400).json({ error: 'listing_id, email, otp required' });
 
   try {
     const claim = await pool.query(
       `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2`,
-      [listing_id, email.toLowerCase()]
+       [listing_id, ownerEmail]
     );
     if (!claim.rows.length) return res.status(404).json({ error: 'no_claim_started' });
     const c = claim.rows[0];
 
-    if (c.otp !== otp)         return res.status(422).json({ error: 'wrong_code' });
     if (new Date(c.otp_expires_at) < new Date()) return res.status(422).json({ error: 'code_expired' });
+    if (c.otp_locked_until && new Date(c.otp_locked_until) > new Date()) {
+      return res.status(429).json({ error: 'too_many_attempts' });
+    }
+
+    const expectedHash = String(c.otp_hash || '');
+    const submittedHash = claimCredentialHash('otp', submittedOtp);
+    const matches = expectedHash.length === submittedHash.length &&
+      crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(submittedHash));
+    if (!matches) {
+      await pool.query(
+        `UPDATE dir_claims
+         SET otp_attempt_count=otp_attempt_count + 1,
+             otp_locked_until=CASE WHEN otp_attempt_count + 1 >= $3
+               THEN NOW() + INTERVAL '15 minutes' ELSE NULL END
+         WHERE listing_id=$1 AND owner_email=$2`,
+        [listing_id, ownerEmail, OTP_MAX_ATTEMPTS]
+      );
+      return res.status(422).json({ error: 'wrong_code' });
+    }
 
     const editToken = crypto.randomBytes(24).toString('hex');
+    const tokenExpiry = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
     await pool.query(
-      `UPDATE dir_claims SET is_verified=TRUE, verified_at=NOW(), edit_token=$1
-       WHERE listing_id=$2 AND owner_email=$3`,
-      [editToken, listing_id, email.toLowerCase()]
+      `UPDATE dir_claims
+       SET is_verified=TRUE, verified_at=NOW(), edit_token=NULL,
+           edit_token_hash=$1, edit_token_expires_at=$2, edit_token_revoked_at=NULL,
+           otp='[used]', otp_hash=NULL, otp_attempt_count=0, otp_locked_until=NULL
+       WHERE listing_id=$3 AND owner_email=$4`,
+      [claimCredentialHash('edit', editToken), tokenExpiry, listing_id, ownerEmail]
     );
+    setDirectoryClaimSession(req, listing_id, ownerEmail, editToken, tokenExpiry);
+    await writeSecurityAudit('directory_claim_verified', {
+      actorType: 'owner',
+      listingId: Number(listing_id),
+      actorEmail: ownerEmail
+    });
     // Fetch listing data for response (claimed_by tells frontend whether backlink step was already done)
     const listing = await pool.query(
       `SELECT name, description, image_url, founder_name, founder_avatar_url,
@@ -7939,14 +8125,14 @@ app.post('/api/directory/claim/verify', async (req, res) => {
     // Returning claimed owners may newly opt in while re-verifying ownership.
     if (row.claimed_by && c.newsletter_opt_in) {
       try {
-        newsletter = await queueClaimNewsletterConfirmation(email, listing_id, { newConsent: true });
+        newsletter = await queueClaimNewsletterConfirmation(ownerEmail, listing_id, { newConsent: true });
       } catch (e) {
         console.error('[newsletter-consent] returning owner:', e.message);
         newsletter = { error: 'confirmation_queue_failed' };
       }
     }
 
-    console.log(`[dir-claim] OTP verified: ${email} → listing ${listing_id}${c.is_verified ? ' (returning)' : ' (new)'}`);
+    console.log(`[dir-claim] OTP verified for listing ${listing_id}${c.is_verified ? ' (returning)' : ' (new)'}`);
     res.json({
       ok: true, edit_token: editToken, newsletter,
       listing: {
@@ -7974,47 +8160,55 @@ app.post('/api/directory/claim/verify', async (req, res) => {
 // This is the step that actually marks the listing as claimed/active.
 app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
   const { listing_id, email, edit_token, backlink_url, skipped } = req.body || {};
-  if (!listing_id || !email || !edit_token)
-    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+  if (!listing_id || !email)
+    return res.status(400).json({ error: 'listing_id and email required' });
   try {
-    const claim = await pool.query(
-      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
-      [listing_id, email.toLowerCase(), edit_token]
-    );
-    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
-    const c = claim.rows[0];
+    const ownerEmail = String(email).trim().toLowerCase();
+    const c = await authorizeDirectoryClaim(req, listing_id, ownerEmail, edit_token);
+    if (!c) return res.status(403).json({ error: 'unauthorized' });
 
-    // Check if already claimed (idempotent — skip votes/email on re-confirmation)
-    const existingR = await pool.query(`SELECT claimed_by FROM directory_listings WHERE id=$1`, [listing_id]);
-    const alreadyClaimed = !!(existingR.rows[0]?.claimed_by);
-
-    // Mark listing as claimed and active.
-    // backlink_confirmed=TRUE only if founder explicitly confirmed; FALSE if they skipped.
-    await pool.query(
-      `UPDATE directory_listings
-       SET claimed_by=$1, claimed_at=NOW(), status='active',
-           backlink_confirmed=$4,
-           backlink_url=NULLIF($2,''),
-           backlink_confirmed_at=CASE WHEN $4 THEN NOW() ELSE NULL END
-       WHERE id=$3`,
-      [email.toLowerCase(), backlink_url || null, listing_id, !skipped]
-    );
-
-    // ── Gradual vote boost on first claim only ────────────────────────────
-    if (!alreadyClaimed) {
-      try {
-        const claimBoostCount = 5 + Math.floor(Math.random() * 3); // 5–7
-        const dateTag  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const spreadMs = (2 + Math.random() * 3) * 60 * 60 * 1000; // 2–5 h
-        const voteRows = Array.from({ length: claimBoostCount }, (_, i) => {
-          const offsetMs = Math.floor((i / claimBoostCount) * spreadMs + Math.random() * (spreadMs / claimBoostCount));
-          return `(${listing_id}, 'claimed_boost_${listing_id}_${dateTag}_${i}', NOW() + INTERVAL '${Math.floor(offsetMs / 1000)} seconds')`;
-        }).join(',');
-        await pool.query(`INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`);
-        await pool.query(`UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2`, [claimBoostCount, listing_id]);
-        console.log(`[dir-claim] gradual boost: +${claimBoostCount} votes → listing ${listing_id}`);
-      } catch(e) { console.error(`[dir-claim] boost error:`, e.message); }
+    // Lock the listing so a verification started before another owner completed
+    // their claim can never overwrite the current owner.
+    const client = await pool.connect();
+    let alreadyClaimed = false;
+    try {
+      await client.query('BEGIN');
+      const existingR = await client.query(
+        `SELECT claimed_by FROM directory_listings WHERE id=$1 FOR UPDATE`,
+        [listing_id]
+      );
+      if (!existingR.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'listing_not_found' });
+      }
+      const currentOwner = String(existingR.rows[0].claimed_by || '').toLowerCase();
+      if (currentOwner && currentOwner !== ownerEmail) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'claimed_by_other' });
+      }
+      alreadyClaimed = currentOwner === ownerEmail;
+      await client.query(
+        `UPDATE directory_listings
+         SET claimed_by=$1, claimed_at=COALESCE(claimed_at,NOW()), status='active',
+             backlink_confirmed=$4,
+             backlink_url=NULLIF($2,''),
+             backlink_confirmed_at=CASE WHEN $4 THEN NOW() ELSE backlink_confirmed_at END
+         WHERE id=$3`,
+        [ownerEmail, backlink_url || null, listing_id, !skipped]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      client.release();
     }
+    await writeSecurityAudit('directory_claim_completed', {
+      actorType: 'owner',
+      listingId: Number(listing_id),
+      actorEmail: ownerEmail,
+      metadata: { backlink_confirmed: !skipped }
+    });
 
     // ── Welcome email (first claim only) ─────────────────────────────────
     if (!alreadyClaimed) {
@@ -8102,15 +8296,12 @@ app.post('/api/directory/claim/edit', async (req, res) => {
           description, image_url,
           founder_name, founder_avatar_url, social_twitter, social_linkedin,
           screenshots, tech_stack, platform, pricing_model, launch_date } = req.body || {};
-  if (!listing_id || !email || !edit_token)
-    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+  if (!listing_id || !email)
+    return res.status(400).json({ error: 'listing_id and email required' });
 
   try {
-    const claim = await pool.query(
-      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
-      [listing_id, email.toLowerCase(), edit_token]
-    );
-    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const claim = await authorizeDirectoryClaim(req, listing_id, email, edit_token);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const updates = [];
     const params  = [];
@@ -8119,7 +8310,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       params.push(description.trim().slice(0, 500));
       updates.push(`owner_description=$${params.length}`);
     }
-    if (image_url && (image_url.startsWith('http') || image_url.startsWith('data:image/'))) {
+    if (image_url && isAllowedDirectoryImageUrl(image_url)) {
       params.push(image_url.trim().slice(0, 2*1024*1024));
       updates.push(`owner_image_url=$${params.length}`);
     }
@@ -8127,7 +8318,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       params.push(founder_name.trim().slice(0, 100));
       updates.push(`founder_name=$${params.length}`);
     }
-    if (founder_avatar_url && (founder_avatar_url.startsWith('http') || founder_avatar_url.startsWith('data:image/'))) {
+    if (founder_avatar_url && isAllowedDirectoryImageUrl(founder_avatar_url)) {
       params.push(founder_avatar_url.trim().slice(0, 2*1024*1024));
       updates.push(`founder_avatar_url=$${params.length}`);
     }
@@ -8140,7 +8331,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       updates.push(`social_linkedin=$${params.length}`);
     }
     if (Array.isArray(screenshots) && screenshots.length > 0) {
-      const valid = screenshots.filter(s => typeof s === 'string' && (s.startsWith('http') || s.startsWith('data:image/')));
+      const valid = screenshots.filter(s => typeof s === 'string' && isAllowedDirectoryImageUrl(s));
       if (valid.length > 0) {
         params.push(JSON.stringify(valid.slice(0, 3)));
         updates.push(`screenshots=$${params.length}`);
@@ -8172,6 +8363,12 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       `UPDATE directory_listings SET ${updates.join(',')} WHERE id=$${params.length}`,
       params
     );
+    await writeSecurityAudit('directory_listing_edited', {
+      actorType: 'owner',
+      listingId: Number(listing_id),
+      actorEmail: email,
+      metadata: { field_count: updates.length }
+    });
 
     console.log(`[dir-claim/edit] listing ${listing_id} updated by owner (${updates.length} fields)`);
     res.json({ ok: true });
@@ -8184,14 +8381,11 @@ app.post('/api/directory/claim/edit', async (req, res) => {
 // ── POST /api/directory/claim/relaunch ───────────────────────────────────────
 app.post('/api/directory/claim/relaunch', async (req, res) => {
   const { listing_id, email, edit_token } = req.body || {};
-  if (!listing_id || !email || !edit_token)
-    return res.status(400).json({ error: 'listing_id, email, edit_token required' });
+  if (!listing_id || !email)
+    return res.status(400).json({ error: 'listing_id and email required' });
   try {
-    const claim = await pool.query(
-      `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
-      [listing_id, email.toLowerCase(), edit_token]
-    );
-    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const claim = await authorizeDirectoryClaim(req, listing_id, email, edit_token);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const lr = await pool.query(
       `SELECT submitted_at, name, relaunch_unlimited FROM directory_listings WHERE id=$1 AND status='active'`,
@@ -8285,18 +8479,47 @@ app.get('/api/directory/listing-screenshot/:id/:index', async (req, res) => {
   } catch { res.status(404).end(); }
 });
 
+function actualDirectoryImageMime(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) return 'image/png';
+  if (buffer.subarray(0, 3).equals(Buffer.from([0xff,0xd8,0xff]))) return 'image/jpeg';
+  if (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') return 'image/gif';
+  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  if (buffer.subarray(4, 8).toString('ascii') === 'ftyp' && buffer.subarray(8, 12).toString('ascii').includes('avif')) return 'image/avif';
+  return null;
+}
+
+function safeDirectoryImageDataUrl(file) {
+  const mime = actualDirectoryImageMime(file?.buffer);
+  if (!mime) return null;
+  return `data:${mime};base64,${file.buffer.toString('base64')}`;
+}
+
+function isAllowedDirectoryImageUrl(value) {
+  const url = String(value || '').trim();
+  if (/^\/api\/directory\/listing-logo\/\d+(?:\?.*)?$/i.test(url)) return true;
+  if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(url)) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:';
+  } catch { return false; }
+}
+
 // ── POST /api/directory/claim/upload-founder-avatar ──────────────────────────
 const avatarUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
-  fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+  fileFilter: (_, __, cb) => cb(null, true)
 }).single('avatar');
 app.post('/api/directory/claim/upload-founder-avatar', (req, res) => {
-  avatarUpload(req, res, (err) => {
+  avatarUpload(req, res, async (err) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Photo must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
+    if (err) return res.status(400).json({ error: 'upload_error' });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const claim = await authorizeDirectoryClaim(req, parseInt(req.body.listing_id, 10));
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    const dataUrl = safeDirectoryImageDataUrl(req.file);
+    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
     res.json({ ok: true, url: dataUrl });
   });
 });
@@ -8305,14 +8528,17 @@ app.post('/api/directory/claim/upload-founder-avatar', (req, res) => {
 const screenshotUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB
-  fileFilter: (_, f, cb) => f.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+  fileFilter: (_, __, cb) => cb(null, true)
 }).single('screenshot');
 app.post('/api/directory/claim/upload-screenshot', (req, res) => {
-  screenshotUpload(req, res, (err) => {
+  screenshotUpload(req, res, async (err) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Screenshot must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
+    if (err) return res.status(400).json({ error: 'upload_error' });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const claim = await authorizeDirectoryClaim(req, parseInt(req.body.listing_id, 10));
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    const dataUrl = safeDirectoryImageDataUrl(req.file);
+    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
     res.json({ ok: true, url: dataUrl });
   });
 });
@@ -8322,28 +8548,26 @@ app.post('/api/directory/claim/upload-screenshot', (req, res) => {
 const logoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 }, // 4 MB max
-  fileFilter: (_, file, cb) => file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Images only'))
+  fileFilter: (_, __, cb) => cb(null, true)
 }).single('logo');
 
 app.post('/api/directory/claim/upload-logo', (req, res) => {
   logoUpload(req, res, async (err) => {
     if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Logo must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error', message: err.message });
+    if (err) return res.status(400).json({ error: 'upload_error' });
     if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const dataUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const dataUrl = safeDirectoryImageDataUrl(req.file);
+    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
     const sizeKB  = Math.round(dataUrl.length / 1024);
 
     // If listing_id + edit_token are provided, save directly to DB and return a stable URL.
     // This avoids passing a large data URI through the browser input field (Chrome Android drops them).
     const listingId  = parseInt(req.body.listing_id, 10);
     const editToken  = (req.body.edit_token || '').trim();
-    if (listingId && editToken) {
+    if (listingId) {
       try {
-        const claim = await pool.query(
-          `SELECT id FROM dir_claims WHERE listing_id=$1 AND edit_token=$2 AND is_verified=TRUE`,
-          [listingId, editToken]
-        );
-        if (claim.rows.length) {
+        const claim = await authorizeDirectoryClaim(req, listingId, undefined, editToken);
+        if (claim) {
           await pool.query(
             `UPDATE directory_listings SET owner_image_url=$1 WHERE id=$2`,
             [dataUrl, listingId]
@@ -8482,16 +8706,20 @@ app.get('/api/directory/category-counts', async (req, res) => {
 
 app.get('/api/directory/click-counts', async (req, res) => {
   try {
+    const allowed = await consumeDirectoryRateLimit(`directory-click-counts:${normalizedClientIp(req)}`, 60, 60 * 60);
+    if (!allowed) return res.status(429).json({ error: 'rate_limited' });
     const r = await pool.query(`
       SELECT listing_id, COUNT(*)::int AS cnt
-      FROM dir_listing_clicks
+      FROM dir_listing_clicks c
       WHERE clicked_at >= NOW() - INTERVAL '30 days'
+        AND EXISTS (SELECT 1 FROM directory_listings dl WHERE dl.id=c.listing_id AND dl.status='active')
       GROUP BY listing_id
       HAVING COUNT(*) > 0
     `);
     const total  = r.rows.reduce((sum, row) => sum + row.cnt, 0);
     const counts = {};
     r.rows.forEach(row => { counts[row.listing_id] = row.cnt; });
+    res.setHeader('Cache-Control', 'public, max-age=60');
     res.json({ total_30d: total, counts });
   } catch(err) {
     console.error('[dir-click-counts]', err.message);
@@ -8499,55 +8727,60 @@ app.get('/api/directory/click-counts', async (req, res) => {
   }
 });
 
-// ── POST /api/directory/track/view/:id ────────────────────────────────────────
-app.post('/api/directory/track/view/:id', async (req, res) => {
+function anonymousDirectoryAnalyticsKey(req) {
+  const ua = String(req.get('user-agent') || '').slice(0, 160);
+  return claimCredentialHash('analytics', `${normalizedClientIp(req)}|${ua}`);
+}
+
+async function recordDirectoryAnalytics(req, res, table, timestampColumn, dedupeMinutes, maxHits) {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
-  const session_id = (req.body && req.body.session_id) ? String(req.body.session_id).slice(0, 64) : null;
+  const allowed = await consumeDirectoryRateLimit(
+    `directory-${table}:${normalizedClientIp(req)}`, maxHits, 60 * 60
+  );
+  if (!allowed) return res.status(429).json({ error: 'rate_limited' });
+  const sessionId = anonymousDirectoryAnalyticsKey(req);
   try {
-    await pool.query(
-      `INSERT INTO dir_listing_views (listing_id, session_id) VALUES ($1, $2)`,
-      [id, session_id]
+    const r = await pool.query(
+      `INSERT INTO ${table} (listing_id, session_id)
+       SELECT $1,$2
+       WHERE EXISTS (SELECT 1 FROM directory_listings WHERE id=$1 AND status='active')
+         AND NOT EXISTS (
+           SELECT 1 FROM ${table}
+           WHERE listing_id=$1 AND session_id=$2
+             AND ${timestampColumn} >= NOW() - $3::interval
+         )
+       RETURNING id`,
+      [id, sessionId, `${dedupeMinutes} minutes`]
     );
-    res.json({ ok: true });
-  } catch(err) {
-    console.error('[dir-track/view]', err.message);
-    res.status(500).json({ error: 'db_error' });
+    return res.json({ ok: true, recorded: r.rows.length > 0 });
+  } catch (err) {
+    console.error(`[dir-track/${table}]`, err.message);
+    return res.status(500).json({ error: 'server_error' });
   }
+}
+
+// ── POST /api/directory/track/view/:id ────────────────────────────────────────
+app.post('/api/directory/track/view/:id', async (req, res) => {
+  return recordDirectoryAnalytics(req, res, 'dir_listing_views', 'viewed_at', 30, 120);
 });
 
 // ── POST /api/directory/track/click/:id ───────────────────────────────────────
 app.post('/api/directory/track/click/:id', async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!id) return res.status(400).json({ error: 'invalid_id' });
-  const session_id = (req.body && req.body.session_id) ? String(req.body.session_id).slice(0, 64) : null;
-  try {
-    await pool.query(
-      `INSERT INTO dir_listing_clicks (listing_id, session_id) VALUES ($1, $2)`,
-      [id, session_id]
-    );
-    res.json({ ok: true });
-  } catch(err) {
-    console.error('[dir-track/click]', err.message);
-    res.status(500).json({ error: 'db_error' });
-  }
+  return recordDirectoryAnalytics(req, res, 'dir_listing_clicks', 'clicked_at', 10, 60);
 });
 
 // ── GET /api/directory/analytics/:id ─────────────────────────────────────────
 // Authenticated by edit_token + email (same as claim/edit). Returns real stats only.
-app.get('/api/directory/analytics/:id', async (req, res) => {
+app.post('/api/directory/analytics/:id', async (req, res) => {
   const id    = parseInt(req.params.id, 10);
-  const email = (req.query.email || '').toLowerCase().trim();
-  const token = (req.query.token || '').trim();
-  if (!id || !email || !token) return res.status(400).json({ error: 'id, email, token required' });
+  const email = (req.body?.email || req.session?.directoryClaims?.[String(id)]?.email || '').toLowerCase().trim();
+  const token = (req.body?.edit_token || '').trim();
+  if (!id || !email) return res.status(400).json({ error: 'id and email required' });
 
   try {
-    // Verify claim ownership
-    const claim = await pool.query(
-      `SELECT 1 FROM dir_claims WHERE listing_id=$1 AND owner_email=$2 AND edit_token=$3 AND is_verified=TRUE`,
-      [id, email, token]
-    );
-    if (!claim.rows.length) return res.status(403).json({ error: 'unauthorized' });
+    const claim = await authorizeDirectoryClaim(req, id, email, token);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const [views30, clicks30, listing, rankAll, rankCat] = await Promise.all([
       pool.query(
@@ -10495,6 +10728,10 @@ async function setupDB() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_boost_schedule:', e.message));
+  // Multiple customers may book the same day; Stripe session identity, not date,
+  // is the idempotency key for a paid reservation.
+  await pool.query(`ALTER TABLE dir_boost_schedule DROP CONSTRAINT IF EXISTS dir_boost_schedule_boost_date_key`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_boost_schedule_date ON dir_boost_schedule(boost_date)`).catch(()=>{});
 
   // ── Email unsubscribes — global opt-out list for all marketing emails ────────
   await pool.query(`
@@ -10808,6 +11045,83 @@ async function setupDB() {
   `).catch(e => console.error('[DB] dir_claims:', e.message));
   await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS newsletter_opted_in_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS otp_hash TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS otp_attempt_count INTEGER NOT NULL DEFAULT 0`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS otp_locked_until TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS otp_sent_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS edit_token_hash TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS edit_token_expires_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_claims ADD COLUMN IF NOT EXISTS edit_token_revoked_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_claims_edit_token_hash ON dir_claims(edit_token_hash) WHERE edit_token_hash IS NOT NULL`).catch(()=>{});
+
+  // Existing edit credentials were historically stored in plaintext. Convert them
+  // once at startup, retaining the browser-visible token only on the client.
+  try {
+    const legacyTokens = await pool.query(
+      `SELECT id, edit_token FROM dir_claims
+       WHERE edit_token IS NOT NULL AND edit_token<>'' AND edit_token_hash IS NULL`
+    );
+    for (const claim of legacyTokens.rows) {
+      const hash = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'directory-claim')
+        .update(`edit:${claim.edit_token}`).digest('hex');
+      await pool.query(
+        `UPDATE dir_claims
+         SET edit_token_hash=$1, edit_token_expires_at=NOW() + INTERVAL '30 days', edit_token=NULL
+         WHERE id=$2`,
+        [hash, claim.id]
+      );
+    }
+  } catch (e) { console.error('[DB] dir_claim token migration:', e.message); }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_rate_limits (
+      rate_key      TEXT PRIMARY KEY,
+      window_start  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      hit_count     INTEGER NOT NULL DEFAULT 0,
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] directory_rate_limits:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_directory_rate_limits_window ON directory_rate_limits(window_start)`).catch(()=>{});
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+      event_id      TEXT PRIMARY KEY,
+      endpoint      TEXT NOT NULL,
+      event_type    TEXT NOT NULL,
+      status        TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed')),
+      session_id    TEXT,
+      error_message TEXT,
+      received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      processed_at  TIMESTAMPTZ,
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] stripe_webhook_events:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_stripe_webhook_events_status ON stripe_webhook_events(status, updated_at)`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_payment_fulfillments (
+      stripe_session_id TEXT PRIMARY KEY,
+      listing_id        INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      tier              TEXT NOT NULL,
+      payer_email       TEXT,
+      status            TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed')),
+      fulfilled_at      TIMESTAMPTZ,
+      failure_reason    TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] directory_payment_fulfillments:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS security_audit_log (
+      id          BIGSERIAL PRIMARY KEY,
+      action      TEXT NOT NULL,
+      actor_type  TEXT NOT NULL DEFAULT 'system',
+      listing_id  INTEGER REFERENCES directory_listings(id) ON DELETE SET NULL,
+      actor_email TEXT,
+      metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] security_audit_log:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_created ON security_audit_log(created_at DESC)`).catch(()=>{});
 
   // ── Listing analytics tables ──────────────────────────────────────────────
   await pool.query(`
@@ -14162,18 +14476,14 @@ process.on('unhandledRejection', e => console.error('[unhandled]', e));
 
 // ── SCORE SUBJECT LINE ────────────────────────────
 app.options('/api/score-subject', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   res.header('Access-Control-Max-Age', '86400');
   console.log('[score-subject] OPTIONS preflight from', req.headers.origin);
   res.sendStatus(200);
 });
 
 app.post('/api/score-subject', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   const { subject } = req.body;
   console.log('[score-subject] POST received — subject:', subject ? subject.slice(0, 60) : 'MISSING');
   if (!subject) return res.status(400).json({ error: 'subject required' });
@@ -15314,6 +15624,13 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
     console.error('[stripe/webhook] signature verification failed:', err.message);
     return res.status(400).send('Webhook signature verification failed');
   }
+  try {
+    const shouldProcess = await beginStripeWebhookEvent(event, '/stripe/webhook');
+    if (!shouldProcess) return res.json({ received: true, duplicate: true });
+  } catch (err) {
+    console.error('[stripe/webhook] event ledger unavailable:', err.message);
+    return res.status(500).json({ error: 'webhook_processing_unavailable' });
+  }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
@@ -15380,9 +15697,12 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
 
     } catch (err) {
       console.error('[stripe/webhook] post-payment processing failed:', err.message);
+      await finishStripeWebhookEvent(event.id, err).catch(() => {});
+      return res.status(500).json({ error: 'webhook_processing_failed' });
     }
   }
 
+  await finishStripeWebhookEvent(event.id);
   res.json({ received: true });
 });
 
@@ -15430,23 +15750,29 @@ app.post('/webhook/stripe', async (req, res) => {
   }
 
   console.log('[webhook/stripe] received event:', event.type);
-
-  // Always return 200 immediately — Stripe must not retry
-  res.json({ received: true });
+  try {
+    const shouldProcess = await beginStripeWebhookEvent(event, '/webhook/stripe');
+    if (!shouldProcess) return res.json({ received: true, duplicate: true });
+  } catch (err) {
+    console.error('[webhook/stripe] event ledger unavailable:', err.message);
+    return res.status(500).json({ error: 'webhook_processing_unavailable' });
+  }
 
   try {
     // ── 0a. Directory paid placements ─────────────────────────────────────
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'directory') {
       await handleDirectoryPayment(event.data.object);
-      return;
+      await finishStripeWebhookEvent(event.id);
+      return res.json({ received: true });
     }
 
     // ── 0b. Sidebar sponsor payments ──────────────────────────────────────
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'sponsor') {
       await handleSponsorPayment(event.data.object);
-      return;
+      await finishStripeWebhookEvent(event.id);
+      return res.json({ received: true });
     }
 
     // ── 1. checkout.session.completed ──────────────────────────────────────
@@ -15456,7 +15782,8 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] checkout.session.completed — no email found, session:', session.id);
-        return;
+        await finishStripeWebhookEvent(event.id);
+        return res.json({ received: true });
       }
 
       // Check product name in metadata or line_items
@@ -15479,7 +15806,8 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!isActivation && productName) {
         console.log('[webhook/stripe] checkout.session.completed — product not activation, skipping:', productName);
-        return;
+        await finishStripeWebhookEvent(event.id);
+        return res.json({ received: true });
       }
 
       console.log('[webhook/stripe] checkout activation for:', email);
@@ -15509,7 +15837,8 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] subscription.created — no email for customer:', subscription.customer);
-        return;
+        await finishStripeWebhookEvent(event.id);
+        return res.json({ received: true });
       }
 
       console.log('[webhook/stripe] subscription created for:', email, '— status:', subscription.status);
@@ -15568,7 +15897,8 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] subscription.updated — no email for customer:', subscription.customer);
-        return;
+        await finishStripeWebhookEvent(event.id);
+        return res.json({ received: true });
       }
 
       const status = subscription.status;
@@ -15679,8 +16009,12 @@ app.post('/webhook/stripe', async (req, res) => {
       console.log('[webhook/stripe] unhandled event type (ignored):', event.type);
     }
 
+    await finishStripeWebhookEvent(event.id);
+    return res.json({ received: true });
   } catch (err) {
-    console.error('[webhook/stripe] internal processing error (200 already sent):', err.message);
+    console.error('[webhook/stripe] internal processing error:', err.message);
+    await finishStripeWebhookEvent(event.id, err).catch(() => {});
+    return res.status(500).json({ error: 'webhook_processing_failed' });
   }
 });
 
@@ -19736,7 +20070,6 @@ CONTENT DENSITY RULES — never return single-sentence values for any of these f
 - wc[].after: minimum 2 sentences. Sentence 1 is the rebuilt copy or structural description. Sentence 2 names why this architecture change improves conversion or reader behaviour.`;
 
 app.get('/changelog-audit-test', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
   res.json({ status: 'ok', message: 'changelog audit endpoint is live' });
 });
 
@@ -19752,7 +20085,7 @@ app.get('/changelog-audit-page', (req, res) => {
 });
 
 app.post('/changelog-audit/check-email', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   const email = (req.body.email || '').toLowerCase().trim();
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' });
@@ -19810,7 +20143,7 @@ app.post('/changelog-audit/check-email', async (req, res) => {
 });
 
 app.post('/onboarding-audit/check-email', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   const email = (req.body.email || '').toLowerCase().trim();
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' });
@@ -19868,23 +20201,12 @@ app.post('/onboarding-audit/check-email', async (req, res) => {
 });
 
 app.options('/changelog-audit', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   res.sendStatus(200);
 });
 
 app.post('/changelog-audit', async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   console.log('CHANGELOG AUDIT HIT - body:', JSON.stringify(req.body));
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
@@ -19988,23 +20310,12 @@ app.get('/onboarding-audit-page', (req, res) => {
 });
 
 app.options('/onboarding-audit', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   res.sendStatus(200);
 });
 
 app.post('/onboarding-audit', async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   console.log('ONBOARDING AUDIT HIT - body:', JSON.stringify(req.body));
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
@@ -20097,23 +20408,12 @@ app.get('/linkedin-audit-page', (req, res) => {
 });
 
 app.options('/linkedin-audit', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   res.sendStatus(200);
 });
 
 app.post('/linkedin-audit', async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  applyTrustedCors(req, res, 'POST, OPTIONS');
   console.log('LINKEDIN AUDIT HIT - body:', JSON.stringify(req.body));
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.json({ error: 'No body received', received: req.body });
@@ -23046,41 +23346,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     res.end();
   });
 
-  // ── GET /admin/run-claimed-boost?key=… — manually trigger claimed listing vote boost ─
-  app.get('/admin/run-claimed-boost', async (req, res) => {
-    if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.flushHeaders();
-    const log = m => { console.log(m); res.write(m + '\n'); };
-    const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    try {
-      const { rows } = await pool.query(
-        `SELECT dl.id, dl.name FROM directory_listings dl
-         JOIN dir_daily_section dds ON dds.listing_id = dl.id
-           AND dds.display_date = CURRENT_DATE
-          WHERE dl.claimed_by IS NOT NULL AND dl.status = 'active'
-            AND dl.id <> ALL($1::int[])`,
-        [Array.from(SEED_VOTE_DISABLED_IDS)]
-       );
-      log(`[claimed-boost] ${rows.length} daily-section claimed listings found`);
-      for (const listing of rows) {
-        const toAdd = 5 + Math.floor(Math.random() * 3); // 5–7
-        const voteRows = Array.from({ length: toAdd }, (_, i) =>
-          `(${listing.id}, 'claimed_boost_${listing.id}_${dateTag}_${i}', NOW())`
-        ).join(',');
-        await pool.query(
-          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`
-        );
-        const r = await pool.query(
-          `UPDATE directory_listings SET vote_count = vote_count + $1 WHERE id = $2 RETURNING vote_count`,
-          [toAdd, listing.id]
-        );
-        log(`[claimed-boost] +${toAdd} → ${listing.name} (now ${r.rows[0]?.vote_count})`);
-      }
-      log(`[claimed-boost] Done.`);
-    } catch(e) { log(`[claimed-boost] ERROR: ${e.message}`); }
-    res.end();
+  // Synthetic claim-based voting is permanently retired. Organic visitor votes
+  // are the only way a newly claimed listing may increase its vote total.
+  app.all('/admin/run-claimed-boost', (req, res) => {
+    res.status(410).json({ error: 'endpoint_removed', message: 'Claim-based vote boosts have been retired.' });
   });
 
   // ── Admin: editors-pick — set/unset (max 3 simultaneous) ────────────────

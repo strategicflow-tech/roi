@@ -1623,7 +1623,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
           <label for="fLogoFile" id="fLogoUploadBtn" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;white-space:nowrap;transition:border-color .2s,color .2s;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
             📎 Upload
           </label>
-          <input type="file" id="fLogoFile" accept="image/*,.svg,image/svg+xml" style="display:none;" onchange="uploadSubmitLogo(this)" />
+          <input type="file" id="fLogoFile" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" style="display:none;" onchange="uploadSubmitLogo(this)" />
         </div>
         <div id="fLogoPreview" style="display:none;margin-top:8px;align-items:center;gap:10px;">
           <img id="fLogoPreviewImg" src="" alt="Logo preview" style="width:40px;height:40px;border-radius:8px;object-fit:contain;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;" onerror="this.style.opacity='.3'" />
@@ -3706,8 +3706,8 @@ async function claimVerifyOTP() {
     const d = await r.json();
     if (d.ok) {
       claimEditToken = d.edit_token;
-      // Persist in localStorage so edits survive refresh
-      localStorage.setItem(`claim_${claimListingId}`, JSON.stringify({ email: claimOwnerEmail, token: d.edit_token }));
+      // The edit credential stays in memory only. The server also stores it in
+      // the same-site session cookie, so it is never persisted in localStorage.
       // Pre-fill form with existing listing data
       if (d.listing) prefillClaimForm(d.listing);
       document.getElementById('claimStep2').classList.remove('active');
@@ -3916,7 +3916,7 @@ async function claimUploadFounderAvatar(input) {
   statusEl.style.display = 'block'; statusEl.style.color = 'var(--muted)';
   statusEl.textContent = 'Uploading…';
   try {
-    const fd = new FormData(); fd.append('avatar', file);
+    const fd = new FormData(); fd.append('avatar', file); fd.append('listing_id', claimListingId);
     const r = await fetch('/api/directory/claim/upload-founder-avatar', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
@@ -3936,7 +3936,7 @@ async function claimUploadScreenshot(input) {
   statusEl.style.display = 'block'; statusEl.style.color = 'var(--muted)';
   statusEl.textContent = 'Uploading screenshot…';
   try {
-    const fd = new FormData(); fd.append('screenshot', file);
+    const fd = new FormData(); fd.append('screenshot', file); fd.append('listing_id', claimListingId);
     const r = await fetch('/api/directory/claim/upload-screenshot', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
@@ -3975,7 +3975,11 @@ async function loadClaimAnalytics(){
   if(!body || !claimListingId || !claimOwnerEmail || !claimEditToken) return;
   body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Loading analytics…</div>';
   try{
-    const r = await fetch(`/api/directory/analytics/${claimListingId}?email=${encodeURIComponent(claimOwnerEmail)}&token=${encodeURIComponent(claimEditToken)}`);
+    const r = await fetch(`/api/directory/analytics/${claimListingId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: claimOwnerEmail, edit_token: claimEditToken })
+    });
     const d = await r.json();
     if(!r.ok || d.error){ body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Analytics unavailable.</div>'; return; }
 
