@@ -4120,8 +4120,16 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
   }
 }
 
-async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false } = {}) {
-  const { rows } = await pool.query(`
+async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false, includeAllClaimed = false } = {}) {
+  const allClaimedQuery = `
+    SELECT DISTINCT ON (lower(trim(dl.claimed_by)))
+      dl.id AS listing_id, lower(trim(dl.claimed_by)) AS email, dl.name
+    FROM directory_listings dl
+    WHERE dl.status='active' AND dl.claimed_by IS NOT NULL
+      AND length(trim(dl.claimed_by)) > 3
+    ORDER BY lower(trim(dl.claimed_by)), dl.claimed_at DESC NULLS LAST, dl.id DESC
+  `;
+  const verifiedClaimsQuery = `
     SELECT DISTINCT ON (lower(trim(dc.owner_email)))
       dc.listing_id, lower(trim(dc.owner_email)) AS email, dl.name
     FROM dir_claims dc
@@ -4132,7 +4140,10 @@ async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false
       AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
       AND dl.status='active'
     ORDER BY lower(trim(dc.owner_email)), dl.claimed_at DESC NULLS LAST, dc.listing_id DESC
-  `, [includeAllVerified]);
+  `;
+  const { rows } = includeAllClaimed
+    ? await pool.query(allClaimedQuery)
+    : await pool.query(verifiedClaimsQuery, [includeAllVerified]);
   let confirmed = 0, pending = 0, skipped = 0, errors = 0;
   for (const row of rows) {
     try {
@@ -4155,7 +4166,7 @@ async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false
     }
     await new Promise(resolve => setTimeout(resolve, 120));
   }
-  const scope = includeAllVerified ? 'all verified claims' : 'opted-in claims';
+  const scope = includeAllClaimed ? 'all active claimed owners' : includeAllVerified ? 'all verified claims' : 'opted-in claims';
   console.log(`[newsletter-sync] ${rows.length} ${scope} → ${confirmed} confirmed, ${pending} pending, ${skipped} skipped, ${errors} errors`);
   return { total: rows.length, confirmed, pending, skipped, errors, scope };
 }
@@ -9064,16 +9075,16 @@ app.get('/admin/newsletter-contacts', async (req, res) => {
   }
 });
 
-// ── POST /admin/send-claim-newsletter-confirmations?key=&scope=all_verified_claims
+// ── POST /admin/send-claim-newsletter-confirmations?key=&scope=all_active_claimed_owners
 // Sends opt-in requests only. Confirmed recipients are never emailed again by this
 // action; existing unsubscribes, junk addresses, and blocked targets are skipped.
 app.post('/admin/send-claim-newsletter-confirmations', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
-  if (req.query.scope !== 'all_verified_claims') {
-    return res.status(400).json({ error: 'scope=all_verified_claims required' });
+  if (req.query.scope !== 'all_active_claimed_owners') {
+    return res.status(400).json({ error: 'scope=all_active_claimed_owners required' });
   }
   try {
-    const result = await syncClaimedFounderNewsletterContacts({ includeAllVerified: true });
+    const result = await syncClaimedFounderNewsletterContacts({ includeAllClaimed: true });
     res.json({ ok: true, action: 'confirmation_requests_sent', ...result });
   } catch (e) {
     console.error('[newsletter-consent] admin batch failed:', e.message);
