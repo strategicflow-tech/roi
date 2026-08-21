@@ -1617,18 +1617,9 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <textarea id="fDesc" placeholder="Factual one-line summary of what the product does." required maxlength="300"></textarea>
       </div>
       <div class="dir-field">
-        <label>Logo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(optional — paste a URL or upload a file)</span></label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" id="fLogo" placeholder="https://yourproduct.com/logo.png" style="flex:1;" oninput="previewSubmitLogo()" />
-          <label for="fLogoFile" id="fLogoUploadBtn" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;white-space:nowrap;transition:border-color .2s,color .2s;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-            📎 Upload
-          </label>
-          <input type="file" id="fLogoFile" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" style="display:none;" onchange="uploadSubmitLogo(this)" />
-        </div>
-        <div id="fLogoPreview" style="display:none;margin-top:8px;align-items:center;gap:10px;">
-          <img id="fLogoPreviewImg" src="" alt="Logo preview" style="width:40px;height:40px;border-radius:8px;object-fit:contain;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;" onerror="this.style.opacity='.3'" />
-          <span id="fLogoPreviewLabel" style="font-size:11px;color:var(--muted);font-family:var(--mono);word-break:break-all;flex:1;"></span>
-          <button type="button" onclick="clearSubmitLogo()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;flex-shrink:0;" title="Remove logo">✕</button>
+        <label>Logo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(add after ownership verification)</span></label>
+        <div style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;line-height:1.5;">
+          Submit your listing first, then verify ownership to upload a validated logo securely. Public submissions do not accept remote image URLs or untrusted file uploads.
         </div>
       </div>
       <div class="dir-submit-perks">
@@ -3440,7 +3431,6 @@ async function submitListing(e){
         category: document.getElementById('fCategory').value,
         description: document.getElementById('fDesc').value,
         email:    document.getElementById('fEmail').value,
-        logo_url: window._fLogoDataUrl || document.getElementById('fLogo').value.trim(),
         terms_accepted: document.getElementById('dirTermsCheck').checked,
       })
     });
@@ -3455,7 +3445,6 @@ async function submitListing(e){
         +'<textarea readonly onclick="this.select()" style="display:block;width:100%;margin-top:6px;padding:8px;font-family:var(--mono);font-size:10px;background:#0a1628;color:#cbd5e1;border:1px solid rgba(0,212,200,0.3);border-radius:6px;resize:none;line-height:1.5;" rows="3">'+escHtml(embedCode)+'</textarea>'
         +'<a href="/badge-kit?id='+newId+'" target="_blank" style="font-size:11px;color:#00d4c8;text-decoration:none;display:inline-block;margin-top:4px;">→ See all badge styles</a>';
       document.getElementById('dirForm').reset();
-      clearSubmitLogo();
       setTimeout(loadListings, 3000);
     }else if(d.error==='already_listed'){
       msg.className='dir-form-msg error';
@@ -3472,62 +3461,57 @@ async function submitListing(e){
 
 // ── Claim modal ───────────────────────────────────────────────────────────────
 let claimListingId  = null;
-let claimEditToken  = null;
 let claimOwnerEmail = null;
 
-function openClaimModal(id, name, domain) {
+async function openClaimModal(id, name, domain) {
   claimListingId  = id;
-  claimEditToken  = null;
   claimOwnerEmail = null;
 
-  // Restore session from localStorage so owners stay logged in across refreshes
-  const saved = JSON.parse(localStorage.getItem('claim_' + id) || 'null');
-  if (saved && saved.email && saved.token) {
-    claimOwnerEmail = saved.email;
-    claimEditToken  = saved.token;
-    claimFounderAvatarUrl = '';
-    claimScreenshots = [];
-    document.getElementById('claimProductName').textContent = name;
-    ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid){
-      var el = document.getElementById(eid);
-      if(el){ el.style.display='none'; el.textContent=''; }
-    });
-    // Clear form first so stale data doesn't linger
-    ['claimDesc','claimImageUrl','claimFounderName','claimTwitter','claimLinkedin','claimTechStack'].forEach(function(fid){
-      var el = document.getElementById(fid); if(el) el.value = '';
-    });
-    ['claimStep1','claimStep2','claimStep3','claimStep4'].forEach(function(s){ document.getElementById(s).classList.remove('active'); });
-    document.getElementById('claimModal').classList.add('open');
-    document.body.style.overflow = 'hidden';
-    // Fetch current listing data to pre-fill the form
-    fetch(`/api/directory/claim/prefill/${id}?email=${encodeURIComponent(saved.email)}&token=${encodeURIComponent(saved.token)}`)
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(d.ok && d.listing){
-          prefillClaimForm(d.listing);
-          // If listing already claimed (backlink confirmed) → go to edit form
-          // Otherwise → go to backlink step
-          if(d.listing.claimed_by){
-            document.getElementById('claimStep4').classList.add('active');
-          } else {
-            const snip=document.getElementById('claimBadgeSnippet');
-            if(snip) snip.textContent=claimBadgeSnippetHtml();
-            document.getElementById('claimStep3').classList.add('active');
-          }
-          loadClaimAnalytics();
-        } else {
-          // Stale or invalid token — clear localStorage and restart OTP flow cleanly
-          localStorage.removeItem('claim_' + id);
-          claimOwnerEmail = null; claimEditToken = null;
-          document.getElementById('claimModal').classList.remove('open');
-          document.body.style.overflow = '';
-          // Re-open in fresh mode after a tick
-          setTimeout(function(){ openClaimModal(id, name, domain); }, 50);
-        }
-      })
-      .catch(function(){});
-    return;
-  }
+  // Resume only a same-site, server-held owner session. No browser credential is
+  // read or written; a 403 simply falls through to the OTP flow.
+  try {
+    const response = await fetch(`/api/directory/claim/prefill/${id}`);
+    const session = await response.json();
+    if (response.ok && session.ok && session.listing && session.owner_email) {
+      claimOwnerEmail = session.owner_email;
+      claimFounderAvatarUrl = '';
+      claimScreenshots = [];
+      document.getElementById('claimProductName').textContent = name;
+      ['claimDesc','claimImageUrl','claimFounderName','claimTwitter','claimLinkedin',
+       'claimTechStack','claimPlatform','claimPricing','claimLaunchDate'].forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+      });
+      const founderPreview = document.getElementById('claimFounderPreview');
+      if (founderPreview) { founderPreview.src = ''; founderPreview.style.display = 'none'; }
+      const logoPreview = document.getElementById('claimLogoPreview');
+      if (logoPreview) logoPreview.style.display = 'none';
+      const logoPreviewImage = document.getElementById('claimLogoPreviewImg');
+      if (logoPreviewImage) logoPreviewImage.src = '';
+      renderClaimScreenshots();
+      ['claimErr1','claimErr2','claimErr3','claimSaveMsg'].forEach(function(eid) {
+        const el = document.getElementById(eid);
+        if (el) { el.style.display = 'none'; el.textContent = ''; }
+      });
+      ['claimStep1','claimStep2','claimStep3','claimStep4'].forEach(function(step) {
+        document.getElementById(step).classList.remove('active');
+      });
+      prefillClaimForm(session.listing);
+      claimScreenshots = Array.isArray(session.listing.screenshots) ? session.listing.screenshots : [];
+      renderClaimScreenshots();
+      if (session.listing.claimed_by) {
+        document.getElementById('claimStep4').classList.add('active');
+      } else {
+        const snippet = document.getElementById('claimBadgeSnippet');
+        if (snippet) snippet.textContent = claimBadgeSnippetHtml();
+        document.getElementById('claimStep3').classList.add('active');
+      }
+      document.getElementById('claimModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      loadClaimAnalytics();
+      return;
+    }
+  } catch {}
 
   // Fresh flow — show Step 1
   document.getElementById('claimProductName').textContent = name;
@@ -3607,7 +3591,7 @@ async function claimConfirmBacklink() {
   try {
     const r = await fetch('/api/directory/claim/confirm-backlink', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, backlink_url: backlinkUrl })
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, backlink_url: backlinkUrl })
     });
     const d = await r.json();
     if (d.ok) {
@@ -3631,7 +3615,7 @@ async function claimSkipBacklink() {
   try {
     const r = await fetch('/api/directory/claim/confirm-backlink', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken, skipped: true })
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, skipped: true })
     });
     const d = await r.json();
     if (d.ok) {
@@ -3705,11 +3689,14 @@ async function claimVerifyOTP() {
     });
     const d = await r.json();
     if (d.ok) {
-      claimEditToken = d.edit_token;
-      // The edit credential stays in memory only. The server also stores it in
-      // the same-site session cookie, so it is never persisted in localStorage.
+      // Edit authorization is scoped to the same-site server session. No
+      // credential is exposed to browser storage, URLs, or request bodies.
       // Pre-fill form with existing listing data
-      if (d.listing) prefillClaimForm(d.listing);
+      if (d.listing) {
+        prefillClaimForm(d.listing);
+        claimScreenshots = Array.isArray(d.listing.screenshots) ? d.listing.screenshots : [];
+        renderClaimScreenshots();
+      }
       document.getElementById('claimStep2').classList.remove('active');
       // If listing already fully claimed (returning owner) → go to edit form
       // Otherwise → show backlink step first
@@ -3736,7 +3723,7 @@ async function claimVerifyOTP() {
 async function claimRelaunch() {
   const btn = document.getElementById('claimRelaunchBtn');
   const msg = document.getElementById('claimRelaunchMsg');
-  if (!claimEditToken || !claimOwnerEmail || !claimListingId) return;
+  if (!claimOwnerEmail || !claimListingId) return;
   btn.disabled = true;
   btn.textContent = 'Relaunching…';
   msg.style.display = 'none';
@@ -3744,7 +3731,7 @@ async function claimRelaunch() {
     const r = await fetch('/api/directory/claim/relaunch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken })
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail })
     });
     const d = await r.json();
     if (d.ok) {
@@ -3790,7 +3777,7 @@ async function claimSaveEdit() {
   const msg   = document.getElementById('claimSaveMsg');
   errEl.style.display = 'none'; msg.style.display = 'none';
 
-  const body = { listing_id: claimListingId, email: claimOwnerEmail, edit_token: claimEditToken };
+  const body = { listing_id: claimListingId, email: claimOwnerEmail };
   if (description)           body.description = description;
   if (image_url)             body.image_url = image_url;
   if (founder_name)          body.founder_name = founder_name;
@@ -3801,9 +3788,8 @@ async function claimSaveEdit() {
   if (platform)              body.platform = platform;
   if (pricing_model)         body.pricing_model = pricing_model;
   if (launch_date)           body.launch_date = launch_date;
-  if (claimScreenshots.length > 0) body.screenshots = claimScreenshots;
 
-  if (Object.keys(body).length <= 3) {
+  if (Object.keys(body).length <= 2) {
     errEl.textContent = 'Fill in at least one field to save.';
     errEl.style.display = 'block'; return;
   }
@@ -3850,25 +3836,17 @@ async function claimUploadLogo(input) {
   try {
     const fd = new FormData();
     fd.append('logo', file);
-    // Pass listing_id + edit_token so server can save directly to DB,
-    // bypassing the input[type=url] field that Chrome Android drops data: URIs from.
+    // The owner session authorizes this upload; the server stores it directly.
     if (claimListingId)  fd.append('listing_id',  claimListingId);
-    if (claimEditToken)  fd.append('edit_token',   claimEditToken);
     const r = await fetch('/api/directory/claim/upload-logo', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
       if (d.saved) {
         // Server saved directly to DB — use the stable /listing-logo/ URL, no data URI needed
         _claimLogoDataUrl = null;
-        document.getElementById('claimImageUrl').value = d.url;
-        statusEl.style.color = '#22c55e';
-        statusEl.textContent = '✓ Logo saved!';
-      } else {
-        // Fallback: store data URL in variable (avoids input[type=url] sanitization)
-        _claimLogoDataUrl = d.url;
         document.getElementById('claimImageUrl').value = '';
         statusEl.style.color = '#22c55e';
-        statusEl.textContent = '✓ Logo uploaded';
+        statusEl.textContent = '✓ Logo saved!';
       }
       // Show preview so founder can verify the image looks correct before saving
       const previewWrap = document.getElementById('claimLogoPreview');
@@ -3879,13 +3857,13 @@ async function claimUploadLogo(input) {
       }
     } else {
       statusEl.style.color   = '#e8455a';
-      statusEl.textContent   = 'Upload failed. Try pasting a URL instead.';
+      statusEl.textContent   = 'Upload failed. Choose a PNG, JPEG, GIF, or WebP image.';
       const pw = document.getElementById('claimLogoPreview');
       if (pw) pw.style.display = 'none';
     }
   } catch {
     statusEl.style.color   = '#e8455a';
-    statusEl.textContent   = 'Upload error. Try pasting a URL instead.';
+    statusEl.textContent   = 'Upload error. Choose a PNG, JPEG, GIF, or WebP image.';
   }
   label.style.opacity = '1';
   label.style.pointerEvents = 'auto';
@@ -3920,11 +3898,10 @@ async function claimUploadFounderAvatar(input) {
     const r = await fetch('/api/directory/claim/upload-founder-avatar', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok && d.url) {
-      claimFounderAvatarUrl = d.url;
       const prev = document.getElementById('claimFounderPreview');
       if (prev) { prev.src = d.url; prev.style.display = 'block'; }
       statusEl.style.color = '#22c55e';
-      statusEl.textContent = '✓ Photo uploaded — click Save to apply.';
+      statusEl.textContent = '✓ Photo saved.';
     } else { statusEl.style.color = '#e8455a'; statusEl.textContent = d.message || 'Upload failed.'; }
   } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Network error — try again.'; }
 }
@@ -3943,7 +3920,7 @@ async function claimUploadScreenshot(input) {
       claimScreenshots.push(d.url);
       renderClaimScreenshots();
       statusEl.style.color = '#22c55e';
-      statusEl.textContent = '✓ Added (' + claimScreenshots.length + '/3). Click Save to apply.';
+      statusEl.textContent = '✓ Saved (' + claimScreenshots.length + '/3).';
     } else { statusEl.style.color = '#e8455a'; statusEl.textContent = d.message || 'Upload failed.'; }
   } catch { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Network error — try again.'; }
   input.value = '';
@@ -3953,32 +3930,53 @@ function renderClaimScreenshots() {
   var strip = document.getElementById('claimScreenshotStrip');
   var btn   = document.getElementById('claimSsBtn');
   if (!strip) return;
-  strip.innerHTML = claimScreenshots.map(function(url, i) {
-    return '<div style="position:relative;flex-shrink:0;">' +
-      '<img src="' + url + '" style="width:96px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;" alt="Screenshot ' + (i+1) + '"/>' +
-      '<button onclick="removeClaimScreenshot(' + i + ')" title="Remove" style="position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:#e8455a;border:none;color:#fff;font-size:11px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>' +
-      '</div>';
-  }).join('');
+  strip.replaceChildren();
+  claimScreenshots.forEach(function(url, i) {
+    var item = document.createElement('div');
+    item.style.cssText = 'position:relative;flex-shrink:0;';
+    var image = document.createElement('img');
+    image.src = url;
+    image.style.cssText = 'width:96px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;';
+    image.alt = 'Screenshot ' + (i + 1);
+    var remove = document.createElement('button');
+    remove.type = 'button';
+    remove.title = 'Remove';
+    remove.textContent = '✕';
+    remove.style.cssText = 'position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:#e8455a;border:none;color:#fff;font-size:11px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;line-height:1;';
+    remove.addEventListener('click', function(){ removeClaimScreenshot(i); });
+    item.append(image, remove);
+    strip.appendChild(item);
+  });
   if (btn) { var t = btn.childNodes[0]; if (t) t.nodeValue = '📸 Add screenshot (' + claimScreenshots.length + '/3) '; }
 }
 
-function removeClaimScreenshot(i) {
-  claimScreenshots.splice(i, 1);
-  renderClaimScreenshots();
+async function removeClaimScreenshot(i) {
   var statusEl = document.getElementById('claimSsStatus');
-  if (statusEl) { statusEl.style.color = 'var(--muted)'; statusEl.textContent = claimScreenshots.length + ' screenshot(s) queued.'; statusEl.style.display = 'block'; }
+  try {
+    var r = await fetch('/api/directory/claim/remove-screenshot', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: claimListingId, email: claimOwnerEmail, index: i })
+    });
+    var d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'remove_failed');
+    claimScreenshots.splice(i, 1);
+    renderClaimScreenshots();
+    if (statusEl) { statusEl.style.color = 'var(--muted)'; statusEl.textContent = claimScreenshots.length + ' screenshot(s) saved.'; statusEl.style.display = 'block'; }
+  } catch {
+    if (statusEl) { statusEl.style.color = '#e8455a'; statusEl.textContent = 'Could not remove screenshot. Try again.'; statusEl.style.display = 'block'; }
+  }
 }
 
 // ── My Listing Analytics (shown in claim step 3 after verification) ───────────
 async function loadClaimAnalytics(){
   const body = document.getElementById('claimAnalyticsBody');
-  if(!body || !claimListingId || !claimOwnerEmail || !claimEditToken) return;
+  if(!body || !claimListingId || !claimOwnerEmail) return;
   body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Loading analytics…</div>';
   try{
     const r = await fetch(`/api/directory/analytics/${claimListingId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: claimOwnerEmail, edit_token: claimEditToken })
+      body: JSON.stringify({ email: claimOwnerEmail })
     });
     const d = await r.json();
     if(!r.ok || d.error){ body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Analytics unavailable.</div>'; return; }
@@ -4027,11 +4025,10 @@ function prefillClaimForm(l) {
   if (l.founder_avatar) {
     const prev = document.getElementById('claimFounderPreview');
     if (prev) { prev.src = l.founder_avatar; prev.style.display = 'block'; }
-    claimFounderAvatarUrl = l.founder_avatar;
   }
 }
 
-// Restore claim context from localStorage (so returning owners skip re-login)
+// Sessions are resumed through the server-authorized prefill endpoint on modal open.
 (function restoreClaimSessions(){
   // No-op on page load — modal only opens via button click
 })();

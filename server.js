@@ -2520,8 +2520,16 @@ function submitBoostCheckout(){
 function getVotedIds(){try{return JSON.parse(localStorage.getItem(VOTE_KEY)||'[]');}catch{return[];}}
 function saveVotedId(id){var ids=getVotedIds();if(!ids.includes(id)){ids.push(id);localStorage.setItem(VOTE_KEY,JSON.stringify(ids));}}
 function openSsLb(src){
+  var parsed;
+  try { parsed = new URL(String(src || ''), window.location.origin); } catch { return; }
+  if(parsed.origin !== window.location.origin ||
+     !/^\\/api\\/directory\\/listing-screenshot\\/\\d+\\/[0-2]$/.test(parsed.pathname)) return;
+  var safeSrc = parsed.pathname;
   var lb=document.createElement('div');lb.className='ss-lb';
-  lb.innerHTML='<button class="ss-lb-x" onclick="this.parentElement.remove()">✕</button><img src="'+src+'" alt="Screenshot"/>';
+  var close=document.createElement('button');close.className='ss-lb-x';close.type='button';close.textContent='✕';
+  close.addEventListener('click',function(){lb.remove();});
+  var image=document.createElement('img');image.src=safeSrc;image.alt='Screenshot';
+  lb.append(close,image);
   lb.addEventListener('click',function(e){if(e.target===lb)lb.remove();});
   document.body.appendChild(lb);
 }
@@ -2530,19 +2538,10 @@ async function ppRelaunch(){
   var btn=document.getElementById('ppRelaunchBtn');
   var msg=document.getElementById('ppRelaunchMsg');
   if(!btn||btn.disabled)return;
-  // Read claim session from localStorage
-  var saved=null;try{saved=JSON.parse(localStorage.getItem('claim_'+PAGE.id)||'null');}catch(e){}
-  if(!saved||!saved.email||!saved.token){
-    // No session — send to claim flow
-    msg.textContent='Please verify ownership first.';
-    msg.style.color='var(--muted)';
-    window.location.href='/directory?claim='+PAGE.id;
-    return;
-  }
   btn.disabled=true;btn.textContent='Relaunching…';msg.style.display='none';msg.textContent='';
   try{
     var r=await fetch('/api/directory/claim/relaunch',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({listing_id:PAGE.id,email:saved.email,edit_token:saved.token})});
+      body:JSON.stringify({listing_id:PAGE.id})});
     var d=await r.json();
     if(d.ok){
       btn.style.display='none';
@@ -2554,10 +2553,8 @@ async function ppRelaunch(){
       msg.textContent='Relaunch window opens in '+dR+' day'+(dR!==1?'s':'')+'.';
       msg.style.color='var(--muted)';
     }else if(d.error==='unauthorized'){
-      btn.disabled=false;btn.textContent='🔄 Relaunch — push back to "New Today"';
-      msg.textContent='Session expired — verify ownership again.';
-      msg.style.color='#f87171';
-      setTimeout(function(){window.location.href='/directory?claim='+PAGE.id;},1500);
+      window.location.href='/directory?claim='+PAGE.id;
+      return;
     }else{
       btn.disabled=false;btn.textContent='🔄 Relaunch — push back to "New Today"';
       msg.textContent='Error — please try again.';
@@ -2569,24 +2566,6 @@ async function ppRelaunch(){
     msg.style.color='#f87171';
   }
 }
-// Hydrate relaunch button from localStorage on page load
-(function(){
-  var wrap=document.getElementById('ppRelaunchWrap');
-  if(!wrap)return; // not claimed, nothing to hydrate
-  var saved=null;try{saved=JSON.parse(localStorage.getItem('claim_'+PAGE.id)||'null');}catch(e){}
-  var btn=document.getElementById('ppRelaunchBtn');
-  var daysR=parseInt(btn.dataset.daysRemaining||'0',10);
-  if(!saved||!saved.email||!saved.token){
-    // Owner not verified in this browser — swap to a verify prompt
-    if(daysR===0){
-      btn.textContent='Verify ownership to relaunch →';
-      btn.disabled=false;
-      btn.onclick=function(){window.location.href='/directory?claim='+PAGE.id;};
-    }
-  }
-  // If cooldown active, button is already disabled by server-rendered HTML
-})();
-
 var btn = document.getElementById('voteBtn');
 if(getVotedIds().includes(PAGE.id)){btn.classList.add('voted');btn.disabled=true;}
 btn.addEventListener('click',function(){
@@ -3020,23 +2999,15 @@ app.post('/api/directory/submit', async (req, res) => {
     return res.status(400).json({ error: 'not_eligible', message: 'ToolIndex lists software products and SaaS tools only. Physical goods, gambling, and unrelated services are not accepted.' });
   }
 
-  // Accept a user-supplied logo only if it's a real image and not an og:image/hero
-  let rawLogo = null;
+  // Public submissions never store remote image URLs or caller-provided data URLs.
+  // Owners can add a validated raster upload only after OTP ownership verification.
   if (logo_url) {
-    const t = logo_url.trim();
-    if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(t)) rawLogo = t;
-    else if (/^https:\/\/.+\.(png|jpg|jpeg|webp|gif|avif|ico)(?:[?#].*)?$/i.test(t)) rawLogo = t;
+    return res.status(400).json({
+      error: 'logo_requires_verification',
+      message: 'Submit without a logo, then verify ownership to upload a validated image.'
+    });
   }
-  const _HERO_PAT = [/og[-_]?image/i,/opengraph/i,/screenshot/i,/social[-_]?(?:preview|share)/i,/twitter[-_]?card/i,/banner/i,/\/hero[/_.]/i,/placeholder/i,/noimage/i];
-  // Data URLs (uploaded files) are stored in full; external URLs are capped at 500 chars and checked against hero patterns.
-  let suppliedLogo = null;
-  if (rawLogo) {
-    if (rawLogo.startsWith('data:image/')) {
-      suppliedLogo = rawLogo; // base64 upload — store as-is, no hero-pattern check
-    } else if (!_HERO_PAT.some(re => re.test(rawLogo))) {
-      suppliedLogo = rawLogo.slice(0, 500);
-    }
-  }
+  const suppliedLogo = null;
   try {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
@@ -7213,7 +7184,7 @@ app.get('/sponsor', async (req, res) => {
 
 // ── POST /api/directory/checkout ──────────────────────────────────────────────
 app.post('/api/directory/checkout', async (req, res) => {
-  const { listing_id, tier, email, edit_token, boost_date } = req.body || {};
+  const { listing_id, tier, email, boost_date } = req.body || {};
   if (!listing_id || !DIR_PRICES[tier]) return res.status(400).json({ error: 'invalid_params' });
   const listingRow = await pool.query('SELECT id, name, claimed_by FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
   if (!listingRow?.rows?.length) return res.status(404).json({ error: 'listing_not_found' });
@@ -7224,7 +7195,7 @@ app.post('/api/directory/checkout', async (req, res) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
       return res.status(403).json({ error: 'ownership_required' });
     }
-    const claim = await authorizeDirectoryClaim(req, listing_id, payerEmail, edit_token);
+    const claim = await authorizeDirectoryClaim(req, listing_id, payerEmail);
     if (!claim || String(listingRow.rows[0].claimed_by || '').toLowerCase() !== payerEmail) {
       return res.status(403).json({ error: 'ownership_required' });
     }
@@ -7876,7 +7847,7 @@ function emailMatchesDomain(email, productUrl) {
 
 // ── Directory claim security helpers ─────────────────────────────────────────
 const OTP_TTL_MS = 15 * 60 * 1000;
-const CLAIM_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const CLAIM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const claimSecret = process.env.SESSION_SECRET || 'directory-claim';
 
@@ -7918,15 +7889,17 @@ function setDirectoryClaimSession(req, listingId, email, token, expiresAt) {
   req.session.directoryClaims[String(listingId)] = {
     email: String(email).toLowerCase(),
     token,
-    expiresAt: new Date(expiresAt).getTime()
+    expiresAt: new Date(expiresAt).getTime(),
+    scope: 'listing-edit'
   };
 }
 
-async function authorizeDirectoryClaim(req, listingId, email, suppliedToken) {
+async function authorizeDirectoryClaim(req, listingId, email) {
   const saved = req.session?.directoryClaims?.[String(listingId)];
-  const normalizedEmail = String(email || saved?.email || '').trim().toLowerCase();
-  const token = String(suppliedToken || saved?.token || '').trim();
+  const normalizedEmail = String(saved?.email || '').trim().toLowerCase();
+  const token = String(saved?.token || '').trim();
   if (!listingId || !normalizedEmail || !token) return null;
+  if (email && String(email).trim().toLowerCase() !== normalizedEmail) return null;
   if (saved && saved.expiresAt < Date.now()) {
     delete req.session.directoryClaims[String(listingId)];
     return null;
@@ -8025,8 +7998,8 @@ app.post('/api/directory/claim/start', async (req, res) => {
 // ── GET /api/directory/claim/prefill/:id — returns editable fields for the owner's form ──
 app.get('/api/directory/claim/prefill/:id', async (req, res) => {
   const id    = parseInt(req.params.id, 10);
-  const email = (req.query.email || req.session?.directoryClaims?.[String(id)]?.email || '').toLowerCase().trim();
-  if (!id || !email) return res.status(400).json({ error: 'id and email required' });
+  const email = (req.session?.directoryClaims?.[String(id)]?.email || '').toLowerCase().trim();
+  if (!id || !email) return res.status(403).json({ error: 'unauthorized' });
   try {
     const auth = await authorizeDirectoryClaim(req, id, email);
     if (!auth) return res.status(403).json({ error: 'unauthorized' });
@@ -8035,12 +8008,13 @@ app.get('/api/directory/claim/prefill/:id', async (req, res) => {
               COALESCE(owner_image_url, image_url) AS image_url,
               founder_name, founder_avatar_url,
               social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date,
-              claimed_by
+               claimed_by, screenshots
        FROM directory_listings WHERE id=$1`, [id]
     );
     const r = rows[0] || {};
     res.json({
       ok: true,
+      owner_email: email,
       listing: {
         claimed_by:      r.claimed_by      || null,
         description:     r.description     || '',
@@ -8052,7 +8026,10 @@ app.get('/api/directory/claim/prefill/:id', async (req, res) => {
         tech_stack:      r.tech_stack      || '',
         platform:        r.platform        || '',
         pricing_model:   r.pricing_model   || '',
-        launch_date:     r.launch_date ? r.launch_date.toISOString().slice(0,10) : ''
+         launch_date:     r.launch_date ? r.launch_date.toISOString().slice(0,10) : '',
+         screenshots: Array.isArray(r.screenshots)
+           ? r.screenshots.slice(0, 3).map((_, index) => `/api/directory/listing-screenshot/${id}/${index}`)
+           : []
       }
     });
   } catch(err) {
@@ -8114,11 +8091,17 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       listingId: Number(listing_id),
       actorEmail: ownerEmail
     });
+    await writeSecurityAudit('directory_claim_token_rotated', {
+      actorType: 'owner',
+      listingId: Number(listing_id),
+      actorEmail: ownerEmail,
+      metadata: { reason: 'otp_verification' }
+    });
     // Fetch listing data for response (claimed_by tells frontend whether backlink step was already done)
     const listing = await pool.query(
       `SELECT name, description, image_url, founder_name, founder_avatar_url,
               social_twitter, social_linkedin, tech_stack, platform, pricing_model, launch_date,
-              claimed_by
+               claimed_by, screenshots
        FROM directory_listings WHERE id=$1`, [listing_id]);
     const row = listing.rows[0] || {};
     let newsletter = null;
@@ -8134,7 +8117,7 @@ app.post('/api/directory/claim/verify', async (req, res) => {
 
     console.log(`[dir-claim] OTP verified for listing ${listing_id}${c.is_verified ? ' (returning)' : ' (new)'}`);
     res.json({
-      ok: true, edit_token: editToken, newsletter,
+      ok: true, newsletter,
       listing: {
         claimed_by:     row.claimed_by     || null,
         description:    row.description    || '',
@@ -8146,7 +8129,10 @@ app.post('/api/directory/claim/verify', async (req, res) => {
         tech_stack:     row.tech_stack     || '',
         platform:       row.platform       || '',
         pricing_model:  row.pricing_model  || '',
-        launch_date:    row.launch_date    ? row.launch_date.toISOString().slice(0,10) : ''
+        launch_date:    row.launch_date    ? row.launch_date.toISOString().slice(0,10) : '',
+        screenshots: Array.isArray(row.screenshots)
+          ? row.screenshots.slice(0, 3).map((_, index) => `/api/directory/listing-screenshot/${listing_id}/${index}`)
+          : []
       }
     });
   } catch(err) {
@@ -8155,17 +8141,71 @@ app.post('/api/directory/claim/verify', async (req, res) => {
   }
 });
 
+async function rotateDirectoryClaimSession(req, listingId, email) {
+  const newToken = crypto.randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
+  const result = await pool.query(
+    `UPDATE dir_claims
+     SET edit_token_hash=$1, edit_token_expires_at=$2, edit_token_revoked_at=NULL
+     WHERE listing_id=$3 AND owner_email=$4 AND is_verified=TRUE
+     RETURNING id`,
+    [claimCredentialHash('edit', newToken), expiresAt, listingId, email]
+  );
+  if (!result.rows.length) return null;
+  setDirectoryClaimSession(req, listingId, email, newToken, expiresAt);
+  await writeSecurityAudit('directory_claim_token_rotated', {
+    actorType: 'owner', listingId: Number(listingId), actorEmail: email
+  });
+  return { expiresAt };
+}
+
+app.post('/api/directory/claim/rotate-session', async (req, res) => {
+  const { listing_id, email } = req.body || {};
+  const claim = await authorizeDirectoryClaim(req, listing_id, email);
+  if (!claim) return res.status(403).json({ error: 'unauthorized' });
+  try {
+    const rotated = await rotateDirectoryClaimSession(req, listing_id, claim.owner_email);
+    if (!rotated) return res.status(404).json({ error: 'claim_not_found' });
+    res.json({ ok: true, expires_at: rotated.expiresAt.toISOString() });
+  } catch (err) {
+    console.error('[dir-claim/rotate-session]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/directory/claim/revoke-session', async (req, res) => {
+  const { listing_id, email } = req.body || {};
+  const claim = await authorizeDirectoryClaim(req, listing_id, email);
+  if (!claim) return res.status(403).json({ error: 'unauthorized' });
+  try {
+    await pool.query(
+      `UPDATE dir_claims
+       SET edit_token_revoked_at=NOW(), edit_token_hash=NULL, edit_token_expires_at=NOW()
+       WHERE listing_id=$1 AND owner_email=$2`,
+      [listing_id, claim.owner_email]
+    );
+    if (req.session?.directoryClaims) delete req.session.directoryClaims[String(listing_id)];
+    await writeSecurityAudit('directory_claim_token_revoked', {
+      actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[dir-claim/revoke-session]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── POST /api/directory/claim/confirm-backlink ───────────────────────────────
 // Called after OTP verify. Founder confirms they've added a ToolIndex badge to their site.
 // This is the step that actually marks the listing as claimed/active.
 app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
-  const { listing_id, email, edit_token, backlink_url, skipped } = req.body || {};
-  if (!listing_id || !email)
-    return res.status(400).json({ error: 'listing_id and email required' });
+  const { listing_id, email, backlink_url, skipped } = req.body || {};
+  if (!listing_id)
+    return res.status(400).json({ error: 'listing_id required' });
   try {
-    const ownerEmail = String(email).trim().toLowerCase();
-    const c = await authorizeDirectoryClaim(req, listing_id, ownerEmail, edit_token);
+    const c = await authorizeDirectoryClaim(req, listing_id, email);
     if (!c) return res.status(403).json({ error: 'unauthorized' });
+    const ownerEmail = c.owner_email;
 
     // Lock the listing so a verification started before another owner completed
     // their claim can never overwrite the current owner.
@@ -8292,15 +8332,15 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
 
 // ── POST /api/directory/claim/edit ────────────────────────────────────────────
 app.post('/api/directory/claim/edit', async (req, res) => {
-  const { listing_id, email, edit_token,
+  const { listing_id, email,
           description, image_url,
           founder_name, founder_avatar_url, social_twitter, social_linkedin,
           screenshots, tech_stack, platform, pricing_model, launch_date } = req.body || {};
-  if (!listing_id || !email)
-    return res.status(400).json({ error: 'listing_id and email required' });
+  if (!listing_id)
+    return res.status(400).json({ error: 'listing_id required' });
 
   try {
-    const claim = await authorizeDirectoryClaim(req, listing_id, email, edit_token);
+    const claim = await authorizeDirectoryClaim(req, listing_id, email);
     if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const updates = [];
@@ -8366,7 +8406,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
     await writeSecurityAudit('directory_listing_edited', {
       actorType: 'owner',
       listingId: Number(listing_id),
-      actorEmail: email,
+      actorEmail: claim.owner_email,
       metadata: { field_count: updates.length }
     });
 
@@ -8380,11 +8420,11 @@ app.post('/api/directory/claim/edit', async (req, res) => {
 
 // ── POST /api/directory/claim/relaunch ───────────────────────────────────────
 app.post('/api/directory/claim/relaunch', async (req, res) => {
-  const { listing_id, email, edit_token } = req.body || {};
-  if (!listing_id || !email)
-    return res.status(400).json({ error: 'listing_id and email required' });
+  const { listing_id, email } = req.body || {};
+  if (!listing_id)
+    return res.status(400).json({ error: 'listing_id required' });
   try {
-    const claim = await authorizeDirectoryClaim(req, listing_id, email, edit_token);
+    const claim = await authorizeDirectoryClaim(req, listing_id, email);
     if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const lr = await pool.query(
@@ -8399,7 +8439,7 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
     }
 
     await pool.query(`UPDATE directory_listings SET submitted_at=NOW() WHERE id=$1`, [listing_id]);
-    console.log(`[dir-relaunch] listing ${listing_id} relaunched by ${email}`);
+    console.log(`[dir-relaunch] listing ${listing_id} relaunched by ${claim.owner_email}`);
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/relaunch]', err.message);
@@ -8426,17 +8466,7 @@ app.get('/api/directory/listing-logo/:id', async (req, res) => {
   try {
     const r = await pool.query('SELECT owner_image_url FROM directory_listings WHERE id=$1', [parseInt(req.params.id)]);
     if (!r.rows.length || !r.rows[0].owner_image_url) return res.status(404).end();
-    const raw = r.rows[0].owner_image_url;
-    if (raw.startsWith('data:')) {
-      const comma = raw.indexOf(',');
-      const header = raw.slice(0, comma);
-      const b64    = raw.slice(comma + 1);
-      const mime   = (header.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-      res.setHeader('Content-Type', mime);
-      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 min — allows logo updates to propagate quickly
-      return res.send(Buffer.from(b64, 'base64'));
-    }
-    res.redirect(raw);
+    if (!sendStoredDirectoryImage(res, r.rows[0].owner_image_url, 300)) return res.status(404).end();
   } catch { res.status(404).end(); }
 });
 
@@ -8445,15 +8475,7 @@ app.get('/api/directory/listing-founder-avatar/:id', async (req, res) => {
   try {
     const r = await pool.query('SELECT founder_avatar_url FROM directory_listings WHERE id=$1', [parseInt(req.params.id)]);
     if (!r.rows.length || !r.rows[0].founder_avatar_url) return res.status(404).end();
-    const raw = r.rows[0].founder_avatar_url;
-    if (raw.startsWith('data:')) {
-      const comma = raw.indexOf(',');
-      const mime  = (raw.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-      res.setHeader('Content-Type', mime);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      return res.send(Buffer.from(raw.slice(comma + 1), 'base64'));
-    }
-    res.redirect(raw);
+    if (!sendStoredDirectoryImage(res, r.rows[0].founder_avatar_url, 86400)) return res.status(404).end();
   } catch { res.status(404).end(); }
 });
 
@@ -8468,41 +8490,116 @@ app.get('/api/directory/listing-screenshot/:id/:index', async (req, res) => {
     const arr = r.rows[0].screenshots || [];
     const raw = arr[idx];
     if (!raw) return res.status(404).end();
-    if (raw.startsWith('data:')) {
-      const comma = raw.indexOf(',');
-      const mime  = (raw.slice(0, comma).match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
-      res.setHeader('Content-Type', mime);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      return res.send(Buffer.from(raw.slice(comma + 1), 'base64'));
-    }
-    res.redirect(raw);
+    if (!sendStoredDirectoryImage(res, raw, 86400)) return res.status(404).end();
   } catch { res.status(404).end(); }
 });
 
 function actualDirectoryImageMime(buffer) {
-  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
-  if (buffer.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]))) return 'image/png';
-  if (buffer.subarray(0, 3).equals(Buffer.from([0xff,0xd8,0xff]))) return 'image/jpeg';
-  if (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') return 'image/gif';
-  if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
-  if (buffer.subarray(4, 8).toString('ascii') === 'ftyp' && buffer.subarray(8, 12).toString('ascii').includes('avif')) return 'image/avif';
+  return inspectDirectoryImage(buffer)?.mime || null;
+}
+
+const DIRECTORY_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+const DIRECTORY_IMAGE_MAX_DIMENSION = 8000;
+const DIRECTORY_IMAGE_MAX_PIXELS = 20_000_000;
+
+function jpegDirectoryImageDimensions(buffer) {
+  for (let offset = 2; offset + 9 < buffer.length;) {
+    if (buffer[offset] !== 0xff) { offset += 1; continue; }
+    const marker = buffer[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9) { offset += 2; continue; }
+    const length = buffer.readUInt16BE(offset + 2);
+    if (length < 2 || offset + 2 + length > buffer.length) return null;
+    if ([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker)) {
+      return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+    }
+    offset += 2 + length;
+  }
   return null;
 }
 
+function webpDirectoryImageDimensions(buffer) {
+  const type = buffer.subarray(12, 16).toString('ascii');
+  if (type === 'VP8X' && buffer.length >= 30) {
+    return {
+      width: 1 + buffer.readUIntLE(24, 3),
+      height: 1 + buffer.readUIntLE(27, 3)
+    };
+  }
+  if (type === 'VP8 ' && buffer.length >= 30 &&
+      buffer.subarray(23, 26).equals(Buffer.from([0x9d, 0x01, 0x2a]))) {
+    return { width: buffer.readUInt16LE(26) & 0x3fff, height: buffer.readUInt16LE(28) & 0x3fff };
+  }
+  if (type === 'VP8L' && buffer.length >= 25 && buffer[20] === 0x2f) {
+    const b1 = buffer[21], b2 = buffer[22], b3 = buffer[23], b4 = buffer[24];
+    return {
+      width: 1 + b1 + ((b2 & 0x3f) << 8),
+      height: 1 + (b2 >> 6) + (b3 << 2) + ((b4 & 0x0f) << 10)
+    };
+  }
+  return null;
+}
+
+function inspectDirectoryImage(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12 || buffer.length > DIRECTORY_IMAGE_MAX_BYTES) return null;
+  let mime = null;
+  let dimensions = null;
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])) && buffer.length >= 24) {
+    mime = 'image/png';
+    dimensions = { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  } else if (buffer.subarray(0, 3).equals(Buffer.from([0xff,0xd8,0xff]))) {
+    mime = 'image/jpeg';
+    dimensions = jpegDirectoryImageDimensions(buffer);
+  } else if (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a') {
+    mime = 'image/gif';
+    dimensions = { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+  } else if (buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') {
+    mime = 'image/webp';
+    dimensions = webpDirectoryImageDimensions(buffer);
+  }
+  if (!mime || !dimensions || !dimensions.width || !dimensions.height ||
+      dimensions.width > DIRECTORY_IMAGE_MAX_DIMENSION || dimensions.height > DIRECTORY_IMAGE_MAX_DIMENSION ||
+      dimensions.width * dimensions.height > DIRECTORY_IMAGE_MAX_PIXELS) return null;
+  return { mime, ...dimensions };
+}
+
 function safeDirectoryImageDataUrl(file) {
-  const mime = actualDirectoryImageMime(file?.buffer);
-  if (!mime) return null;
-  return `data:${mime};base64,${file.buffer.toString('base64')}`;
+  const image = inspectDirectoryImage(file?.buffer);
+  if (!image) return null;
+  return `data:${image.mime};base64,${file.buffer.toString('base64')}`;
+}
+
+function parseStoredDirectoryImage(raw) {
+  const match = /^data:(image\/(?:png|jpeg|gif|webp));base64,([a-z0-9+/=\s]+)$/i.exec(String(raw || ''));
+  if (!match) return null;
+  const buffer = Buffer.from(match[2], 'base64');
+  const image = inspectDirectoryImage(buffer);
+  if (!image || image.mime !== match[1].toLowerCase()) return null;
+  return { ...image, buffer };
+}
+
+function sendStoredDirectoryImage(res, raw, maxAge) {
+  const image = parseStoredDirectoryImage(raw);
+  if (!image) return false;
+  res.setHeader('Content-Type', image.mime);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
+  res.send(image.buffer);
+  return true;
 }
 
 function isAllowedDirectoryImageUrl(value) {
   const url = String(value || '').trim();
-  if (/^\/api\/directory\/listing-logo\/\d+(?:\?.*)?$/i.test(url)) return true;
-  if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(url)) return true;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'https:';
-  } catch { return false; }
+  return /^\/api\/directory\/listing-(?:logo|founder-avatar|screenshot)\/\d+(?:\/[0-2])?$/i.test(url);
+}
+
+async function auditDirectoryUploadRejection(req, kind, reason) {
+  const parsedListingId = parseInt(req.body?.listing_id, 10);
+  await writeSecurityAudit('directory_upload_rejected', {
+    actorType: 'public',
+    listingId: Number.isInteger(parsedListingId) ? parsedListingId : null,
+    metadata: { kind, reason }
+  });
 }
 
 // ── POST /api/directory/claim/upload-founder-avatar ──────────────────────────
@@ -8513,14 +8610,38 @@ const avatarUpload = multer({
 }).single('avatar');
 app.post('/api/directory/claim/upload-founder-avatar', (req, res) => {
   avatarUpload(req, res, async (err) => {
-    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Photo must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error' });
-    if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const claim = await authorizeDirectoryClaim(req, parseInt(req.body.listing_id, 10));
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      await auditDirectoryUploadRejection(req, 'founder_avatar', 'file_too_large');
+      return res.status(400).json({ error: 'file_too_large', message: 'Photo must be under 4 MB.' });
+    }
+    if (err) {
+      await auditDirectoryUploadRejection(req, 'founder_avatar', 'multipart_error');
+      return res.status(400).json({ error: 'upload_error' });
+    }
+    if (!req.file) {
+      await auditDirectoryUploadRejection(req, 'founder_avatar', 'no_file');
+      return res.status(400).json({ error: 'no_file' });
+    }
+    const listingId = parseInt(req.body.listing_id, 10);
+    const claim = await authorizeDirectoryClaim(req, listingId);
     if (!claim) return res.status(403).json({ error: 'unauthorized' });
-    const dataUrl = safeDirectoryImageDataUrl(req.file);
-    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
-    res.json({ ok: true, url: dataUrl });
+    if (!await consumeDirectoryRateLimit(`directory-upload:${normalizedClientIp(req)}:${listingId}`, 12, 60 * 60)) {
+      return res.status(429).json({ error: 'rate_limited' });
+    }
+    const image = inspectDirectoryImage(req.file.buffer);
+    if (!image) {
+      await writeSecurityAudit('directory_upload_rejected', {
+        actorType: 'owner', listingId, actorEmail: claim.owner_email, metadata: { kind: 'founder_avatar', reason: 'invalid_image' }
+      });
+      return res.status(400).json({ error: 'unsupported_image' });
+    }
+    const dataUrl = `data:${image.mime};base64,${req.file.buffer.toString('base64')}`;
+    await pool.query(`UPDATE directory_listings SET founder_avatar_url=$1 WHERE id=$2`, [dataUrl, listingId]);
+    await writeSecurityAudit('directory_upload_accepted', {
+      actorType: 'owner', listingId, actorEmail: claim.owner_email,
+      metadata: { kind: 'founder_avatar', mime: image.mime, width: image.width, height: image.height }
+    });
+    res.json({ ok: true, url: `/api/directory/listing-founder-avatar/${listingId}`, saved: true });
   });
 });
 
@@ -8532,14 +8653,57 @@ const screenshotUpload = multer({
 }).single('screenshot');
 app.post('/api/directory/claim/upload-screenshot', (req, res) => {
   screenshotUpload(req, res, async (err) => {
-    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Screenshot must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error' });
-    if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const claim = await authorizeDirectoryClaim(req, parseInt(req.body.listing_id, 10));
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      await auditDirectoryUploadRejection(req, 'screenshot', 'file_too_large');
+      return res.status(400).json({ error: 'file_too_large', message: 'Screenshot must be under 4 MB.' });
+    }
+    if (err) {
+      await auditDirectoryUploadRejection(req, 'screenshot', 'multipart_error');
+      return res.status(400).json({ error: 'upload_error' });
+    }
+    if (!req.file) {
+      await auditDirectoryUploadRejection(req, 'screenshot', 'no_file');
+      return res.status(400).json({ error: 'no_file' });
+    }
+    const listingId = parseInt(req.body.listing_id, 10);
+    const claim = await authorizeDirectoryClaim(req, listingId);
     if (!claim) return res.status(403).json({ error: 'unauthorized' });
-    const dataUrl = safeDirectoryImageDataUrl(req.file);
-    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
-    res.json({ ok: true, url: dataUrl });
+    if (!await consumeDirectoryRateLimit(`directory-upload:${normalizedClientIp(req)}:${listingId}`, 12, 60 * 60)) {
+      return res.status(429).json({ error: 'rate_limited' });
+    }
+    const image = inspectDirectoryImage(req.file.buffer);
+    if (!image) {
+      await writeSecurityAudit('directory_upload_rejected', {
+        actorType: 'owner', listingId, actorEmail: claim.owner_email, metadata: { kind: 'screenshot', reason: 'invalid_image' }
+      });
+      return res.status(400).json({ error: 'unsupported_image' });
+    }
+    const dataUrl = `data:${image.mime};base64,${req.file.buffer.toString('base64')}`;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await client.query(`SELECT screenshots FROM directory_listings WHERE id=$1 FOR UPDATE`, [listingId]);
+      const screenshots = Array.isArray(current.rows[0]?.screenshots) ? current.rows[0].screenshots : [];
+      if (screenshots.length >= 3) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'too_many_screenshots' });
+      }
+      const index = screenshots.length;
+      screenshots.push(dataUrl);
+      await client.query(`UPDATE directory_listings SET screenshots=$1::jsonb WHERE id=$2`, [JSON.stringify(screenshots), listingId]);
+      await client.query('COMMIT');
+      await writeSecurityAudit('directory_upload_accepted', {
+        actorType: 'owner', listingId, actorEmail: claim.owner_email,
+        metadata: { kind: 'screenshot', index, mime: image.mime, width: image.width, height: image.height }
+      });
+      res.json({ ok: true, url: `/api/directory/listing-screenshot/${listingId}/${index}`, saved: true });
+    } catch (e) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('[dir-claim/upload-screenshot]', e.message);
+      res.status(500).json({ error: 'upload_error' });
+    } finally {
+      client.release();
+    }
   });
 });
 
@@ -8553,37 +8717,72 @@ const logoUpload = multer({
 
 app.post('/api/directory/claim/upload-logo', (req, res) => {
   logoUpload(req, res, async (err) => {
-    if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'file_too_large', message: 'Logo must be under 4 MB.' });
-    if (err) return res.status(400).json({ error: 'upload_error' });
-    if (!req.file) return res.status(400).json({ error: 'no_file' });
-    const dataUrl = safeDirectoryImageDataUrl(req.file);
-    if (!dataUrl) return res.status(400).json({ error: 'unsupported_image' });
-    const sizeKB  = Math.round(dataUrl.length / 1024);
-
-    // If listing_id + edit_token are provided, save directly to DB and return a stable URL.
-    // This avoids passing a large data URI through the browser input field (Chrome Android drops them).
-    const listingId  = parseInt(req.body.listing_id, 10);
-    const editToken  = (req.body.edit_token || '').trim();
-    if (listingId) {
-      try {
-        const claim = await authorizeDirectoryClaim(req, listingId, undefined, editToken);
-        if (claim) {
-          await pool.query(
-            `UPDATE directory_listings SET owner_image_url=$1 WHERE id=$2`,
-            [dataUrl, listingId]
-          );
-          console.log(`[dir-claim/upload] logo saved directly to DB for listing #${listingId} (${sizeKB}KB)`);
-          return res.json({ ok: true, url: `/api/directory/listing-logo/${listingId}`, saved: true });
-        }
-      } catch(e) {
-        console.error(`[dir-claim/upload] DB save failed, falling back to data URL:`, e.message);
-      }
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      await auditDirectoryUploadRejection(req, 'logo', 'file_too_large');
+      return res.status(400).json({ error: 'file_too_large', message: 'Logo must be under 4 MB.' });
     }
-
-    // Fallback: return data URL for the submit form (no listing_id yet) or if DB save fails
-    console.log(`[dir-claim/upload] logo encoded as data URL (${sizeKB}KB)`);
-    res.json({ ok: true, url: dataUrl });
+    if (err) {
+      await auditDirectoryUploadRejection(req, 'logo', 'multipart_error');
+      return res.status(400).json({ error: 'upload_error' });
+    }
+    if (!req.file) {
+      await auditDirectoryUploadRejection(req, 'logo', 'no_file');
+      return res.status(400).json({ error: 'no_file' });
+    }
+    const listingId  = parseInt(req.body.listing_id, 10);
+    const claim = await authorizeDirectoryClaim(req, listingId);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    if (!await consumeDirectoryRateLimit(`directory-upload:${normalizedClientIp(req)}:${listingId}`, 12, 60 * 60)) {
+      return res.status(429).json({ error: 'rate_limited' });
+    }
+    const image = inspectDirectoryImage(req.file.buffer);
+    if (!image) {
+      await writeSecurityAudit('directory_upload_rejected', {
+        actorType: 'owner', listingId, actorEmail: claim.owner_email, metadata: { kind: 'logo', reason: 'invalid_image' }
+      });
+      return res.status(400).json({ error: 'unsupported_image' });
+    }
+    const dataUrl = `data:${image.mime};base64,${req.file.buffer.toString('base64')}`;
+    await pool.query(`UPDATE directory_listings SET owner_image_url=$1 WHERE id=$2`, [dataUrl, listingId]);
+    await writeSecurityAudit('directory_upload_accepted', {
+      actorType: 'owner', listingId, actorEmail: claim.owner_email,
+      metadata: { kind: 'logo', mime: image.mime, width: image.width, height: image.height }
+    });
+    res.json({ ok: true, url: `/api/directory/listing-logo/${listingId}`, saved: true });
   });
+});
+
+app.post('/api/directory/claim/remove-screenshot', async (req, res) => {
+  const listingId = parseInt(req.body?.listing_id, 10);
+  const index = parseInt(req.body?.index, 10);
+  if (!listingId || !Number.isInteger(index) || index < 0 || index > 2) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  const claim = await authorizeDirectoryClaim(req, listingId, req.body?.email);
+  if (!claim) return res.status(403).json({ error: 'unauthorized' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query(`SELECT screenshots FROM directory_listings WHERE id=$1 FOR UPDATE`, [listingId]);
+    const screenshots = Array.isArray(current.rows[0]?.screenshots) ? current.rows[0].screenshots : [];
+    if (index >= screenshots.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'screenshot_not_found' });
+    }
+    screenshots.splice(index, 1);
+    await client.query(`UPDATE directory_listings SET screenshots=$1::jsonb WHERE id=$2`, [JSON.stringify(screenshots), listingId]);
+    await client.query('COMMIT');
+    await writeSecurityAudit('directory_upload_removed', {
+      actorType: 'owner', listingId, actorEmail: claim.owner_email, metadata: { kind: 'screenshot', index }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[dir-claim/remove-screenshot]', err.message);
+    res.status(500).json({ error: 'server_error' });
+  } finally {
+    client.release();
+  }
 });
 
 // ── Directory badges ──────────────────────────────────────────────────────────
@@ -8770,16 +8969,14 @@ app.post('/api/directory/track/click/:id', async (req, res) => {
   return recordDirectoryAnalytics(req, res, 'dir_listing_clicks', 'clicked_at', 10, 60);
 });
 
-// ── GET /api/directory/analytics/:id ─────────────────────────────────────────
-// Authenticated by edit_token + email (same as claim/edit). Returns real stats only.
+// ── POST /api/directory/analytics/:id ────────────────────────────────────────
+// Authenticated only by the scoped, same-site directory claim session.
 app.post('/api/directory/analytics/:id', async (req, res) => {
   const id    = parseInt(req.params.id, 10);
-  const email = (req.body?.email || req.session?.directoryClaims?.[String(id)]?.email || '').toLowerCase().trim();
-  const token = (req.body?.edit_token || '').trim();
-  if (!id || !email) return res.status(400).json({ error: 'id and email required' });
+  if (!id) return res.status(400).json({ error: 'invalid_listing_id' });
 
   try {
-    const claim = await authorizeDirectoryClaim(req, id, email, token);
+    const claim = await authorizeDirectoryClaim(req, id);
     if (!claim) return res.status(403).json({ error: 'unauthorized' });
 
     const [views30, clicks30, listing, rankAll, rankCat] = await Promise.all([
@@ -11066,7 +11263,7 @@ async function setupDB() {
         .update(`edit:${claim.edit_token}`).digest('hex');
       await pool.query(
         `UPDATE dir_claims
-         SET edit_token_hash=$1, edit_token_expires_at=NOW() + INTERVAL '30 days', edit_token=NULL
+         SET edit_token_hash=$1, edit_token_expires_at=NOW() + INTERVAL '24 hours', edit_token=NULL
          WHERE id=$2`,
         [hash, claim.id]
       );
