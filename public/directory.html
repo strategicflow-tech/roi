@@ -2215,13 +2215,6 @@ const BADGE_LABELS = { weekly_feature:'⚡ Weekly Feature', premium:'⭐ Founder
 const votedIds = new Set(JSON.parse(localStorage.getItem('dir_voted')||'[]'));
 function saveVoted(id){ votedIds.add(id); localStorage.setItem('dir_voted', JSON.stringify([...votedIds])); }
 
-// ── Session ID (persistent across page loads for this browser tab session) ─────
-const DIR_SESSION_ID = (()=>{
-  let s = sessionStorage.getItem('dir_sid');
-  if(!s){ s = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)); sessionStorage.setItem('dir_sid', s); }
-  return s;
-})();
-
 // ── Slug helper (must match server-side toListingSlug exactly) ───────────────
 function toSlug(name, id){
   const base = (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
@@ -2256,7 +2249,7 @@ const _trackedViews = new Set(); // avoid re-recording same listing in same sess
 function trackClick(id){
   fetch(`/api/directory/track/click/${id}`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ session_id: DIR_SESSION_ID }), keepalive: true
+    body: '{}', keepalive: true
   }).catch(()=>{});
 }
 
@@ -3259,7 +3252,7 @@ function setupViewObserver(){
       _trackedViews.add(id);
       fetch(`/api/directory/track/view/${id}`, {
         method: 'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ session_id: DIR_SESSION_ID }), keepalive: true
+        body: '{}', keepalive: true
       }).catch(()=>{});
       _viewObserver.unobserve(card);
     });

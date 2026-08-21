@@ -478,20 +478,6 @@ const browserOrigins = new Set(
     'https://www.strategicflow.tech'
   ].filter(Boolean)
 );
-app.use((req, res, next) => {
-  const origin = req.get('origin');
-  if (origin && browserOrigins.has(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Vary', 'Origin');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-  }
-  // A preflight from an untrusted origin receives no CORS grant, so the browser
-  // cannot expose the response to a third-party page.
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
-
 function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
   const origin = req.get('origin');
   if (!origin || !browserOrigins.has(origin)) return;
@@ -7546,36 +7532,66 @@ app.get('/api/directory/daily', async (req, res) => {
 });
 
 // ── POST /api/directory/vote/:id ──────────────────────────────────────────────
-app.post('/api/directory/vote/:id', async (req, res) => {
+app.options('/api/directory/vote/:id', (req, res) => {
+  applyTrustedCors(req, res, 'POST, OPTIONS');
+  res.sendStatus(204);
+});
+
+app.post('/api/directory/vote/:id', directoryEventCors, async (req, res) => {
   const lid = parseInt(req.params.id, 10);
   if (!lid) return res.status(400).json({ error: 'bad_id' });
-
-  // Fingerprint: SHA256(IP | first-30-chars-UA | listing_id)
-  const ip  = normalizedClientIp(req);
-  const ua  = (req.headers['user-agent'] || '').slice(0, 30);
+  if (!hasTrustedDirectoryEventOrigin(req)) {
+    return rejectDirectoryAbuse(req, res, 'vote', lid, 'untrusted_origin', 403);
+  }
 
   try {
-    // Check listing exists
     const listing = await pool.query('SELECT id, vote_count FROM directory_listings WHERE id=$1 AND status=\'active\'', [lid]);
     if (!listing.rows.length) return res.status(404).json({ error: 'not_found' });
-    const allowed = await consumeDirectoryRateLimit(`directory-vote:${ip}`, 12, 10 * 60);
-    if (!allowed) return res.status(429).json({ error: 'rate_limited', message: 'Too many votes from this IP. Try again later.' });
-
-    const hash = crypto.createHmac('sha256', claimSecret).update(`vote:${ip}|${ua}|${lid}`).digest('hex');
-
-    // Insert vote (unique constraint prevents duplicates)
-    const r = await pool.query(
-      `INSERT INTO dir_votes (listing_id, voter_hash) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`,
+    const identity = directoryEventIdentity(req, res);
+    if (!identity) return res.status(503).json({ error: 'temporarily_unavailable' });
+    const hash = claimCredentialHash('vote', `${identity.visitorHash}:${lid}`);
+    const existingVote = await pool.query(
+      'SELECT 1 FROM dir_votes WHERE listing_id=$1 AND voter_hash=$2',
       [lid, hash]
     );
-    if (r.rows.length === 0) return res.status(409).json({ error: 'already_voted', vote_count: listing.rows[0].vote_count });
+    if (existingVote.rows.length) {
+      return res.status(409).json({ error: 'already_voted', vote_count: listing.rows[0].vote_count });
+    }
+    const [ipAllowed, visitorAllowed, listingIpAllowed] = await Promise.all([
+      consumeDirectoryRateLimit(`directory-vote-ip:${identity.ipHash}`, 6, 60 * 60),
+      consumeDirectoryRateLimit(`directory-vote-visitor:${identity.visitorHash}`, 3, 24 * 60 * 60),
+      consumeDirectoryRateLimit(`directory-vote-listing-ip:${lid}:${identity.ipHash}`, 1, 24 * 60 * 60)
+    ]);
+    if (!ipAllowed || !visitorAllowed || !listingIpAllowed) {
+      const reason = !ipAllowed ? 'ip_rate_limit'
+        : !visitorAllowed ? 'visitor_rate_limit' : 'listing_ip_rate_limit';
+      return rejectDirectoryAbuse(req, res, 'vote', lid, reason);
+    }
 
-    // Increment vote_count atomically; also fetch claimed_by for first-vote notification
-    const updated = await pool.query(
-      `UPDATE directory_listings SET vote_count = vote_count + 1 WHERE id=$1
-       RETURNING vote_count, claimed_by, name`,
-      [lid]
-    );
+    const client = await pool.connect();
+    let updated;
+    try {
+      await client.query('BEGIN');
+      const vote = await client.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING id`,
+        [lid, hash]
+      );
+      if (!vote.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'already_voted', vote_count: listing.rows[0].vote_count });
+      }
+      updated = await client.query(
+        `UPDATE directory_listings SET vote_count = vote_count + 1 WHERE id=$1
+         RETURNING vote_count, claimed_by, name`,
+        [lid]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
     const newCount   = updated.rows[0].vote_count;
     const claimedBy  = updated.rows[0].claimed_by;
     const listingName = updated.rows[0].name;
@@ -7859,6 +7875,81 @@ function normalizedClientIp(req) {
   // Express honors the configured, single trusted proxy and avoids accepting a
   // spoofed arbitrary x-forwarded-for chain directly from the client.
   return String(req.ip || req.socket?.remoteAddress || 'unknown').slice(0, 128);
+}
+
+const DIRECTORY_VISITOR_COOKIE = 'dir_v';
+const DIRECTORY_VISITOR_TTL_SECONDS = 30 * 24 * 60 * 60;
+const directoryEventSecret = process.env.SESSION_SECRET;
+
+function directoryEventHash(kind, value) {
+  if (!directoryEventSecret) return null;
+  return crypto.createHmac('sha256', directoryEventSecret).update(`${kind}:${value}`).digest('hex');
+}
+
+function readRequestCookie(req, name) {
+  const encoded = String(req.get('cookie') || '').split(';').map(v => v.trim())
+    .find(v => v.startsWith(`${name}=`));
+  if (!encoded) return null;
+  try { return decodeURIComponent(encoded.slice(name.length + 1)); } catch { return null; }
+}
+
+function directoryVisitorId(req, res) {
+  const raw = readRequestCookie(req, DIRECTORY_VISITOR_COOKIE);
+  const [visitorId, signature] = String(raw || '').split('.');
+  const expected = visitorId ? directoryEventHash('directory-visitor', visitorId) : null;
+  if (visitorId && signature && expected && signature.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    return visitorId;
+  }
+  if (!directoryEventSecret) return null;
+
+  const created = crypto.randomBytes(18).toString('base64url');
+  const signed = `${created}.${directoryEventHash('directory-visitor', created)}`;
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.append('Set-Cookie', `${DIRECTORY_VISITOR_COOKIE}=${encodeURIComponent(signed)}; Max-Age=${DIRECTORY_VISITOR_TTL_SECONDS}; Path=/; HttpOnly; SameSite=Lax${secure}`);
+  return created;
+}
+
+function directoryEventIdentity(req, res) {
+  const visitorId = directoryVisitorId(req, res);
+  if (!visitorId) return null;
+  return {
+    visitorHash: directoryEventHash('directory-event', visitorId),
+    ipHash: directoryEventHash('directory-event-ip', normalizedClientIp(req))
+  };
+}
+
+function hasTrustedDirectoryEventOrigin(req) {
+  const origin = req.get('origin');
+  return !!origin && browserOrigins.has(origin);
+}
+
+function directoryEventCors(req, res, next) {
+  applyTrustedCors(req, res, 'POST, OPTIONS');
+  next();
+}
+
+function existingDirectoryVisitorHash(req) {
+  const raw = readRequestCookie(req, DIRECTORY_VISITOR_COOKIE);
+  const [visitorId, signature] = String(raw || '').split('.');
+  const expected = visitorId ? directoryEventHash('directory-visitor', visitorId) : null;
+  if (!visitorId || !signature || !expected || signature.length !== expected.length ||
+      !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  return directoryEventHash('directory-event', visitorId);
+}
+
+async function rejectDirectoryAbuse(req, res, action, listingId, reason, status = 429) {
+  await writeSecurityAudit('directory_abuse_blocked', {
+    actorType: 'public',
+    listingId: Number.isInteger(listingId) ? listingId : null,
+    metadata: {
+      action,
+      reason,
+      source_ip_hash: directoryEventHash('directory-event-ip', normalizedClientIp(req)),
+      visitor_hash: existingDirectoryVisitorHash(req)
+    }
+  });
+  return res.status(status).json({ error: status === 403 ? 'forbidden' : 'rate_limited' });
 }
 
 async function consumeDirectoryRateLimit(rateKey, maxHits, windowSeconds) {
@@ -8899,7 +8990,8 @@ app.get('/api/directory/category-counts', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('[dir-category-counts]', e.message);
+    res.status(500).json({ error: 'server_error' });
   }
 });
 
@@ -8926,31 +9018,42 @@ app.get('/api/directory/click-counts', async (req, res) => {
   }
 });
 
-function anonymousDirectoryAnalyticsKey(req) {
-  const ua = String(req.get('user-agent') || '').slice(0, 160);
-  return claimCredentialHash('analytics', `${normalizedClientIp(req)}|${ua}`);
-}
-
-async function recordDirectoryAnalytics(req, res, table, timestampColumn, dedupeMinutes, maxHits) {
+async function recordDirectoryAnalytics(req, res, table, eventType, maxHits) {
   const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'invalid_id' });
-  const allowed = await consumeDirectoryRateLimit(
-    `directory-${table}:${normalizedClientIp(req)}`, maxHits, 60 * 60
-  );
-  if (!allowed) return res.status(429).json({ error: 'rate_limited' });
-  const sessionId = anonymousDirectoryAnalyticsKey(req);
+  if (!hasTrustedDirectoryEventOrigin(req)) {
+    return rejectDirectoryAbuse(req, res, eventType, id, 'untrusted_origin', 403);
+  }
   try {
+    const identity = directoryEventIdentity(req, res);
+    if (!identity) return res.status(503).json({ error: 'temporarily_unavailable' });
+    const bucket = new Date(Math.floor(Date.now() / (30 * 60 * 1000)) * 30 * 60 * 1000);
+    const existing = await pool.query(
+      `SELECT 1 FROM ${table} WHERE listing_id=$1 AND session_id=$2 AND dedupe_bucket=$3`,
+      [id, identity.visitorHash, bucket]
+    );
+    if (existing.rows.length) return res.json({ ok: true, recorded: false });
+    const [ipAllowed, visitorAllowed, listingIpAllowed] = await Promise.all([
+      consumeDirectoryRateLimit(`directory-${eventType}-ip:${identity.ipHash}`, maxHits, 60 * 60),
+      consumeDirectoryRateLimit(`directory-${eventType}-visitor:${identity.visitorHash}`, eventType === 'click' ? 12 : 36, 60 * 60),
+      consumeDirectoryRateLimit(
+        `directory-${eventType}-listing-ip:${id}:${identity.ipHash}`,
+        eventType === 'click' ? 2 : 3,
+        30 * 60
+      )
+    ]);
+    if (!ipAllowed || !visitorAllowed || !listingIpAllowed) {
+      const reason = !ipAllowed ? 'ip_rate_limit'
+        : !visitorAllowed ? 'visitor_rate_limit' : 'listing_ip_rate_limit';
+      return rejectDirectoryAbuse(req, res, eventType, id, reason);
+    }
     const r = await pool.query(
-      `INSERT INTO ${table} (listing_id, session_id)
-       SELECT $1,$2
+      `INSERT INTO ${table} (listing_id, session_id, dedupe_bucket)
+       SELECT $1,$2,$3
        WHERE EXISTS (SELECT 1 FROM directory_listings WHERE id=$1 AND status='active')
-         AND NOT EXISTS (
-           SELECT 1 FROM ${table}
-           WHERE listing_id=$1 AND session_id=$2
-             AND ${timestampColumn} >= NOW() - $3::interval
-         )
+       ON CONFLICT (listing_id, session_id, dedupe_bucket) DO NOTHING
        RETURNING id`,
-      [id, sessionId, `${dedupeMinutes} minutes`]
+      [id, identity.visitorHash, bucket]
     );
     return res.json({ ok: true, recorded: r.rows.length > 0 });
   } catch (err) {
@@ -8960,13 +9063,21 @@ async function recordDirectoryAnalytics(req, res, table, timestampColumn, dedupe
 }
 
 // ── POST /api/directory/track/view/:id ────────────────────────────────────────
-app.post('/api/directory/track/view/:id', async (req, res) => {
-  return recordDirectoryAnalytics(req, res, 'dir_listing_views', 'viewed_at', 30, 120);
+app.options('/api/directory/track/view/:id', (req, res) => {
+  applyTrustedCors(req, res, 'POST, OPTIONS');
+  res.sendStatus(204);
+});
+app.post('/api/directory/track/view/:id', directoryEventCors, async (req, res) => {
+  return recordDirectoryAnalytics(req, res, 'dir_listing_views', 'view', 120);
 });
 
 // ── POST /api/directory/track/click/:id ───────────────────────────────────────
-app.post('/api/directory/track/click/:id', async (req, res) => {
-  return recordDirectoryAnalytics(req, res, 'dir_listing_clicks', 'clicked_at', 10, 60);
+app.options('/api/directory/track/click/:id', (req, res) => {
+  applyTrustedCors(req, res, 'POST, OPTIONS');
+  res.sendStatus(204);
+});
+app.post('/api/directory/track/click/:id', directoryEventCors, async (req, res) => {
+  return recordDirectoryAnalytics(req, res, 'dir_listing_clicks', 'click', 60);
 });
 
 // ── POST /api/directory/analytics/:id ────────────────────────────────────────
@@ -11326,6 +11437,7 @@ async function setupDB() {
       id         SERIAL PRIMARY KEY,
       listing_id INTEGER NOT NULL,
       session_id TEXT,
+      dedupe_bucket TIMESTAMPTZ,
       viewed_at  TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_listing_views:', e.message));
@@ -11335,6 +11447,7 @@ async function setupDB() {
       id         SERIAL PRIMARY KEY,
       listing_id INTEGER NOT NULL,
       session_id TEXT,
+      dedupe_bucket TIMESTAMPTZ,
       clicked_at TIMESTAMPTZ DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] dir_listing_clicks:', e.message));
@@ -11343,6 +11456,12 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlv_viewed  ON dir_listing_views(viewed_at)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlc_listing ON dir_listing_clicks(listing_id)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_dlc_clicked ON dir_listing_clicks(clicked_at)`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_listing_views ADD COLUMN IF NOT EXISTS dedupe_bucket TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_listing_clicks ADD COLUMN IF NOT EXISTS dedupe_bucket TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`DROP INDEX IF EXISTS idx_dlv_dedupe_bucket`).catch(()=>{});
+  await pool.query(`DROP INDEX IF EXISTS idx_dlc_dedupe_bucket`).catch(()=>{});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_dlv_dedupe_key ON dir_listing_views(listing_id, session_id, dedupe_bucket)`).catch(e => console.error('[DB] dir_listing_views dedupe:', e.message));
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_dlc_dedupe_key ON dir_listing_clicks(listing_id, session_id, dedupe_bucket)`).catch(e => console.error('[DB] dir_listing_clicks dedupe:', e.message));
 
   // Seed with real products
   const _dirSeed = [
@@ -16941,11 +17060,7 @@ app.post('/test-sequence', async (req, res) => {
 // ─── REBUILD REQUEST SUBMISSION ───────────────────────────────────────────────
 
 app.post('/submit-rebuild', async (req, res) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  });
+  applyTrustedCors(req, res, 'POST, OPTIONS');
 
   const { email, company, content } = req.body || {};
 
@@ -16981,11 +17096,8 @@ app.post('/submit-rebuild', async (req, res) => {
 });
 
 app.options('/submit-rebuild', (req, res) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  }).sendStatus(204);
+  applyTrustedCors(req, res, 'POST, OPTIONS');
+  res.sendStatus(204);
 });
 
 app.get('/subscribe/thanks', (req, res) => {
