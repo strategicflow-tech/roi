@@ -188,6 +188,10 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
     const isTransactional = _skipGlobalCooldown || /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
 
     if (!isAdminAddr && !isTransactional) {
+      if (await isUnsubscribed(to)) {
+        console.log(`[global-unsubscribe] blocked → ${to} | subj: "${subj.slice(0,60)}"`);
+        return { id: 'unsubscribe-blocked', unsubscribed: true };
+      }
       let blocked = false;
       try { blocked = await wasEmailedRecently(to); } catch { /* non-fatal */ }
       if (blocked) {
