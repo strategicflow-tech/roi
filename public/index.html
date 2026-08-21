@@ -2986,12 +2986,21 @@ async function requestReview() {
 }
 
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
+let adminCsrfToken = null;
+async function getAdminCsrfToken() {
+  if (adminCsrfToken) return adminCsrfToken;
+  const response = await fetch('/auth/csrf', { credentials: 'same-origin' });
+  if (!response.ok) throw new Error('Admin session required');
+  adminCsrfToken = (await response.json()).token;
+  return adminCsrfToken;
+}
+
 async function loadAdmin() {
   document.getElementById('adminEmailLabel').textContent = currentEmail;
   try {
     const [stats, users] = await Promise.all([
-      fetch('/admin/stats', { headers: { 'x-admin-email': currentEmail } }).then(r => r.json()),
-      fetch('/admin/users', { headers: { 'x-admin-email': currentEmail } }).then(r => r.json())
+      fetch('/admin/stats', { credentials: 'same-origin' }).then(r => r.json()),
+      fetch('/admin/users', { credentials: 'same-origin' }).then(r => r.json())
     ]);
     const tierMap = {};
     (stats.tierCounts || []).forEach(r => tierMap[r.tier] = r.count);
@@ -3053,7 +3062,7 @@ function renderNLList(nls) {
 async function searchUsers() {
   const q = document.getElementById('adminSearch').value;
   try {
-    const data = await fetch(`/admin/users?q=${encodeURIComponent(q)}`, { headers: { 'x-admin-email': currentEmail } }).then(r => r.json());
+    const data = await fetch(`/admin/users?q=${encodeURIComponent(q)}`, { credentials: 'same-origin' }).then(r => r.json());
     renderUserList(data.users || []);
   } catch (e) {}
 }
@@ -3061,7 +3070,7 @@ async function searchUsers() {
 async function upgradeUser(email, tier) {
   if (!tier) return;
   try {
-    await fetch('/admin/upgrade', { method:'POST', headers:{ 'content-type':'application/json','x-admin-email':currentEmail }, body: JSON.stringify({ email, tier }) });
+    await fetch('/admin/upgrade', { method:'POST', credentials:'same-origin', headers:{ 'content-type':'application/json','X-CSRF-Token': await getAdminCsrfToken() }, body: JSON.stringify({ email, tier }) });
     await loadAdmin();
   } catch (e) { alert('Upgrade failed: ' + e.message); }
 }

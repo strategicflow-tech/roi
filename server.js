@@ -27,6 +27,7 @@ const { enrichListingWithAI } = require('./listing-enricher');
 const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
+const { safeFetchPublicUrl, validatePublicHttpUrl } = require('./safe-url-fetch');
 
 const app    = express();
 app.set('trust proxy', 1);
@@ -529,6 +530,86 @@ app.use((req, res, next) => {
 });
 
 app.use(requireAuth);
+
+// ── ADMIN SESSION + CSRF PROTECTION ───────────────────────────────────────────
+// All browser-accessible admin routes use the existing PostgreSQL-backed session.
+// A narrow header-only job token remains for the one local maintenance job that
+// cannot hold a browser session; URL credentials are always rejected.
+const ADMIN_MUTATING_GET_PATHS = new Set([
+  '/promote-listing', '/set-votes', '/refetch-logo', '/aggregate', '/set-owner-promoted',
+  '/clear-bad-logos', '/fetch-logos', '/strict-logo-refresh', '/fix-wide-logos',
+  '/fix-owner-listings', '/extract-emails', '/run-vote-growth', '/enrich-listings',
+  '/backfill-logos', '/recategorize-other', '/insert-batch1', '/insert-batch2',
+  '/send-blog-newsletter', '/insert-invisible-exit', '/insert-directree',
+  '/fix-peerlist-noclaim', '/insert-fetchrly', '/insert-knight-leads',
+  '/rank-spread-votes', '/redistribute-votes', '/toggle-promoted', '/seed-votes',
+  '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
+  '/directory/winners/compute',
+]);
+
+function hasMatchingAdminJobToken(req) {
+  const expected = process.env.WHY_ADMIN_KEY || '';
+  const supplied = String(req.get('x-admin-job-token') || '');
+  if (!expected || !supplied || expected.length !== supplied.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied));
+}
+
+function getAdminCsrfToken(req) {
+  if (!req.session.adminCsrfToken) {
+    req.session.adminCsrfToken = crypto.randomBytes(32).toString('base64url');
+  }
+  return req.session.adminCsrfToken;
+}
+
+function hasValidAdminCsrfToken(req) {
+  const expected = String(req.session?.adminCsrfToken || '');
+  const supplied = String(req.get('x-csrf-token') || '');
+  if (!expected || !supplied || expected.length !== supplied.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied));
+}
+
+function requireAdminSession(req, res, next) {
+  // Never accept credentials from URLs: they leak through history, referrers and logs.
+  if (Object.prototype.hasOwnProperty.call(req.query || {}, 'key')) {
+    return res.status(400).json({ error: 'URL credentials are not supported.' });
+  }
+
+  const internalBackfillJob = req.baseUrl === '/admin' &&
+    req.path === '/backfill-logos' &&
+    req.method === 'POST' &&
+    hasMatchingAdminJobToken(req);
+  const sessionAdmin = isAdmin(req.session?.userEmail);
+  if (!sessionAdmin && !internalBackfillJob) {
+    if (req.accepts(['html', 'json']) === 'html') return res.redirect('/login.html');
+    return res.status(401).json({ error: 'Admin session required.' });
+  }
+
+  const originalMethod = req.method;
+  if (originalMethod === 'GET' && ADMIN_MUTATING_GET_PATHS.has(req.path)) {
+    return res.status(405).json({ error: 'Use POST for this admin action.' });
+  }
+  if (!internalBackfillJob && !['GET', 'HEAD', 'OPTIONS'].includes(originalMethod) && !hasValidAdminCsrfToken(req)) {
+    return res.status(403).json({ error: 'Invalid CSRF token.' });
+  }
+
+  // During the route-by-route migration, existing checks receive an in-process
+  // sentinel only after session/job authorization. It never comes from the URL.
+  req.query.key = process.env.WHY_ADMIN_KEY;
+  if (originalMethod === 'POST' && ADMIN_MUTATING_GET_PATHS.has(req.path)) req.method = 'GET';
+  next();
+}
+
+app.get('/auth/csrf', requireAdminSession, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ token: getAdminCsrfToken(req) });
+});
+
+app.use('/admin', requireAdminSession);
+app.use('/debug', requireAdminSession);
+app.use('/api/directory/outreach-queue', requireAdminSession);
+app.use('/api/why-stats', requireAdminSession);
+app.use('/api/why-log', requireAdminSession);
+app.use('/test-sequence', requireAdminSession);
 
 // ── AI-crawler visit logger (fire-and-forget, non-blocking) ─────────────────
 const AI_CRAWLERS_RE = /ClaudeBot|GPTBot|OAI-SearchBot|PerplexityBot|Google-Extended|CCBot|anthropic-ai|Claude-Web|Applebot-Extended|Bytespider/i;
@@ -2556,15 +2637,11 @@ app.get('/api/directory/listings', async (req, res) => {
 // Strict validation rejects cross-domain images, hero/screenshot URL patterns,
 // tiny tracking pixels, and known generic CMS placeholder patterns.
 async function fetchProductLogo(url) {
-  const timedFetch = (u, ms = 8000) => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    return fetch(u, {
-      signal: ctrl.signal,
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' }
-    }).finally(() => clearTimeout(t));
-  };
+  const timedFetch = (u, ms = 8000) => safeFetchPublicUrl(u, {
+    timeoutMs: ms,
+    maxBytes: 1024 * 1024,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' },
+  });
 
   let base, domain;
   try {
@@ -2777,15 +2854,11 @@ function isBlockedOutreachTarget(listingName, email) {
 // Only collects emails from mailto: links or text near contact keywords/footer.
 // Never guesses or constructs addresses. Respects robots.txt and rate-limits.
 async function extractContactEmail(productUrl) {
-  const timedFetch = (u, ms = 10000) => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    return fetch(u, {
-      signal: ctrl.signal,
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' }
-    }).finally(() => clearTimeout(t));
-  };
+  const timedFetch = (u, ms = 10000) => safeFetchPublicUrl(u, {
+    timeoutMs: ms,
+    maxBytes: 1024 * 1024,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0; +https://strategic-flow-audit.replit.app/directory)' },
+  });
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   let base;
@@ -3521,7 +3594,7 @@ app.post('/admin/extract-contacts-bg', async (req, res) => {
     const EMAIL_RE2 = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
     const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your)/i;
     const SKIP_D = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com/i;
-    const tf = (u) => { const c=new AbortController(); const t=setTimeout(()=>c.abort(),5000); return fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}}).finally(()=>clearTimeout(t)); };
+    const tf = (u) => safeFetchPublicUrl(u, { timeoutMs: 5000, maxBytes: 1024 * 1024, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' } });
     const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
     const getEmail = html => {
       const mt=[...html.matchAll(/href=["']mailto:([^"'?\s]{3,80})["']/gi)].map(m=>m[1].split('?')[0].toLowerCase().trim()).filter(e=>/^[^@]{1,40}@[^@]{1,60}\.[a-z]{2,10}$/.test(e)&&!SKIP_L.test(e)&&!SKIP_D.test(e)&&!isJunkEmail(e));
@@ -3571,7 +3644,7 @@ app.post('/admin/extract-contacts-bg', async (req, res) => {
   });
 });
 
-// GET /admin/emails?key=… — HTML admin view of extracted contacts
+// GET /admin/emails — HTML admin view of extracted contacts
 app.get('/admin/emails', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
@@ -3590,7 +3663,6 @@ app.get('/admin/emails', async (req, res) => {
       a[k] = (a[k] || 0) + 1; return a;
     }, {});
     const baseUrl = 'https://strategic-flow-audit.replit.app';
-    const key = req.query.key;
     const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
     const rows_html = rows.map(r => {
@@ -3641,8 +3713,8 @@ a{color:#94a3b8}
 </div>
 <div class="actions">
   <button class="btn-primary" onclick="runExtraction()">▶ Extract next 50</button>
-  <a class="btn btn-secondary" href="/admin/emails.csv?key=${key}">⬇ Download CSV</a>
-  <a class="btn btn-secondary" href="/admin/emails?key=${key}">↺ Refresh</a>
+  <a class="btn btn-secondary" href="/admin/emails.csv">⬇ Download CSV</a>
+  <a class="btn btn-secondary" href="/admin/emails">↺ Refresh</a>
 </div>
 <div class="progress" id="prog"></div>
 <table>
@@ -3653,7 +3725,8 @@ a{color:#94a3b8}
 async function runExtraction(){
   const prog=document.getElementById('prog');
   prog.style.display='block'; prog.textContent='Starting…\n';
-  const r=await fetch('/admin/extract-emails?key=${key}&batch=50');
+  const csrf=await fetch('/auth/csrf',{credentials:'same-origin'}).then(r=>r.json()).then(d=>d.token);
+  const r=await fetch('/admin/extract-emails?batch=50',{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});
   const reader=r.body.getReader();const dec=new TextDecoder();
   while(true){const{done,value}=await reader.read();if(done)break;
     prog.textContent+=dec.decode(value);prog.scrollTop=prog.scrollHeight;}
@@ -3666,7 +3739,7 @@ async function runExtraction(){
   }
 });
 
-// GET /admin/emails.csv?key=… — CSV export of all contact emails
+// GET /admin/emails.csv — CSV export of all contact emails
 app.get('/admin/emails.csv', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   try {
@@ -3701,7 +3774,7 @@ app.get('/admin/emails.csv', async (req, res) => {
   }
 });
 
-// ── GET /api/directory/outreach-queue?key=… ──────────────────────────────────
+// ── GET /api/directory/outreach-queue ────────────────────────────────────────
 // Returns active + draft listings with contact info for the outreach tracker.
 // Fields: id, name, page, cat, email, li, big, emailed_at, status, claimed_at, follow_up_sent_at
 app.get('/api/directory/outreach-queue', async (req, res) => {
@@ -4667,7 +4740,7 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
     const EMAIL_RE = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
     const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your|admin|webmaster|info@example|hello@gmail|support@gmail|contact@gmail|you@|hello@email|hello@company|hello@lawfirm|footer_|logo@|gf-icn)/i;
     const SKIP_D = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com|gmail\.com$|yahoo\.com$|hotmail\.com$/i;
-    const tf = (u) => { const c=new AbortController(); const t=setTimeout(()=>c.abort(),8000); return fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}}).finally(()=>clearTimeout(t)); };
+    const tf = (u) => safeFetchPublicUrl(u, { timeoutMs: 8000, maxBytes: 1024 * 1024, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' } });
     const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');
     const getEmail = html => {
       const text = cl(html);
@@ -4861,7 +4934,7 @@ app.get('/admin/backfill-logos', async (req, res) => {
         return false;
       } catch { return false; }
     }
-    async function timedFetch(u,ms=7000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);try{return await fetch(u,{signal:c.signal,redirect:'follow',headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}});}finally{clearTimeout(t);}}
+    async function timedFetch(u,ms=7000){return safeFetchPublicUrl(u,{timeoutMs:ms,maxBytes:1024*1024,headers:{'User-Agent':'Mozilla/5.0 (compatible; ToolIndex/1.0)'}});}
     async function getBetterLogo(siteUrl) {
       let base,domain;
       try{const p=new URL(siteUrl);base=p.origin;domain=p.hostname.replace(/^www\/./,'');}catch{return null;}
@@ -10810,13 +10883,11 @@ async function setupDB() {
 // ─── DIRECTORY FRICTION SCORING ──────────────────────────────────────────────
 async function computeDirectoryFrictionScore(id, url) {
   try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 12000);
-    const resp = await fetch(url, {
-      signal: ctrl.signal,
+    const resp = await safeFetchPublicUrl(url, {
+      timeoutMs: 12000,
+      maxBytes: 1024 * 1024,
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow-DFM/1.0 +https://strategic-flow-audit.replit.app/directory)' }
     }).catch(() => null);
-    clearTimeout(tid);
     if (!resp || !resp.ok) {
       await pool.query('UPDATE directory_listings SET score_pending=FALSE WHERE id=$1', [id]);
       return;
@@ -10965,7 +11036,7 @@ async function bumpCount(email) {
 
 async function verifyImageUrl(url) {
   try {
-    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+    const res = await safeFetchPublicUrl(url, { method: 'HEAD', timeoutMs: 3000, maxBytes: 1 });
     return res.ok;
   } catch { return false; }
 }
@@ -12628,13 +12699,15 @@ app.get('/health', (_, res) => res.json({ ok: true, model: MODEL, ts: new Date()
 app.get('/proxy-image', async (req, res) => {
   try {
     const url = decodeURIComponent(req.query.url || '');
-    if (!url.startsWith('http')) return res.status(400).end();
-    const response = await fetch(url, {
+    const response = await safeFetchPublicUrl(url, {
+      timeoutMs: 8000,
+      maxBytes: 5 * 1024 * 1024,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
     });
     if (!response.ok) return res.status(404).end();
+    const contentType = response.headers.get('content-type') || '';
+    if (!/^image\/(?:png|jpeg|gif|webp|avif)$/i.test(contentType)) return res.status(415).end();
     const buffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/png';
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(Buffer.from(buffer));
@@ -12745,7 +12818,6 @@ function extractTables(html) {
 async function fetchPageContent(rawUrl) {
   let url = rawUrl.trim();
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  const fetch = (await import('node-fetch')).default;
 
   const BROWSER_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -12800,7 +12872,7 @@ async function fetchPageContent(rawUrl) {
 
   // Strategy 1: Direct fetch with realistic browser headers
   try {
-    const resp = await fetch(url, { signal: AbortSignal.timeout(12000), headers: BROWSER_HEADERS });
+    const resp = await safeFetchPublicUrl(url, { timeoutMs: 12000, maxBytes: 1024 * 1024, headers: BROWSER_HEADERS });
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
@@ -12811,26 +12883,13 @@ async function fetchPageContent(rawUrl) {
   // Strategy 2: Google Cache
   try {
     const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
-    const resp = await fetch(cacheUrl, { signal: AbortSignal.timeout(8000), headers: BROWSER_HEADERS });
+    const resp = await safeFetchPublicUrl(cacheUrl, { timeoutMs: 8000, maxBytes: 1024 * 1024, headers: BROWSER_HEADERS });
     if (resp.ok) {
       const html = await resp.text();
       const parsed = parseHtml(html);
       if (parsed.text.length >= 100) return { ...parsed, url, rawHtml: html };
     }
   } catch (e) { console.log('[fetch] strategy 2 (Google Cache) failed:', e.message); }
-
-  // Strategy 3: HTTP fallback (some servers reject HTTPS-only requests)
-  try {
-    const httpUrl = url.replace(/^https:\/\//i, 'http://');
-    if (httpUrl !== url) {
-      const resp = await fetch(httpUrl, { signal: AbortSignal.timeout(8000), headers: BROWSER_HEADERS });
-      if (resp.ok) {
-        const html = await resp.text();
-        const parsed = parseHtml(html);
-        if (parsed.text.length >= 100) return { ...parsed, url, rawHtml: html };
-      }
-    }
-  } catch (e) { console.log('[fetch] strategy 3 (HTTP) failed:', e.message); }
 
   console.log('[fetch] all strategies exhausted for:', url);
   return null;
@@ -13776,9 +13835,7 @@ app.post('/human-review', async (req, res) => {
 
 // ── ADMIN STATS ──
 app.get('/admin/stats', async (req, res) => {
-  const adminOk = isAdmin(req.session?.userEmail) ||
-    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
-  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
+  if (!isAdmin(req.session?.userEmail)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const [tiers, totU, totN, recent] = await Promise.all([
       pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC'),
@@ -13792,9 +13849,7 @@ app.get('/admin/stats', async (req, res) => {
 
 // ── ADMIN LEARNING INSIGHTS ──
 app.get('/admin/learning-insights', async (req, res) => {
-  const adminOk = isAdmin(req.session?.userEmail) ||
-    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
-  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
+  if (!isAdmin(req.session?.userEmail)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const [industriesRes, lengthRes, recentRes, subjectsRes] = await Promise.all([
       pool.query(`
@@ -13851,9 +13906,7 @@ app.get('/admin/learning-insights', async (req, res) => {
 
 // ── ADMIN USERS ──
 app.get('/admin/users', async (req, res) => {
-  const adminOk = isAdmin(req.session?.userEmail) ||
-    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
-  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
+  if (!isAdmin(req.session?.userEmail)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const q = req.query.q ? `%${req.query.q}%` : '%';
     const r = await pool.query(
@@ -13865,9 +13918,7 @@ app.get('/admin/users', async (req, res) => {
 
 // ── ADMIN UPGRADE ──
 app.post('/admin/upgrade', async (req, res) => {
-  const adminOk = isAdmin(req.session?.userEmail) ||
-    (isAdmin(req.headers['x-admin-email']) && req.headers['x-admin-key'] === process.env.WHY_ADMIN_KEY);
-  if (!adminOk) return res.status(403).json({ error: 'Forbidden' });
+  if (!isAdmin(req.session?.userEmail)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const { email, tier } = req.body;
     if (!email || !TIER_CONFIGS[tier]) return res.status(400).json({ error: 'Invalid' });
@@ -16204,10 +16255,12 @@ app.post('/api/blink-test', async (req, res) => {
   // If URL, fetch and strip to text
   if (/^https?:\/\//i.test(content)) {
     try {
-      const urlResp = await fetch(content, {
-        signal: AbortSignal.timeout(5000),
+      const urlResp = await safeFetchPublicUrl(content, {
+        timeoutMs: 5000,
+        maxBytes: 1024 * 1024,
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StrategicFlow/1.0)' }
       });
+      if (!urlResp.ok) return res.status(400).json({ error: 'Could not fetch URL. Paste the text directly.' });
       const html = await urlResp.text();
       content = html
         // Remove structural chrome wholesale before any text is extracted
@@ -16332,10 +16385,9 @@ app.post('/architecture-signup', async (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/test-sequence', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).send('Forbidden');
-  const email = (req.query.email || '').toLowerCase().trim();
-  if (!email) return res.status(400).json({ error: 'Provide ?email=...' });
+app.post('/test-sequence', async (req, res) => {
+  const email = (req.body.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'Provide an email address.' });
   const results = [];
   for (const seqItem of SEQ_EMAILS) {
     try {
@@ -16442,7 +16494,7 @@ app.get('/subscribe/thanks', (req, res) => {
 // ─── END LEAD MAGNET ──────────────────────────────────────────────────────────
 
 // ─── OUTREACH AUDIT ───────────────────────────────────────────────────────────
-// POST /outreach-audit — internal lead-gen endpoint, no auth required
+// POST /outreach-audit — internal lead-gen endpoint, requires job-token header
 // Runs a full /generate call with bypass email and returns a simplified audit
 // suitable for personalised cold outreach.
 
@@ -16451,7 +16503,7 @@ app.get('/subscribe/thanks', (req, res) => {
 async function resolveLatestBlogUrl(baseUrl) {
   let origin;
   try {
-    origin = new URL(baseUrl).origin; // e.g. https://heygen.com
+    origin = new URL(await validatePublicHttpUrl(baseUrl)).origin; // e.g. https://heygen.com
   } catch {
     return null;
   }
@@ -16461,8 +16513,9 @@ async function resolveLatestBlogUrl(baseUrl) {
   for (const path of RSS_PATHS) {
     const feedUrl = origin + path;
     try {
-      const resp = await fetch(feedUrl, {
-        signal:  AbortSignal.timeout(5000),
+      const resp = await safeFetchPublicUrl(feedUrl, {
+        timeoutMs: 5000,
+        maxBytes: 512 * 1024,
         headers: { 'Accept': 'application/rss+xml, application/xml, text/xml, */*' }
       });
       if (!resp.ok) continue;
@@ -16478,7 +16531,7 @@ async function resolveLatestBlogUrl(baseUrl) {
         xml.match(/<entry[\s\S]*?<link[^>]+href="(https?:\/\/[^"]+)"/i);
 
       if (match && match[1]) {
-        const resolved = match[1].trim();
+        const resolved = await validatePublicHttpUrl(match[1].trim());
         console.log(`[outreach-audit] RSS found at ${feedUrl} → ${resolved}`);
         return resolved;
       }
@@ -16491,16 +16544,20 @@ async function resolveLatestBlogUrl(baseUrl) {
 }
 
 app.post('/outreach-audit', async (req, res) => {
-  if (req.headers['x-sf-key'] !== 'sf-internal-2026') {
+  if (!hasMatchingAdminJobToken(req)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('[outreach-audit] req.body:', JSON.stringify(req.body));
-
-  const { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
+  let { pageUrl, prospectName, prospectCompany, prospectTitle } = req.body;
 
   if (!pageUrl || !prospectCompany) {
     return res.status(400).json({ error: 'pageUrl and prospectCompany are required' });
+  }
+
+  try {
+    pageUrl = await validatePublicHttpUrl(pageUrl);
+  } catch {
+    return res.status(400).json({ error: 'pageUrl must be a public HTTP(S) URL.' });
   }
 
   // Resolve to latest blog post if an RSS feed exists; otherwise use original URL
@@ -20300,7 +20357,10 @@ setupDB().then(async () => {
       if (noLogoCount.rows[0].n > 0 && !_backfillLogosRunning) {
         console.log(`[startup] ${noLogoCount.rows[0].n} listings without real logos — starting auto-backfill`);
         // Trigger via internal call (reuses the same logic as /admin/backfill-logos)
-        fetch(`http://localhost:${process.env.PORT||3000}/admin/backfill-logos?key=${process.env.WHY_ADMIN_KEY}`)
+        fetch(`http://localhost:${process.env.PORT||3000}/admin/backfill-logos`, {
+          method: 'POST',
+          headers: { 'X-Admin-Job-Token': process.env.WHY_ADMIN_KEY }
+        })
           .catch(()=>{});
       }
     } catch(e) { console.error('[startup] logo-backfill-check err:', e.message); }
@@ -20687,11 +20747,7 @@ setupDB().then(async () => {
   });
 
   app.get('/api/why-stats', (req, res) => {
-    const adminKey = process.env.WHY_ADMIN_KEY;
-    const provided = req.headers['x-admin-key'] || req.query.key;
-    if (!adminKey || provided !== adminKey) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!isAdmin(req.session?.userEmail)) return res.status(401).json({ error: 'Unauthorized' });
     const log = readWhyLog();
     const now = Date.now();
     const cutoff = now - 24 * 60 * 60 * 1000;
@@ -20718,11 +20774,7 @@ setupDB().then(async () => {
   });
 
   app.get('/api/why-log', async (req, res) => {
-    const adminKey = process.env.WHY_ADMIN_KEY;
-    const provided = req.headers['x-admin-key'] || req.query.key;
-    if (!adminKey || provided !== adminKey) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!isAdmin(req.session?.userEmail)) return res.status(401).json({ error: 'Unauthorized' });
     try {
       const page    = Math.max(1, parseInt(req.query.page) || 1);
       const limit   = 50;
@@ -22217,9 +22269,9 @@ setupDB().then(async () => {
   // GET /ga-report?start=7daysAgo&end=today          (site-wide top 20)
   // GET /ga-report?top=20&start=7daysAgo&end=today   (explicit top N)
   app.get('/ga-report', async (req, res) => {
-    const adminKey = req.headers['x-admin-key'] || req.query.key;
+    const adminKey = req.headers['x-admin-key'];
     if (!adminKey || (adminKey !== process.env.WHY_ADMIN_KEY && (!ADMIN_PASSWORD || adminKey !== ADMIN_PASSWORD))) {
-      return res.status(401).json({ error: 'Unauthorized — pass X-Admin-Key header or ?key= param' });
+      return res.status(401).json({ error: 'Unauthorized — pass X-Admin-Key header.' });
     }
     try {
       const { queryPageViews, topPages } = require('./ga4');

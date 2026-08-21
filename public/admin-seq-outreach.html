@@ -58,7 +58,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="sub">noreply@strategicflow.tech · reply-to: strategicflow@proton.me · daily cap: <span id="capLabel">25</span></div>
 
 <div class="key-form">
-  <input type="password" id="adminKey" placeholder="Admin key (WHY_ADMIN_KEY)" />
   <button class="btn" onclick="loadAll()">Load dashboard</button>
 </div>
 <div id="globalErr" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;font-size:12px;font-family:monospace;padding:10px 14px;border-radius:6px;margin-bottom:16px"></div>
@@ -133,20 +132,29 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 
 <script>
-const KEY = () => document.getElementById('adminKey').value.trim();
 let currentPage = 1, debTimer = null;
+let csrfToken = null;
+
+async function getCsrfToken() {
+  if (csrfToken) return csrfToken;
+  const response = await fetch('/auth/csrf', { credentials: 'same-origin' });
+  if (!response.ok) throw new Error(response.status === 401 ? 'sign in as an admin first' : 'unable to start admin session');
+  csrfToken = (await response.json()).token;
+  return csrfToken;
+}
 
 async function api(path, opts={}) {
-  const sep = path.includes('?') ? '&' : '?';
-  const r = await fetch(path + sep + 'key=' + encodeURIComponent(KEY()), opts);
-  if (!r.ok && r.status === 403) throw new Error('forbidden');
+  const method = (opts.method || 'GET').toUpperCase();
+  const headers = new Headers(opts.headers || {});
+  if (!['GET', 'HEAD'].includes(method)) headers.set('X-CSRF-Token', await getCsrfToken());
+  const r = await fetch(path, { ...opts, method, headers, credentials: 'same-origin' });
+  if (!r.ok) throw new Error(r.status === 401 ? 'sign in as an admin first' : r.status === 403 ? 'request was rejected' : 'request failed');
   return r.json();
 }
 
 async function loadAll() {
   const errEl = document.getElementById('globalErr');
   errEl.style.display = 'none';
-  if (!KEY()) { alert('Enter admin key first'); return; }
   try {
     await Promise.all([loadStats(), loadContacts(1)]);
     document.getElementById('statsGrid').style.display = '';
@@ -155,7 +163,7 @@ async function loadAll() {
     document.getElementById('contactsPanel').style.display = '';
   } catch(e) {
     errEl.style.display = '';
-    errEl.textContent = 'API error: ' + e.message + ' — check the admin key.';
+    errEl.textContent = 'API error: ' + e.message + '.';
   }
 }
 
@@ -270,12 +278,7 @@ async function runBatch() {
 function debounceLoad() { clearTimeout(debTimer); debTimer=setTimeout(()=>loadContacts(1),400); }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Script is at bottom of <body> — DOM is ready, async functions are hoisted.
-// Auto-fill key from ?key= and load immediately if present.
-(function() {
-  const k = new URLSearchParams(window.location.search).get('key');
-  if (k) { document.getElementById('adminKey').value = k; loadAll(); }
-})();
+// Script is at bottom of <body>; the dashboard loads after the admin clicks the button.
 </script>
 </body>
 </html>

@@ -226,15 +226,30 @@
   const RING_LEN     = 151;
   const STORAGE_KEY  = 'ti_outreach_contacted_v2';
 
-  const urlKey = new URLSearchParams(location.search).get('key') || '';
+  let csrfToken = null;
+
+  async function getCsrfToken(){
+    if (csrfToken) return csrfToken;
+    const response = await fetch('/auth/csrf', { credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Este necesară autentificarea admin.');
+    csrfToken = (await response.json()).token;
+    return csrfToken;
+  }
+
+  async function adminPost(path){
+    return fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRF-Token': await getCsrfToken() }
+    });
+  }
 
   // ── Fetch data ──
   let DATA = [];
   try {
-    const apiUrl = '/api/directory/outreach-queue' + (urlKey ? '?key=' + encodeURIComponent(urlKey) : '');
-    const resp = await fetch(apiUrl);
+    const resp = await fetch('/api/directory/outreach-queue', { credentials: 'same-origin' });
     if (!resp.ok) {
-      list.innerHTML = '<div class="empty">Eroare la încărcare (' + resp.status + '). Verifică URL-ul și cheia.</div>';
+      list.innerHTML = '<div class="empty">Eroare la încărcare (' + resp.status + '). Autentifică-te ca administrator și reîncearcă.</div>';
       return;
     }
     DATA = await resp.json();
@@ -311,12 +326,11 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
 
   // ── Send via Resend (single listing) ──
   async function sendViaResend(id, btn){
-    if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
     btn.disabled = true;
     btn.classList.add('sending');
     btn.textContent = '⏳ Se trimite…';
     try {
-      const r = await fetch('/admin/send-claim-outreach?key=' + encodeURIComponent(urlKey) + '&id=' + id, { method: 'POST' });
+      const r = await adminPost('/admin/send-claim-outreach?id=' + encodeURIComponent(id));
       const d = await r.json();
       if(d.ok){
         // Update local data
@@ -515,7 +529,6 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
   // ── Batch send (25 at a time) ──
   // ALWAYS queues from full DATA — never from the currently visible filtered subset
   batchBtn.addEventListener('click', async ()=>{
-    if(!urlKey){ alert('Lipsește cheia din URL (?key=…)'); return; }
     // Use full DATA regardless of active tab/filter/search
     // Exclude claimed listings — owner already knows about ToolIndex
     const fullQueue = DATA.filter(d => d.email && !d.emailed_at && !d.claimed_at);
@@ -531,7 +544,7 @@ Vrei să crești vizibilitatea prin featured placement sau backlink prioritar? M
     let ok = 0, fail = 0, quotaHit = false;
     for(const item of batch){
       try {
-        const r = await fetch('/admin/send-claim-outreach?key=' + encodeURIComponent(urlKey) + '&id=' + item.id, { method: 'POST' });
+        const r = await adminPost('/admin/send-claim-outreach?id=' + encodeURIComponent(item.id));
         const d = await r.json();
         if(d.ok || d.error === 'already_sent'){
           item.emailed_at = d.sent_at || new Date().toISOString();

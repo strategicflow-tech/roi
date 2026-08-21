@@ -47,11 +47,8 @@ integrations = ["resend:1.0.0"]
 RESEND_FROM = "onboarding@resend.dev"
 RESEND_TO = "consultantcalatorii@gmail.com"
 APP_URL = "https://strategic-flow-audit.replit.app"
-WHY_ADMIN_KEY = "6dafcdb7-c4ea-4d7e-9ed6-67feceff0fba"
 WHY_CREDITS_PRICE_ID = "price_1TxF13DpTwoDeZJn43U5Wfmz"
 ADMIN_EMAILS = "strategicflow@proton.me,consultantcalatorii@gmail.com,alex@strategicflow.tech"
-ADMIN_PASSWORD = "fb57278e097228385ce422171fca31c6523db19d805f5ca3"
-OWNER_PASSWORD = "d5ecba336e1ef6ca244ae9a875345f6beb2d7d0809200eeb"
 
 [postMerge]
 path = "scripts/post-merge.sh"

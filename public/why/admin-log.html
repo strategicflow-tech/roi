@@ -154,7 +154,7 @@
   <div class="subtitle">Source: why_jobs — all requests, free and Pro</div>
 
   <div id="no-key" class="no-key" style="display:none">
-    Add <code>?key=YOUR_WHY_ADMIN_KEY</code> to the URL to access this page.
+    Sign in with an administrator account to access this page.
   </div>
 
   <div id="main" style="display:none">
@@ -201,17 +201,11 @@
   </div>
 
   <script>
-    const params  = new URLSearchParams(location.search);
-    const KEY     = params.get('key') || '';
     let currentPage = 1;
     let totalPages  = 1;
 
-    if (!KEY) {
-      document.getElementById('no-key').style.display = 'block';
-    } else {
-      document.getElementById('main').style.display = 'block';
-      goPage(1);
-    }
+    document.getElementById('main').style.display = 'block';
+    goPage(1);
 
     function goPage(n) {
       currentPage = n;
@@ -231,14 +225,14 @@
       pager.style.display     = 'none';
       errBanner.style.display = 'none';
 
-      const qs = new URLSearchParams({ key: KEY, page: currentPage });
+      const qs = new URLSearchParams({ page: currentPage });
       if (status)  qs.set('status', status);
       if (jobType) qs.set('job_type', jobType);
 
       try {
-        const r = await fetch('/api/why-log?' + qs.toString());
+        const r = await fetch('/api/why-log?' + qs.toString(), { credentials: 'same-origin' });
         if (r.status === 401) {
-          errBanner.textContent   = 'Unauthorized — check your ?key= value.';
+          errBanner.textContent   = 'Unauthorized — sign in with an administrator account.';
           errBanner.style.display = 'block';
           loading.style.display   = 'none';
           return;

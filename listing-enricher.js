@@ -1,4 +1,5 @@
 'use strict';
+const { safeFetchPublicUrl } = require('./safe-url-fetch');
 /**
  * listing-enricher.js
  * Generates AI-powered insights for a directory listing using Claude.
@@ -14,13 +15,13 @@
 
 async function crawlHomepage(productUrl, timeoutMs = 10000) {
   try {
-    const resp = await fetch(productUrl, {
-      redirect: 'follow',
+    const resp = await safeFetchPublicUrl(productUrl, {
+      timeoutMs,
+      maxBytes: 1024 * 1024,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex-Enricher/1.0)',
         'Accept': 'text/html,application/xhtml+xml,*/*',
       },
-      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!resp.ok) return '';
     const html = await resp.text();

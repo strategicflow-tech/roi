@@ -7,6 +7,7 @@
 
 const FETCH_TIMEOUT_MS = 12000;
 const PAGE_DELAY_MS    = 280; // delay between HTML page fetches to avoid rate-limiting
+const { safeFetchPublicUrl } = require('./safe-url-fetch');
 
 // ── Low-level helpers ─────────────────────────────────────────────────────────
 
@@ -14,16 +15,11 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 async function safeFetch(url, extra = {}) {
   try {
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-    const resp = await fetch(url, {
+    return await safeFetchPublicUrl(url, {
       headers: { 'User-Agent': UA, ...extra.headers },
-      redirect: 'follow',
-      signal: ctrl.signal,
-      ...extra,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: 1024 * 1024,
     });
-    clearTimeout(tid);
-    return resp;
   } catch { return null; }
 }
 
