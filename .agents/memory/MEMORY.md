@@ -7,3 +7,4 @@
 - [ToolIndex newsletter consent](toolindex-newsletter-consent.md) — promotional founder emails require explicit double opt-in; operational owner notices must omit promos unless confirmed.
 - [Strategic Flow chat initialization](strategicflow-chat-initialization.md) — initialize the GitHub Pages widget after DOMContentLoaded and route answers through the server-side chat API.
 - [Public fetches and admin authorization](public-fetches-admin-authorization.md) — user-controlled URLs use the shared safe fetch boundary; browser admin actions use session plus CSRF, never URL keys.
+- [Stripe webhook recovery](stripe-webhook-recovery.md) — scope ledger entries by endpoint plus event; never acknowledge an in-flight delivery, and make payment grants durably idempotent.

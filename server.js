@@ -584,6 +584,11 @@ function hasValidAdminCsrfToken(req) {
 function requireAdminSession(req, res, next) {
   // Never accept credentials from URLs: they leak through history, referrers and logs.
   if (Object.prototype.hasOwnProperty.call(req.query || {}, 'key')) {
+    void writeSecurityAudit('admin_action_rejected', {
+      actorType: 'anonymous',
+      actorEmail: req.session?.userEmail || null,
+      metadata: { method: req.method, path: `${req.baseUrl || ''}${req.path}`, reason: 'url_credential' }
+    });
     return res.status(400).json({ error: 'URL credentials are not supported.' });
   }
 
@@ -593,15 +598,30 @@ function requireAdminSession(req, res, next) {
     hasMatchingAdminJobToken(req);
   const sessionAdmin = isAdmin(req.session?.userEmail);
   if (!sessionAdmin && !internalBackfillJob) {
+    void writeSecurityAudit('admin_action_rejected', {
+      actorType: 'anonymous',
+      actorEmail: req.session?.userEmail || null,
+      metadata: { method: req.method, path: `${req.baseUrl || ''}${req.path}`, reason: 'admin_session_required' }
+    });
     if (req.accepts(['html', 'json']) === 'html') return res.redirect('/login.html');
     return res.status(401).json({ error: 'Admin session required.' });
   }
 
   const originalMethod = req.method;
   if (originalMethod === 'GET' && ADMIN_MUTATING_GET_PATHS.has(req.path)) {
+    void writeSecurityAudit('admin_action_rejected', {
+      actorType: 'admin',
+      actorEmail: req.session?.userEmail || null,
+      metadata: { method: originalMethod, path: `${req.baseUrl || ''}${req.path}`, reason: 'mutating_get' }
+    });
     return res.status(405).json({ error: 'Use POST for this admin action.' });
   }
   if (!internalBackfillJob && !['GET', 'HEAD', 'OPTIONS'].includes(originalMethod) && !hasValidAdminCsrfToken(req)) {
+    void writeSecurityAudit('admin_action_rejected', {
+      actorType: 'admin',
+      actorEmail: req.session?.userEmail || null,
+      metadata: { method: originalMethod, path: `${req.baseUrl || ''}${req.path}`, reason: 'invalid_csrf' }
+    });
     return res.status(403).json({ error: 'Invalid CSRF token.' });
   }
 
@@ -609,6 +629,16 @@ function requireAdminSession(req, res, next) {
   // sentinel only after session/job authorization. It never comes from the URL.
   req.query.key = process.env.WHY_ADMIN_KEY;
   if (originalMethod === 'POST' && ADMIN_MUTATING_GET_PATHS.has(req.path)) req.method = 'GET';
+  if (sessionAdmin && !internalBackfillJob && !['GET', 'HEAD', 'OPTIONS'].includes(originalMethod)) {
+    const auditPath = `${req.baseUrl || ''}${req.path}`;
+    res.once('finish', () => {
+      void writeSecurityAudit(res.statusCode < 400 ? 'admin_action_completed' : 'admin_action_failed', {
+        actorType: 'admin',
+        actorEmail: req.session?.userEmail || null,
+        metadata: { method: originalMethod, path: auditPath, status_code: res.statusCode }
+      });
+    });
+  }
   next();
 }
 
@@ -5848,64 +5878,182 @@ async function writeSecurityAudit(action, { actorType = 'system', listingId = nu
 
 async function beginStripeWebhookEvent(event, endpoint) {
   const sessionId = event.data?.object?.id || null;
-  const { rows } = await pool.query(
-    `INSERT INTO stripe_webhook_events (event_id, endpoint, event_type, status, session_id)
-     VALUES ($1,$2,$3,'processing',$4)
-     ON CONFLICT (event_id) DO UPDATE
-       SET status='processing', endpoint=EXCLUDED.endpoint, error_message=NULL, updated_at=NOW()
-       WHERE stripe_webhook_events.status='failed'
-     RETURNING event_id`,
-    [event.id, endpoint, event.type, sessionId]
-  );
-  return rows.length > 0;
+  const attemptToken = crypto.randomUUID();
+  const client = await pool.connect();
+  try {
+    const lock = await client.query(
+      `SELECT pg_try_advisory_lock(hashtext($1), hashtext($2)) AS acquired`,
+      [endpoint, event.id]
+    );
+    if (!lock.rows[0]?.acquired) {
+      client.release();
+      return { retryable: true };
+    }
+    const { rows } = await client.query(
+      `INSERT INTO stripe_webhook_events
+         (event_id, endpoint, event_type, status, session_id, attempt_token, lease_expires_at)
+       VALUES ($1,$2,$3,'processing',$4,$5,NOW() + INTERVAL '20 minutes')
+       ON CONFLICT (endpoint, event_id) DO UPDATE
+         SET status='processing', error_message=NULL, attempt_token=EXCLUDED.attempt_token,
+             lease_expires_at=EXCLUDED.lease_expires_at, updated_at=NOW()
+         WHERE stripe_webhook_events.status='failed'
+            OR (stripe_webhook_events.status='processing'
+                AND stripe_webhook_events.lease_expires_at < NOW())
+       RETURNING attempt_token`,
+      [event.id, endpoint, event.type, sessionId, attemptToken]
+    );
+    if (!rows[0]?.attempt_token) {
+      const current = await client.query(
+        `SELECT status FROM stripe_webhook_events WHERE endpoint=$1 AND event_id=$2`,
+        [endpoint, event.id]
+      );
+      await client.query(`SELECT pg_advisory_unlock(hashtext($1), hashtext($2))`, [endpoint, event.id]);
+      client.release();
+      return current.rows[0]?.status === 'succeeded' ? null : { retryable: true };
+    }
+    return { attemptToken: rows[0].attempt_token, client };
+  } catch (err) {
+    try {
+      await client.query(`SELECT pg_advisory_unlock(hashtext($1), hashtext($2))`, [endpoint, event.id]);
+    } catch (_) {}
+    client.release();
+    throw err;
+  }
 }
 
-async function finishStripeWebhookEvent(eventId, error = null) {
-  await pool.query(
-    `UPDATE stripe_webhook_events
-     SET status=$2, error_message=$3, processed_at=CASE WHEN $2='succeeded' THEN NOW() ELSE processed_at END,
-         updated_at=NOW()
-     WHERE event_id=$1`,
-    [eventId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null]
-  );
+async function finishStripeWebhookEvent(eventId, endpoint, lease, error = null) {
+  if (!lease?.client || !lease?.attemptToken) return;
+  try {
+    await lease.client.query(
+      `UPDATE stripe_webhook_events
+       SET status=$2, error_message=$3, processed_at=CASE WHEN $2='succeeded' THEN NOW() ELSE processed_at END,
+           lease_expires_at=NULL, updated_at=NOW()
+       WHERE event_id=$1 AND endpoint=$4 AND attempt_token=$5`,
+      [eventId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null, endpoint, lease.attemptToken]
+    );
+  } finally {
+    try {
+      await lease.client.query(`SELECT pg_advisory_unlock(hashtext($1), hashtext($2))`, [endpoint, eventId]);
+    } finally {
+      lease.client.release();
+    }
+  }
 }
 
 async function claimDirectoryFulfillment(session, listingId, tier, email) {
-  if (session.payment_status && session.payment_status !== 'paid') {
+  if (session.payment_status !== 'paid') {
     throw new Error('Directory payment is not marked paid');
   }
+  const attemptToken = crypto.randomUUID();
   const { rows } = await pool.query(
     `INSERT INTO directory_payment_fulfillments
-       (stripe_session_id, listing_id, tier, payer_email, status)
-     VALUES ($1,$2,$3,$4,'processing')
+       (stripe_session_id, listing_id, tier, payer_email, status, attempt_token, lease_expires_at)
+     VALUES ($1,$2,$3,$4,'processing',$5,NOW() + INTERVAL '20 minutes')
      ON CONFLICT (stripe_session_id) DO UPDATE
-       SET status='processing', failure_reason=NULL, updated_at=NOW()
+       SET status='processing', failure_reason=NULL, attempt_token=EXCLUDED.attempt_token,
+           lease_expires_at=EXCLUDED.lease_expires_at, updated_at=NOW()
        WHERE directory_payment_fulfillments.status='failed'
-     RETURNING stripe_session_id`,
-    [session.id, listingId, tier, email || null]
+          OR (directory_payment_fulfillments.status='processing'
+              AND directory_payment_fulfillments.lease_expires_at < NOW())
+     RETURNING attempt_token`,
+    [session.id, listingId, tier, email || null, attemptToken]
   );
-  return rows.length > 0;
+  return rows[0]?.attempt_token || null;
 }
 
-async function finishDirectoryFulfillment(sessionId, error = null) {
+async function finishDirectoryFulfillment(sessionId, attemptToken, error = null) {
   await pool.query(
     `UPDATE directory_payment_fulfillments
      SET status=$2, fulfilled_at=CASE WHEN $2='succeeded' THEN NOW() ELSE fulfilled_at END,
-         failure_reason=$3, updated_at=NOW()
-     WHERE stripe_session_id=$1`,
-    [sessionId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null]
+         failure_reason=$3, lease_expires_at=NULL, updated_at=NOW()
+     WHERE stripe_session_id=$1 AND attempt_token=$4`,
+    [sessionId, error ? 'failed' : 'succeeded', error ? String(error.message || error).slice(0, 1000) : null, attemptToken]
   );
 }
+
+// ── Admin: payment and security investigation feed ───────────────────────────
+// Session-protected by the /admin middleware. Metadata deliberately excludes
+// request bodies, credentials, tokens, and raw payment provider payloads.
+app.get('/admin/security-audit', async (req, res) => {
+  const requestedLimit = Number.parseInt(req.query.limit, 10);
+  const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
+  const requestedBefore = Number.parseInt(req.query.before, 10);
+  const before = Number.isSafeInteger(requestedBefore) && requestedBefore > 0 ? requestedBefore : null;
+  const requestedListing = Number.parseInt(req.query.listing_id, 10);
+  const listingId = Number.isSafeInteger(requestedListing) && requestedListing > 0 ? requestedListing : null;
+
+  try {
+    const [audit, payments, webhooks] = await Promise.all([
+      pool.query(
+        `SELECT sal.id, sal.action, sal.actor_type, sal.listing_id, sal.actor_email,
+                sal.metadata, sal.created_at, dl.name AS listing_name
+         FROM security_audit_log sal
+         LEFT JOIN directory_listings dl ON dl.id=sal.listing_id
+         WHERE ($1::bigint IS NULL OR sal.id < $1)
+           AND ($2::integer IS NULL OR sal.listing_id=$2)
+         ORDER BY sal.id DESC
+         LIMIT $3`,
+        [before, listingId, limit]
+      ),
+      pool.query(
+        `SELECT dpf.stripe_session_id, dpf.listing_id, dl.name AS listing_name,
+                dpf.tier, dpf.payer_email, dpf.status, dpf.fulfilled_at,
+                dpf.failure_reason, dpf.created_at, dpf.updated_at
+         FROM directory_payment_fulfillments dpf
+         LEFT JOIN directory_listings dl ON dl.id=dpf.listing_id
+         WHERE ($1::integer IS NULL OR dpf.listing_id=$1)
+         ORDER BY dpf.updated_at DESC
+         LIMIT $2`,
+        [listingId, limit]
+      ),
+      pool.query(
+        `SELECT event_id, endpoint, event_type, status, session_id, error_message,
+                received_at, processed_at, updated_at
+         FROM stripe_webhook_events
+         ORDER BY updated_at DESC
+         LIMIT $1`,
+        [limit]
+      )
+    ]);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      audit_events: audit.rows,
+      payment_fulfillments: payments.rows,
+      webhook_events: webhooks.rows,
+      next_before: audit.rows.length ? audit.rows[audit.rows.length - 1].id : null
+    });
+  } catch (err) {
+    console.error('[admin/security-audit]', err.message);
+    res.status(500).json({ error: 'audit_query_failed' });
+  }
+});
 
 // ── Directory: handle post-payment placement ──────────────────────────────────
 async function handleDirectoryPayment(session) {
   const { listing_id, tier } = session.metadata || {};
   if (!listing_id || !tier || !DIR_PRICES[tier]) return;
   const email       = (session.customer_details?.email || session.customer_email || '').toLowerCase();
-  const lid         = parseInt(listing_id, 10);
+  const lid         = Number(listing_id);
   const listingName = (session.metadata.listing_name || `listing #${lid}`);
-  const shouldFulfill = await claimDirectoryFulfillment(session, lid, tier, email);
-  if (!shouldFulfill) return;
+  if (!Number.isSafeInteger(lid) || lid < 1) {
+    throw new Error('Directory payment has an invalid listing ID');
+  }
+  const listing = await pool.query(
+    `SELECT id, status FROM directory_listings WHERE id=$1 FOR SHARE`,
+    [lid]
+  );
+  if (!listing.rows.length || listing.rows[0].status !== 'active') {
+    throw new Error('Directory payment target is no longer active');
+  }
+  const fulfillmentAttempt = await claimDirectoryFulfillment(session, lid, tier, email);
+  if (!fulfillmentAttempt) {
+    await writeSecurityAudit('directory_payment_duplicate', {
+      listingId: lid,
+      actorEmail: email,
+      metadata: { tier, session_id: session.id }
+    });
+    return;
+  }
 
   try {
     // ── Teardown tiers: admin notification only — manual delivery within 48-72h ─
@@ -5926,7 +6074,7 @@ async function handleDirectoryPayment(session) {
       </div>`
     }).catch(() => {});
       console.log(`[dir-teardown] ${tier} ordered for listing ${lid} by ${email}`);
-      await finishDirectoryFulfillment(session.id);
+      await finishDirectoryFulfillment(session.id, fulfillmentAttempt);
       await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
       return;
     }
@@ -5941,13 +6089,13 @@ async function handleDirectoryPayment(session) {
         `SELECT 1 FROM directory_listings dl
          JOIN dir_claims dc ON dc.listing_id=dl.id
          WHERE dl.id=$1 AND lower(dl.claimed_by)=lower($2)
-           AND dc.owner_email=$2 AND dc.is_verified=TRUE`,
+            AND lower(dc.owner_email)=lower($2) AND dc.is_verified=TRUE`,
         [lid, email]
       );
       if (!owner.rows.length) throw new Error('Verified badge requires a completed ownership claim');
       await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
       console.log(`[dir-verified] listing ${lid} verified permanently by ${email}`);
-      await finishDirectoryFulfillment(session.id);
+      await finishDirectoryFulfillment(session.id, fulfillmentAttempt);
       await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
       return;
     }
@@ -6074,10 +6222,10 @@ async function handleDirectoryPayment(session) {
   }
 
     console.log(`[dir-payment] ${tier} processed for listing ${lid}`);
-    await finishDirectoryFulfillment(session.id);
+    await finishDirectoryFulfillment(session.id, fulfillmentAttempt);
     await writeSecurityAudit('directory_payment_fulfilled', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id } });
   } catch (e) {
-    await finishDirectoryFulfillment(session.id, e);
+    await finishDirectoryFulfillment(session.id, fulfillmentAttempt, e);
     await writeSecurityAudit('directory_payment_failed', { listingId: lid, actorEmail: email, metadata: { tier, session_id: session.id, reason: String(e.message || e).slice(0, 300) } });
     throw e;
   }
@@ -6100,15 +6248,21 @@ async function activateScheduledBoosts() {
     for (const row of due.rows) {
       const exp = new Date();
       exp.setUTCHours(23, 59, 59, 999); // expires end of today
-      await pool.query(
+      const placement = await pool.query(
         `INSERT INTO dir_featured (listing_id, tier, stripe_session_id, payer_email, expires_at)
          VALUES ($1,'daily_top',$2,$3,$4) ON CONFLICT (stripe_session_id) DO NOTHING`,
         [row.listing_id, row.stripe_session_id, row.payer_email, exp]
       );
+      if (!placement.rowCount) continue;
       await pool.query(
         `UPDATE directory_listings SET featured_tier='daily_top', featured_until=$1 WHERE id=$2`,
         [exp, row.listing_id]
       );
+      await writeSecurityAudit('directory_scheduled_boost_activated', {
+        listingId: row.listing_id,
+        actorEmail: row.payer_email,
+        metadata: { session_id: row.stripe_session_id, expires_at: exp.toISOString() }
+      });
       console.log(`[dir-boost-schedule] Activated scheduled boost for ${row.listing_name} (listing #${row.listing_id}) today`);
     }
     if (due.rows.length > 0) console.log(`[dir-boost-schedule] Activated ${due.rows.length} scheduled boost(s) for ${today}`);
@@ -7171,18 +7325,43 @@ app.get('/sponsor', async (req, res) => {
 // ── POST /api/directory/checkout ──────────────────────────────────────────────
 app.post('/api/directory/checkout', async (req, res) => {
   const { listing_id, tier, email, boost_date } = req.body || {};
-  if (!listing_id || !DIR_PRICES[tier]) return res.status(400).json({ error: 'invalid_params' });
-  const listingRow = await pool.query('SELECT id, name, claimed_by FROM directory_listings WHERE id=$1 AND status=\'active\'', [listing_id]).catch(() => null);
-  if (!listingRow?.rows?.length) return res.status(404).json({ error: 'listing_not_found' });
   const payerEmail = String(email || '').trim().toLowerCase();
+  const listingId = Number(listing_id);
+  const auditListingId = Number.isSafeInteger(listingId) && listingId > 0 ? listingId : null;
+  if (!auditListingId || !DIR_PRICES[tier]) {
+    await writeSecurityAudit('directory_checkout_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail) ? payerEmail : null,
+      metadata: { reason: 'invalid_params', tier: String(tier || '').slice(0, 40) }
+    });
+    return res.status(400).json({ error: 'invalid_params' });
+  }
+  const listingRow = await pool.query('SELECT id, name, claimed_by FROM directory_listings WHERE id=$1 AND status=\'active\'', [auditListingId]).catch(() => null);
+  if (!listingRow?.rows?.length) {
+    await writeSecurityAudit('directory_checkout_rejected', {
+      actorType: 'public', listingId: auditListingId,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail) ? payerEmail : null,
+      metadata: { reason: 'listing_not_found', tier }
+    });
+    return res.status(404).json({ error: 'listing_not_found' });
+  }
   let claimOwnerEmail = null;
 
   if (tier === 'verified_badge') {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
+      await writeSecurityAudit('directory_checkout_rejected', {
+        actorType: 'public', listingId: auditListingId,
+        metadata: { reason: 'ownership_required', tier }
+      });
       return res.status(403).json({ error: 'ownership_required' });
     }
-    const claim = await authorizeDirectoryClaim(req, listing_id, payerEmail);
+    const claim = await authorizeDirectoryClaim(req, auditListingId, payerEmail);
     if (!claim || String(listingRow.rows[0].claimed_by || '').toLowerCase() !== payerEmail) {
+      await writeSecurityAudit('directory_checkout_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: payerEmail,
+        metadata: { reason: 'ownership_required', tier }
+      });
       return res.status(403).json({ error: 'ownership_required' });
     }
     claimOwnerEmail = payerEmail;
@@ -7192,8 +7371,20 @@ app.post('/api/directory/checkout', async (req, res) => {
   if (tier === 'daily_top') {
     const targetDate = boost_date || new Date().toISOString().slice(0, 10);
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRe.test(targetDate)) return res.status(400).json({ error: 'invalid_date' });
-    if (targetDate < new Date().toISOString().slice(0, 10)) return res.status(400).json({ error: 'date_in_past' });
+    if (!dateRe.test(targetDate)) {
+      await writeSecurityAudit('directory_checkout_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: payerEmail || null,
+        metadata: { reason: 'invalid_date', tier }
+      });
+      return res.status(400).json({ error: 'invalid_date' });
+    }
+    if (targetDate < new Date().toISOString().slice(0, 10)) {
+      await writeSecurityAudit('directory_checkout_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: payerEmail || null,
+        metadata: { reason: 'date_in_past', tier, boost_date: targetDate }
+      });
+      return res.status(400).json({ error: 'date_in_past' });
+    }
     // No per-day slot limit — multiple listings can boost on the same date
   }
 
@@ -7208,15 +7399,27 @@ app.post('/api/directory/checkout', async (req, res) => {
       cancel_url:  `${base}/directory`,
       customer_email: payerEmail.includes('@') ? payerEmail : undefined,
       metadata: {
-        source: 'directory', listing_id: String(listing_id), tier,
+        source: 'directory', listing_id: String(auditListingId), tier,
         listing_name: listingRow.rows[0].name.slice(0, 80),
         ...(claimOwnerEmail ? { claim_owner_email: claimOwnerEmail } : {}),
         ...(tier === 'daily_top' ? { boost_date: targetDate } : {}),
       },
     });
+    await writeSecurityAudit('directory_checkout_created', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: payerEmail || null,
+      metadata: { tier, session_id: sess.id, ...(tier === 'daily_top' ? { boost_date: targetDate } : {}) }
+    });
     res.json({ url: sess.url });
   } catch(err) {
     console.error('[dir-checkout]', err.message);
+    await writeSecurityAudit('directory_checkout_failed', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: payerEmail || null,
+      metadata: { tier, reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'checkout_failed' });
   }
 });
@@ -8008,8 +8211,16 @@ async function authorizeDirectoryClaim(req, listingId, email) {
 app.post('/api/directory/claim/start', async (req, res) => {
   const { listing_id, email, newsletter_opt_in } = req.body || {};
   const ownerEmail = String(email || '').trim().toLowerCase();
-  if (!listing_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail))
+  const auditListingId = Number.isSafeInteger(Number(listing_id)) && Number(listing_id) > 0 ? Number(listing_id) : null;
+  if (!auditListingId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
+    await writeSecurityAudit('directory_claim_start_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ? ownerEmail : null,
+      metadata: { reason: 'invalid_request' }
+    });
     return res.status(400).json({ error: 'listing_id and valid email required' });
+  }
   const newsletterOptIn = newsletter_opt_in === true;
 
   try {
@@ -8017,11 +8228,22 @@ app.post('/api/directory/claim/start', async (req, res) => {
       `SELECT id, name, url, claimed_by FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
       [listing_id]
     );
-    if (!row.rows.length) return res.status(404).json({ error: 'listing_not_found' });
+    if (!row.rows.length) {
+      await writeSecurityAudit('directory_claim_start_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'listing_not_found' }
+      });
+      return res.status(404).json({ error: 'listing_not_found' });
+    }
     const listing = row.rows[0];
 
-    if (listing.claimed_by && listing.claimed_by !== ownerEmail)
+    if (listing.claimed_by && listing.claimed_by !== ownerEmail) {
+      await writeSecurityAudit('directory_claim_start_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'claimed_by_other' }
+      });
       return res.status(409).json({ error: 'claimed_by_other' });
+    }
 
     // Persistent limits survive restarts and are shared by all app instances.
     const ipAllowed = await consumeDirectoryRateLimit(
@@ -8031,6 +8253,10 @@ app.post('/api/directory/claim/start', async (req, res) => {
       `claim-otp-email:${ownerEmail}:${listing_id}`, 1, 5 * 60
     );
     if (!ipAllowed || !emailAllowed) {
+      await writeSecurityAudit('directory_claim_start_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'rate_limited' }
+      });
       return res.status(429).json({
         error: 'rate_limited',
         message: 'Please wait before requesting another verification code.'
@@ -8078,10 +8304,20 @@ app.post('/api/directory/claim/start', async (req, res) => {
       </div>`
     });
 
+    await writeSecurityAudit('directory_claim_started', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: ownerEmail,
+      metadata: { domain_mismatch, newsletter_opt_in: newsletterOptIn }
+    });
     console.log(`[dir-claim] OTP sent for listing ${listing_id}${domain_mismatch ? ' [domain_mismatch]' : ''}`);
     res.json({ ok: true, domain_mismatch, listing_domain: listingDomain, newsletter_opt_in: newsletterOptIn });
   } catch(err) {
     console.error('[dir-claim/start]', err.message);
+    await writeSecurityAudit('directory_claim_start_failed', {
+      actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+      metadata: { reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -8134,19 +8370,43 @@ app.post('/api/directory/claim/verify', async (req, res) => {
   const { listing_id, email, otp } = req.body || {};
   const ownerEmail = String(email || '').trim().toLowerCase();
   const submittedOtp = String(otp || '').trim();
-  if (!listing_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) || !/^\d{6}$/.test(submittedOtp))
+  const auditListingId = Number.isSafeInteger(Number(listing_id)) && Number(listing_id) > 0 ? Number(listing_id) : null;
+  if (!auditListingId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) || !/^\d{6}$/.test(submittedOtp)) {
+    await writeSecurityAudit('directory_claim_verification_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ? ownerEmail : null,
+      metadata: { reason: 'invalid_request' }
+    });
     return res.status(400).json({ error: 'listing_id, email, otp required' });
+  }
 
   try {
     const claim = await pool.query(
       `SELECT * FROM dir_claims WHERE listing_id=$1 AND owner_email=$2`,
        [listing_id, ownerEmail]
     );
-    if (!claim.rows.length) return res.status(404).json({ error: 'no_claim_started' });
+    if (!claim.rows.length) {
+      await writeSecurityAudit('directory_claim_verification_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'no_claim_started' }
+      });
+      return res.status(404).json({ error: 'no_claim_started' });
+    }
     const c = claim.rows[0];
 
-    if (new Date(c.otp_expires_at) < new Date()) return res.status(422).json({ error: 'code_expired' });
+    if (new Date(c.otp_expires_at) < new Date()) {
+      await writeSecurityAudit('directory_claim_verification_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'code_expired' }
+      });
+      return res.status(422).json({ error: 'code_expired' });
+    }
     if (c.otp_locked_until && new Date(c.otp_locked_until) > new Date()) {
+      await writeSecurityAudit('directory_claim_verification_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'too_many_attempts' }
+      });
       return res.status(429).json({ error: 'too_many_attempts' });
     }
 
@@ -8163,6 +8423,10 @@ app.post('/api/directory/claim/verify', async (req, res) => {
          WHERE listing_id=$1 AND owner_email=$2`,
         [listing_id, ownerEmail, OTP_MAX_ATTEMPTS]
       );
+      await writeSecurityAudit('directory_claim_verification_rejected', {
+        actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+        metadata: { reason: 'wrong_code' }
+      });
       return res.status(422).json({ error: 'wrong_code' });
     }
 
@@ -8228,6 +8492,10 @@ app.post('/api/directory/claim/verify', async (req, res) => {
     });
   } catch(err) {
     console.error('[dir-claim/verify]', err.message);
+    await writeSecurityAudit('directory_claim_verification_failed', {
+      actorType: 'public', listingId: auditListingId, actorEmail: ownerEmail,
+      metadata: { reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -8295,7 +8563,15 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
     return res.status(400).json({ error: 'listing_id required' });
   try {
     const c = await authorizeDirectoryClaim(req, listing_id, email);
-    if (!c) return res.status(403).json({ error: 'unauthorized' });
+    if (!c) {
+      await writeSecurityAudit('directory_claim_completion_rejected', {
+        actorType: 'public',
+        listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+        actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+        metadata: { reason: 'unauthorized' }
+      });
+      return res.status(403).json({ error: 'unauthorized' });
+    }
     const ownerEmail = c.owner_email;
 
     // Lock the listing so a verification started before another owner completed
@@ -8338,7 +8614,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
       actorType: 'owner',
       listingId: Number(listing_id),
       actorEmail: ownerEmail,
-      metadata: { backlink_confirmed: !skipped }
+      metadata: { backlink_confirmed: !skipped, completion_mode: skipped ? 'skipped' : 'confirmed' }
     });
 
     // ── Welcome email (first claim only) ─────────────────────────────────
@@ -8417,6 +8693,12 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
     res.json({ ok: true, newsletter });
   } catch(err) {
     console.error('[dir-claim/confirm-backlink]', err.message);
+    await writeSecurityAudit('directory_claim_completion_failed', {
+      actorType: 'public',
+      listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+      metadata: { reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -8432,7 +8714,15 @@ app.post('/api/directory/claim/edit', async (req, res) => {
 
   try {
     const claim = await authorizeDirectoryClaim(req, listing_id, email);
-    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    if (!claim) {
+      await writeSecurityAudit('directory_listing_edit_rejected', {
+        actorType: 'public',
+        listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+        actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+        metadata: { reason: 'unauthorized' }
+      });
+      return res.status(403).json({ error: 'unauthorized' });
+    }
 
     const updates = [];
     const params  = [];
@@ -8487,7 +8777,13 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       updates.push(`launch_date=$${params.length}`);
     }
 
-    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+    if (updates.length === 0) {
+      await writeSecurityAudit('directory_listing_edit_rejected', {
+        actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email,
+        metadata: { reason: 'nothing_to_update' }
+      });
+      return res.status(400).json({ error: 'nothing_to_update' });
+    }
 
     params.push(listing_id);
     await pool.query(
@@ -8505,6 +8801,12 @@ app.post('/api/directory/claim/edit', async (req, res) => {
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/edit]', err.message);
+    await writeSecurityAudit('directory_listing_edit_failed', {
+      actorType: 'public',
+      listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+      metadata: { reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -8516,24 +8818,52 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
     return res.status(400).json({ error: 'listing_id required' });
   try {
     const claim = await authorizeDirectoryClaim(req, listing_id, email);
-    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    if (!claim) {
+      await writeSecurityAudit('directory_relaunch_rejected', {
+        actorType: 'public',
+        listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+        actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+        metadata: { reason: 'unauthorized' }
+      });
+      return res.status(403).json({ error: 'unauthorized' });
+    }
 
     const lr = await pool.query(
       `SELECT submitted_at, name, relaunch_unlimited FROM directory_listings WHERE id=$1 AND status='active'`,
       [listing_id]
     );
-    if (!lr.rows.length) return res.status(404).json({ error: 'not_found' });
+    if (!lr.rows.length) {
+      await writeSecurityAudit('directory_relaunch_rejected', {
+        actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email,
+        metadata: { reason: 'not_found' }
+      });
+      return res.status(404).json({ error: 'not_found' });
+    }
 
     const daysSince = Math.floor((Date.now() - new Date(lr.rows[0].submitted_at).getTime()) / 86400000);
     if (daysSince < 30 && !lr.rows[0].relaunch_unlimited) {
+      await writeSecurityAudit('directory_relaunch_rejected', {
+        actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email,
+        metadata: { reason: 'too_soon', days_remaining: 30 - daysSince }
+      });
       return res.status(429).json({ error: 'too_soon', days_remaining: 30 - daysSince });
     }
 
     await pool.query(`UPDATE directory_listings SET submitted_at=NOW() WHERE id=$1`, [listing_id]);
+    await writeSecurityAudit('directory_relaunched', {
+      actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email,
+      metadata: { relaunch_unlimited: !!lr.rows[0].relaunch_unlimited }
+    });
     console.log(`[dir-relaunch] listing ${listing_id} relaunched by ${claim.owner_email}`);
     res.json({ ok: true });
   } catch(err) {
     console.error('[dir-claim/relaunch]', err.message);
+    await writeSecurityAudit('directory_relaunch_failed', {
+      actorType: 'public',
+      listingId: Number.isSafeInteger(Number(listing_id)) ? Number(listing_id) : null,
+      actorEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim()) ? String(email).trim().toLowerCase() : null,
+      metadata: { reason: String(err.message || err).slice(0, 200) }
+    });
     res.status(500).json({ error: 'server_error' });
   }
 });
@@ -11393,17 +11723,44 @@ async function setupDB() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS stripe_webhook_events (
-      event_id      TEXT PRIMARY KEY,
+      event_id      TEXT NOT NULL,
       endpoint      TEXT NOT NULL,
       event_type    TEXT NOT NULL,
       status        TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed')),
       session_id    TEXT,
       error_message TEXT,
+      attempt_token TEXT,
+      lease_expires_at TIMESTAMPTZ,
       received_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       processed_at  TIMESTAMPTZ,
-      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (endpoint, event_id)
     )
   `).catch(e => console.error('[DB] stripe_webhook_events:', e.message));
+  await pool.query(`ALTER TABLE stripe_webhook_events ADD COLUMN IF NOT EXISTS attempt_token TEXT`).catch(e => console.error('[DB] stripe_webhook_events attempt_token:', e.message));
+  await pool.query(`ALTER TABLE stripe_webhook_events ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`).catch(e => console.error('[DB] stripe_webhook_events lease_expires_at:', e.message));
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'stripe_webhook_events'::regclass AND contype = 'p'
+          AND conkey = ARRAY[
+            (SELECT attnum FROM pg_attribute WHERE attrelid='stripe_webhook_events'::regclass AND attname='endpoint'),
+            (SELECT attnum FROM pg_attribute WHERE attrelid='stripe_webhook_events'::regclass AND attname='event_id')
+          ]
+      ) THEN
+        RETURN;
+      END IF;
+      ALTER TABLE stripe_webhook_events DROP CONSTRAINT IF EXISTS stripe_webhook_events_pkey;
+      ALTER TABLE stripe_webhook_events ADD PRIMARY KEY (endpoint, event_id);
+    END $$;
+  `).catch(e => console.error('[DB] stripe_webhook_events primary key:', e.message));
+  await pool.query(`
+    UPDATE stripe_webhook_events
+    SET lease_expires_at = NOW() - INTERVAL '1 second'
+    WHERE status='processing' AND lease_expires_at IS NULL
+  `).catch(e => console.error('[DB] stripe_webhook_events legacy leases:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_stripe_webhook_events_status ON stripe_webhook_events(status, updated_at)`).catch(()=>{});
   await pool.query(`
     CREATE TABLE IF NOT EXISTS directory_payment_fulfillments (
@@ -11414,10 +11771,26 @@ async function setupDB() {
       status            TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed')),
       fulfilled_at      TIMESTAMPTZ,
       failure_reason    TEXT,
+      attempt_token     TEXT,
+      lease_expires_at  TIMESTAMPTZ,
       created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `).catch(e => console.error('[DB] directory_payment_fulfillments:', e.message));
+  await pool.query(`ALTER TABLE directory_payment_fulfillments ADD COLUMN IF NOT EXISTS attempt_token TEXT`).catch(e => console.error('[DB] directory_payment_fulfillments attempt_token:', e.message));
+  await pool.query(`ALTER TABLE directory_payment_fulfillments ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`).catch(e => console.error('[DB] directory_payment_fulfillments lease_expires_at:', e.message));
+  await pool.query(`
+    UPDATE directory_payment_fulfillments
+    SET lease_expires_at = NOW() - INTERVAL '1 second'
+    WHERE status='processing' AND lease_expires_at IS NULL
+  `).catch(e => console.error('[DB] directory_payment_fulfillments legacy leases:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS why_credit_grants (
+      stripe_session_id TEXT PRIMARY KEY,
+      email             TEXT NOT NULL,
+      granted_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] why_credit_grants:', e.message));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS security_audit_log (
       id          BIGSERIAL PRIMARY KEY,
@@ -11430,6 +11803,7 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] security_audit_log:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_created ON security_audit_log(created_at DESC)`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_listing_created ON security_audit_log(listing_id, created_at DESC)`).catch(()=>{});
 
   // ── Listing analytics tables ──────────────────────────────────────────────
   await pool.query(`
@@ -15873,21 +16247,60 @@ app.post('/api/why-stripe-webhook', async (req, res) => {
     console.error('[why-stripe-webhook] signature error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  try {
+    const webhookAttemptToken = await beginStripeWebhookEvent(event, '/api/why-stripe-webhook');
+    if (webhookAttemptToken?.retryable) {
+      return res.status(503).json({ error: 'webhook_processing_in_progress' });
+    }
+    if (!webhookAttemptToken) return res.json({ received: true, duplicate: true });
+    res.locals.webhookAttemptToken = webhookAttemptToken;
+  } catch (err) {
+    console.error('[why-stripe-webhook] event ledger unavailable:', err.message);
+    return res.status(500).json({ error: 'webhook_processing_unavailable' });
+  }
+
   try {
     if (event.type === 'checkout.session.completed') {
       const sess = event.data.object;
       const email = (sess.customer_details?.email || '').toLowerCase().trim();
       if (!email) {
         console.error('[why-webhook] no email in checkout session');
+        await finishStripeWebhookEvent(event.id, '/api/why-stripe-webhook', res.locals.webhookAttemptToken);
         return res.json({ received: true });
       }
       if (sess.mode === 'payment' && sess.metadata?.type === 'rebuild_credits') {
-        // One-time credit pack purchase — increment rebuild_credits by 20
-        await pool.query(
-          `UPDATE pro_users SET rebuild_credits = rebuild_credits + 20 WHERE email = $1`,
-          [email]
-        );
-        console.log('[why-webhook] rebuild_credits +20 for', email);
+        // One-time credit packs are keyed to the Stripe Checkout session so a
+        // retry can never grant the same 20 credits twice. Recording the grant
+        // and applying the balance update share one transaction, so neither can
+        // survive a crash without the other.
+        const creditClient = await pool.connect();
+        try {
+          await creditClient.query('BEGIN');
+          const grant = await creditClient.query(
+            `INSERT INTO why_credit_grants (stripe_session_id, email)
+             VALUES ($1,$2) ON CONFLICT (stripe_session_id) DO NOTHING
+             RETURNING stripe_session_id`,
+            [sess.id, email]
+          );
+          if (grant.rowCount) {
+            const balance = await creditClient.query(
+              `UPDATE pro_users SET rebuild_credits = rebuild_credits + 20
+               WHERE email = $1 RETURNING email`,
+              [email]
+            );
+            if (balance.rowCount !== 1) throw new Error('No active WHY Pro user for credit grant');
+            console.log('[why-webhook] rebuild_credits +20 for', email);
+          } else {
+            console.log('[why-webhook] rebuild credits already granted for session:', sess.id);
+          }
+          await creditClient.query('COMMIT');
+        } catch (creditError) {
+          await creditClient.query('ROLLBACK').catch(() => {});
+          throw creditError;
+        } finally {
+          creditClient.release();
+        }
       } else {
         // Recurring subscription — upsert pro_users and send magic link
         const customerId = sess.customer;
@@ -15919,7 +16332,13 @@ app.post('/api/why-stripe-webhook', async (req, res) => {
     }
   } catch (e) {
     console.error('[why-webhook] handler error:', e.message);
+    await finishStripeWebhookEvent(event.id, '/api/why-stripe-webhook', res.locals.webhookAttemptToken, e).catch(() => {});
+    await writeSecurityAudit('stripe_webhook_failed', {
+      metadata: { endpoint: '/api/why-stripe-webhook', event_type: event.type, event_id: event.id }
+    });
+    return res.status(500).json({ error: 'webhook_processing_failed' });
   }
+  await finishStripeWebhookEvent(event.id, '/api/why-stripe-webhook', res.locals.webhookAttemptToken);
   res.json({ received: true });
 });
 
@@ -15941,8 +16360,12 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
     return res.status(400).send('Webhook signature verification failed');
   }
   try {
-    const shouldProcess = await beginStripeWebhookEvent(event, '/stripe/webhook');
-    if (!shouldProcess) return res.json({ received: true, duplicate: true });
+    const webhookAttemptToken = await beginStripeWebhookEvent(event, '/stripe/webhook');
+    if (webhookAttemptToken?.retryable) {
+      return res.status(503).json({ error: 'webhook_processing_in_progress' });
+    }
+    if (!webhookAttemptToken) return res.json({ received: true, duplicate: true });
+    res.locals.webhookAttemptToken = webhookAttemptToken;
   } catch (err) {
     console.error('[stripe/webhook] event ledger unavailable:', err.message);
     return res.status(500).json({ error: 'webhook_processing_unavailable' });
@@ -15954,6 +16377,7 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
 
     if (!email) {
       console.error('[stripe/webhook] No email in session:', session.id);
+      await finishStripeWebhookEvent(event.id, '/stripe/webhook', res.locals.webhookAttemptToken);
       return res.json({ received: true });
     }
 
@@ -16013,12 +16437,15 @@ app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (re
 
     } catch (err) {
       console.error('[stripe/webhook] post-payment processing failed:', err.message);
-      await finishStripeWebhookEvent(event.id, err).catch(() => {});
+      await finishStripeWebhookEvent(event.id, '/stripe/webhook', res.locals.webhookAttemptToken, err).catch(() => {});
+      await writeSecurityAudit('stripe_webhook_failed', {
+        metadata: { endpoint: '/stripe/webhook', event_type: event.type, event_id: event.id }
+      });
       return res.status(500).json({ error: 'webhook_processing_failed' });
     }
   }
 
-  await finishStripeWebhookEvent(event.id);
+  await finishStripeWebhookEvent(event.id, '/stripe/webhook', res.locals.webhookAttemptToken);
   res.json({ received: true });
 });
 
@@ -16067,8 +16494,12 @@ app.post('/webhook/stripe', async (req, res) => {
 
   console.log('[webhook/stripe] received event:', event.type);
   try {
-    const shouldProcess = await beginStripeWebhookEvent(event, '/webhook/stripe');
-    if (!shouldProcess) return res.json({ received: true, duplicate: true });
+    const webhookAttemptToken = await beginStripeWebhookEvent(event, '/webhook/stripe');
+    if (webhookAttemptToken?.retryable) {
+      return res.status(503).json({ error: 'webhook_processing_in_progress' });
+    }
+    if (!webhookAttemptToken) return res.json({ received: true, duplicate: true });
+    res.locals.webhookAttemptToken = webhookAttemptToken;
   } catch (err) {
     console.error('[webhook/stripe] event ledger unavailable:', err.message);
     return res.status(500).json({ error: 'webhook_processing_unavailable' });
@@ -16079,7 +16510,7 @@ app.post('/webhook/stripe', async (req, res) => {
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'directory') {
       await handleDirectoryPayment(event.data.object);
-      await finishStripeWebhookEvent(event.id);
+      await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
       return res.json({ received: true });
     }
 
@@ -16087,7 +16518,7 @@ app.post('/webhook/stripe', async (req, res) => {
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'sponsor') {
       await handleSponsorPayment(event.data.object);
-      await finishStripeWebhookEvent(event.id);
+      await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
       return res.json({ received: true });
     }
 
@@ -16098,7 +16529,7 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] checkout.session.completed — no email found, session:', session.id);
-        await finishStripeWebhookEvent(event.id);
+        await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
         return res.json({ received: true });
       }
 
@@ -16122,7 +16553,7 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!isActivation && productName) {
         console.log('[webhook/stripe] checkout.session.completed — product not activation, skipping:', productName);
-        await finishStripeWebhookEvent(event.id);
+        await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
         return res.json({ received: true });
       }
 
@@ -16153,7 +16584,7 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] subscription.created — no email for customer:', subscription.customer);
-        await finishStripeWebhookEvent(event.id);
+        await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
         return res.json({ received: true });
       }
 
@@ -16213,7 +16644,7 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] subscription.updated — no email for customer:', subscription.customer);
-        await finishStripeWebhookEvent(event.id);
+        await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
         return res.json({ received: true });
       }
 
@@ -16275,7 +16706,8 @@ app.post('/webhook/stripe', async (req, res) => {
 
       if (!email) {
         console.error('[webhook/stripe] subscription.deleted — no email for customer:', subscription.customer);
-        return;
+        await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
+        return res.json({ received: true });
       }
 
       console.log('[webhook/stripe] subscription deleted for:', email);
@@ -16325,11 +16757,14 @@ app.post('/webhook/stripe', async (req, res) => {
       console.log('[webhook/stripe] unhandled event type (ignored):', event.type);
     }
 
-    await finishStripeWebhookEvent(event.id);
+    await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
     return res.json({ received: true });
   } catch (err) {
     console.error('[webhook/stripe] internal processing error:', err.message);
-    await finishStripeWebhookEvent(event.id, err).catch(() => {});
+    await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken, err).catch(() => {});
+    await writeSecurityAudit('stripe_webhook_failed', {
+      metadata: { endpoint: '/webhook/stripe', event_type: event.type, event_id: event.id }
+    });
     return res.status(500).json({ error: 'webhook_processing_failed' });
   }
 });
