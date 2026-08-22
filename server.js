@@ -5982,6 +5982,176 @@ async function finishDirectoryFulfillment(sessionId, attemptToken, error = null)
   );
 }
 
+// ── Admin: security audit HTML dashboard ─────────────────────────────────────
+app.get('/admin/security-audit/view', async (req, res) => {
+  const requestedBefore = Number.parseInt(req.query.before, 10);
+  const before = Number.isSafeInteger(requestedBefore) && requestedBefore > 0 ? requestedBefore : null;
+  const requestedListing = Number.parseInt(req.query.listing_id, 10);
+  const listingId = Number.isSafeInteger(requestedListing) && requestedListing > 0 ? requestedListing : null;
+  const limit = 50;
+  const esc = s => (s == null ? '' : String(s))
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  try {
+    const [audit, payments, webhooks] = await Promise.all([
+      pool.query(
+        `SELECT sal.id, sal.action, sal.actor_type, sal.listing_id, sal.actor_email,
+                sal.metadata, sal.created_at, dl.name AS listing_name
+         FROM security_audit_log sal
+         LEFT JOIN directory_listings dl ON dl.id=sal.listing_id
+         WHERE ($1::bigint IS NULL OR sal.id < $1)
+           AND ($2::integer IS NULL OR sal.listing_id=$2)
+         ORDER BY sal.id DESC LIMIT $3`,
+        [before, listingId, limit]
+      ),
+      pool.query(
+        `SELECT dpf.stripe_session_id, dpf.listing_id, dl.name AS listing_name,
+                dpf.tier, dpf.payer_email, dpf.status, dpf.fulfilled_at,
+                dpf.failure_reason, dpf.created_at, dpf.updated_at
+         FROM directory_payment_fulfillments dpf
+         LEFT JOIN directory_listings dl ON dl.id=dpf.listing_id
+         WHERE ($1::integer IS NULL OR dpf.listing_id=$1)
+         ORDER BY dpf.updated_at DESC LIMIT $2`,
+        [listingId, 100]
+      ),
+      pool.query(
+        `SELECT event_id, endpoint, event_type, status, session_id, error_message,
+                received_at, processed_at, updated_at
+         FROM stripe_webhook_events
+         ORDER BY updated_at DESC LIMIT 50`
+      )
+    ]);
+
+    const ts  = d => d ? new Date(d).toISOString().replace('T',' ').slice(0,19) : '—';
+
+    const statusColor = s => ({
+      succeeded:'#22c55e', failed:'#f87171', processing:'#3b82f6',
+      pending_claim:'#f59e0b'
+    })[s] || '#94a3b8';
+
+    const auditRows = audit.rows.map(r => {
+      const meta = r.metadata && Object.keys(r.metadata).length
+        ? `<details><summary style="cursor:pointer;color:#64748b;font-size:11px">metadata</summary><pre style="font-size:10px;white-space:pre-wrap;color:#94a3b8;margin-top:4px">${esc(JSON.stringify(r.metadata, null, 2))}</pre></details>`
+        : '';
+      return `<tr>
+        <td style="font-size:11px;color:#64748b">${esc(ts(r.created_at))}</td>
+        <td><code style="font-size:11px;color:#a5f3fc">${esc(r.action)}</code></td>
+        <td style="font-size:11px">${esc(r.actor_type)}</td>
+        <td style="font-size:11px">${r.listing_id ? `<a href="/admin/security-audit/view?listing_id=${r.listing_id}" style="color:#14b8a6">${esc(r.listing_name||String(r.listing_id))}</a>` : '—'}</td>
+        <td style="font-size:11px">${r.actor_email ? `<a href="mailto:${esc(r.actor_email)}" style="color:#94a3b8">${esc(r.actor_email)}</a>` : '—'}</td>
+        <td>${meta}</td>
+      </tr>`;
+    }).join('');
+
+    const payRows = payments.rows.map(r => {
+      const sc = statusColor(r.status);
+      const sid = String(r.stripe_session_id||'');
+      const sidShort = sid.length > 24 ? sid.slice(0,12)+'…'+sid.slice(-8) : sid;
+      return `<tr>
+        <td style="font-size:11px;color:#64748b">${esc(ts(r.updated_at))}</td>
+        <td><code style="font-size:10px;color:#94a3b8" title="${esc(sid)}">${esc(sidShort)}</code></td>
+        <td style="font-size:11px">${r.listing_id ? `<a href="/admin/security-audit/view?listing_id=${r.listing_id}" style="color:#14b8a6">${esc(r.listing_name||String(r.listing_id))}</a>` : '—'}</td>
+        <td style="font-size:11px">${esc(r.tier)}</td>
+        <td style="font-size:11px">${r.payer_email ? `<a href="mailto:${esc(r.payer_email)}" style="color:#94a3b8">${esc(r.payer_email)}</a>` : '—'}</td>
+        <td><span style="color:${sc};font-weight:600;font-size:11px">${esc(r.status)}</span>${r.failure_reason ? `<br><span style="color:#f87171;font-size:10px">${esc(r.failure_reason)}</span>` : ''}</td>
+        <td style="font-size:11px;color:#64748b">${esc(ts(r.fulfilled_at))}</td>
+      </tr>`;
+    }).join('');
+
+    const wRows = webhooks.rows.map(r => {
+      const sc = statusColor(r.status);
+      const eid = String(r.event_id||'');
+      const eidShort = eid.length > 20 ? eid.slice(0,10)+'…'+eid.slice(-6) : eid;
+      return `<tr>
+        <td style="font-size:11px;color:#64748b">${esc(ts(r.updated_at))}</td>
+        <td><code style="font-size:10px;color:#94a3b8" title="${esc(eid)}">${esc(eidShort)}</code></td>
+        <td style="font-size:11px">${esc(r.event_type)}</td>
+        <td style="font-size:11px">${esc(r.endpoint)}</td>
+        <td><span style="color:${sc};font-weight:600;font-size:11px">${esc(r.status)}</span>${r.error_message ? `<br><span style="color:#f87171;font-size:10px">${esc(r.error_message.slice(0,80))}</span>` : ''}</td>
+        <td style="font-size:11px;color:#64748b">${esc(ts(r.processed_at))}</td>
+      </tr>`;
+    }).join('');
+
+    const nextBefore = audit.rows.length === limit ? audit.rows[audit.rows.length-1].id : null;
+    const listingFilter = listingId ? `<a href="/admin/security-audit/view" style="color:#f59e0b;font-size:12px">✕ Clear listing filter (ID ${listingId})</a>` : '';
+
+    const pendingCount  = payments.rows.filter(r=>r.status==='pending_claim').length;
+    const failedCount   = payments.rows.filter(r=>r.status==='failed').length;
+    const webhookFailed = webhooks.rows.filter(r=>r.status==='failed').length;
+
+    res.setHeader('Cache-Control','no-store');
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Security Audit — ToolIndex Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}
+h1{font-size:20px;font-weight:700;margin-bottom:4px}
+h2{font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:28px 0 10px}
+.sub{color:#64748b;font-size:13px;margin-bottom:20px}
+.alerts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.alert{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600}
+.alert-warn{background:#422006;border:1px solid #92400e;color:#fbbf24}
+.alert-ok{background:#052e16;border:1px solid #14532d;color:#4ade80}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+input[type=number]{background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:13px;width:140px}
+button,a.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;border:none}
+.btn-teal{background:#14b8a6;color:#fff}
+.btn-ghost{background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+.tbl-wrap{overflow-x:auto;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:600px}
+th{background:#1e293b;padding:9px 10px;text-align:left;color:#94a3b8;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #334155;position:sticky;top:0}
+td{padding:9px 10px;border-bottom:1px solid #1e293b55;vertical-align:top}
+tr:hover td{background:#1e293b44}
+a{color:#94a3b8}
+.pager{margin-top:10px;display:flex;gap:10px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+</style></head><body>
+<h1>Security Audit</h1>
+<div class="sub">Payment fulfillments · Webhook events · Audit log — no credentials or request bodies stored</div>
+
+<div class="alerts">
+${pendingCount  ? `<div class="alert alert-warn">⚠ ${pendingCount} pending_claim payment${pendingCount>1?'s':''} awaiting OTP re-verification</div>` : ''}
+${failedCount   ? `<div class="alert alert-warn">⚠ ${failedCount} failed fulfillment${failedCount>1?'s':''}</div>` : ''}
+${webhookFailed ? `<div class="alert alert-warn">⚠ ${webhookFailed} failed webhook event${webhookFailed>1?'s':''}</div>` : ''}
+${!pendingCount && !failedCount && !webhookFailed ? '<div class="alert alert-ok">✓ No pending or failed payments</div>' : ''}
+</div>
+
+<div class="toolbar">
+  <form method="get" style="display:flex;gap:8px;align-items:center">
+    <label style="font-size:12px;color:#94a3b8">Filter listing ID</label>
+    <input type="number" name="listing_id" value="${listingId||''}" placeholder="e.g. 199" min="1">
+    <button type="submit" class="btn-teal">Filter</button>
+    ${listingId ? `<a href="/admin/security-audit/view" class="btn-ghost">Clear</a>` : ''}
+  </form>
+  <a href="/admin/security-audit/view" class="btn-ghost">↺ Refresh</a>
+  <a href="/admin/security-audit?limit=100${listingId?`&listing_id=${listingId}`:''}" class="btn-ghost" target="_blank">⬇ JSON</a>
+</div>
+
+<h2>Payment Fulfillments (${payments.rows.length})</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Updated</th><th>Session ID</th><th>Listing</th><th>Tier</th><th>Payer</th><th>Status</th><th>Fulfilled</th></tr></thead>
+<tbody>${payRows || '<tr><td colspan="7" style="color:#64748b;text-align:center;padding:20px">No records</td></tr>'}</tbody>
+</table></div>
+
+<h2>Stripe Webhook Events (${webhooks.rows.length})</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Updated</th><th>Event ID</th><th>Type</th><th>Endpoint</th><th>Status</th><th>Processed</th></tr></thead>
+<tbody>${wRows || '<tr><td colspan="6" style="color:#64748b;text-align:center;padding:20px">No records</td></tr>'}</tbody>
+</table></div>
+
+<h2>Audit Log (${audit.rows.length})</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Time</th><th>Action</th><th>Actor Type</th><th>Listing</th><th>Actor Email</th><th>Detail</th></tr></thead>
+<tbody>${auditRows || '<tr><td colspan="6" style="color:#64748b;text-align:center;padding:20px">No records</td></tr>'}</tbody>
+</table></div>
+${nextBefore ? `<div class="pager"><a href="/admin/security-audit/view?before=${nextBefore}${listingId?`&listing_id=${listingId}`:''}" class="btn-ghost">← Older events</a></div>` : ''}
+</body></html>`);
+  } catch (err) {
+    console.error('[admin/security-audit/view]', err.message);
+    res.status(500).send('Error: ' + esc(err.message));
+  }
+});
+
 // ── Admin: payment and security investigation feed ───────────────────────────
 // Session-protected by the /admin middleware. Metadata deliberately excludes
 // request bodies, credentials, tokens, and raw payment provider payloads.
@@ -6058,6 +6228,42 @@ async function handleDirectoryPayment(session) {
   }
   const fulfillmentAttempt = await claimDirectoryFulfillment(session, lid, tier, email);
   if (!fulfillmentAttempt) {
+    // Distinguish a true duplicate from a Stripe retry on a pending_claim row.
+    const existing = await pool.query(
+      `SELECT status FROM directory_payment_fulfillments WHERE stripe_session_id=$1`,
+      [session.id]
+    );
+    if (existing.rows[0]?.status === 'pending_claim' && tier === 'verified_badge') {
+      // Stripe is retrying — re-check whether the owner has since verified their OTP.
+      const owner = await pool.query(
+        `SELECT 1 FROM directory_listings dl
+         JOIN dir_claims dc ON dc.listing_id=dl.id
+         WHERE dl.id=$1 AND lower(dl.claimed_by)=lower($2)
+            AND lower(dc.owner_email)=lower($2) AND dc.is_verified=TRUE`,
+        [lid, email]
+      );
+      if (owner.rows.length) {
+        await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
+        await pool.query(
+          `UPDATE directory_payment_fulfillments
+           SET status='succeeded', fulfilled_at=NOW(), failure_reason=NULL,
+               lease_expires_at=NULL, updated_at=NOW()
+           WHERE stripe_session_id=$1 AND status='pending_claim'`,
+          [session.id]
+        );
+        await writeSecurityAudit('directory_payment_fulfilled', {
+          listingId: lid, actorEmail: email,
+          metadata: { tier, session_id: session.id, source: 'webhook_retry_recheck' }
+        });
+        console.log(`[dir-verified] pending_claim applied on webhook retry — listing ${lid} now verified for ${email}`);
+      } else {
+        await writeSecurityAudit('directory_payment_pending_claim', {
+          listingId: lid, actorEmail: email,
+          metadata: { tier, session_id: session.id, reason: 'claim_still_not_verified_on_retry' }
+        });
+      }
+      return;
+    }
     await writeSecurityAudit('directory_payment_duplicate', {
       listingId: lid,
       actorEmail: email,
@@ -11825,7 +12031,7 @@ async function setupDB() {
       listing_id        INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
       tier              TEXT NOT NULL,
       payer_email       TEXT,
-      status            TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed')),
+      status            TEXT NOT NULL CHECK (status IN ('processing','succeeded','failed','pending_claim')),
       fulfilled_at      TIMESTAMPTZ,
       failure_reason    TEXT,
       attempt_token     TEXT,
@@ -11836,6 +12042,9 @@ async function setupDB() {
   `).catch(e => console.error('[DB] directory_payment_fulfillments:', e.message));
   await pool.query(`ALTER TABLE directory_payment_fulfillments ADD COLUMN IF NOT EXISTS attempt_token TEXT`).catch(e => console.error('[DB] directory_payment_fulfillments attempt_token:', e.message));
   await pool.query(`ALTER TABLE directory_payment_fulfillments ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`).catch(e => console.error('[DB] directory_payment_fulfillments lease_expires_at:', e.message));
+  // Expand CHECK constraint to include pending_claim (added for Verified Founder deferred delivery).
+  await pool.query(`ALTER TABLE directory_payment_fulfillments DROP CONSTRAINT IF EXISTS directory_payment_fulfillments_status_check`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_payment_fulfillments ADD CONSTRAINT directory_payment_fulfillments_status_check CHECK (status IN ('processing','succeeded','failed','pending_claim'))`).catch(e => console.error('[DB] directory_payment_fulfillments constraint:', e.message));
   await pool.query(`
     UPDATE directory_payment_fulfillments
     SET lease_expires_at = NOW() - INTERVAL '1 second'
