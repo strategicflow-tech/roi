@@ -2327,8 +2327,8 @@ function renderCard(l){
     spBadges.push(`<span class="dir-sp-badge sp-trending" title="${l.trending_pct}% more votes vs yesterday">🔥 Trending +${l.trending_pct}%</span>`);
   if(l.editors_pick)           spBadges.push(`<span class="dir-sp-badge sp-editors-pick" title="Handpicked by ToolIndex">⭐ Editor's Pick</span>`);
   if(l.award_label)            spBadges.push(`<span class="dir-sp-badge sp-award" title="Award">🎖 ${escHtml(l.award_label)}</span>`);
-  // paid $9 badge (verified=TRUE) → gold "Verified Founder", with or without claim
-  if(l.verified) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Paid verified founder badge">✓ Verified Founder</span>`);
+  // paid badge (verified=TRUE + is_claimed) → gold "Verified Founder"
+  if(l.verified && l.is_claimed) spBadges.push(`<span class="dir-sp-badge sp-verified-founder" title="Verified Founder — ownership verified and badge purchased">✓ Verified Founder</span>`);
   const spBadgeRow = spBadges.length ? `<div class="dir-badge-row">${spBadges.join('')}</div>` : '';
 
   return `<div class="dir-card${isFeat?' is-featured':''}${(l.featured_tier==='premium'||l.featured_tier==='premium_listing')?' is-premium':''}" data-id="${l.id}" data-cat="${l.category||'General'}" data-name="${(l.name||'').toLowerCase()}" data-desc="${(l.description||'').toLowerCase()}">
@@ -2354,8 +2354,10 @@ function renderCard(l){
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${sourceTag}
-        ${l.is_claimed
+        ${l.is_claimed && l.verified
           ? `<span class="dir-claimed-badge">✓ Verified Founder</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Edit listing →</button>`
+          : l.is_claimed
+            ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Edit listing →</button>`
           : l.is_auto_imported
             ? `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${escHtml(l.name.replace(/'/g,"\\'"))}','${escHtml(new URL(l.url).hostname.replace('www.',''))}')">Is this your product? Claim it free →</button>`
             : ''}
@@ -3453,12 +3455,16 @@ async function submitListing(e){
 }
 
 // ── Claim modal ───────────────────────────────────────────────────────────────
-let claimListingId  = null;
-let claimOwnerEmail = null;
+let claimListingId     = null;
+let claimOwnerEmail    = null;
+let claimListingName   = null;
+let claimListingDomain = null;
 
 async function openClaimModal(id, name, domain) {
-  claimListingId  = id;
-  claimOwnerEmail = null;
+  claimListingId     = id;
+  claimOwnerEmail    = null;
+  claimListingName   = name   || null;
+  claimListingDomain = domain || null;
 
   // Resume only a same-site, server-held owner session. No browser credential is
   // read or written; a 403 simply falls through to the OTP flow.
@@ -3592,7 +3598,7 @@ async function claimConfirmBacklink() {
       document.getElementById('claimStep3').classList.remove('active');
       document.getElementById('claimStep4').classList.add('active');
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
-      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+      if (boostBtn) boostBtn.outerHTML = '<button class="dir-claim-btn" onclick="openClaimModal(' + claimListingId + ',\'' + claimListingName.replace(/'/g,"\\'") + '\',\'' + claimListingDomain.replace(/'/g,"\\'") + '\')">Edit listing →</button>';
       loadClaimAnalytics();
     } else {
       errEl.textContent = 'Something went wrong. Try again.';
@@ -3616,7 +3622,7 @@ async function claimSkipBacklink() {
       document.getElementById('claimStep3').classList.remove('active');
       document.getElementById('claimStep4').classList.add('active');
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
-      if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+      if (boostBtn) boostBtn.outerHTML = '<button class="dir-claim-btn" onclick="openClaimModal(' + claimListingId + ',\'' + (claimListingName||'').replace(/'/g,"\\'") + '\',\'' + (claimListingDomain||'').replace(/'/g,"\\'") + '\')">Edit listing →</button>';
       loadClaimAnalytics();
     } else {
       if (btn) { btn.disabled = false; btn.textContent = 'Skip for now — listing still goes live'; }
@@ -3697,7 +3703,7 @@ async function claimVerifyOTP() {
         showClaimNewsletterNotice(d.newsletter);
         document.getElementById('claimStep4').classList.add('active');
         const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
-        if (boostBtn) boostBtn.outerHTML = '<span class="dir-claimed-badge">✓ Verified Founder</span>';
+        if (boostBtn) boostBtn.outerHTML = '<button class="dir-claim-btn" onclick="openClaimModal(' + claimListingId + ',\'' + (claimListingName||'').replace(/'/g,"\\'") + '\',\'' + (claimListingDomain||'').replace(/'/g,"\\'") + '\')">Edit listing →</button>';
         loadClaimAnalytics();
       } else {
         const snip = document.getElementById('claimBadgeSnippet');

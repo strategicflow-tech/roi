@@ -693,6 +693,10 @@ app.get('/glossary', (req, res) => res.sendFile(path.join(__dirname, 'public/glo
 function heDir(s) {
   return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+// Module-level HTML escape used in email templates and SSR fragments
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ── Server-side card renderer — mirrors client renderCard() in directory.html ──
 // Vote state is unknown server-side; cards render unvoted; JS hydrates from localStorage.
@@ -749,8 +753,12 @@ function ssrCard(l, clickMap) {
   const safeName   = name.replace(/'/g,"\\'").replace(/[<>]/g,'');
   const safeDomain = domain.replace(/'/g,"\\'");
   let claimSection = '';
-  if (l.is_claimed) {
+  if (l.is_claimed && l.verified) {
+    // Paid Verified Founder badge: OTP-verified claim + purchased badge
     claimSection = `<span class="dir-claimed-badge">✓ Verified Founder</span><a href="/badge-kit?id=${l.id}" class="dir-claim-btn" target="_blank" style="margin-left:4px;">Get badge →</a><button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')" style="margin-left:4px;">Edit listing →</button>`;
+  } else if (l.is_claimed) {
+    // Free claim only — no paid badge yet
+    claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Edit listing →</button>`;
   } else if (l.is_auto_imported) {
     claimSection = `<button class="dir-claim-btn" onclick="openClaimModal(${l.id},'${safeName}','${safeDomain}')">Is this your product? Claim it free →</button>`;
   }
@@ -771,6 +779,7 @@ app.get('/directory', async (req, res) => {
     const r = await pool.query(
       `SELECT id, name, url, category, is_auto_imported, source, source_url, vote_count,
               featured_tier, featured_until,
+              COALESCE(verified, FALSE) AS verified,
               (claimed_by IS NOT NULL) AS is_claimed,
               COALESCE(owner_description, description) AS description,
               CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
@@ -1841,8 +1850,10 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
   <a href="/directory?claim=${l.id}" class="claim-link">Claim free →</a>
 </div>` : `
 <div class="claimed-badge-row">
-  <span class="claimed-badge">✓ Verified Founder</span>
-  <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>
+  ${l.verified
+    ? `<span class="claimed-badge">✓ Verified Founder</span>
+  <a href="/badge-kit?id=${l.id}" class="badge-link" target="_blank" rel="noopener">Get your embed badge →</a>`
+    : `<span class="claimed-badge" style="color:#64748b;border-color:rgba(100,116,139,.3);">✓ Claimed</span>`}
   <a href="/directory?claim=${l.id}" class="claim-link" style="margin-left:8px;">Edit listing →</a>
 </div>
 <div class="pp-relaunch-wrap" id="ppRelaunchWrap">
@@ -6092,7 +6103,23 @@ async function handleDirectoryPayment(session) {
             AND lower(dc.owner_email)=lower($2) AND dc.is_verified=TRUE`,
         [lid, email]
       );
-      if (!owner.rows.length) throw new Error('Verified badge requires a completed ownership claim');
+      if (!owner.rows.length) {
+        // Verified claim not present at webhook time (e.g. edit token expired between checkout and delivery).
+        // Store as pending_claim so the badge is applied when the owner re-verifies their OTP.
+        await pool.query(
+          `UPDATE directory_payment_fulfillments
+           SET status='pending_claim', failure_reason='claim_not_verified_at_webhook_time',
+               lease_expires_at=NULL, updated_at=NOW()
+           WHERE stripe_session_id=$1 AND attempt_token=$2`,
+          [session.id, fulfillmentAttempt]
+        );
+        await writeSecurityAudit('directory_payment_pending_claim', {
+          listingId: lid, actorEmail: email,
+          metadata: { tier, session_id: session.id, reason: 'claim_not_verified_at_webhook_time' }
+        });
+        console.log(`[dir-verified] payment for listing ${lid} stored as pending_claim for ${email}`);
+        return;
+      }
       await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [lid]);
       console.log(`[dir-verified] listing ${lid} verified permanently by ${email}`);
       await finishDirectoryFulfillment(session.id, fulfillmentAttempt);
@@ -8441,6 +8468,36 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       [claimCredentialHash('edit', editToken), tokenExpiry, listing_id, ownerEmail]
     );
     setDirectoryClaimSession(req, listing_id, ownerEmail, editToken, tokenExpiry);
+
+    // ── Apply any pending verified_badge payment stored before this OTP verify ──
+    try {
+      const pending = await pool.query(
+        `SELECT stripe_session_id, attempt_token FROM directory_payment_fulfillments
+         WHERE listing_id=$1 AND lower(payer_email)=lower($2) AND tier='verified_badge'
+           AND status='pending_claim'
+         ORDER BY created_at ASC LIMIT 1`,
+        [listing_id, ownerEmail]
+      );
+      if (pending.rows.length) {
+        const { stripe_session_id, attempt_token } = pending.rows[0];
+        await pool.query(`UPDATE directory_listings SET verified=TRUE WHERE id=$1`, [listing_id]);
+        await pool.query(
+          `UPDATE directory_payment_fulfillments
+           SET status='succeeded', fulfilled_at=NOW(), failure_reason=NULL,
+               lease_expires_at=NULL, updated_at=NOW()
+           WHERE stripe_session_id=$1 AND attempt_token=$2`,
+          [stripe_session_id, attempt_token]
+        );
+        await writeSecurityAudit('directory_payment_fulfilled', {
+          actorType: 'owner', listingId: Number(listing_id), actorEmail: ownerEmail,
+          metadata: { tier: 'verified_badge', session_id: stripe_session_id, source: 'pending_claim_applied' }
+        });
+        console.log(`[dir-verified] pending_claim applied — listing ${listing_id} now verified for ${ownerEmail}`);
+      }
+    } catch (pendingErr) {
+      console.error('[dir-verified] pending_claim check failed:', pendingErr.message);
+    }
+
     await writeSecurityAudit('directory_claim_verified', {
       actorType: 'owner',
       listingId: Number(listing_id),
