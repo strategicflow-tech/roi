@@ -6170,8 +6170,8 @@ function buildPlaybookLaunchEmailHtml(previewOnly = false) {
     <p style="margin:0 0 6px;">→ How AI models actually decide who to cite and who to skip</p>
     <p style="margin:0 0 6px;">→ The full scored index, all 140 companies, so you can see exactly where you'd land</p>
     <p style="margin:0 0 18px;">→ A 30-day roadmap to fix both problems at once</p>
-    <p style="margin:0 0 8px;">Chapter 1 is free, no card needed:</p>
-    <p style="margin:0 0 24px;">→ <a href="${chapterUrl}" style="color:#1a1a1a;font-weight:700;">Read Chapter 1 free</a></p>
+    <p style="margin:0 0 16px;">Chapter 1 is free, no card needed:</p>
+    <p style="margin:0 0 24px;"><a href="${chapterUrl}" style="display:inline-block;background:#1fd8c4;color:#0a0b0d;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:4px;font-size:15px;letter-spacing:-.01em;">Read Chapter 1 free →</a></p>
     <p style="margin:0 0 18px;">The full playbook is $9.99. If you'd rather skip straight to having someone run the diagnosis on your own content, the $149 Decision Friction Review delivers a full rebuild within 5 hours.</p>
     <p style="margin:0 0 6px;">Alex</p>
     <p style="margin:0;color:#666;">Strategic Flow</p>
