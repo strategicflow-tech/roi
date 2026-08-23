@@ -23896,6 +23896,19 @@ setupDB().then(async () => {
       console.error('[ai-vis-webhook] signature error:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+
+    // ── Idempotency ledger — same pattern as all other Stripe endpoints ──────
+    let lease;
+    try {
+      lease = await beginStripeWebhookEvent(event, '/api/ai-visibility-index/stripe-webhook');
+    } catch (err) {
+      console.error('[ai-vis-webhook] ledger unavailable:', err.message);
+      return res.status(500).send('Ledger error — retry');
+    }
+    if (lease === null) return res.json({ received: true, duplicate: true });
+    if (lease?.retryable) return res.status(503).json({ error: 'webhook_processing_in_progress' });
+
+    let processingError = null;
     try {
       if (event.type === 'checkout.session.completed') {
         const sess = event.data.object;
@@ -23904,46 +23917,53 @@ setupDB().then(async () => {
         const subscriptionId = sess.subscription;
         if (!email) {
           console.error('[ai-vis-webhook] no email in checkout session', sess.id);
-          return res.json({ received: true });
+        } else {
+          await pool.query(`
+            INSERT INTO ai_visibility_subscribers (email, company_slug, stripe_customer_id, stripe_subscription_id, status)
+            VALUES ($1, NULL, $2, $3, 'active')
+            ON CONFLICT (email) WHERE company_slug IS NULL
+            DO UPDATE SET
+              stripe_customer_id     = EXCLUDED.stripe_customer_id,
+              stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+              status                 = 'active'
+          `, [email, customerId, subscriptionId]);
+          const token = crypto.randomBytes(32).toString('hex');
+          const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+          await pool.query(
+            `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
+            [token, email, expiresAt]
+          );
+          const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+          await resend.emails.send({
+            from: 'Strategic Flow <noreply@strategicflow.tech>',
+            replyTo: 'strategicflow@proton.me',
+            to: email,
+            subject: 'Your AI Visibility Pro access link',
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a1628;color:#ffffff;padding:40px 32px;border:1px solid #1a3050;">
+                <p style="font-size:11px;letter-spacing:0.1em;color:#7a9ab8;text-transform:uppercase;margin:0 0 32px;">AI Visibility Pro</p>
+                <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your access link</h2>
+                <p style="font-size:15px;color:#7a9ab8;margin:0 0 32px;line-height:1.6;">Thanks for subscribing. Click below to sign in and see your AI Visibility Pro dashboard. This link expires in 1 hour.</p>
+                <a href="${baseUrl}/auth/verify/${token}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;border-radius:8px;">Access AI Visibility Pro →</a>
+                <p style="font-size:12px;color:#5a7a98;margin:0;line-height:1.6;">If you didn't subscribe, ignore this email.</p>
+              </div>
+            `
+          }).catch(e => console.error('[ai-vis-webhook] email send error:', e.message));
+          await writeSecurityAudit('ai_vis_subscription_activated', {
+            actorEmail: email,
+            metadata: { stripe_session_id: sess.id, stripe_customer_id: customerId }
+          });
+          console.log('[ai-vis-webhook] checkout.session.completed — subscriber upserted + magic link sent to', email);
         }
-        await pool.query(`
-          INSERT INTO ai_visibility_subscribers (email, company_slug, stripe_customer_id, stripe_subscription_id, status)
-          VALUES ($1, NULL, $2, $3, 'active')
-          ON CONFLICT (email) WHERE company_slug IS NULL
-          DO UPDATE SET
-            stripe_customer_id     = EXCLUDED.stripe_customer_id,
-            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
-            status                 = 'active'
-        `, [email, customerId, subscriptionId]);
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-        await pool.query(
-          `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
-          [token, email, expiresAt]
-        );
-        const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
-        await resend.emails.send({
-          from: 'Strategic Flow <noreply@strategicflow.tech>',
-          replyTo: 'strategicflow@proton.me',
-          to: email,
-          subject: 'Your AI Visibility Pro access link',
-          html: `
-            <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a1628;color:#ffffff;padding:40px 32px;border:1px solid #1a3050;">
-              <p style="font-size:11px;letter-spacing:0.1em;color:#7a9ab8;text-transform:uppercase;margin:0 0 32px;">AI Visibility Pro</p>
-              <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your access link</h2>
-              <p style="font-size:15px;color:#7a9ab8;margin:0 0 32px;line-height:1.6;">Thanks for subscribing. Click below to sign in and see your AI Visibility Pro dashboard. This link expires in 1 hour.</p>
-              <a href="${baseUrl}/auth/verify/${token}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;border-radius:8px;">Access AI Visibility Pro →</a>
-              <p style="font-size:12px;color:#5a7a98;margin:0;line-height:1.6;">If you didn't subscribe, ignore this email.</p>
-            </div>
-          `
-        }).catch(e => console.error('[ai-vis-webhook] email send error:', e.message));
-        console.log('[ai-vis-webhook] checkout.session.completed — subscriber upserted + magic link sent to', email);
       } else if (event.type === 'customer.subscription.deleted') {
         const sub = event.data.object;
         await pool.query(
           `UPDATE ai_visibility_subscribers SET status = 'canceled' WHERE stripe_subscription_id = $1`,
           [sub.id]
         );
+        await writeSecurityAudit('ai_vis_subscription_canceled', {
+          metadata: { stripe_subscription_id: sub.id }
+        });
         console.log('[ai-vis-webhook] subscription canceled:', sub.id);
       } else if (event.type === 'customer.subscription.updated') {
         const sub = event.data.object;
@@ -23955,8 +23975,15 @@ setupDB().then(async () => {
         console.log('[ai-vis-webhook] subscription updated:', sub.id, '->', newStatus);
       }
     } catch (e) {
+      processingError = e;
       console.error('[ai-vis-webhook] handler error:', e.message);
+      void writeSecurityAudit('ai_vis_webhook_failed', {
+        metadata: { event_id: event.id, event_type: event.type, error: e.message }
+      });
     }
+
+    await finishStripeWebhookEvent(event.id, '/api/ai-visibility-index/stripe-webhook', lease, processingError);
+    if (processingError) return res.status(500).send('Processing error — retry');
     res.json({ received: true });
   });
 
