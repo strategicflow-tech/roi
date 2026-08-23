@@ -6152,6 +6152,191 @@ ${nextBefore ? `<div class="pager"><a href="/admin/security-audit/view?before=${
   }
 });
 
+// ── Admin: Playbook launch campaign ──────────────────────────────────────────
+const PLAYBOOK_LAUNCH_SUBJECT = 'AI already decided if you\'re worth recommending';
+const BASE_URL = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+
+function buildPlaybookLaunchEmailHtml(previewOnly = false) {
+  const chapterUrl = `${BASE_URL}/playbook/chapter-1`;
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#1a1a1a;font-size:15px;line-height:1.7;">
+  <div style="padding:40px 36px;">
+    <p style="margin:0 0 18px;">Hey,</p>
+    <p style="margin:0 0 18px;">Claude, GPT, Perplexity, and Gemini already have an opinion about your company. Most founders have never checked what it is.</p>
+    <p style="margin:0 0 18px;">We scored 140 real SaaS companies across two things: whether AI models mention and accurately describe them (73 companies), and whether their actual emails and pages convert once someone reads them (67 companies). The average AI Visibility score was 7.7 out of 10. The average Decision Friction score was 3.9. Six companies were mentioned by exactly zero of the four models, across every question we asked.</p>
+    <p style="margin:0 0 18px;">That gap between "AI recommends you" and "your funnel converts" is where most SaaS companies lose deals without ever seeing it happen.</p>
+    <p style="margin:0 0 18px;">We wrote it all down. The AI Visibility &amp; Conversion Playbook is 21 chapters built entirely from that dataset: which five structural patterns kill conversion most often (ranked, with real frequency data), how AI models actually decide who to cite, and a 30-day roadmap to fix both problems at once.</p>
+    <p style="margin:0 0 24px;">Chapter 1 is free, no card needed:</p>
+    <p style="margin:0 0 24px;"><a href="${chapterUrl}" style="display:inline-block;background:#1fd8c4;color:#0a0b0d;padding:13px 26px;text-decoration:none;font-weight:700;border-radius:3px;font-size:15px;">Read Chapter 1 free →</a></p>
+    <p style="margin:0 0 18px;">The full playbook is $9.99. If you'd rather skip straight to having someone run the diagnosis on your own content, the $149 Decision Friction Review delivers a full rebuild within 5 hours.</p>
+    <p style="margin:0 0 6px;">Alex</p>
+    <p style="margin:0;color:#666;">Strategic Flow</p>
+    ${!previewOnly ? `<p style="margin:32px 0 0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">You're receiving this because your product is listed on ToolIndex. <a href="${BASE_URL}/unsubscribe?email={{EMAIL}}" style="color:#999;">Unsubscribe</a></p>` : ''}
+  </div>
+</div>`;
+}
+
+async function buildPlaybookCampaignList() {
+  // Combined: confirmed newsletter contacts + directory listings with found emails
+  // Deduped by email; exclusion rules applied in-process.
+  const { rows } = await pool.query(`
+    SELECT email, name FROM (
+      SELECT lower(c.email) AS email, NULL::text AS name
+      FROM toolindex_newsletter_contacts c
+      WHERE c.status='confirmed' AND c.confirmed_at IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email))
+      UNION
+      SELECT lower(dl.contact_email) AS email, dl.name
+      FROM directory_listings dl
+      WHERE dl.status='active'
+        AND dl.contact_email IS NOT NULL
+        AND dl.contact_email_status='found'
+        AND NOT EXISTS (SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(dl.contact_email))
+    ) combined
+    ORDER BY email
+  `);
+  // Apply synchronous blocklist filter (isBlockedOutreachTarget)
+  const eligible = rows.filter(r => !isBlockedOutreachTarget(r.name || '', r.email).blocked);
+  return eligible;
+}
+
+// GET /admin/playbook-launch — campaign preview + send dashboard
+app.get('/admin/playbook-launch', async (req, res) => {
+  const esc = s => (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  try {
+    const recipients = await buildPlaybookCampaignList();
+    const emailPreview = buildPlaybookLaunchEmailHtml(true);
+    const csrf = getAdminCsrfToken(req);
+
+    res.setHeader('Cache-Control','no-store');
+    res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Playbook Launch Campaign — Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}
+h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.sub{color:#64748b;font-size:13px;margin-bottom:24px}
+.stats{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.stat{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 20px;min-width:140px}
+.stat-n{font-size:28px;font-weight:700;color:#22c55e}
+.stat-l{font-size:11px;color:#64748b;margin-top:2px}
+.warn{background:#422006;border:1px solid #92400e;color:#fbbf24;border-radius:8px;padding:14px 18px;font-size:13px;margin-bottom:20px;line-height:1.6}
+.warn strong{display:block;font-size:14px;margin-bottom:4px}
+.section{margin-bottom:28px}
+.section h2{font-size:14px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.preview-frame{background:#fff;border-radius:8px;overflow:hidden;max-width:640px}
+.meta{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px 18px;font-size:13px;margin-bottom:16px}
+.meta-row{display:flex;gap:8px;margin-bottom:6px}
+.meta-row:last-child{margin-bottom:0}
+.meta-label{color:#64748b;min-width:60px}
+.send-form{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+button.send-btn{background:#ef4444;color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+button.send-btn:hover{background:#dc2626}
+.confirm-text{font-size:12px;color:#64748b;max-width:400px;line-height:1.5}
+#send-status{font-size:13px;margin-top:12px}
+</style></head><body>
+<h1>Playbook Launch Campaign</h1>
+<div class="sub">One-time send — AI Visibility & Conversion Playbook announcement</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-n">${recipients.length.toLocaleString()}</div><div class="stat-l">Eligible recipients</div></div>
+  <div class="stat"><div class="stat-n" style="color:#60a5fa">${PLAYBOOK_LAUNCH_SUBJECT.length}</div><div class="stat-l">Subject line chars</div></div>
+</div>
+
+<div class="warn">
+  <strong>⚠ Confirm in chat before sending</strong>
+  Review the recipient count and email preview below. When you're ready, reply with your go-ahead in the chat, then click Send. All exclusion rules (restricted prefixes, large-company blocklist, 24h cooldown, unsubscribes) are applied at send time.
+</div>
+
+<div class="section">
+  <h2>Send metadata</h2>
+  <div class="meta">
+    <div class="meta-row"><span class="meta-label">From:</span> <span>Strategic Flow &lt;alex@strategicflow.tech&gt;</span></div>
+    <div class="meta-row"><span class="meta-label">Reply-To:</span> <span>strategicflow@proton.me</span></div>
+    <div class="meta-row"><span class="meta-label">Subject:</span> <span>${esc(PLAYBOOK_LAUNCH_SUBJECT)}</span></div>
+    <div class="meta-row"><span class="meta-label">Recipients:</span> <span>${recipients.length.toLocaleString()} (after blocklist + unsubscribe filter; 24h cooldown applied per-send)</span></div>
+  </div>
+  <form class="send-form" onsubmit="doSend(event)">
+    <input type="hidden" name="_csrf" value="${esc(csrf)}">
+    <button type="submit" class="send-btn">Send to ${recipients.length.toLocaleString()} recipients →</button>
+    <span class="confirm-text">Only click after explicit go-ahead from Alex in chat. This is irreversible.</span>
+  </form>
+  <div id="send-status"></div>
+</div>
+
+<div class="section">
+  <h2>Email preview</h2>
+  <div class="preview-frame">${emailPreview}</div>
+</div>
+
+<script>
+async function doSend(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  const status = document.getElementById('send-status');
+  if (!confirm('Send to ${recipients.length.toLocaleString()} recipients? This cannot be undone.')) return;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  status.textContent = '';
+  try {
+    const csrf = document.querySelector('[name=_csrf]').value;
+    const r = await fetch('/admin/playbook-launch/send', {
+      method:'POST', credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},
+      body:JSON.stringify({confirmed:true})
+    });
+    const d = await r.json();
+    if (d.sent !== undefined) {
+      status.innerHTML = '<span style="color:#22c55e;font-weight:700">✓ Sent to ' + d.sent + ' addresses (' + d.skipped + ' skipped by cooldown/blocklist).</span>';
+      btn.textContent = 'Done';
+    } else {
+      status.innerHTML = '<span style="color:#f87171">' + (d.error || 'Unknown error') + '</span>';
+      btn.disabled = false; btn.textContent = 'Retry';
+    }
+  } catch(err) {
+    status.innerHTML = '<span style="color:#f87171">' + err.message + '</span>';
+    btn.disabled = false; btn.textContent = 'Retry';
+  }
+}
+</script>
+</body></html>`);
+  } catch (err) {
+    console.error('[admin/playbook-launch]', err.message);
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// POST /admin/playbook-launch/send — fires the actual campaign
+app.post('/admin/playbook-launch/send', async (req, res) => {
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({ error: 'confirmed flag required' });
+  }
+  try {
+    const recipients = await buildPlaybookCampaignList();
+    let sent = 0, skipped = 0;
+    const emailHtml = buildPlaybookLaunchEmailHtml(false);
+    for (const { email } of recipients) {
+      const personalised = emailHtml.replace('{{EMAIL}}', encodeURIComponent(email));
+      const result = await resend.emails.send({
+        from:    'Strategic Flow <alex@strategicflow.tech>',
+        replyTo: 'strategicflow@proton.me',
+        to:      email,
+        subject: PLAYBOOK_LAUNCH_SUBJECT,
+        html:    personalised,
+      });
+      if (result?.unsubscribed || result?.cooldownBlocked || result?.error) {
+        skipped++;
+      } else {
+        sent++;
+      }
+      await new Promise(r => setTimeout(r, 120));
+    }
+    console.log(`[playbook-launch] campaign complete — sent ${sent}, skipped ${skipped}`);
+    res.json({ sent, skipped });
+  } catch (err) {
+    console.error('[playbook-launch/send]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Admin: payment and security investigation feed ───────────────────────────
 // Session-protected by the /admin middleware. Metadata deliberately excludes
 // request bodies, credentials, tokens, and raw payment provider payloads.
@@ -12084,6 +12269,15 @@ async function setupDB() {
   `).catch(e => console.error('[DB] playbook_purchases:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_playbook_purchases_email ON playbook_purchases(email)`).catch(()=>{});
 
+  // ── Playbook chapter-1 leads ───────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS playbook_leads (
+      email        TEXT PRIMARY KEY,
+      source       TEXT NOT NULL DEFAULT 'playbook_chapter1',
+      submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] playbook_leads:', e.message));
+
   // ── Listing analytics tables ──────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_listing_views (
@@ -16323,6 +16517,35 @@ a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:
 <a href="/why/login">Request a new link →</a>
 </div></body></html>`;
 }
+
+// GET /playbook — landing page for the AI Visibility & Conversion Playbook
+app.get('/playbook', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'index.html')));
+// GET /playbook/chapter-1 — free chapter (directly shareable, not gated)
+app.get('/playbook/chapter-1', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'chapter1-free.html')));
+// GET /playbook/full — paid full playbook (served without Stripe gate here;
+//   actual gating happens via /playbook-access → /playbook/download which
+//   verifies the purchase record. This clean URL is for bookmarked access.)
+app.get('/playbook/full', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'ai-visibility-conversion-playbook.html')));
+
+// POST /api/playbook/chapter1-lead — capture email from landing page form,
+//   persist to playbook_leads, return redirect to /playbook/chapter-1
+app.post('/api/playbook/chapter1-lead', async (req, res) => {
+  const raw = String(req.body?.email || req.body?.e || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+    return res.status(400).json({ error: 'invalid_email' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO playbook_leads (email, source) VALUES ($1,'playbook_chapter1')
+       ON CONFLICT (email) DO NOTHING`,
+      [raw]
+    );
+  } catch (e) {
+    console.error('[playbook-lead]', e.message);
+    // Non-fatal — still let them through
+  }
+  return res.json({ redirect: '/playbook/chapter-1' });
+});
 
 // ── Playbook: payment verification + gated download ───────────────────────────
 const PLAYBOOK_PRICE_SINGLE = 'price_1U7Y3EDpTwoDeZJnyDv5DNHx'; // $9.99 — playbook only
