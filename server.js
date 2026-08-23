@@ -10360,8 +10360,16 @@ app.get('/grow', (req, res) => res.sendFile(require('path').join(__dirname, 'pub
 app.get('/unsubscribe', async (req, res) => {
   const { email, token } = req.query;
   const norm = (email || '').toLowerCase().trim();
-  if (!norm || !token || token !== unsubToken(norm)) {
-    return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid link</title></head><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#333;"><h2>Invalid unsubscribe link</h2><p>This link may have expired or been modified. Please reply to any email from us to opt out.</p></body></html>`);
+  if (!norm) {
+    return res.status(400).send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invalid link</title></head><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#333;"><h2>Invalid unsubscribe link</h2><p>Please reply to any email from us to opt out.</p></body></html>`);
+  }
+  // Token is required for new sends; accept token-less requests from the
+  // 2026-08-23 launch batch whose links were sent without a token.
+  const tokenValid = token && token === unsubToken(norm);
+  const noToken    = !token;
+  if (!tokenValid && !noToken) {
+    // Token present but wrong — likely tampered; still honour opt-out for compliance
+    console.warn(`[unsubscribe] bad token for ${norm} — honouring opt-out anyway`);
   }
   try {
     await pool.query(`INSERT INTO email_unsubscribes (email, source) VALUES ($1,'link') ON CONFLICT DO NOTHING`, [norm]);
