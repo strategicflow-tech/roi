@@ -12071,6 +12071,19 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_created ON security_audit_log(created_at DESC)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_listing_created ON security_audit_log(listing_id, created_at DESC)`).catch(()=>{});
 
+  // ── Playbook purchases ─────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS playbook_purchases (
+      stripe_session_id TEXT PRIMARY KEY,
+      email             TEXT NOT NULL,
+      price_id          TEXT NOT NULL,
+      tier              TEXT NOT NULL CHECK (tier IN ('playbook_single','playbook_bundle')),
+      activated_pro     BOOLEAN NOT NULL DEFAULT FALSE,
+      purchased_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] playbook_purchases:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_playbook_purchases_email ON playbook_purchases(email)`).catch(()=>{});
+
   // ── Listing analytics tables ──────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_listing_views (
@@ -16310,6 +16323,254 @@ a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:
 <a href="/why/login">Request a new link →</a>
 </div></body></html>`;
 }
+
+// ── Playbook: payment verification + gated download ───────────────────────────
+const PLAYBOOK_PRICE_SINGLE = 'price_1U7Y3EDpTwoDeZJnyDv5DNHx'; // $9.99 — playbook only
+const PLAYBOOK_PRICE_BUNDLE = 'price_1U7Y3KDpTwoDeZJnOjcVX6yv'; // $29   — playbook + AI Vis Pro month
+
+function renderPlaybookErrorHtml(reason) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Payment Verification Failed — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070d1a;--card:#0c1526;--teal:#00e5ff;--muted:#6a8aaa;--hairline:#1a2e45;--font:'Figtree',sans-serif;--mono:'DM Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);}
+body{background:var(--bg);color:#e8f0fa;font-family:var(--font);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;position:relative;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(0,229,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.025) 1px,transparent 1px);background-size:52px 52px;animation:gridDrift 25s linear infinite;}
+@keyframes gridDrift{from{background-position:0 0;}to{background-position:52px 52px;}}
+.card{position:relative;z-index:1;max-width:520px;width:100%;background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:48px 40px;text-align:center;}
+.icon{font-size:40px;margin-bottom:24px;display:block;}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#f87171;margin-bottom:16px;}
+h1{font-size:26px;font-weight:700;margin-bottom:12px;line-height:1.3;}
+.reason{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:32px;}
+.divider{height:1px;background:var(--hairline);margin:24px 0;}
+.actions{display:flex;flex-direction:column;gap:12px;align-items:center;}
+.btn-primary{display:inline-block;background:var(--teal);color:#070d1a;font-weight:700;font-size:14px;padding:13px 28px;border-radius:8px;text-decoration:none;font-family:var(--mono);}
+.support{font-size:12px;color:var(--muted);font-family:var(--mono);}
+.support a{color:var(--teal);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="icon">⚠</span>
+  <div class="eyebrow">Payment Not Verified</div>
+  <h1>We couldn't confirm your payment.</h1>
+  <p class="reason">${reason}</p>
+  <div class="divider"></div>
+  <div class="actions">
+    <a class="btn-primary" href="https://strategicflow.tech">Try the purchase again →</a>
+    <p class="support">Need help? <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a></p>
+  </div>
+</div>
+</body></html>`;
+}
+
+function renderPlaybookSuccessHtml(email, isBundle, sessionId) {
+  const downloadUrl = `/playbook/download?session_id=${encodeURIComponent(sessionId)}`;
+  const bundleNote = isBundle ? `
+  <div class="bundle-note">
+    <div class="bundle-icon">✦</div>
+    <div>
+      <div class="bundle-label">AI Visibility Pro — 1 month included</div>
+      <div class="bundle-desc">Your Pro access is being activated. Check <strong>${email || 'your inbox'}</strong> for a sign-in link within the next few minutes.</div>
+    </div>
+  </div>` : '';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Your Playbook Is Ready — Strategic Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070d1a;--card:#0c1526;--card2:#101d30;--teal:#00e5ff;--teal-dim:rgba(0,229,255,0.1);--teal-glow:rgba(0,229,255,0.3);--muted:#6a8aaa;--hairline:#1a2e45;--font:'Figtree',sans-serif;--mono:'DM Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);}
+body{background:var(--bg);color:#e8f0fa;font-family:var(--font);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;position:relative;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(0,229,255,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.035) 1px,transparent 1px);background-size:52px 52px;animation:gridDrift 25s linear infinite;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(0,180,255,0.07) 0%,transparent 70%);}
+@keyframes gridDrift{from{background-position:0 0;}to{background-position:52px 52px;}}
+.card{position:relative;z-index:1;max-width:560px;width:100%;text-align:center;}
+.check-wrap{width:72px;height:72px;border-radius:50%;border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;margin:0 auto 28px;box-shadow:0 0 28px var(--teal-glow);}
+.check{font-size:32px;color:var(--teal);}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:14px;}
+h1{font-size:32px;font-weight:700;margin-bottom:10px;line-height:1.2;}
+.email-note{font-size:14px;color:var(--muted);margin-bottom:36px;line-height:1.6;}
+.email-note strong{color:#e8f0fa;}
+.download-btn{display:inline-flex;align-items:center;gap:10px;background:var(--teal);color:#070d1a;font-weight:700;font-size:16px;padding:16px 32px;border-radius:10px;text-decoration:none;font-family:var(--font);box-shadow:0 0 24px var(--teal-glow);transition:box-shadow .2s;margin-bottom:36px;}
+.download-btn:hover{box-shadow:0 0 40px var(--teal-glow);}
+.download-btn .dl-icon{font-size:20px;}
+.bundle-note{background:var(--card);border:1px solid var(--hairline);border-left:3px solid var(--teal);border-radius:10px;padding:18px 20px;display:flex;align-items:flex-start;gap:14px;text-align:left;margin-bottom:32px;}
+.bundle-icon{color:var(--teal);font-size:18px;flex-shrink:0;margin-top:2px;}
+.bundle-label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);margin-bottom:6px;}
+.bundle-desc{font-size:13px;color:var(--muted);line-height:1.6;}
+.bundle-desc strong{color:#e8f0fa;}
+.divider{height:1px;background:var(--hairline);margin:8px 0 24px;}
+.bookmark-note{font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.6;}
+.bookmark-note a{color:var(--teal);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="check-wrap"><span class="check">✓</span></div>
+  <div class="eyebrow">Payment Confirmed</div>
+  <h1>Your playbook is ready.</h1>
+  <p class="email-note">${email ? `Purchased as <strong>${email}</strong>.` : 'Your payment has been verified.'} Bookmark this page — the download link is always available here.</p>
+  ${bundleNote}
+  <a class="download-btn" href="${downloadUrl}" download>
+    <span class="dl-icon">⬇</span>
+    Download the Playbook
+  </a>
+  <div class="divider"></div>
+  <p class="bookmark-note">Questions? <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a></p>
+</div>
+</body></html>`;
+}
+
+// GET /playbook-access?session_id={CHECKOUT_SESSION_ID}
+// Stripe redirects here after a successful Payment Link purchase.
+// Verifies payment server-side, stores a purchase record, activates Pro for bundle tier.
+app.get('/playbook-access', async (req, res) => {
+  const sessionId = String(req.query.session_id || '').trim();
+  if (!sessionId) {
+    return res.status(400).send(renderPlaybookErrorHtml(
+      'No session ID was provided. If you completed a purchase, try clicking the confirmation link from your Stripe receipt, or contact us for help.'
+    ));
+  }
+
+  // Re-visit: serve from stored record without hitting Stripe again
+  try {
+    const cached = await pool.query(
+      `SELECT email, tier FROM playbook_purchases WHERE stripe_session_id=$1`,
+      [sessionId]
+    );
+    if (cached.rows.length) {
+      const { email, tier } = cached.rows[0];
+      console.log(`[playbook-access] re-visit for session ${sessionId} (${tier})`);
+      return res.send(renderPlaybookSuccessHtml(email, tier === 'playbook_bundle', sessionId));
+    }
+  } catch (e) {
+    console.error('[playbook-access] DB cache lookup error:', e.message);
+  }
+
+  // First visit: verify with Stripe
+  let session, lineItems;
+  try {
+    [session, lineItems] = await Promise.all([
+      stripe.checkout.sessions.retrieve(sessionId),
+      stripe.checkout.sessions.listLineItems(sessionId, { limit: 5 })
+    ]);
+  } catch (err) {
+    console.error('[playbook-access] Stripe retrieve failed:', err.message);
+    return res.status(400).send(renderPlaybookErrorHtml(
+      'We could not retrieve your payment session from Stripe. The link may be invalid or expired. Please contact us if you believe this is an error.'
+    ));
+  }
+
+  if (session.payment_status !== 'paid') {
+    console.warn('[playbook-access] session not paid:', sessionId, session.payment_status);
+    return res.status(402).send(renderPlaybookErrorHtml(
+      'Your payment has not been confirmed yet. If you just completed checkout, please wait a moment and refresh this page.'
+    ));
+  }
+
+  const priceIds = (lineItems.data || []).map(li => li.price?.id).filter(Boolean);
+  const matchedPriceId = priceIds.find(pid => pid === PLAYBOOK_PRICE_SINGLE || pid === PLAYBOOK_PRICE_BUNDLE);
+  if (!matchedPriceId) {
+    console.warn('[playbook-access] no playbook price ID found in session', sessionId, priceIds);
+    return res.status(403).send(renderPlaybookErrorHtml(
+      'This payment session does not include the AI Visibility &amp; Conversion Playbook. If you purchased a different product, please contact us.'
+    ));
+  }
+
+  const isBundle   = matchedPriceId === PLAYBOOK_PRICE_BUNDLE;
+  const tier       = isBundle ? 'playbook_bundle' : 'playbook_single';
+  const email      = (session.customer_details?.email || session.customer_email || '').toLowerCase().trim();
+  const customerId = session.customer || null;
+
+  // Store purchase record (idempotent — ON CONFLICT DO NOTHING protects re-entrant calls)
+  try {
+    await pool.query(
+      `INSERT INTO playbook_purchases (stripe_session_id, email, price_id, tier)
+       VALUES ($1,$2,$3,$4) ON CONFLICT (stripe_session_id) DO NOTHING`,
+      [sessionId, email, matchedPriceId, tier]
+    );
+  } catch (e) {
+    console.error('[playbook-access] failed to store purchase:', e.message);
+  }
+
+  // Activate AI Visibility Pro for bundle purchasers
+  if (isBundle && email) {
+    try {
+      const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+      await pool.query(`
+        INSERT INTO ai_visibility_subscribers (email, company_slug, stripe_customer_id, stripe_subscription_id, status)
+        VALUES ($1, NULL, $2, NULL, 'active')
+        ON CONFLICT (email) WHERE company_slug IS NULL
+        DO UPDATE SET
+          stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, ai_visibility_subscribers.stripe_customer_id),
+          status = 'active'
+      `, [email, customerId]);
+
+      await pool.query(
+        `UPDATE playbook_purchases SET activated_pro=TRUE WHERE stripe_session_id=$1`,
+        [sessionId]
+      );
+
+      const token     = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await pool.query(
+        `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1,$2,$3)`,
+        [token, email, expiresAt]
+      );
+      await resend.emails.send({
+        from:    'Strategic Flow <noreply@strategicflow.tech>',
+        replyTo: 'strategicflow@proton.me',
+        to:      email,
+        subject: 'Your AI Visibility Pro access — Strategic Flow',
+        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#070d1a;color:#e8f0fa;padding:40px 32px;border:1px solid #1a2e45;border-radius:12px;">
+          <p style="font-size:11px;letter-spacing:.1em;color:#6a8aaa;text-transform:uppercase;margin:0 0 28px;">AI Visibility &amp; Conversion Playbook Bundle</p>
+          <h2 style="font-size:22px;margin:0 0 14px;font-weight:700;">Your AI Visibility Pro access link</h2>
+          <p style="font-size:15px;color:#6a8aaa;margin:0 0 28px;line-height:1.6;">Thanks for purchasing the bundle. Click below to sign in to AI Visibility Pro. This link expires in 1 hour.</p>
+          <a href="${baseUrl}/auth/verify/${token}" style="display:inline-block;background:#00e5ff;color:#070d1a;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:700;margin-bottom:28px;border-radius:8px;">Access AI Visibility Pro →</a>
+          <p style="font-size:12px;color:#6a8aaa;margin:0;line-height:1.6;">Questions? Reply to this email or contact <a href="mailto:strategicflow@proton.me" style="color:#00e5ff;">strategicflow@proton.me</a>.</p>
+        </div>`
+      }).catch(e => console.error('[playbook-access] Pro magic-link email error:', e.message));
+
+      console.log(`[playbook-access] Pro activated for bundle purchaser: ${email}`);
+    } catch (e) {
+      console.error('[playbook-access] Pro activation error:', e.message);
+    }
+  }
+
+  console.log(`[playbook-access] verified — session ${sessionId} tier ${tier} email ${email}`);
+  return res.send(renderPlaybookSuccessHtml(email, isBundle, sessionId));
+});
+
+// GET /playbook/download?session_id=X
+// Serves the playbook file only after confirming the session exists in playbook_purchases.
+// Bookmarking this URL re-verifies from the DB; no extra Stripe call needed.
+app.get('/playbook/download', async (req, res) => {
+  const sessionId = String(req.query.session_id || '').trim();
+  if (!sessionId) return res.redirect('/playbook-access');
+  try {
+    const result = await pool.query(
+      `SELECT 1 FROM playbook_purchases WHERE stripe_session_id=$1`,
+      [sessionId]
+    );
+    if (!result.rows.length) {
+      return res.redirect(`/playbook-access?session_id=${encodeURIComponent(sessionId)}`);
+    }
+    res.setHeader('Content-Disposition', 'attachment; filename="ai-visibility-conversion-playbook.html"');
+    return res.sendFile(path.join(__dirname, 'public', 'playbook', 'ai-visibility-conversion-playbook.html'));
+  } catch (err) {
+    console.error('[playbook/download] error:', err.message);
+    return res.status(500).send('Download failed. Please contact <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a>.');
+  }
+});
 
 // GET /why/login — login page (no token) or token verification (with ?token=XXX)
 app.get('/why/login', async (req, res) => {
