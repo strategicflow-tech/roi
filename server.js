@@ -5412,6 +5412,27 @@ app.get('/admin/insert-knight-leads', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /admin/insert-liftoff?key=… — one-time insert of lift-off.sh draft listing with fixed ID. Idempotent.
+app.get('/admin/insert-liftoff', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const exists = await pool.query(`SELECT id FROM directory_listings WHERE id = 8612`);
+    if (exists.rows.length) return res.json({ status: 'already exists', id: exists.rows[0].id });
+    const r = await pool.query(
+      `INSERT INTO directory_listings (id, name, url, description, category, source, status, image_url, contact_email, contact_email_status, contact_email_source, social_twitter, is_auto_imported, is_seeded, submitted_at)
+       OVERRIDING SYSTEM VALUE
+       VALUES (8612,$1,$2,$3,'Directories','manual','draft',$4,'contact@lift-off.sh','found','manual','https://x.com/lift_off_sh',false,false,NOW()) RETURNING id`,
+      [
+        'LiftOff',
+        'https://lift-off.sh/',
+        'LiftOff is a product launch platform for makers, startups, indie hackers, and teams shipping new software. Users can discover new products, browse daily/weekly/monthly leaderboards, explore category pages, and submit their own product for visibility through launch plans and recurring ad slots.',
+        'https://lift-off.sh/ogImage.png'
+      ]
+    );
+    res.json({ status: 'inserted', id: r.rows[0].id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
 // listings are clearly ahead (power-law decay: #1=30, #2=26, #3=23, #4=20 … #10=10).
 // Never reduces votes. Safe to re-run.
