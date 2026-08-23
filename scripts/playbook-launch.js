@@ -77,7 +77,7 @@ const LARGE_COMPANY_BLOCKLIST = new Set([
 
 function isBlocked(name, email) {
   const e = (email || '').toLowerCase().trim();
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security)@/i.test(e))
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
     return { blocked: true, reason: `restricted prefix` };
   if (/-abuse@/i.test(e))
     return { blocked: true, reason: 'restricted prefix (-abuse@)' };

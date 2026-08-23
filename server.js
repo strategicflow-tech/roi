@@ -2864,8 +2864,8 @@ const LARGE_COMPANY_BLOCKLIST = new Set([
 function isBlockedOutreachTarget(listingName, email) {
   const e = (email || '').toLowerCase().trim();
 
-  // Rule 1 — restricted email prefix (compliance / legal / press / abuse)
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security)@/i.test(e))
+  // Rule 1 — restricted email prefix (compliance / legal / press / abuse / generic role)
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
     return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
   if (/-abuse@/i.test(e))
     return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
