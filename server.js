@@ -16538,6 +16538,8 @@ a{display:inline-block;background:#FF4422;color:#FFF;font-size:14px;font-weight:
 app.get('/playbook', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'index.html')));
 // GET /playbook/chapter-1 — free chapter (directly shareable, not gated)
 app.get('/playbook/chapter-1', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'chapter1-free.html')));
+// GET /playbook/free-chapter — email-gated entry point for cold outreach (captures lead then redirects to /playbook/chapter-1)
+app.get('/playbook/free-chapter', (req, res) => res.sendFile(path.join(__dirname, 'public', 'playbook', 'free-chapter.html')));
 // GET /playbook/full — paid full playbook (served without Stripe gate here;
 //   actual gating happens via /playbook-access → /playbook/download which
 //   verifies the purchase record. This clean URL is for bookmarked access.)
