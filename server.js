@@ -6164,9 +6164,14 @@ function buildPlaybookLaunchEmailHtml(previewOnly = false) {
     <p style="margin:0 0 18px;">Claude, GPT, Perplexity, and Gemini already have an opinion about your company. Most founders have never checked what it is.</p>
     <p style="margin:0 0 18px;">We scored 140 real SaaS companies across two things: whether AI models mention and accurately describe them (73 companies), and whether their actual emails and pages convert once someone reads them (67 companies). The average AI Visibility score was 7.7 out of 10. The average Decision Friction score was 3.9. Six companies were mentioned by exactly zero of the four models, across every question we asked.</p>
     <p style="margin:0 0 18px;">That gap between "AI recommends you" and "your funnel converts" is where most SaaS companies lose deals without ever seeing it happen.</p>
-    <p style="margin:0 0 18px;">We wrote it all down. The AI Visibility &amp; Conversion Playbook is 21 chapters built entirely from that dataset: which five structural patterns kill conversion most often (ranked, with real frequency data), how AI models actually decide who to cite, and a 30-day roadmap to fix both problems at once.</p>
-    <p style="margin:0 0 24px;">Chapter 1 is free, no card needed:</p>
-    <p style="margin:0 0 24px;"><a href="${chapterUrl}" style="display:inline-block;background:#1fd8c4;color:#0a0b0d;padding:13px 26px;text-decoration:none;font-weight:700;border-radius:3px;font-size:15px;">Read Chapter 1 free →</a></p>
+    <p style="margin:0 0 18px;">On the conversion side, one pattern alone showed up as the top structural issue in 36% of the 67 companies we scored: subject lines and headers that name the internal category ("Product Update") instead of the outcome for the reader. Add the second most common pattern and you're looking at nearly two-thirds of every conversion failure in the dataset, from two fixable habits.</p>
+    <p style="margin:0 0 12px;">We wrote all of it down. The AI Visibility &amp; Conversion Playbook is 21 chapters built entirely from that dataset:</p>
+    <p style="margin:0 0 6px;">→ Which five structural patterns kill conversion most often, ranked by real frequency</p>
+    <p style="margin:0 0 6px;">→ How AI models actually decide who to cite and who to skip</p>
+    <p style="margin:0 0 6px;">→ The full scored index, all 140 companies, so you can see exactly where you'd land</p>
+    <p style="margin:0 0 18px;">→ A 30-day roadmap to fix both problems at once</p>
+    <p style="margin:0 0 8px;">Chapter 1 is free, no card needed:</p>
+    <p style="margin:0 0 24px;">→ <a href="${chapterUrl}" style="color:#1a1a1a;font-weight:700;">Read Chapter 1 free</a></p>
     <p style="margin:0 0 18px;">The full playbook is $9.99. If you'd rather skip straight to having someone run the diagnosis on your own content, the $149 Decision Friction Review delivers a full rebuild within 5 hours.</p>
     <p style="margin:0 0 6px;">Alex</p>
     <p style="margin:0;color:#666;">Strategic Flow</p>
