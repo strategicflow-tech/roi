@@ -5,14 +5,22 @@
 
 'use strict';
 
+const crypto    = require('crypto');
 const { Pool }  = require('pg');
 const { Resend } = require('resend');
 
 const pool   = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const BASE_URL = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+const BASE_URL = 'https://strategic-flow-audit.replit.app';
 const SUBJECT  = "AI already decided if you're worth recommending";
+
+function unsubLink(email) {
+  const e   = (email || '').toLowerCase().trim();
+  const tok = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'sf-unsub-key')
+                    .update(e).digest('hex').slice(0, 32);
+  return `${BASE_URL}/unsubscribe?email=${encodeURIComponent(e)}&token=${tok}`;
+}
 const FROM     = 'Strategic Flow <alex@strategicflow.tech>';
 const REPLY_TO = 'alex@strategicflow.tech';
 const TRANCHE_SIZE = 180;   // ~3 tranches of 180
@@ -105,7 +113,6 @@ async function recordSent(email, subject) {
 
 function buildHtml(email) {
   const chapterUrl = `${BASE_URL}/playbook/chapter-1`;
-  const unsubUrl   = `${BASE_URL}/unsubscribe?email=${encodeURIComponent(email)}`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#1a1a1a;font-size:15px;line-height:1.7;">
   <div style="padding:40px 36px;">
     <p style="margin:0 0 18px;">Hey,</p>
@@ -123,7 +130,7 @@ function buildHtml(email) {
     <p style="margin:0 0 18px;">The full playbook is $9.99. If you'd rather skip straight to having someone run the diagnosis on your own content, the $149 Decision Friction Review delivers a full rebuild within 5 hours.</p>
     <p style="margin:0 0 6px;">Alex</p>
     <p style="margin:0;color:#666;">Strategic Flow</p>
-    <p style="margin:32px 0 0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">You're receiving this because you're subscribed to Strategic Flow updates. <a href="${unsubUrl}" style="color:#999;">Unsubscribe</a></p>
+    <p style="margin:32px 0 0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">You're receiving this because you're subscribed to Strategic Flow updates. <a href="${unsubLink(email)}" style="color:#999;">Unsubscribe</a></p>
   </div>
 </div>`;
 }

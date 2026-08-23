@@ -6175,7 +6175,7 @@ function buildPlaybookLaunchEmailHtml(previewOnly = false) {
     <p style="margin:0 0 18px;">The full playbook is $9.99. If you'd rather skip straight to having someone run the diagnosis on your own content, the $149 Decision Friction Review delivers a full rebuild within 5 hours.</p>
     <p style="margin:0 0 6px;">Alex</p>
     <p style="margin:0;color:#666;">Strategic Flow</p>
-    ${!previewOnly ? `<p style="margin:32px 0 0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">You're receiving this because your product is listed on ToolIndex. <a href="${BASE_URL}/unsubscribe?email={{EMAIL}}" style="color:#999;">Unsubscribe</a></p>` : ''}
+    ${!previewOnly ? `<p style="margin:32px 0 0;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:16px;">You're receiving this because your product is listed on ToolIndex. <a href="{{UNSUB_LINK}}" style="color:#999;">Unsubscribe</a></p>` : ''}
   </div>
 </div>`;
 }
@@ -6319,7 +6319,10 @@ app.post('/admin/playbook-launch/send', async (req, res) => {
     let sent = 0, skipped = 0;
     const emailHtml = buildPlaybookLaunchEmailHtml(false);
     for (const { email } of recipients) {
-      const personalised = emailHtml.replace('{{EMAIL}}', encodeURIComponent(email));
+      const unsubTok = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'sf-unsub-key')
+        .update(email.toLowerCase().trim()).digest('hex').slice(0, 32);
+      const unsubUrl = `${BASE_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${unsubTok}`;
+      const personalised = emailHtml.replace('{{UNSUB_LINK}}', unsubUrl);
       const result = await resend.emails.send({
         from:    'Strategic Flow <alex@strategicflow.tech>',
         replyTo: 'alex@strategicflow.tech',
