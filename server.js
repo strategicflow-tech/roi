@@ -557,7 +557,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/fix-peerlist-noclaim', '/insert-fetchrly', '/insert-knight-leads',
   '/rank-spread-votes', '/redistribute-votes', '/toggle-promoted', '/seed-votes',
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
-  '/directory/winners/compute',
+  '/directory/winners/compute', '/insert-liftoff',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -593,8 +593,8 @@ function requireAdminSession(req, res, next) {
   }
 
   const internalBackfillJob = req.baseUrl === '/admin' &&
-    req.path === '/backfill-logos' &&
     req.method === 'POST' &&
+    ADMIN_MUTATING_GET_PATHS.has(req.path) &&
     hasMatchingAdminJobToken(req);
   const sessionAdmin = isAdmin(req.session?.userEmail);
   if (!sessionAdmin && !internalBackfillJob) {
