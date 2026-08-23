@@ -6251,7 +6251,7 @@ button.send-btn:hover{background:#dc2626}
   <h2>Send metadata</h2>
   <div class="meta">
     <div class="meta-row"><span class="meta-label">From:</span> <span>Strategic Flow &lt;alex@strategicflow.tech&gt;</span></div>
-    <div class="meta-row"><span class="meta-label">Reply-To:</span> <span>strategicflow@proton.me</span></div>
+    <div class="meta-row"><span class="meta-label">Reply-To:</span> <span>alex@strategicflow.tech</span></div>
     <div class="meta-row"><span class="meta-label">Subject:</span> <span>${esc(PLAYBOOK_LAUNCH_SUBJECT)}</span></div>
     <div class="meta-row"><span class="meta-label">Recipients:</span> <span>${recipients.length.toLocaleString()} (after blocklist + unsubscribe filter; 24h cooldown applied per-send)</span></div>
   </div>
@@ -6317,7 +6317,7 @@ app.post('/admin/playbook-launch/send', async (req, res) => {
       const personalised = emailHtml.replace('{{EMAIL}}', encodeURIComponent(email));
       const result = await resend.emails.send({
         from:    'Strategic Flow <alex@strategicflow.tech>',
-        replyTo: 'strategicflow@proton.me',
+        replyTo: 'alex@strategicflow.tech',
         to:      email,
         subject: PLAYBOOK_LAUNCH_SUBJECT,
         html:    personalised,
