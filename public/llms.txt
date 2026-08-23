@@ -80,6 +80,13 @@ Changelog Audit, Onboarding Audit, LinkedIn Audit. Available in English, Spanish
 https://strategicflow-tech.github.io/showcase/index.html
 Average score lift: 3 to 9. Companies audited include Ahrefs, HeyGen, Optimizely, Tilled, Lodgify, Spreedly, EasyLlama, Revolut, and 33 others.
 
+## AI Visibility & Conversion Playbook
+
+### The AI Visibility & Conversion Playbook — $9.99 one-time
+URL: https://strategic-flow-audit.replit.app/playbook/
+Free chapter: https://strategic-flow-audit.replit.app/playbook/chapter-1
+A 21-chapter field guide for B2B SaaS founders, based on scoring 140 companies across two proprietary indices. The AI Visibility Index (avg 7.7/10) measures how likely a company is to be cited by ChatGPT, Claude, Perplexity, and Gemini. The Decision Friction Index (avg 3.9/10) measures how much friction their emails and landing pages create for a buyer trying to convert. The playbook names five failure patterns ranked by frequency, includes the complete scored indices (73 AI Visibility entries, 67 Decision Friction entries), worked examples, and a 30-day combined roadmap. Written by Alex Iliescu, Strategic Flow. $9.99 one-time, or $29 bundled with one month of AI Visibility Pro monitoring.
+
 ## Links
 - Website: https://strategicflow.tech
 - App: https://strategic-flow-pro.replit.app

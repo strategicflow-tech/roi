@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0a0b0d"/>
+  <!-- Teal glow -->
+  <radialGradient id="glow" cx="50%" cy="0%" r="60%">
+    <stop offset="0%" stop-color="#1fd8c4" stop-opacity="0.12"/>
+    <stop offset="100%" stop-color="#0a0b0d" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <!-- Amber accent bar -->
+  <rect x="80" y="80" width="60" height="5" fill="#f5a623"/>
+  <!-- Eyebrow -->
+  <text x="80" y="140" font-family="Courier New, monospace" font-size="16" fill="#f5a623" letter-spacing="3" text-transform="uppercase">A FIELD GUIDE FOR SAAS FOUNDERS</text>
+  <!-- Title -->
+  <text x="80" y="210" font-family="Georgia, serif" font-size="52" font-weight="bold" fill="#ffffff">The AI Visibility &amp;</text>
+  <text x="80" y="275" font-family="Georgia, serif" font-size="52" font-weight="bold" fill="#ffffff">Conversion Playbook</text>
+  <!-- Subtitle -->
+  <text x="80" y="330" font-family="-apple-system, Arial, sans-serif" font-size="22" fill="#c7cbd4">140 companies scored. 5 failure patterns named.</text>
+  <!-- Stats -->
+  <rect x="80" y="390" width="220" height="100" rx="4" fill="#111318" stroke="#1e2128" stroke-width="1"/>
+  <text x="190" y="435" font-family="Courier New, monospace" font-size="36" fill="#f5a623" text-anchor="middle" font-weight="bold">140</text>
+  <text x="190" y="460" font-family="-apple-system, Arial, sans-serif" font-size="12" fill="#8a90a0" text-anchor="middle" letter-spacing="1">COMPANIES SCORED</text>
+
+  <rect x="320" y="390" width="220" height="100" rx="4" fill="#111318" stroke="#1e2128" stroke-width="1"/>
+  <text x="430" y="435" font-family="Courier New, monospace" font-size="36" fill="#f5a623" text-anchor="middle" font-weight="bold">7.7/10</text>
+  <text x="430" y="460" font-family="-apple-system, Arial, sans-serif" font-size="12" fill="#8a90a0" text-anchor="middle" letter-spacing="1">AVG. AI VISIBILITY</text>
+
+  <rect x="560" y="390" width="220" height="100" rx="4" fill="#111318" stroke="#1e2128" stroke-width="1"/>
+  <text x="670" y="435" font-family="Courier New, monospace" font-size="36" fill="#f5a623" text-anchor="middle" font-weight="bold">3.9/10</text>
+  <text x="670" y="460" font-family="-apple-system, Arial, sans-serif" font-size="12" fill="#8a90a0" text-anchor="middle" letter-spacing="1">AVG. DEC. FRICTION</text>
+
+  <!-- Price badge -->
+  <rect x="900" y="390" width="220" height="100" rx="4" fill="#f5a623"/>
+  <text x="1010" y="435" font-family="Georgia, serif" font-size="36" fill="#0a0b0d" text-anchor="middle" font-weight="bold">$9.99</text>
+  <text x="1010" y="460" font-family="-apple-system, Arial, sans-serif" font-size="13" fill="#0a0b0d" text-anchor="middle" font-weight="bold">ONE-TIME · 21 CHAPTERS</text>
+
+  <!-- Byline -->
+  <text x="80" y="560" font-family="Courier New, monospace" font-size="15" fill="#8a90a0">ALEX ILIESCU · STRATEGIC FLOW · 2026</text>
+  <!-- Domain -->
+  <text x="1120" y="560" font-family="Courier New, monospace" font-size="14" fill="#8a90a0" text-anchor="end">strategic-flow-audit.replit.app/playbook</text>
+</svg>

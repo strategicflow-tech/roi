@@ -23130,6 +23130,8 @@ setupDB().then(async () => {
       { loc: `${base}/directory/best-productivity-saas`,        priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/directory/alternative-to-saashub`,        priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/directory/alternative-to-futurepedia`,    priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/playbook/`,                                priority: '0.9', changefreq: 'weekly'  },
+      { loc: `${base}/playbook/chapter-1`,                       priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model`,                           priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/friction-model/guide`,                     priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/blog`,                                          priority: '0.8', changefreq: 'weekly'  },
