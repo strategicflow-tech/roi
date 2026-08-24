@@ -536,6 +536,44 @@ textarea{resize:vertical;line-height:1.7;}
   }
 
   document.addEventListener('DOMContentLoaded', playTerminal);
+
+  // Pre-fill sample email when ?sample=1 is in the URL
+  document.addEventListener('DOMContentLoaded', function () {
+    if (new URLSearchParams(window.location.search).get('sample') !== '1') return;
+
+    var SAMPLE_SUBJECT = 'Introducing Procedures in ElevenLabs';
+    var SAMPLE_BODY = [
+      'Hi [First Name],',
+      '',
+      'We\'re excited to introduce Procedures — the newest addition to ElevenLabs.',
+      '',
+      'Procedures let you build multi-step voice AI workflows that run automatically inside your agents. Whether you\'re handling customer support triage, onboarding walkthroughs, or live data collection, Procedures give your agents the ability to complete full task sequences without manual intervention.',
+      '',
+      'Here\'s what you can build with Procedures:',
+      '- Multi-step voice conversations that branch based on user responses',
+      '- Integrations with your existing tools and APIs at each step',
+      '- Automatic logging of every interaction for review and optimization',
+      '- Conditional logic that adapts the conversation in real time',
+      '',
+      'We built Procedures because our users told us they needed more than a voice interface — they needed voice agents that could actually complete tasks end-to-end.',
+      '',
+      'To get started, open your ElevenLabs dashboard, navigate to Agents, and select "Add Procedure" from the agent builder.',
+      '',
+      'Learn more about Procedures →',
+      '',
+      'The ElevenLabs Team'
+    ].join('\n');
+
+    var subjectEl = document.getElementById('fSubject');
+    var bodyEl    = document.getElementById('fBody');
+
+    if (subjectEl && !subjectEl.value) subjectEl.value = SAMPLE_SUBJECT;
+    if (bodyEl    && !bodyEl.value)    { bodyEl.value = SAMPLE_BODY; updateHtmlTip && updateHtmlTip(); }
+
+    // Scroll the form into view so the pre-filled content is visible
+    var formCard = document.getElementById('stateForm');
+    if (formCard) setTimeout(function () { formCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
+  });
   </script>
 
   <!-- PROOF CASE STUDIES -->
@@ -945,6 +983,7 @@ textarea{resize:vertical;line-height:1.7;}
       <div class="field">
         <label for="fBody">Original Email Body</label>
         <textarea id="fBody" rows="11" placeholder="Paste your full email body here…" oninput="updateHtmlTip()"></textarea>
+        <p class="info-note" style="margin-top:8px;text-align:left;">Don't have one handy? <a href="?sample=1">Try our sample email →</a></p>
       </div>
 
       <!-- HTML FILE UPLOAD -->
