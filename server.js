@@ -15206,23 +15206,47 @@ async function handleGenerate(req, res) {
         sourceHtml: _pageRawHtml || '',
         featureCards: (() => {
           const _fcType = result.emailType || detectedType || '';
-          const _heroUrl = req.body._ogImage || _imgsCtx[0]?.url || null;
+          // Mirror buildNewsletterHTML's heroSrc priority: _ogImage → first non-logo, non-junk
+          // product image. When _ogImage is absent, _imgsCtx[0] may be a logo/junk image that
+          // the HTML builder's _firstProductImg filter skips — scan for the first real product img.
+          const _fcIsLogo = u => /logo|typelogo|symbol|favicon/i.test(u || '');
+          const _fcIsJunk = u => {
+            if (!u) return true;
+            if (/avatar|icon|sprite|pixel|track|beacon|1x1/i.test(u)) return true;
+            const wM = u.match(/[?&](?:width|w)=(\d+)/i);
+            const hM = u.match(/[?&](?:height|h)=(\d+)/i);
+            return !!(wM && hM && (parseInt(wM[1]) < 200 || parseInt(hM[1]) < 200));
+          };
+          const _heroUrl = req.body._ogImage
+            || _imgsCtx.find(img => img?.url && !_fcIsLogo(img.url) && !_fcIsJunk(img.url))?.url
+            || null;
           const _usedUrls = new Set(_heroUrl ? [_heroUrl] : []);
+          // Pass full _imgsCtx — _usedUrls already blocks the hero so slice(1) is not needed.
+          // Also discard any Claude-supplied imageUrl that duplicates the hero (product-update
+          // prompts instruct Claude to pick from the product image list, which includes _imgsCtx[0]).
+          let _cards = null;
           if (Array.isArray(result.featureCards) && result.featureCards.length > 0) {
-            return result.featureCards.map(c => ({
-              ...c,
-              imageUrl: c.imageUrl || matchImageToCard(c, _imgsCtx.slice(1), _usedUrls) || null
-            }));
-          }
-          if (/thought.?leadership/i.test(_fcType)) {
+            _cards = result.featureCards.map(c => {
+              const _safeUrl = (c.imageUrl && c.imageUrl !== _heroUrl) ? c.imageUrl : null;
+              if (_safeUrl) _usedUrls.add(_safeUrl);
+              return { ...c, imageUrl: _safeUrl || matchImageToCard(c, _imgsCtx, _usedUrls) || null };
+            });
+          } else if (/thought.?leadership/i.test(_fcType)) {
             const _b = result.body || result._flatFields?.body || [];
-            return _b.slice(0, 3).map((b, i) => ({
+            _cards = _b.slice(0, 3).map((b, i) => ({
               title: `INSIGHT ${i + 1}`,
               body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
               imageUrl: null
             }));
           }
-          return null;
+          // Server-side assertion: hero URL must never appear as a feature card image URL.
+          if (_heroUrl && Array.isArray(_cards)) {
+            const _badCard = _cards.find(c => c?.imageUrl && c.imageUrl === _heroUrl);
+            if (_badCard) {
+              console.error('[hero-exclusion] ASSERTION FAILED in downloadHtml builder:', { heroUrl: _heroUrl, cardTitle: _badCard.title });
+            }
+          }
+          return _cards;
         })(),
         emailType: result.emailType || detectedType || '',
         labelBefore: _lang_labels.before, labelAfter: _lang_labels.after });
@@ -15309,54 +15333,88 @@ async function handleGenerate(req, res) {
           const _isProductUpdate = /product|announcement|feature|update/i.test(finalEmailType || '');
           const _isEA2 = /event.?announcement/i.test(finalEmailType || '');
           const _wcArr = Array.isArray(result.whatChanged) ? result.whatChanged.filter(w => w?.title) : [];
-          const _heroUrl2 = req.body._ogImage || _imgsCtx[0]?.url || null;
+          // Mirror buildNewsletterHTML's heroSrc priority: _ogImage → first non-logo, non-junk
+          // product image. Scan instead of using _imgsCtx[0] directly to handle edge cases where
+          // _imgsCtx[0] is a logo/junk that the HTML builder's _firstProductImg filter skips.
+          const _fcIsLogo2 = u => /logo|typelogo|symbol|favicon/i.test(u || '');
+          const _fcIsJunk2 = u => {
+            if (!u) return true;
+            if (/avatar|icon|sprite|pixel|track|beacon|1x1/i.test(u)) return true;
+            const wM = u.match(/[?&](?:width|w)=(\d+)/i);
+            const hM = u.match(/[?&](?:height|h)=(\d+)/i);
+            return !!(wM && hM && (parseInt(wM[1]) < 200 || parseInt(hM[1]) < 200));
+          };
+          const _heroUrl2 = req.body._ogImage
+            || _imgsCtx.find(img => img?.url && !_fcIsLogo2(img.url) && !_fcIsJunk2(img.url))?.url
+            || null;
           const _usedUrls2 = new Set(_heroUrl2 ? [_heroUrl2] : []);
+
+          let _cards2;
 
           // event_announcement: timeline cards — Claude returns featureCards directly
           if (_isEA2) {
             const _direct = Array.isArray(result.featureCards) && result.featureCards.length > 0
               ? result.featureCards
               : null;
-            if (_direct) return _direct.map(c => ({
-              ...c,
-              imageUrl: c.imageUrl || matchImageToCard(c, _imgsCtx.slice(1), _usedUrls2) || null
-            }));
-            const _body = result.body || result._flatFields?.body || [];
-            return _body.slice(0, 8).map((b, i) => ({
-              title: `MILESTONE ${i + 1}`,
-              body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
-              imageUrl: null
-            }));
-          }
-
-          // thought_leadership: Claude is instructed to return featureCards directly — use them first
-          if (_isTL) {
+            if (_direct) {
+              // Discard any Claude-supplied imageUrl that duplicates the hero
+              _cards2 = _direct.map(c => {
+                const _safeUrl = (c.imageUrl && c.imageUrl !== _heroUrl2) ? c.imageUrl : null;
+                if (_safeUrl) _usedUrls2.add(_safeUrl);
+                return { ...c, imageUrl: _safeUrl || matchImageToCard(c, _imgsCtx, _usedUrls2) || null };
+              });
+            } else {
+              const _body = result.body || result._flatFields?.body || [];
+              _cards2 = _body.slice(0, 8).map((b, i) => ({
+                title: `MILESTONE ${i + 1}`,
+                body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
+                imageUrl: null
+              }));
+            }
+          } else if (_isTL) {
+            // thought_leadership: Claude is instructed to return featureCards directly — use them first
             const _direct = Array.isArray(result.featureCards) && result.featureCards.length > 0
               ? result.featureCards
               : null;
-            if (_direct) return _direct;
-            // Claude fell back to body paragraphs — convert to insight cards
-            const _body = result.body || result._flatFields?.body || [];
-            return _body.slice(0, 3).map((b, i) => ({
-              title: `INSIGHT ${i + 1}`,
-              body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
-              imageUrl: null
-            }));
-          }
-
-          // Product announcement emails: use whatChanged items + product screenshots
-          if (_isProductUpdate && _wcArr.length > 0) {
-            return _wcArr.map((wc, i) => ({
+            if (_direct) {
+              // Guard: discard any card imageUrl that duplicates the hero
+              _cards2 = _direct.map(c => ({
+                ...c,
+                imageUrl: (c.imageUrl && c.imageUrl !== _heroUrl2) ? c.imageUrl : null
+              }));
+            } else {
+              // Claude fell back to body paragraphs — convert to insight cards
+              const _body = result.body || result._flatFields?.body || [];
+              _cards2 = _body.slice(0, 3).map((b, i) => ({
+                title: `INSIGHT ${i + 1}`,
+                body:  typeof b === 'string' ? b : (b?.body || b?.text || ''),
+                imageUrl: null
+              }));
+            }
+          } else if (_isProductUpdate && _wcArr.length > 0) {
+            // Product announcement emails: use whatChanged items + product screenshots
+            _cards2 = _wcArr.map((wc, i) => ({
               title:    wc.title || `Feature ${i + 1}`,
               body:     wc.body  || '',
-              imageUrl: matchImageToCard({ title: wc.title || '' }, _imgsCtx.slice(1), _usedUrls2)
-                        || _imgsCtx[i + 1]?.url || null
+              // Positional fallback: check _usedUrls2 so the hero is never reused
+              imageUrl: matchImageToCard({ title: wc.title || '' }, _imgsCtx, _usedUrls2)
+                        || (_imgsCtx[i + 1]?.url && !_usedUrls2.has(_imgsCtx[i + 1].url) ? _imgsCtx[i + 1].url : null)
             }));
+          } else {
+            // Fallback for other types: body paragraphs (PARA_LABELS filter drops them in showcase)
+            _cards2 = result._flatFields?.body
+              ? result._flatFields.body.map((b, i) => ({ title: ['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`, body: b, imageUrl: null }))
+              : [];
           }
-          // Fallback for other types: body paragraphs (PARA_LABELS filter drops them in showcase)
-          return result._flatFields?.body
-            ? result._flatFields.body.map((b, i) => ({ title: ['THE PROBLEM','THE SHIFT','THE CONSEQUENCE'][i] || `P${i+1}`, body: b, imageUrl: null }))
-            : [];
+
+          // Server-side assertion: hero URL must never appear as a feature card image URL.
+          if (_heroUrl2 && Array.isArray(_cards2)) {
+            const _badCard2 = _cards2.find(c => c?.imageUrl && c.imageUrl === _heroUrl2);
+            if (_badCard2) {
+              console.error('[hero-exclusion] ASSERTION FAILED in showcase builder:', { heroUrl: _heroUrl2, cardTitle: _badCard2.title });
+            }
+          }
+          return _cards2;
         })(),
         ctaText:        result.ctaText   || result._flatFields?.ctaText   || '',
         ctaUrl:         ctaHref || '',
