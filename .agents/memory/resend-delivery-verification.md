@@ -3,7 +3,7 @@ name: Resend delivery verification
 description: What can and cannot be confirmed when checking campaign delivery.
 ---
 
-The application's global email log records successful send calls, not inbox delivery. The production database does not currently store Resend delivery webhooks, so “sent” must not be reported as “delivered.”
+The application's global email log records successful send calls, not inbox delivery. The production database does not currently store Resend delivery webhooks, so “sent” must not be reported as “delivered.” In this workspace, the bound Resend connector can report an invalid key while the project secret used by the application is valid; direct provider verification with the project secret then works.
 
 **Why:** A campaign can be accepted by Resend and later bounce, be rejected by a receiving server, or be filtered before reaching the inbox.
 
