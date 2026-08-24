@@ -559,7 +559,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
-  '/fix-contacts-batch2', '/send-claim-newsletter-confirmations',
+  '/fix-contacts-batch2', '/send-claim-newsletter-confirmations', '/prune-resend-failures',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -10894,6 +10894,116 @@ app.get('/admin/send-claim-newsletter-confirmations', async (req, res) => {
   } catch (e) {
     console.error('[newsletter-consent] admin batch failed:', e.message);
     res.status(500).json({ error: 'confirmation_batch_failed' });
+  }
+});
+
+// ── GET /admin/prune-resend-failures — remove a campaign's bounced/suppressed
+// addresses from active recipient sources while retaining global send history.
+app.get('/admin/prune-resend-failures', async (req, res) => {
+  const campaignSubject = "AI already decided if you're worth recommending";
+  const client = await pool.connect();
+  try {
+    const failures = new Map();
+    let after = null;
+    for (let page = 0; page < 30; page++) {
+      const url = new URL('https://api.resend.com/emails');
+      url.searchParams.set('limit', '100');
+      if (after) url.searchParams.set('after', after);
+      const apiRes = await fetch(url, {
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
+      });
+      if (!apiRes.ok) {
+        const body = await apiRes.text().catch(() => '');
+        throw new Error(`Resend list failed (${apiRes.status}): ${body.slice(0, 200)}`);
+      }
+      const payload = await apiRes.json();
+      for (const message of payload.data || []) {
+        if (
+          message.subject === campaignSubject &&
+          (message.last_event === 'bounced' || message.last_event === 'suppressed')
+        ) {
+          for (const address of message.to || []) {
+            const email = String(address || '').toLowerCase().trim();
+            if (email) failures.set(email, message.last_event);
+          }
+        }
+      }
+      const rows = payload.data || [];
+      if (!payload.has_more || !rows.length) break;
+      const nextAfter = rows[rows.length - 1]?.id;
+      if (!nextAfter || nextAfter === after) break;
+      after = nextAfter;
+    }
+
+    await client.query('BEGIN');
+    let newsletterContacts = 0;
+    let listingContacts = 0;
+    let sequenceContacts = 0;
+    let subscribers = 0;
+    let visibilitySubscribers = 0;
+    for (const [email, event] of failures) {
+      const reason = `resend_${event}`;
+      const suppression = await client.query(
+        `INSERT INTO email_unsubscribes (email, source)
+         VALUES ($1, $2)
+         ON CONFLICT (email) DO UPDATE SET source = EXCLUDED.source
+         RETURNING email`,
+        [email, reason]
+      );
+      newsletterContacts += (await client.query(
+        `UPDATE toolindex_newsletter_contacts
+         SET status='unsubscribed', unsubscribed_at=COALESCE(unsubscribed_at, NOW()),
+             updated_at=NOW()
+         WHERE lower(email)=lower($1) AND status <> 'unsubscribed'
+         RETURNING email`, [email]
+      )).rowCount;
+      listingContacts += (await client.query(
+        `UPDATE directory_listings
+         SET contact_email=NULL, contact_email_status='excluded',
+             contact_email_source=$2, contact_email_fetched_at=NULL
+         WHERE lower(contact_email)=lower($1)
+         RETURNING id`, [email, reason]
+      )).rowCount;
+      sequenceContacts += (await client.query(
+        `UPDATE outreach_seq_contacts
+         SET stop_sequence=TRUE, engaged_reason=COALESCE(engaged_reason, $2)
+         WHERE lower(to_email)=lower($1) AND stop_sequence=FALSE
+         RETURNING id`, [email, reason]
+      )).rowCount;
+      subscribers += (await client.query(
+        `DELETE FROM subscribers WHERE lower(email)=lower($1) RETURNING id`, [email]
+      )).rowCount;
+      visibilitySubscribers += (await client.query(
+        `UPDATE ai_visibility_subscribers SET status='inactive'
+         WHERE lower(email)=lower($1) AND status <> 'inactive'
+         RETURNING id`, [email]
+      )).rowCount;
+      // Keep the variable meaningful for audit/debugging without returning addresses.
+      void suppression;
+    }
+    await client.query('COMMIT');
+    const statusCounts = {};
+    for (const event of failures.values()) statusCounts[event] = (statusCounts[event] || 0) + 1;
+    res.json({
+      ok: true,
+      campaign_subject: campaignSubject,
+      failure_addresses_found: failures.size,
+      failure_statuses: statusCounts,
+      recipient_sources_pruned: {
+        newsletter_contacts: newsletterContacts,
+        directory_listing_contacts: listingContacts,
+        outreach_sequence_contacts: sequenceContacts,
+        subscribers,
+        ai_visibility_subscribers: visibilitySubscribers
+      },
+      global_email_log_preserved: true
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[admin/prune-resend-failures]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
