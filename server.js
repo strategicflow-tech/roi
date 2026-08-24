@@ -5429,6 +5429,31 @@ app.get('/admin/insert-liftoff', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── GET /admin/mark-outreach-sent — browser form ────────────────────────────
+app.get('/admin/mark-outreach-sent', requireAdminSession, (req, res) => {
+  const msg = req.query.updated != null
+    ? `<p style="color:#22c55e;font-weight:700;">✅ Marked ${req.query.updated} rows. Skipped ${req.query.skipped} already marked.</p>`
+    : req.query.error
+    ? `<p style="color:#f87171;font-weight:700;">❌ Error: ${req.query.error}</p>`
+    : '';
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+<title>Mark Outreach Sent</title>
+<style>body{font-family:monospace;background:#0a1628;color:#e2e8f0;padding:40px;max-width:700px;}
+textarea{width:100%;height:220px;background:#0b1d33;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:12px;font-family:monospace;font-size:13px;}
+button{margin-top:14px;padding:10px 28px;background:#00d4c8;color:#041214;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-size:14px;}
+h2{color:#00d4c8;}p{color:#94a3b8;font-size:13px;}</style></head>
+<body>
+<h2>Mark Outreach Sent</h2>
+<p>Paste listing IDs (comma-separated, space-separated, or one per line). Only rows where <code>outreach_emailed_at IS NULL</code> will be updated — safe to re-run.</p>
+${msg}
+<form method="POST" action="/admin/mark-outreach-sent">
+  <input type="hidden" name="_csrf" value="${res.locals.csrfToken || ''}">
+  <textarea name="ids" placeholder="1, 2, 3, 4&#10;or one per line&#10;123&#10;456"></textarea><br>
+  <button type="submit">Mark as Sent</button>
+</form>
+</body></html>`);
+});
+
 // ── POST /admin/mark-outreach-sent ──────────────────────────────────────────
 // Marks outreach_emailed_at for a batch of listing IDs (idempotent — skips rows already marked).
 // CLI: curl -X POST -H "x-admin-job-token: $WHY_ADMIN_KEY" \
@@ -5437,9 +5462,19 @@ app.get('/admin/insert-liftoff', async (req, res) => {
 //      https://strategic-flow-audit.replit.app/admin/mark-outreach-sent
 app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
   try {
-    const raw = req.body && Array.isArray(req.body.ids) ? req.body.ids : [];
-    const ids = raw.map(Number).filter(n => Number.isFinite(n) && n > 0);
-    if (!ids.length) return res.status(400).json({ error: 'ids[] is required (non-empty array of positive integers)' });
+    // Accept JSON array OR form-encoded textarea (comma/space/newline separated)
+    let ids;
+    if (req.body && Array.isArray(req.body.ids)) {
+      ids = req.body.ids.map(Number).filter(n => Number.isFinite(n) && n > 0);
+    } else {
+      const raw = (req.body && req.body.ids) ? String(req.body.ids) : '';
+      ids = raw.split(/[\s,]+/).map(Number).filter(n => Number.isFinite(n) && n > 0);
+    }
+    const fromBrowser = req.accepts('html') && !req.is('application/json');
+    if (!ids.length) {
+      if (fromBrowser) return res.redirect('/admin/mark-outreach-sent?error=No+valid+IDs+found');
+      return res.status(400).json({ error: 'ids required (JSON array or comma/newline separated string)' });
+    }
     const r = await pool.query(
       `UPDATE directory_listings
          SET outreach_emailed_at = NOW()
@@ -5448,6 +5483,9 @@ app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
       [ids]
     );
     const affected = r.rows.map(x => x.id);
+    if (fromBrowser) {
+      return res.redirect(`/admin/mark-outreach-sent?updated=${r.rowCount}&skipped=${ids.length - r.rowCount}`);
+    }
     res.json({
       ok: true,
       requested: ids.length,
@@ -5457,6 +5495,8 @@ app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
     });
   } catch (err) {
     console.error('[admin/mark-outreach-sent]', err.message);
+    const fromBrowser = req.accepts('html') && !req.is('application/json');
+    if (fromBrowser) return res.redirect(`/admin/mark-outreach-sent?error=${encodeURIComponent(err.message)}`);
     res.status(500).json({ error: err.message });
   }
 });
