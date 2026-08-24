@@ -1310,16 +1310,19 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
       <!-- Sponsor -->
       <div class="dir-pricing-card">
         <div class="dir-pricing-tier">★ Sponsor</div>
-        <div class="dir-pricing-desc">Brand placement seen on every directory page</div>
-        <div class="dir-pricing-price-row">
-          <span class="dir-pricing-amount" style="font-size:26px;">from $149</span><span style="font-size:14px;color:var(--muted);margin-left:4px;">/mo</span>
+         <div class="dir-pricing-desc">Sidebar placement across every directory page</div>
+         <div class="dir-pricing-price-row" style="display:block;line-height:1.7;">
+           <div><span class="dir-pricing-amount" style="font-size:24px;">$29</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">1 month, one-time</span></div>
+           <div><span class="dir-pricing-amount" style="font-size:24px;">$59</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">3 months, one-time ($19.67/mo)</span></div>
+           <div><span class="dir-pricing-amount" style="font-size:24px;">$199</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">12 months, one-time ($16.58/mo)</span></div>
         </div>
-        <div class="dir-pricing-period">Monthly · Max 3–5 sponsors · Never oversold</div>
+         <div class="dir-pricing-period">Maximum 3 sponsors · Live after payment clears</div>
         <ul class="dir-pricing-perks">
-          <li>Sponsor badge visible on every directory page</li>
-          <li>Scrolling ticker across the full directory</li>
-          <li>Newsletter mention to SaaS founders</li>
-          <li>Category homepage priority placement</li>
+           <li>Featured in the sidebar on the main directory page, visible on every scroll</li>
+           <li>Displayed on every individual product page across all listings</li>
+           <li>Direct dofollow link from DR 86 domain</li>
+           <li>Audience of founders and makers actively evaluating tools</li>
+           <li>Instant activation when payment clears, no approval queue</li>
         </ul>
         <a href="/sponsor" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Become a Sponsor →</a>
       </div>
@@ -4498,10 +4501,10 @@ loadClickCounts();
 
   function ctaCard(slotsAvailable) {
     const items = [
-      `🚀 <strong>Become a Sponsor</strong> — ${slotsAvailable} slot${slotsAvailable!==1?'s':''} available — Get featured on every page →`,
-      `⚡ <strong>Sponsor ToolIndex</strong> — from $149/mo · DR 86 directory · 3–5 companies max →`,
-      `★ <strong>Featured Sponsor Slot</strong> — permanent badge on 1,000+ listing pages →`,
-      `🎯 <strong>Sponsor This Directory</strong> — ${slotsAvailable} open slot${slotsAvailable!==1?'s':''} — from $149/mo →`,
+      `🚀 <strong>Become a Sponsor</strong> — $29 one-time · 1 month · sidebar placement →`,
+      `⚡ <strong>Sponsor ToolIndex</strong> — $59 one-time · 3 months ($19.67/mo) · DR 86 dofollow link →`,
+      `★ <strong>12-Month Sponsor</strong> — $199 one-time · 12 months ($16.58/mo) · instant activation →`,
+      `🎯 <strong>Sponsor ToolIndex</strong> — maximum 3 slots · founders and makers evaluating tools →`,
     ];
     return items.map(txt =>
       `<a href="/sponsor" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:11px 24px;background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.22);border-radius:12px;text-decoration:none;color:#c9a84c;font-size:13px;font-family:var(--font);white-space:nowrap;margin-right:18px;transition:border-color .2s,background .2s;"
