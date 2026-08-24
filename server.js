@@ -14003,7 +14003,19 @@ function buildNewsletterHTML(company, subject, body, brandDNA, options = {}) {
         <!-- INSIGHT + PROOF + COST (or feature cards for thought_leadership / product_update) -->
         <tr><td class="email-section-pad" style="padding:32px 32px 28px;">
           ${Array.isArray(featureCards) && featureCards.length > 0
-            ? featureCards.map(card => `
+            ? /event.?announcement/i.test(htmlEmailType || '')
+              ? featureCards.map(card => `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+  style="margin-bottom:12px;border-radius:10px;overflow:hidden;border-collapse:separate;border:1px solid rgba(0,0,0,0.08);">
+  <tr>
+    <td style="width:4px;background:${primaryColor};padding:0;font-size:0;">&nbsp;</td>
+    <td style="padding:14px 18px;background:#f7f8ff;">
+      <div style="display:inline-block;background:${primaryColor};color:#ffffff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:3px 10px;border-radius:20px;margin-bottom:8px;">${card.title || ''}</div>
+      <div style="font-size:14px;color:#3a3a35;line-height:1.6;">${card.body || card.text || card.content || ''}</div>
+    </td>
+  </tr>
+</table>`).join('')
+              : featureCards.map(card => `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
   style="margin-bottom:16px;border:1px solid rgba(0,0,0,0.10);border-radius:10px;overflow:hidden;border-collapse:separate;">
   <tr><td style="padding:16px 20px;background:#f9f9f9;">
