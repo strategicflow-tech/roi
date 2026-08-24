@@ -559,7 +559,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
-  '/fix-contacts-batch2',
+  '/fix-contacts-batch2', '/send-claim-newsletter-confirmations',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -4087,7 +4087,7 @@ function newsletterConfirmTokenHash(token) {
   return crypto.createHash('sha256').update(String(token || '')).digest('hex');
 }
 
-async function queueClaimNewsletterConfirmation(email, listingId, { newConsent = false } = {}) {
+async function queueClaimNewsletterConfirmation(email, listingId, { newConsent = false, hookPost = null } = {}) {
   const norm = (email || '').toLowerCase().trim();
   if (!norm || !norm.includes('@')) return { skipped: 'invalid_email' };
 
@@ -4181,6 +4181,16 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
 
   const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
   const confirmUrl = `${baseUrl}/newsletter/confirm?token=${encodeURIComponent(token)}`;
+  const hookHtml = hookPost
+    ? `<div style="border-left:3px solid #00d4c8;padding:12px 16px;margin:0 0 22px;background:#0b1b2d;">
+         <p style="font-size:11px;color:#00d4c8;margin:0 0 6px;font-family:monospace;text-transform:uppercase;letter-spacing:.08em;">From today&rsquo;s ToolIndex article</p>
+         <p style="font-size:14px;color:#cbd5e1;line-height:1.6;margin:0 0 10px;">${hookPost.excerpt}</p>
+         <a href="${baseUrl}/blog/${encodeURIComponent(hookPost.slug)}" style="font-size:12px;color:#67e8f9;text-decoration:underline;">Read the full article →</a>
+       </div>`
+    : '';
+  const hookText = hookPost
+    ? `\n\nFrom today's ToolIndex article:\n${hookPost.excerpt}\nRead the full article: ${baseUrl}/blog/${hookPost.slug}\n`
+    : '';
   try {
     const sendResult = await resend.emails.send({
       _skipGlobalCooldown: true,
@@ -4191,11 +4201,12 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
       html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:32px auto;background:#060e1c;color:#e2e8f0;padding:36px 32px;border-radius:14px;line-height:1.7;">
         <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:20px;">ToolIndex · Founder updates</div>
         <h2 style="font-size:22px;color:#fff;margin:0 0 12px;">Confirm your subscription</h2>
-        <p style="font-size:15px;color:#94a3b8;margin:0 0 22px;">You verified ownership of a product on ToolIndex. If you would like founder updates and new articles on Mondays, Wednesdays, and Fridays, confirm below to join the list.</p>
+         <p style="font-size:15px;color:#94a3b8;margin:0 0 22px;">You verified ownership of a product on ToolIndex. If you would like founder updates and new articles on Mondays, Wednesdays, and Fridays, confirm below to join the list.</p>
+         ${hookHtml}
         <a href="${confirmUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;font-family:monospace;">Confirm founder updates →</a>
         <p style="font-size:11px;color:#4a6a8a;margin-top:26px;">This link expires in 7 days. If you did not request these updates, ignore this email and you will not be subscribed.</p>
       </div>`,
-        text: `You verified ownership of a product on ToolIndex. If you would like founder updates and new articles, confirm here:\n${confirmUrl}\n\nYou will receive updates on Mondays, Wednesdays, and Fridays. If you did not request this, ignore this email.`,
+        text: `You verified ownership of a product on ToolIndex. If you would like founder updates and new articles, confirm here:\n${confirmUrl}\n\nYou will receive updates on Mondays, Wednesdays, and Fridays. If you did not request this, ignore this email.${hookText}`,
     });
     if (sendResult?.cooldownBlocked) throw new Error('confirmation_cooldown_blocked');
     if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected confirmation email');
@@ -4218,7 +4229,7 @@ async function queueClaimNewsletterConfirmation(email, listingId, { newConsent =
   }
 }
 
-async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false, includeAllClaimed = false } = {}) {
+async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false, includeAllClaimed = false, hookPost = null } = {}) {
   const allClaimedQuery = `
     SELECT DISTINCT ON (lower(trim(dl.claimed_by)))
       dl.id AS listing_id, lower(trim(dl.claimed_by)) AS email, dl.name
@@ -4254,7 +4265,7 @@ async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false
         skipped++;
         continue;
       }
-      const result = await queueClaimNewsletterConfirmation(row.email, row.listing_id);
+      const result = await queueClaimNewsletterConfirmation(row.email, row.listing_id, { hookPost });
       if (result.confirmed) confirmed++;
       else if (result.confirmationSent || result.pending) pending++;
       else skipped++;
@@ -10866,16 +10877,19 @@ app.get('/admin/newsletter-contacts', async (req, res) => {
   }
 });
 
-// ── POST /admin/send-claim-newsletter-confirmations?key=&scope=all_active_claimed_owners
+// ── GET /admin/send-claim-newsletter-confirmations?scope=all_active_claimed_owners
 // Sends opt-in requests only. Confirmed recipients are never emailed again by this
 // action; existing unsubscribes, junk addresses, and blocked targets are skipped.
-app.post('/admin/send-claim-newsletter-confirmations', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+app.get('/admin/send-claim-newsletter-confirmations', async (req, res) => {
   if (req.query.scope !== 'all_active_claimed_owners') {
     return res.status(400).json({ error: 'scope=all_active_claimed_owners required' });
   }
   try {
-    const result = await syncClaimedFounderNewsletterContacts({ includeAllClaimed: true });
+    const hookPost = BLOG_POSTS.find(p => p.slug === 'ai-tools-directory-listing-benefits') || {
+      slug: 'ai-tools-directory-listing-benefits',
+      excerpt: 'AI discovery is moving beyond traditional search. See what that means for SaaS founders and directory visibility.'
+    };
+    const result = await syncClaimedFounderNewsletterContacts({ includeAllClaimed: true, hookPost });
     res.json({ ok: true, action: 'confirmation_requests_sent', ...result });
   } catch (e) {
     console.error('[newsletter-consent] admin batch failed:', e.message);
