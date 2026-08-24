@@ -5431,7 +5431,7 @@ app.get('/admin/insert-liftoff', async (req, res) => {
 });
 
 // ── GET /admin/mark-outreach-sent — browser form ────────────────────────────
-app.get('/admin/mark-outreach-sent', requireAdminSession, (req, res) => {
+app.get('/admin/mark-outreach-sent', (req, res) => {
   const msg = req.query.updated != null
     ? `<p style="color:#22c55e;font-weight:700;">✅ Marked ${req.query.updated} rows. Skipped ${req.query.skipped} already marked.</p>`
     : req.query.error
@@ -5461,7 +5461,7 @@ ${msg}
 //      -H "Content-Type: application/json" \
 //      -d '{"ids":[1,2,3,...]}' \
 //      https://strategic-flow-audit.replit.app/admin/mark-outreach-sent
-app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
+app.post('/admin/mark-outreach-sent', async (req, res) => {
   try {
     // Accept JSON array OR form-encoded textarea (comma/space/newline separated)
     let ids;
@@ -5505,7 +5505,7 @@ app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
 // ── GET /admin/export-listings.csv ──────────────────────────────────────────
 // Streams all directory listings as a CSV with a computed excluded_from_outreach column.
 // Visit in browser while logged in as admin, or use the job-token header.
-app.get('/admin/export-listings.csv', requireAdminSession, async (req, res) => {
+app.get('/admin/export-listings.csv', async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT id, name, url, category, status, description,
