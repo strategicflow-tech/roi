@@ -939,6 +939,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Get your free backlink <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#submit" class="dir-nav-panel-link" onclick="closeNavPanel()">Claim your listing <span class="dir-nav-panel-arrow">→</span></a>
     <a href="#pricing" class="dir-nav-panel-link" onclick="closeNavPanel()">Featured placements — from $9 <span class="dir-nav-panel-arrow">→</span></a>
+    <a href="#full-pricing" class="dir-nav-panel-link" onclick="closeNavPanel();var fp=document.getElementById('full-pricing');if(fp){fp.style.display='';setTimeout(()=>fp.scrollIntoView({behavior:'smooth',block:'start'}),200);}">Pricing — all plans &amp; options <span class="dir-nav-panel-arrow">→</span></a>
     <a href="/sponsor" class="dir-nav-panel-link" onclick="closeNavPanel()">Become a Sponsor <span class="dir-nav-panel-arrow">→</span></a>
     <a href="/grow" class="dir-nav-panel-link" onclick="closeNavPanel()">Grow — Guest Post &amp; Boosts <span class="dir-nav-panel-arrow">→</span></a>
     <a href="/blog" class="dir-nav-panel-link" onclick="closeNavPanel()">Blog — SaaS &amp; SEO insights <span class="dir-nav-panel-arrow">→</span></a>
@@ -1264,12 +1265,81 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 </div><!-- /.dir-body-wrap -->
 
 <!-- PRICING SECTION -->
+<!-- SIMPLIFIED PRICING SUMMARY — 3 tiers shown on homepage -->
 <section class="dir-pricing-section" id="pricing">
   <div class="dir-pricing-inner">
-    <div class="dir-pricing-tag">⚡ Featured placements</div>
-    <h2 class="dir-pricing-title">Get your product seen first</h2>
-    <p class="dir-pricing-sub">One-time payment. No subscription. Goes live as soon as payment clears.</p>
+    <div class="dir-pricing-tag">💰 Pricing</div>
+    <h2 class="dir-pricing-title">Simple, transparent pricing</h2>
+    <p class="dir-pricing-sub">Start free. Upgrade when you need more visibility.</p>
+    <div class="dir-pricing-grid">
 
+      <!-- Free -->
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">🆓 Free</div>
+        <div class="dir-pricing-desc">Permanent listing, dofollow backlink, upvotes — forever</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-amount">$0</span>
+        </div>
+        <div class="dir-pricing-period">No account required · Instant approval</div>
+        <ul class="dir-pricing-perks">
+          <li>Permanent listing in ToolIndex</li>
+          <li>DR 86 dofollow backlink from Day 1</li>
+          <li>Public upvotes + leaderboard ranking</li>
+          <li>Claim &amp; edit your listing anytime</li>
+        </ul>
+        <button class="dir-pricing-cta" onclick="document.getElementById('submit')?.scrollIntoView({behavior:'smooth'})">Get Listed Free →</button>
+      </div>
+
+      <!-- Pro Listing -->
+      <div class="dir-pricing-card popular">
+        <div class="dir-pricing-tier">⚡ Pro Listing</div>
+        <div class="dir-pricing-desc">Priority placement, founder tools, and visibility boosts</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-amount">$29</span><span style="font-size:14px;color:var(--muted);margin-left:4px;">/mo</span>
+        </div>
+        <div class="dir-pricing-period">One-time · No subscription · Goes live instantly</div>
+        <ul class="dir-pricing-perks">
+          <li>💎 Premium badge + top-3 placement for 30 days</li>
+          <li>Featured Spotlight seen by every visitor</li>
+          <li>Priority ranking across all categories</li>
+          <li>Logo, screenshots &amp; founder pack options</li>
+        </ul>
+        <button class="dir-pricing-cta" onclick="var fp=document.getElementById('full-pricing');fp.style.display='';fp.scrollIntoView({behavior:'smooth',block:'start'});">See All Plans →</button>
+      </div>
+
+      <!-- Sponsor -->
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">★ Sponsor</div>
+        <div class="dir-pricing-desc">Brand placement seen on every directory page</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-amount" style="font-size:26px;">from $149</span><span style="font-size:14px;color:var(--muted);margin-left:4px;">/mo</span>
+        </div>
+        <div class="dir-pricing-period">Monthly · Max 3–5 sponsors · Never oversold</div>
+        <ul class="dir-pricing-perks">
+          <li>Sponsor badge visible on every directory page</li>
+          <li>Scrolling ticker across the full directory</li>
+          <li>Newsletter mention to SaaS founders</li>
+          <li>Category homepage priority placement</li>
+        </ul>
+        <a href="/sponsor" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Become a Sponsor →</a>
+      </div>
+
+    </div>
+    <p class="dir-pricing-note">
+      <a href="#full-pricing" onclick="event.preventDefault();var fp=document.getElementById('full-pricing');fp.style.display='';fp.scrollIntoView({behavior:'smooth',block:'start'});" style="color:var(--teal);">See all paid placement options ↓</a>
+      &nbsp;·&nbsp; Secure payment via Stripe &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a>
+    </p>
+  </div>
+</section>
+
+<!-- FULL DETAILED PRICING — hidden; revealed by "See All Plans" / "See all paid placement options" / hamburger Pricing link / scrollToPricing() -->
+<div id="full-pricing" style="display:none;">
+
+<section class="dir-pricing-section" style="border-top:none;padding-top:32px;">
+  <div class="dir-pricing-inner">
+    <div class="dir-pricing-tag">⚡ Featured placements</div>
+    <h2 class="dir-pricing-title">Boost your listing</h2>
+    <p class="dir-pricing-sub">One-time payment. No subscription. Goes live as soon as payment clears.</p>
     <div class="dir-pricing-grid">
 
       <!-- Daily Boost -->
@@ -1362,15 +1432,6 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <button class="dir-lu-cta" onclick="startLevelUpCheckout('verified_badge')">Get Verified Founder →</button>
       </div>
 
-      <!-- Teardown Solo -->
-      <div class="dir-lu-card lu-red">
-        <div class="dir-lu-icon">✂️</div>
-        <div class="dir-lu-name">Teardown Spotlight Solo</div>
-        <div class="dir-lu-price">$19</div>
-        <div class="dir-lu-desc">Get your landing page or onboarding email professionally torn down and rebuilt — then published as a public case study on ToolIndex. Delivered within 48–72 hours by the Strategic Flow team.</div>
-        <button class="dir-lu-cta" onclick="startLevelUpCheckout('teardown_solo')">Get My Teardown →</button>
-      </div>
-
       <!-- Teardown Pro -->
       <div class="dir-lu-card lu-purple">
         <span class="dir-lu-topbadge tb-purple">Includes LinkedIn</span>
@@ -1385,6 +1446,8 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <p class="dir-pricing-note" style="margin-top:24px;">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; Teardown orders delivered within 48–72h &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a></p>
   </div>
 </section>
+
+</div><!-- /#full-pricing -->
 
 <!-- FAQ SECTION -->
 <!-- HOW IT WORKS SECTION -->
@@ -4077,7 +4140,10 @@ function showToast(msg, duration=3500){
 function scrollToPricing(id, name){
   pendingBoostId   = id;
   pendingBoostName = name;
-  const section = document.getElementById('pricing');
+  // Reveal the full detailed pricing section if hidden
+  var fp = document.getElementById('full-pricing');
+  if(fp) fp.style.display = '';
+  const section = fp || document.getElementById('pricing');
   if(section){
     section.scrollIntoView({behavior:'smooth', block:'start'});
     // Brief visual pulse after scroll lands
@@ -4095,7 +4161,6 @@ let levelUpTier = null;
 const LU_LABELS = {
   founder_pack:   'Founder Pack — $49',
   verified_badge: 'Verified Badge — $9',
-  teardown_solo:  'Teardown Spotlight Solo — $19',
   teardown_pro:   'Teardown Spotlight Pro — $49',
 };
 
@@ -4434,9 +4499,9 @@ loadClickCounts();
   function ctaCard(slotsAvailable) {
     const items = [
       `🚀 <strong>Become a Sponsor</strong> — ${slotsAvailable} slot${slotsAvailable!==1?'s':''} available — Get featured on every page →`,
-      `⚡ <strong>Sponsor ToolIndex</strong> — Reach 500+ SaaS founders daily →`,
-      `★ <strong>Featured Sponsor Slot</strong> — DR 86 directory · instant visibility →`,
-      `🎯 <strong>Sponsor This Directory</strong> — ${slotsAvailable} open slot${slotsAvailable!==1?'s':''} — $29/month →`,
+      `⚡ <strong>Sponsor ToolIndex</strong> — from $149/mo · DR 86 directory · 3–5 companies max →`,
+      `★ <strong>Featured Sponsor Slot</strong> — permanent badge on 1,000+ listing pages →`,
+      `🎯 <strong>Sponsor This Directory</strong> — ${slotsAvailable} open slot${slotsAvailable!==1?'s':''} — from $149/mo →`,
     ];
     return items.map(txt =>
       `<a href="/sponsor" style="display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:11px 24px;background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.22);border-radius:12px;text-decoration:none;color:#c9a84c;font-size:13px;font-family:var(--font);white-space:nowrap;margin-right:18px;transition:border-color .2s,background .2s;"

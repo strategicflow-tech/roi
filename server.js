@@ -1913,10 +1913,6 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
           <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✅</span><span><span class="pp-tier-row-name">Verified Founder</span><span class="pp-tier-row-desc">Gold ✓ Verified Founder badge — permanent, no expiry</span></span></span>
           <span class="pp-tier-row-price">$9</span>
         </button>
-        <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_solo')">
-          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✂️</span><span><span class="pp-tier-row-name">Teardown Solo</span><span class="pp-tier-row-desc">Pro critique published on ToolIndex</span></span></span>
-          <span class="pp-tier-row-price">$19</span>
-        </button>
         <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_pro')">
           <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🔍</span><span><span class="pp-tier-row-name">Teardown Pro</span><span class="pp-tier-row-desc">Solo + LinkedIn + Startup of the Week</span></span></span>
           <span class="pp-tier-row-price">$49</span>
@@ -2466,7 +2462,7 @@ function showTierStep(){
 function ppCheckout(tier){
   ppBoostTier=tier;
   ppBoostSelectedDate=null;
-  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Founder — $9',teardown_solo:'✂️ Teardown Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
+  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Founder — $9',teardown_pro:'🔍 Teardown Pro — $49'};
   document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost';
   // Switch to email step
   var ts=document.getElementById('ppTierStep');
@@ -5431,6 +5427,86 @@ app.get('/admin/insert-liftoff', async (req, res) => {
     );
     res.json({ status: 'inserted', id: r.rows[0].id });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/mark-outreach-sent ──────────────────────────────────────────
+// Marks outreach_emailed_at for a batch of listing IDs (idempotent — skips rows already marked).
+// CLI: curl -X POST -H "x-admin-job-token: $WHY_ADMIN_KEY" \
+//      -H "Content-Type: application/json" \
+//      -d '{"ids":[1,2,3,...]}' \
+//      https://strategic-flow-audit.replit.app/admin/mark-outreach-sent
+app.post('/admin/mark-outreach-sent', requireAdminSession, async (req, res) => {
+  try {
+    const raw = req.body && Array.isArray(req.body.ids) ? req.body.ids : [];
+    const ids = raw.map(Number).filter(n => Number.isFinite(n) && n > 0);
+    if (!ids.length) return res.status(400).json({ error: 'ids[] is required (non-empty array of positive integers)' });
+    const r = await pool.query(
+      `UPDATE directory_listings
+         SET outreach_emailed_at = NOW()
+       WHERE id = ANY($1::int[]) AND outreach_emailed_at IS NULL
+       RETURNING id`,
+      [ids]
+    );
+    const affected = r.rows.map(x => x.id);
+    res.json({
+      ok: true,
+      requested: ids.length,
+      updated: r.rowCount,
+      skipped_already_marked: ids.length - r.rowCount,
+      updated_ids: affected,
+    });
+  } catch (err) {
+    console.error('[admin/mark-outreach-sent]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /admin/export-listings.csv ──────────────────────────────────────────
+// Streams all directory listings as a CSV with a computed excluded_from_outreach column.
+// Visit in browser while logged in as admin, or use the job-token header.
+app.get('/admin/export-listings.csv', requireAdminSession, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, category, status, description,
+             email, contact_email, founder_name, image_url,
+             vote_count, source, submitted_at, scored_at, claimed_at,
+             outreach_emailed_at, sponsor_tier, sponsor_expires, click_count,
+             is_auto_imported, is_seeded, is_promoted
+      FROM directory_listings
+      ORDER BY id ASC
+    `);
+    const FIELDS = [
+      'id','name','url','category','status','description',
+      'email','contact_email','founder_name','image_url',
+      'vote_count','source','submitted_at','scored_at','claimed_at',
+      'outreach_emailed_at','sponsor_tier','sponsor_expires','click_count',
+      'is_auto_imported','is_seeded','is_promoted',
+      'excluded_from_outreach','exclusion_reason',
+    ];
+    const csvEsc = v => {
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r'))
+        return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+    const lines = [FIELDS.join(',')];
+    for (const row of rows) {
+      const block = isBlockedOutreachTarget(row.name || '', (row.contact_email || row.email) || '');
+      const excluded = block.blocked ? '1' : '0';
+      const reason   = block.blocked ? (block.reason || '') : '';
+      const vals = FIELDS.slice(0, -2).map(f => csvEsc(row[f]));
+      vals.push(excluded, csvEsc(reason));
+      lines.push(vals.join(','));
+    }
+    const filename = `toolindex-listings-${new Date().toISOString().slice(0,10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(lines.join('\n'));
+  } catch (err) {
+    console.error('[admin/export-listings.csv]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /admin/rank-spread-votes?key=… — assign votes based on leaderboard rank so top
