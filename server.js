@@ -558,7 +558,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/rank-spread-votes', '/redistribute-votes', '/toggle-promoted', '/seed-votes',
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
-  '/sync-outreach-batch1', '/import-contacts-batch2',
+  '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -4697,8 +4697,7 @@ app.post('/admin/run-followup-batch', async (req, res) => {
 });
 
 // ── POST /admin/send-claim-outreach-batch?key=…&cap=N — batch initial outreach ─
-app.post('/admin/send-claim-outreach-batch', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+app.get('/admin/send-claim-outreach-batch', async (req, res) => {
   const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
   try {
     const { rows } = await pool.query(`
