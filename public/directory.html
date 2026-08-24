@@ -2741,7 +2741,11 @@ function loadRecentLaunches(interval){
       const el=document.getElementById('recentLaunchesList');
       if(!el) return;
       const items=d.listings||[];
-      const labels={'24h':'last 24 hours','7d':'last 7 days','30d':'last 30 days'};
+      const labels={
+        '24h':'last 24 hours',
+        '7d':'between 24 hours and 7 days ago',
+        '30d':'between 7 days and 30 days ago'
+      };
       if(!items.length){
         el.innerHTML='<div class="dir-lb-empty">No new listings in the '+labels[interval]+'.</div>';
         return;

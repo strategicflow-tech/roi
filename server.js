@@ -8694,17 +8694,23 @@ app.post('/api/directory/vote/:id', directoryEventCors, async (req, res) => {
 // ── GET /api/directory/recent-launches?interval=24h|7d|30d ───────────────────
 app.get('/api/directory/recent-launches', async (req, res) => {
   const interval = req.query.interval || '24h';
-  // Whitelist to prevent injection
-  const pgInterval = interval === '7d' ? '7 days' : interval === '30d' ? '30 days' : '24 hours';
+  // Whitelist fixed SQL clauses and keep each tab as a non-overlapping bucket.
+  const buckets = {
+    '24h': `submitted_at >= NOW() - INTERVAL '24 hours'`,
+    '7d': `submitted_at >= NOW() - INTERVAL '7 days'
+           AND submitted_at < NOW() - INTERVAL '24 hours'`,
+    '30d': `submitted_at >= NOW() - INTERVAL '30 days'
+            AND submitted_at < NOW() - INTERVAL '7 days'`,
+  };
+  const bucket = buckets[interval] ? interval : '24h';
   try {
     const r = await pool.query(
       `SELECT id, name, url, category, description, image_url, vote_count, submitted_at
        FROM directory_listings
-       WHERE status='active' AND submitted_at >= NOW() - $1::interval
-       ORDER BY submitted_at DESC LIMIT 10`,
-      [pgInterval]
+       WHERE status='active' AND ${buckets[bucket]}
+       ORDER BY submitted_at DESC LIMIT 10`
     );
-    res.json({ listings: r.rows, interval });
+    res.json({ listings: r.rows, interval: bucket });
   } catch(err) {
     console.error('[dir-recent-launches]', err.message);
     res.status(500).json({ error: 'db_error' });
