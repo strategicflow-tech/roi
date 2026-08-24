@@ -559,6 +559,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
+  '/fix-contacts-batch2',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -5703,6 +5704,87 @@ app.get('/admin/import-contacts-batch2', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('[admin/import-contacts-batch2]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ── GET /admin/fix-contacts-batch2 ──────────────────────────────────────────
+// One-time fix: batch2 import used dev DB IDs which differ from production for
+// IDs 448+. This endpoint: (1) resets wrong contact data on 12 mismatched
+// listings, (2) imports correct emails at the real production IDs.
+// Idempotent — safe to re-run.
+app.get('/admin/fix-contacts-batch2', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // ── 1. Reset the 12 wrong listings ──────────────────────────────
+    // Clear contact_email + status so they're clean for future correct imports.
+    const wrongIds = [448, 449, 454, 467, 488, 494, 514, 524, 538, 598, 632, 643];
+    await client.query(
+      `UPDATE directory_listings
+         SET contact_email        = NULL,
+             contact_email_status = 'not_found',
+             contact_email_source = NULL,
+             contact_email_fetched_at = NULL
+       WHERE id = ANY($1::int[])`,
+      [wrongIds]
+    );
+    // For the ones where we sent outreach to a wrong address, also clear
+    // outreach_emailed_at so the correct listing owner can still be reached.
+    const wrongSentIds = [448, 454, 488, 538, 598, 632];
+    await client.query(
+      `UPDATE directory_listings
+         SET outreach_emailed_at = NULL
+       WHERE id = ANY($1::int[])`,
+      [wrongSentIds]
+    );
+
+    // ── 2. Import corrected contacts at the real production IDs ───────
+    // Correct production IDs found via name lookup (dev IDs 448-686 ≠ prod IDs).
+    // Skip id 452 (Unblocked Games Hub) and 555 (Vemetric) — already outreached.
+    const corrected = [
+      [376, 'contact@adsly.io'],
+      [377, 'support@simpleimageupscaler.com'],
+      [382, 'hello@ticketwhiz.com'],
+      [395, 'nevo@postiz.com'],
+      [416, 'info@wrappixel.com'],
+      [422, 'admin@cliseo.com'],
+      [442, 'help@specterr.com'],
+      [512, 'hello@toolfame.com'],
+      [566, 'support@mockuplabs.ai'],
+      [580, 'support@pdfbolt.com'],
+      [605, 'hello@demodesk.com'],
+      [609, 'support@appscreens.com'],
+    ];
+    const cIds   = corrected.map(r => r[0]);
+    const cEmails = corrected.map(r => r[1]);
+
+    const upd = await client.query(
+      `UPDATE directory_listings AS t
+         SET contact_email        = v.email,
+             contact_email_status = 'found',
+             contact_email_source = 'manual_research',
+             contact_email_fetched_at = NOW()
+       FROM unnest($1::int[], $2::text[]) AS v(id, email)
+       WHERE t.id = v.id
+       RETURNING t.id, t.name`,
+      [cIds, cEmails]
+    );
+
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      wrong_ids_reset: wrongIds.length,
+      wrong_sent_outreach_cleared: wrongSentIds,
+      corrected_imported: upd.rowCount,
+      corrected: upd.rows.map(r => ({ id: r.id, name: r.name })).sort((a, b) => a.id - b.id),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[admin/fix-contacts-batch2]', err.message);
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
