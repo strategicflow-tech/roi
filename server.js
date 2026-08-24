@@ -14813,7 +14813,16 @@ async function handleGenerate(req, res) {
       result = promoGridResult;
     } else {
       const priorExamples = await getIndustryExamples(effectiveBrandDNA?.industry || null);
-      let prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: detectedType, roadmapNotes, priorExamples, analysis: { weaknesses: [], directives: [] } });
+      // Detect event_announcement BEFORE building the prompt so the correct cohesion rubric is embedded.
+      // Content-based detection is required because the UI does not expose event_announcement as a
+      // selectable type — detectedType is null for most event emails unless explicitly passed by the caller.
+      const _eventKeywordsRe = /\b(webinar|conference|summit|workshop|hackathon|meetup|agenda|register\s+now|limited\s+seats?|spots?\s+left|deadline|countdown|kick.?off)\b/i;
+      const _datePhraseRe    = /\b([A-Z][a-z]{2,8}\.?\s+\d{1,2}|\d{1,2}[\/\-]\d{1,2}|\d{4}-\d{2}-\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{1,2})\b/i;
+      const _detectionText   = (subject || '') + ' ' + (body || '').slice(0, 600);
+      const _isEventAnnouncement = /event.?announcement/i.test(detectedType || '') ||
+        (_eventKeywordsRe.test(_detectionText) && _datePhraseRe.test(_detectionText));
+      const _effectiveEmailType = _isEventAnnouncement ? 'event_announcement' : (detectedType || null);
+      let prompt = getAuditPrompt({ tier: promptTier, company: company || 'Your Company', goal, subject, body, brandDNA: effectiveBrandDNA, voiceProfile: effectiveVoice, emailType: _effectiveEmailType, roadmapNotes, priorExamples, analysis: { weaknesses: [], directives: [] } });
       // For product_update/announcement emails, inject feature card instructions + image list
       const _isProductEmailType = /product.?update|product.?announcement|feature.?launch/i.test(detectedType || '');
       if (_isProductEmailType) {
@@ -14826,7 +14835,6 @@ async function handleGenerate(req, res) {
         prompt += `\n\nTHOUGHT LEADERSHIP EMAIL — MANDATORY JSON STRUCTURE:\nThis is a thought_leadership email. You MUST return a top-level "featureCards" array.\nDo NOT return a "body" array. Do NOT return bodyParagraphs. The "body" key must be absent or empty [].\n\nReturn exactly 3 featureCards in this format:\n"featureCards":[\n  {"title":"MISTAKE 1: [SHORT LABEL IN CAPS]","body":"2 sentences max. Cite a specific stat, quote, or example from the source.","imageUrl":null},\n  {"title":"MISTAKE 2: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null},\n  {"title":"MISTAKE 3: [SHORT LABEL IN CAPS]","body":"2 sentences max. Specific evidence.","imageUrl":null}\n]\n\nIf the article covers 6 mistakes, distill the 3 most impactful ones. Subject line should say "3 mistakes" if you reduce.\nVIOLATION: returning a "body" array instead of "featureCards" for thought_leadership is a critical error.`;
       }
       // For event_announcement emails, inject timeline feature card structure
-      const _isEventAnnouncement = /event.?announcement/i.test(detectedType || '');
       if (_isEventAnnouncement) {
         prompt += `\n\nevent_announcement — RENDER AS TIMELINE — MANDATORY:\nThe source contains dated milestones, agenda items, or deadline sequences. Do NOT summarize into narrative paragraphs.\n\nReturn "featureCards" where each card = one milestone:\n[{"title":"date or deadline label (e.g. \\"April 16\\", \\"May 7 — 5pm PT\\", \\"Week 1\\")","body":"1–2 sentences: what happens and what the reader must do","imageUrl":null}]\n\nExtraction rules:\n- One card per distinct date, deadline, agenda item, or phase\n- Headings → one card each; numbered list items → one card each; bold inline dates → one card each\n- Minimum 3 cards, maximum 8 cards, in chronological order from source\n\nStat cards (stat1/stat2/stat3): use the 3 most urgent/actionable dates from featureCards — earliest hard deadlines.\nVIOLATION: returning a "body" array instead of "featureCards" for event_announcement is a critical error.`;
       }
