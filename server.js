@@ -9524,7 +9524,7 @@ app.post('/api/directory/claim/confirm-backlink', async (req, res) => {
             <h2 style="font-size:22px;font-weight:800;color:#ffffff;margin:0 0 8px;">Listing claimed ✓</h2>
             <p style="font-size:14px;color:#7a9ab8;margin:0 0 6px;">You're now the verified owner of <strong style="color:#e8f0fa;">${name}</strong>.</p>
             <p style="font-size:13px;color:#7a9ab8;margin:0 0 16px;">Your dofollow backlink from ToolIndex (DR 86) is live. You can edit your description, logo, and screenshots directly on your listing card.</p>
-            <a href="https://strategic-flow-audit.replit.app/directory" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
+            <a href="https://strategic-flow-audit.replit.app/directory/${toListingSlug(name, listing_id)}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:10px 20px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">View my listing →</a>
           </div>
           ${promotionHtml}
         </div>`
