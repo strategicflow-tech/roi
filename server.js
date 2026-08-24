@@ -558,7 +558,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/rank-spread-votes', '/redistribute-votes', '/toggle-promoted', '/seed-votes',
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
-  '/sync-outreach-batch1',
+  '/sync-outreach-batch1', '/import-contacts-batch2',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -2853,6 +2853,12 @@ const LARGE_COMPANY_BLOCKLIST = new Set([
   'notion','coda','roam research','obsidian','logseq','grammarly','jasper',
   'copy ai','writer','lemon squeezy','paddle','gumroad','lemonsqueezy',
   'plausible','fathom','umami','pirsch','cal','dub','short.io',
+  // Added 2026-08-24: product names that differ from company name (filter missed these)
+  'midjourney',                                            // product = company
+  'capcut',                                               // ByteDance product (bytedance already listed)
+  'claude',                                               // Anthropic product (anthropic already listed)
+  'davinci resolve','davinci','blackmagic design','blackmagicdesign','blackmagic', // Blackmagic Design product
+  'vecteezy',                                             // standalone omission
 ]);
 
 // Returns { blocked: true, reason } if the listing should be skipped for outreach,
@@ -5582,6 +5588,125 @@ app.get('/admin/sync-outreach-batch1', async (req, res) => {
   } catch (err) {
     console.error('[admin/sync-outreach-batch1]', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /admin/import-contacts-batch2 ───────────────────────────────────────
+// Imports 45 manually-researched contact emails into production.
+// Also blocks dead sites and large-company listings from outreach.
+// Idempotent — safe to re-run.
+app.get('/admin/import-contacts-batch2', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // ── 1. Bulk contact import (Task A + Task B emails) ──────────────
+    const contacts = [
+      // Task A — regular listings
+      [2,   'hello@wispr.ai'],
+      [5,   'support@m24apps.com'],
+      [6,   'support@robspace.de'],
+      [10,  'support@getsocialkit.com'],
+      [11,  'hello@aso.agency'],
+      [14,  'contact@launchy.tools'],
+      [16,  'info@techtitans.cloud'],
+      [44,  'support@circlecropimage.dev'],
+      [48,  'fatih.telis@gmail.com'],
+      [56,  'haiji@seagames.com'],
+      [60,  'hello@aibrowser.surf'],
+      [71,  'support@apparence.io'],
+      [72,  'info@accessaudit.org'],
+      [75,  'alex@whatfontis.com'],
+      [82,  'support@adeptdev.io'],
+      [89,  'support@workfreak.me'],
+      [94,  'tesic@notify-me.rs'],
+      [96,  'support@wan2-5.com'],
+      [105, 'team.wye@gmail.com'],
+      [135, 'support@wantapply.com'],
+      [170, 'giriraj.bungalow.1@gmail.com'],
+      [188, 'support@penpot.app'],
+      [209, 'support@casefunders.com'],
+      [239, 'help@whimsical.com'],
+      [249, 'hello@trigger.dev'],
+      [275, 'partnerships@bubble.io'],
+      [448, 'contact@adsly.io'],
+      [449, 'support@simpleimageupscaler.com'],
+      [454, 'hello@ticketwhiz.com'],
+      [467, 'nevo@postiz.com'],
+      [488, 'info@wrappixel.com'],
+      [494, 'admin@cliseo.com'],
+      [514, 'help@specterr.com'],
+      [524, 'contact@unblockedgameshub.org'],
+      [538, 'hello@remotewlb.com'],
+      [598, 'hello@toolfame.com'],
+      [632, 'hello@vemetric.com'],
+      [643, 'support@mockuplabs.ai'],
+      [657, 'support@pdfbolt.com'],
+      [682, 'hello@demodesk.com'],
+      [686, 'support@appscreens.com'],
+      // Task B — large company contacts (record-keeping only; will be blocked below)
+      [112, 'info-usa@blackmagicdesign.com'],
+      [160, 'hkhan@vecteezy.com'],
+      [164, 'capcut.support@bytedance.com'],
+      [225, 'sales@anthropic.com'],
+    ];
+    const cIds   = contacts.map(r => r[0]);
+    const cEmails = contacts.map(r => r[1]);
+
+    const upd = await client.query(
+      `UPDATE directory_listings AS t
+         SET contact_email        = v.email,
+             contact_email_status = 'found',
+             contact_email_source = 'manual_research',
+             contact_email_fetched_at = NOW()
+       FROM unnest($1::int[], $2::text[]) AS v(id, email)
+       WHERE t.id = v.id
+       RETURNING t.id`,
+      [cIds, cEmails]
+    );
+
+    // id 35 Midjourney — large company, no email provided; mark status only
+    await client.query(
+      `UPDATE directory_listings SET contact_email_status = 'blocked_large_company'
+       WHERE id = 35 AND (contact_email_status IS NULL OR contact_email_status != 'blocked_large_company')`
+    );
+
+    // ── 2. Block dead sites (404 confirmed + connection failures x2) ──
+    // These got their contact_email imported for records but must never receive outreach.
+    const deadIds = [2, 5, 6, 10, 11, 14, 60, 72, 96, 538];
+    const deadUpd = await client.query(
+      `UPDATE directory_listings
+         SET outreach_emailed_at = '2099-01-01 00:00:00+00'::timestamptz
+       WHERE id = ANY($1::int[]) AND outreach_emailed_at IS NULL
+       RETURNING id`,
+      [deadIds]
+    );
+
+    // ── 3. Block Task B large companies — belt-and-suspenders until deploy ──
+    // LARGE_COMPANY_BLOCKLIST now also covers them permanently in code.
+    const largeCoIds = [35, 112, 160, 164, 225];
+    const largeUpd = await client.query(
+      `UPDATE directory_listings
+         SET outreach_emailed_at = '2099-01-01 00:00:00+00'::timestamptz
+       WHERE id = ANY($1::int[]) AND (outreach_emailed_at IS NULL OR outreach_emailed_at < NOW() + INTERVAL '10 years')
+       RETURNING id`,
+      [largeCoIds]
+    );
+
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      contacts_imported: upd.rowCount,
+      imported_ids: upd.rows.map(r => r.id).sort((a, b) => a - b),
+      dead_blocked: deadUpd.rows.map(r => r.id).sort((a, b) => a - b),
+      large_co_blocked: largeUpd.rows.map(r => r.id).sort((a, b) => a - b),
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[admin/import-contacts-batch2]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
