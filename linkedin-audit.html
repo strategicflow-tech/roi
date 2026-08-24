@@ -361,7 +361,7 @@
       <div class="score-line"><span class="score-k">Bugs found</span><span class="score-v a" id="sb-bugs">— / 7</span></div>
     </div>
     <div class="before-ann before-only">
-      <div class="ann-header">Bugs Found</div>
+      <div class="ann-header" id="ann-bugs-header">Bugs Found</div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">1</span>Bug #1</div><div class="ann-title" id="bug-title-1">Hook Without Consequence</div><div class="ann-body" id="bug-body-1">Run audit to see diagnosis.</div></div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">2</span>Bug #2</div><div class="ann-title" id="bug-title-2">Feature-First Body</div><div class="ann-body" id="bug-body-2"></div></div>
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">3</span>Bug #3</div><div class="ann-title" id="bug-title-3">Zero Specificity</div><div class="ann-body" id="bug-body-3"></div></div>
@@ -371,7 +371,7 @@
       <div class="ann-card bug"><div class="ann-l bug"><span class="ann-circle bug">7</span>Bug #7</div><div class="ann-title" id="bug-title-7">Wrong Audience Signal</div><div class="ann-body" id="bug-body-7"></div></div>
     </div>
     <div class="after-ann after-only">
-      <div class="ann-header">Fixes Applied</div>
+      <div class="ann-header" id="ann-fixes-header">Fixes Applied</div>
       <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">1</span>Fix #1</div><div class="ann-title" id="fix-title-1">Consequence-First Hook</div><div class="ann-body" id="fix-body-1">Run audit to see fixes.</div></div>
       <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">2</span>Fix #2</div><div class="ann-title" id="fix-title-2">Outcome-First Body</div><div class="ann-body" id="fix-body-2"></div></div>
       <div class="ann-card fix"><div class="ann-l fix"><span class="ann-circle fix">3</span>Fix #3</div><div class="ann-title" id="fix-title-3">Numbers Added</div><div class="ann-body" id="fix-body-3"></div></div>
@@ -496,6 +496,16 @@ if (btn) {
       if (pl) pl.textContent = 'Audit complete';
       setTimeout(function() { if (pw) pw.style.display = 'none'; }, 700);
 
+      // Compute real bugs found — bugs array is authoritative (server returns only failing checkpoints)
+      var realBugsFound;
+      if (Array.isArray(a.bugs)) {
+        realBugsFound = a.bugs.length;
+      } else if (typeof a.bugs_found === 'number') {
+        realBugsFound = a.bugs_found;
+      } else {
+        realBugsFound = 7;
+      }
+
       var company = a.company || 'Company';
       status.textContent = 'Audit complete — ' + company + ' · Score: ' + (a.original_score||'?') + ' to ' + (a.rebuilt_score||'?');
       status.style.color = 'var(--green)'; status.style.fontStyle = 'normal'; status.style.fontWeight = '600';
@@ -504,9 +514,15 @@ if (btn) {
       set('score-after', 'Rebuilt: '+(a.rebuilt_score||'?')+'/10');
       set('sb-score-before', (a.original_score||'?')+' / 10');
       set('sb-score-after', (a.rebuilt_score||'?')+' / 10');
-      set('sb-bugs', (a.bugs_found||7)+' / 7');
+      set('sb-bugs', realBugsFound+' / 7');
       var bb = el('bar-before'); if (bb) bb.style.width = ((a.original_score||2)*10)+'%';
-      var ba = el('bar-after'); if (ba) ba.style.width = ((a.rebuilt_score||9)*10)+'%';
+      var ba = el('bar-after'); if (ba) ba.style.width = ((a.rebuilt_score||7)*10)+'%';
+
+      // Dynamic ann-headers
+      var annBugsHeader = el('ann-bugs-header');
+      if (annBugsHeader) annBugsHeader.textContent = 'Bugs Found — ' + realBugsFound + '/7';
+      var annFixesHeader = el('ann-fixes-header');
+      if (annFixesHeader) annFixesHeader.textContent = 'Fixes Applied — ' + (a.fixes ? a.fixes.length : realBugsFound) + '/7';
 
       var logo = el('client-logo');
       if (logo) logo.innerHTML = company.slice(0,-1)+'<span>'+company.slice(-1)+'</span>';
@@ -542,9 +558,40 @@ if (btn) {
         });
       }
 
-      // Sidebar
-      if (a.bugs) a.bugs.forEach(function(b,i) { set('bug-title-'+(i+1), b.title); set('bug-body-'+(i+1), b.body); });
-      if (a.fixes) a.fixes.forEach(function(f,i) { set('fix-title-'+(i+1), f.title); set('fix-body-'+(i+1), f.body); });
+      // Sidebar bug cards — populate and hide surplus beyond realBugsFound
+      var bugCards = document.querySelectorAll('.before-ann .ann-card.bug');
+      if (a.bugs && a.bugs.length) {
+        a.bugs.forEach(function(b, i) {
+          if (bugCards[i]) {
+            var t = bugCards[i].querySelector('.ann-title');
+            var bd = bugCards[i].querySelector('.ann-body');
+            if (t) t.textContent = b.title || '';
+            if (bd) bd.textContent = b.body || '';
+            bugCards[i].style.display = '';
+          }
+        });
+      }
+      for (var bci = realBugsFound; bci < bugCards.length; bci++) {
+        bugCards[bci].style.display = 'none';
+      }
+
+      // Sidebar fix cards — populate and hide surplus
+      var fixCards = document.querySelectorAll('.after-ann .ann-card.fix');
+      var fixCount = a.fixes ? a.fixes.length : realBugsFound;
+      if (a.fixes && a.fixes.length) {
+        a.fixes.forEach(function(f, i) {
+          if (fixCards[i]) {
+            var t = fixCards[i].querySelector('.ann-title');
+            var bd = fixCards[i].querySelector('.ann-body');
+            if (t) t.textContent = f.title || '';
+            if (bd) bd.textContent = f.body || '';
+            fixCards[i].style.display = '';
+          }
+        });
+      }
+      for (var fci = fixCount; fci < fixCards.length; fci++) {
+        fixCards[fci].style.display = 'none';
+      }
 
       if (!localStorage.getItem('sf_admin')) {
         localStorage.setItem('sf_used_audit_linkedin', 'true');
