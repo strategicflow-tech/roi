@@ -12,3 +12,4 @@
 - [Outreach email prefix blocklist](outreach-email-prefix-blocklist.md) — never send to support/help/noreply/admin/billing/etc; user explicitly required this; rule is in isBlockedOutreachTarget() and must be copied into every standalone script.
 - [Admin job-token endpoint pattern](admin-job-token-endpoint-pattern.md) — use ShellExec + $WHY_ADMIN_KEY env var for job-token calls; requestSecrets in CodeExecution has timing issues. Route-level requireAdminSession conflicts with app.use global middleware when job tokens are used.
 - [Onboarding audit scoring baseline](onboarding-audit-scoring-baseline.md) — live test (2026-08-24) confirmed variable scores: weak=1/10 (7 bugs), strong=8/10 (1 bug), SF own copy=5.8/10 (3 bugs). No clustering. Prompt calibration is working.
+- [Resend delivery verification](resend-delivery-verification.md) — internal logs record accepted sends only; delivery status needs valid Resend API access and provider events.
