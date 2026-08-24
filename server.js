@@ -4072,7 +4072,7 @@ const SEQ_TEMPLATES = {
     2: { subject: 'same feature, two different reactions',
          body: `Hi {{first_name}},\n\nSame pattern, different company, every time.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nI've been documenting this across SaaS launch emails. Want to see 3 more rewrites? Reply and I'll send them over.` },
     3: { subject: '59 launches later, one recurring bug',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\nI've audited 59 SaaS launch and product update emails this year. Average score before rebuild: 3.4/10. After: 9/10.\n\nSame structural bug almost every time: the CTA describes what the product does, not what the reader gets to fix, unlock, or avoid.\n\nBuilt a free diagnostic around it. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\nI've audited 59 SaaS launch and product update emails this year. Average score before rebuild: 3.4/10. After: 9/10.\n\nSame structural bug almost every time: the CTA describes what the product does, not what the reader gets to fix, unlock, or avoid.\n\nBuilt a free diagnostic around it. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nIt's also live now as an MCP tool, so if your workflow already runs on Claude or another AI agent, it can check emails automatically: https://mcp.strategicflow.tech\n\nEither way, appreciate the inbox space.` },
   },
   B_Lifecycle: {
     1: { subject: "day 7 still hasn't said why",
@@ -4080,7 +4080,7 @@ const SEQ_TEMPLATES = {
     2: { subject: 'same slot, different job',
          body: `Hi {{first_name}},\n\nSame gap, every lifecycle sequence I've audited this year.\n\nBEFORE (Day 3): "Here's how [Feature] works"\nAFTER (Day 3): "You haven't used [Feature] yet, here's what that's costing you"\n\nSame email slot. Different job.\n\nDocumenting these patterns across SaaS onboarding flows. Want to see 3 more from lifecycle sequences? Reply and I'll send them.` },
     3: { subject: 'the pattern across 59 sequences',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 email sequences audited this year, SaaS onboarding and product updates. Average score before: 3.4/10. After rebuild: 9/10.\n\nThe recurring bug in lifecycle sequences specifically: emails are ordered by feature, not by the moment the user is actually stuck.\n\nBuilt a free diagnostic. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 email sequences audited this year, SaaS onboarding and product updates. Average score before: 3.4/10. After rebuild: 9/10.\n\nThe recurring bug in lifecycle sequences specifically: emails are ordered by feature, not by the moment the user is actually stuck.\n\nBuilt a free diagnostic. Paste an email in — score and exact friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nIt's also live now as an MCP tool, so if your workflow already runs on Claude or another AI agent, it can check emails automatically: https://mcp.strategicflow.tech\n\nEither way, appreciate the inbox space.` },
   },
   C_EmailMgr: {
     1: { subject: "it's rarely the subject line",
@@ -4088,7 +4088,7 @@ const SEQ_TEMPLATES = {
     2: { subject: "two paragraphs in, that's the bottleneck",
          body: `Hi {{first_name}},\n\nTeams spend weeks on subject lines. The bottleneck is usually two paragraphs in.\n\nBEFORE: "New reporting dashboard is now available"\nAFTER: "Your weekly report just lost 4 manual steps"\n\nSame feature. Different decision.\n\nDocumenting this across dozens of SaaS email programs. Want to see 3 more from SaaS email programs? Reply and I'll send them.` },
     3: { subject: '59 audits, one bug that keeps repeating',
-         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 emails audited this year. Average score before: 3.4/10. After rebuild: 9/10. Same 3-4 structural bugs, almost every time.\n\nBuilt a free diagnostic around the pattern. Paste an email in — score and friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nEither way, appreciate the inbox space.` },
+         body: `Hi {{first_name}},\n\nLast note from me.\n\n59 emails audited this year. Average score before: 3.4/10. After rebuild: 9/10. Same 3-4 structural bugs, almost every time.\n\nBuilt a free diagnostic around the pattern. Paste an email in — score and friction points in 60 seconds, no signup:\n\nstrategic-flow-audit.replit.app/why.html\n\nIt's also live now as an MCP tool, so if your workflow already runs on Claude or another AI agent, it can check emails automatically: https://mcp.strategicflow.tech\n\nEither way, appreciate the inbox space.` },
   },
 };
 
