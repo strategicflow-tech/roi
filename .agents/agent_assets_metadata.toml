@@ -58,3 +58,10 @@ uri = "file://missing-listings-diff.js"
 type = "unspecified"
 title = "missing-listings-diff.js — 193 listinguri lipsă din tracker"
 description = "Total active în DB: 550 | În tracker: 361 | Lipsă: 193. Format: {id, name, domain, email, link} gata de lipit într-un array JS."
+
+[[outputs]]
+id = "CmLoRVX8lWv-nN0ap7iD9"
+uri = "file://listings_export.csv"
+type = "table"
+title = "ToolIndex listings export (dev DB — 612 rânduri)"
+description = "Toate listing-urile cu coloanele: id, name, url, category, status, contact_email, outreach_emailed_at, follow_up_sent_at, featured_tier, excluded_from_outreach, exclusion_reason etc."
