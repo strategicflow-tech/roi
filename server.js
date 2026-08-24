@@ -175,6 +175,28 @@ const SENDER         = 'noreply@strategicflow.tech';
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+// ── One-time Decision Friction MCP outreach (25 Aug 2026) ───────────────────
+// Recipient shape: { email, name, context }. The real recipient list will be
+// added here before the scheduled send.
+const DECISION_FRICTION_MCP_RECIPIENTS = [];
+const DECISION_FRICTION_MCP_SUBJECT = 'Before your next client email ships';
+const DECISION_FRICTION_MCP_TARGET = new Date('2026-08-25T12:00:00+01:00');
+
+function buildDecisionFrictionMcpEmail({ name, context }) {
+  const text = [
+    `Hi ${name} team,`,
+    `${context}, so a free tool that scores each client email's structure before it ships is a direct fit. It flags subject line, CTA, and message hierarchy weak points in seconds, before your client sees a low open rate and asks why.`,
+    'I built this as an MCP tool your team can connect directly to your AI workflow: https://mcp.strategicflow.tech',
+    'Run one real client email through it and see what it flags.',
+    'Alex Iliescu\nStrategic Flow'
+  ].join('\n\n');
+  const html = text
+    .split(/\n\n/)
+    .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .join('\n');
+  return { text, html };
+}
+
 // ── Global 24-hour email cooldown — monkey-patch resend.emails.send ──────────
 // Prevents any two emails going to the same address within 24 hours,
 // regardless of which sequence or cron triggered the send.
@@ -25150,6 +25172,48 @@ full HTML body here
   expireSponsors().catch(()=>{});
   activateScheduledBoosts().catch(()=>{});
   seedDailySection().catch(()=>{});
+
+  // ── One-time 25 Aug 2026 12:00 +01:00: Decision Friction MCP outreach ────
+  // The UTC expression is exactly 11:00 UTC on the requested fixed-offset date.
+  // The task destroys itself after firing so it cannot recur in this process.
+  if (Date.now() < DECISION_FRICTION_MCP_TARGET.getTime()) {
+    let decisionFrictionMcpTask;
+    decisionFrictionMcpTask = cron.schedule('0 11 25 8 *', async () => {
+      try {
+        if (!DECISION_FRICTION_MCP_RECIPIENTS.length) {
+          console.log('[decision-friction-mcp] scheduled send reached; no recipients configured');
+          return;
+        }
+
+        const from = process.env.FROM_EMAIL || SENDER;
+        for (const recipient of DECISION_FRICTION_MCP_RECIPIENTS) {
+          try {
+            const { text, html } = buildDecisionFrictionMcpEmail(recipient);
+            const result = await resend.emails.send({
+              from,
+              to: recipient.email,
+              subject: DECISION_FRICTION_MCP_SUBJECT,
+              html,
+              text
+            });
+            if (result?.error) {
+              console.error(`[decision-friction-mcp] Resend error for ${recipient.email}:`, result.error);
+            } else {
+              console.log(`[decision-friction-mcp] sent to ${recipient.email}`);
+            }
+          } catch (err) {
+            console.error(`[decision-friction-mcp] send failed for ${recipient.email}:`, err.message);
+          }
+        }
+      } finally {
+        decisionFrictionMcpTask.stop();
+        decisionFrictionMcpTask.destroy();
+      }
+    }, { timezone: 'UTC' });
+    console.log(`[decision-friction-mcp] one-time send scheduled for ${DECISION_FRICTION_MCP_TARGET.toISOString()}`);
+  } else {
+    console.log('[decision-friction-mcp] target time has passed; one-time send not scheduled');
+  }
 
   // ── Daily 01:30 UTC: seed the Daily section — DISABLED
   cron.schedule('30 1 * * *', () => {
