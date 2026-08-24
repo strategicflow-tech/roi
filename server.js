@@ -558,6 +558,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/rank-spread-votes', '/redistribute-votes', '/toggle-promoted', '/seed-votes',
   '/score', '/spread-votes', '/reseed-daily', '/run-claimed-boost',
   '/directory/winners/compute', '/insert-liftoff',
+  '/sync-outreach-batch1',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -5545,6 +5546,41 @@ app.get('/admin/export-listings.csv', requireAdminSession, async (req, res) => {
     res.send(lines.join('\n'));
   } catch (err) {
     console.error('[admin/export-listings.csv]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /admin/sync-outreach-batch1 ─────────────────────────────────────────
+// Marks outreach_emailed_at = NOW() for the 211 listing IDs from the first manual
+// outreach batch (idempotent — skips rows already marked, skips IDs that don't exist).
+// Callable via: curl -X POST -H "x-admin-job-token: $WHY_ADMIN_KEY" \
+//               https://strategic-flow-audit.replit.app/admin/sync-outreach-batch1
+app.get('/admin/sync-outreach-batch1', requireAdminSession, async (req, res) => {
+  const BATCH1_IDS = [3,7,12,13,15,38,40,45,46,47,51,54,57,61,65,70,73,76,77,78,79,80,83,87,88,92,95,98,101,102,106,107,113,114,116,120,121,122,123,138,141,142,144,145,146,147,148,153,159,165,173,176,179,180,181,183,185,189,190,192,194,195,196,197,198,200,201,202,204,205,206,207,210,211,213,214,215,217,218,219,220,221,222,223,438,440,441,443,451,452,458,460,464,469,475,476,478,481,482,485,493,495,496,503,505,506,507,508,510,511,522,523,526,527,528,530,532,534,539,541,542,543,547,555,561,562,565,567,573,576,578,579,581,593,603,606,610,614,617,619,621,624,625,626,627,628,631,633,635,637,639,640,642,644,646,647,648,649,650,653,654,656,658,662,665,666,668,669,674,675,677,678,681,685,687,688,691,692,695,696,697,704,706,708,712,714,716,719,720,724,2446,2447,2448,2449,2450,2453,2509,2510,4099,4519,4617,4789,5058,5180,5182,5185,5188,5195,5198,5202,5207];
+  try {
+    // Count which IDs actually exist in the DB
+    const existR = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM directory_listings WHERE id = ANY($1::int[])`,
+      [BATCH1_IDS]
+    );
+    const r = await pool.query(
+      `UPDATE directory_listings
+         SET outreach_emailed_at = NOW()
+       WHERE id = ANY($1::int[]) AND outreach_emailed_at IS NULL
+       RETURNING id`,
+      [BATCH1_IDS]
+    );
+    res.json({
+      ok: true,
+      requested: BATCH1_IDS.length,
+      exist_in_db: existR.rows[0].n,
+      not_in_db: BATCH1_IDS.length - existR.rows[0].n,
+      updated: r.rowCount,
+      skipped_already_marked: existR.rows[0].n - r.rowCount,
+      updated_ids: r.rows.map(x => x.id).sort((a,b)=>a-b),
+    });
+  } catch (err) {
+    console.error('[admin/sync-outreach-batch1]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
