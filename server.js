@@ -19536,6 +19536,7 @@ function renderFrictionIndexHtml(companies) {
   <div class="hero-label"><span class="hero-label-dot"></span>Live Index</div>
   <h1 class="hero-title">The Decision Friction Index</h1>
   <p class="hero-sub">${escapeHtml(subtitleText)}</p>
+  <p>The scoring model behind this index is also available as an MCP server for AI agents: <a href="https://mcp.strategicflow.tech">mcp.strategicflow.tech</a>.</p>
 
   <div class="stats-bar">
     <div class="stat-cell">
@@ -20398,6 +20399,7 @@ function renderAiVisIndexHtml(companies) {
     <a class="methodology-btn" href="/ai-visibility-index/methodology">How scores work →</a>
   </div>
   <p class="hero-sub">${escapeHtml(subtitleText)}</p>
+  <p>Strategic Flow itself is queryable by AI agents directly via its own MCP server: <a href="https://mcp.strategicflow.tech">mcp.strategicflow.tech</a>.</p>
 
   <div class="stats-bar">
     <div class="stat-cell">
