@@ -49,6 +49,7 @@ RESEND_TO = "consultantcalatorii@gmail.com"
 APP_URL = "https://strategic-flow-audit.replit.app"
 WHY_CREDITS_PRICE_ID = "price_1TxF13DpTwoDeZJn43U5Wfmz"
 ADMIN_EMAILS = "strategicflow@proton.me,consultantcalatorii@gmail.com,alex@strategicflow.tech"
+OUTREACH_PAUSED = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"

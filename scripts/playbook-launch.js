@@ -24,6 +24,10 @@ function unsubLink(email) {
 const FROM     = 'Strategic Flow <alex@strategicflow.tech>';
 const REPLY_TO = 'alex@strategicflow.tech';
 
+function isOutreachPaused() {
+  return String(process.env.OUTREACH_PAUSED || '').toLowerCase() === 'true';
+}
+
 // ── Exclusion rules (identical to server.js) ────────────────────────────────
 const LARGE_COMPANY_BLOCKLIST = new Set([
   'anthropic','figma','salesforce','elevenlabs','crisp','framer','atlassian',
@@ -134,6 +138,11 @@ function buildHtml(email) {
 }
 
 async function main() {
+  if (isOutreachPaused()) {
+    console.log('[playbook-launch] PAUSED — OUTREACH_PAUSED=true; no contacts loaded or emails sent');
+    await pool.end();
+    return;
+  }
   console.log('[playbook-launch] Building recipient list…');
 
   const { rows } = await pool.query(`
@@ -162,6 +171,10 @@ async function main() {
   let sent = 0, skippedCooldown = 0, skippedError = 0;
 
   for (let i = 0; i < eligible.length; i++) {
+    if (isOutreachPaused()) {
+      console.log('[playbook-launch] PAUSED — OUTREACH_PAUSED=true');
+      break;
+    }
     const { email, name } = eligible[i];
 
     // 24-hour cooldown check

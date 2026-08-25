@@ -258,21 +258,38 @@ function buildDecisionFrictionMcpEmail({ name, context }) {
   return { text, html };
 }
 
-// ── Global 24-hour email cooldown — monkey-patch resend.emails.send ──────────
-// Prevents any two emails going to the same address within 24 hours,
-// regardless of which sequence or cron triggered the send.
+// ── Global outreach pause + 24-hour email cooldown ───────────────────────────
+// OUTREACH_PAUSED=true is an emergency kill-switch for all non-transactional
+// outbound email. It is checked here as a final safety boundary so a newly
+// added cron or manually-triggered route cannot accidentally bypass the pause.
 // Transactional/auth emails (OTPs, verifications, audit results, confirmations)
-// and admin/owner addresses are always exempt.
+// and admin/owner addresses are always exempt from the pause.
+function isOutreachPaused() {
+  return String(process.env.OUTREACH_PAUSED || '').toLowerCase() === 'true';
+}
+
 {
   const _origSend = resend.emails.send.bind(resend.emails);
   resend.emails.send = async function patchedSend(params) {
-    const { _skipGlobalCooldown = false, ...providerParams } = params;
+    const {
+      _skipGlobalCooldown = false,
+      _transactional = false,
+      ...providerParams
+    } = params;
     const toRaw = Array.isArray(providerParams.to) ? providerParams.to[0] : (providerParams.to || '');
     const to    = toRaw.toLowerCase().trim();
     const subj  = providerParams.subject || '';
 
     const isAdminAddr   = to === OWNER_EMAIL.toLowerCase() || BYPASS_EMAILS.has(to);
-    const isTransactional = _skipGlobalCooldown || /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
+    const isTransactional = _skipGlobalCooldown || _transactional ||
+      /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|is live|is confirmed|confirmation/i.test(subj);
+
+    if (isOutreachPaused() && !isAdminAddr && !isTransactional) {
+      const error = new Error('Outbound outreach is paused (OUTREACH_PAUSED=true)');
+      error.code = 'OUTREACH_PAUSED';
+      console.warn(`[outreach-paused] blocked → ${to} | subj: "${subj.slice(0,60)}"`);
+      throw error;
+    }
 
     if (!isAdminAddr && !isTransactional) {
       if (await isUnsubscribed(to)) {
@@ -4001,6 +4018,7 @@ ${buildUnsubFooterHtml(email || '')}
 // ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
 app.post('/admin/send-claim-outreach', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (isOutreachPaused()) return res.status(423).json({ error: 'outreach_paused', message: 'Outbound outreach is paused.' });
   const listingId = parseInt(req.query.id || (req.body && req.body.id));
   if (!listingId || isNaN(listingId)) return res.status(400).json({ error: 'missing_id' });
   try {
@@ -4482,7 +4500,11 @@ function parseSeqCsv(csvText) {
 
 // Core batch runner — returns {sent, errors, log[]}
 async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
-  // Pause gate — set system_config key 'seq_outreach_paused'='true' to halt all sends
+  if (isOutreachPaused()) {
+    console.log('[seq-outreach] PAUSED — OUTREACH_PAUSED=true');
+    return { sent: 0, errors: 0, total: 0, log: ['paused'] };
+  }
+  // Legacy per-sequence pause gate remains supported.
   try {
     const { rows } = await pool.query(`SELECT value FROM system_config WHERE key='seq_outreach_paused' LIMIT 1`);
     if (rows[0]?.value === 'true') {
@@ -4680,6 +4702,7 @@ app.post('/admin/seq-send-step3-ab', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   const cap     = Math.min(parseInt(req.query.cap || '300', 10), 600);
   const dryRun  = req.query.dry_run === '1';
+  if (!dryRun && isOutreachPaused()) return res.status(423).json({ error: 'outreach_paused', message: 'Outbound outreach is paused.' });
   res.setHeader('Content-Type', 'application/json');
   try {
     const { rows } = await pool.query(`
@@ -4751,6 +4774,7 @@ app.post('/admin/run-weekly-spotlight', async (req, res) => {
 // ── POST /admin/run-followup-batch?key=…&cap=N — send follow-ups to unclaimed listings ──
 app.post('/admin/run-followup-batch', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (isOutreachPaused()) return res.status(423).json({ error: 'outreach_paused', message: 'Outbound outreach is paused.' });
   const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
   try {
     const { rows } = await pool.query(`
@@ -4793,6 +4817,7 @@ app.post('/admin/run-followup-batch', async (req, res) => {
 
 // ── POST /admin/send-claim-outreach-batch?key=…&cap=N — batch initial outreach ─
 app.get('/admin/send-claim-outreach-batch', async (req, res) => {
+  if (isOutreachPaused()) return res.status(423).json({ error: 'outreach_paused', message: 'Outbound outreach is paused.' });
   const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
   try {
     const { rows } = await pool.query(`
@@ -4902,8 +4927,9 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
       };
       await Promise.all(Array.from({length:CONCURRENCY},worker));
       console.log(`[extract-deep] DONE — found:${found} linkedin:${li} / ${rows.length} scanned`);
-      // Auto-send claim outreach to newly discovered emails
-      if (found > 0) {
+      // Contact discovery may continue during a pause, but it must never
+      // trigger automatic outreach until the pause is intentionally lifted.
+      if (found > 0 && !isOutreachPaused()) {
         try {
           const { rows: newLeads } = await pool.query(`
             SELECT id, name, contact_email, ai_insights FROM directory_listings
@@ -4935,6 +4961,8 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
           }
           console.log(`[extract-deep] Auto-outreach: ${autoSent} sent, ${autoSkipped} junk skipped`);
         } catch(e) { console.error('[extract-deep] auto-outreach error:', e.message); }
+      } else if (found > 0) {
+        console.log('[extract-deep] outreach paused — discovered contacts were saved but not emailed');
       }
     } catch(e){ console.error('[extract-deep] FATAL:',e.message); }
     finally { _deepScanRunning = false; }
@@ -7416,6 +7444,10 @@ async function expireSponsors() {
       console.log(`[sponsor] expired ${r.rows.length}: ${r.rows.map(s=>s.sponsor_name).join(', ')}`);
       for (const s of r.rows) {
         if (!s.payer_email) continue;
+        if (isOutreachPaused()) {
+          console.log(`[sponsor] expiry email paused → ${s.payer_email}`);
+          continue;
+        }
         resend.emails.send({
           from:    SENDER,
           to:      s.payer_email,
@@ -7435,6 +7467,10 @@ async function expireSponsors() {
 
 // ── Sponsorship: 7-day renewal reminders (Task #39) ────────────────────────────
 async function checkSponsorRenewals() {
+  if (isOutreachPaused()) {
+    console.log('[sponsor] renewal reminders paused — OUTREACH_PAUSED=true');
+    return { skipped: 'outreach_paused' };
+  }
   try {
     const r = await pool.query(
       `SELECT id, sponsor_name, payer_email, expires_at
@@ -7467,6 +7503,10 @@ async function checkSponsorRenewals() {
 
 // ── Relaunch window notifications — email owners when 30-day window reopens ──────
 async function checkRelaunchWindows() {
+  if (isOutreachPaused()) {
+    console.log('[relaunch-notify] paused — OUTREACH_PAUSED=true');
+    return { skipped: 'outreach_paused' };
+  }
   try {
     // Find claimed listings whose 30-day relaunch window just opened:
     //   submitted_at <= 30 days ago (window is open)
@@ -7535,6 +7575,10 @@ async function checkRelaunchWindows() {
 
 // ── Blog newsletter — send to all directory contacts when a new post is published ──
 async function sendBlogNewsletter(post) {
+  if (isOutreachPaused()) {
+    console.log(`[blog-newsletter] paused — OUTREACH_PAUSED=true (${post?.slug || 'unknown post'})`);
+    return { skipped: true, reason: 'outreach_paused' };
+  }
   // post: { slug, title, excerpt, dateLabel }
   const { slug, title, excerpt, dateLabel } = post;
 
@@ -7611,6 +7655,10 @@ async function sendBlogNewsletter(post) {
 
 // ── Check for unpublished blog posts and send newsletters ─────────────────────
 async function checkBlogNewsletters() {
+  if (isOutreachPaused()) {
+    console.log('[blog-newsletter] paused — OUTREACH_PAUSED=true');
+    return { skipped: true, reason: 'outreach_paused' };
+  }
   try {
     const sentR = await pool.query(`SELECT slug FROM blog_newsletter_log`);
     const sentSlugs = new Set(sentR.rows.map(r => r.slug));
@@ -7784,6 +7832,10 @@ ${FOOTER_T}`,
 }
 
 async function runWeeklySpotlightNewsletter() {
+  if (isOutreachPaused()) {
+    console.log('[weekly-spotlight] paused — OUTREACH_PAUSED=true');
+    return { sent: 0, skipped: 0, errors: 0, total: 0, log: ['paused'] };
+  }
   // Count new listings this week (for Template B copy)
   const { rows: [{ n: weeklyNewCount }] } = await pool.query(
     `SELECT COUNT(*)::int AS n FROM directory_listings
@@ -7970,6 +8022,10 @@ function buildStartupOfWeekSvg(listing) {
 // Looks up the listing's verified claimed owner, runs full do-not-contact gate,
 // deduplicates per-listing per-week, then sends a congratulatory email.
 async function sendStartupOfWeekEmail(listingId) {
+  if (isOutreachPaused()) {
+    console.log(`[sotw] paused — OUTREACH_PAUSED=true (listing ${listingId})`);
+    return { skipped: 'outreach_paused' };
+  }
   try {
     // Fetch listing + verified claim owner email
     const { rows } = await pool.query(`
@@ -18398,6 +18454,10 @@ function seqWrap(inner) {
 }
 
 async function sendSeqEmail(emailAddr, seqItem) {
+  if (isOutreachPaused()) {
+    console.log(`[seq] paused — no email ${seqItem.num} sent to ${emailAddr}`);
+    return { skipped: 'outreach_paused' };
+  }
   await resend.emails.send({
     from: SEQ_SENDER,
     to: emailAddr,
@@ -18476,6 +18536,10 @@ const ARCH_EMAILS = [
 ];
 
 async function sendArchEmail(emailAddr, archItem) {
+  if (isOutreachPaused()) {
+    console.log(`[arch-seq] paused — no email ${archItem.num} sent to ${emailAddr}`);
+    return { skipped: 'outreach_paused' };
+  }
   await resend.emails.send({
     from: SEQ_SENDER,
     to: emailAddr,
@@ -25434,6 +25498,10 @@ full HTML body here
     let decisionFrictionMcpTask;
     decisionFrictionMcpTask = cron.schedule('0 11 25 8 *', async () => {
       try {
+        if (isOutreachPaused()) {
+          console.log('[decision-friction-mcp] paused — OUTREACH_PAUSED=true');
+          return;
+        }
         if (!DECISION_FRICTION_MCP_RECIPIENTS.length) {
           console.log('[decision-friction-mcp] scheduled send reached; no recipients configured');
           return;
@@ -25490,6 +25558,10 @@ full HTML body here
   // Sends exactly ONE follow-up per listing, 7+ days after outreach_emailed_at,
   // only if still unclaimed. Tracked via follow_up_sent_at — never repeats.
   cron.schedule('0 8 * * *', async () => {
+    if (isOutreachPaused()) {
+      console.log('[cron-followup] paused — OUTREACH_PAUSED=true');
+      return;
+    }
     console.log('[cron] Follow-up reminder check starting…');
     try {
       const { rows: dueListings } = await pool.query(`
@@ -25551,6 +25623,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 
   // ── Daily 08:05 UTC: 14-day follow-up #2 — FOMO + options for still-unclaimed listings ─
   cron.schedule('5 8 * * *', async () => {
+    if (isOutreachPaused()) {
+      console.log('[cron-followup2] paused — OUTREACH_PAUSED=true');
+      return;
+    }
     try {
       const { rows } = await pool.query(`
         SELECT id, name, url, contact_email, category
@@ -26021,6 +26097,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 
   // ── Daily 09:00 UTC: auto-send claim outreach to newly-discovered listing emails ─
   cron.schedule('0 9 * * *', async () => {
+    if (isOutreachPaused()) {
+      console.log('[outreach-cron] paused — OUTREACH_PAUSED=true');
+      return;
+    }
     try {
       const { rows } = await pool.query(`
         SELECT id, name, contact_email, ai_insights FROM directory_listings
@@ -26100,6 +26180,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 
   // ── Daily 13:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
   cron.schedule('0 13 * * *', async () => {
+    if (isOutreachPaused()) {
+      console.log('[seq-outreach] cron paused — OUTREACH_PAUSED=true');
+      return;
+    }
     try {
       const result = await runSeqOutreachBatch(OUTREACH_DAILY_CAP);
       console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
