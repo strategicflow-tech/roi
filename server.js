@@ -20428,7 +20428,8 @@ function renderAiVisIndexHtml(companies) {
   .upsell-upgrade-btn{
     display:inline-block;background:var(--teal);color:#050e1c;
     padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px;
-    text-decoration:none;transition:box-shadow .2s;
+    text-decoration:none;transition:box-shadow .2s;border:none;cursor:pointer;
+    font-family:'Figtree',sans-serif;
   }
   .upsell-upgrade-btn:hover{box-shadow:0 0 18px rgba(0,229,255,0.5);}
 
@@ -20560,7 +20561,9 @@ function renderAiVisIndexHtml(companies) {
         <li>Shareable AI Visibility badge for your site</li>
         <li>Competitor watch — see who shows up alongside you</li>
       </ul>
-      <a class="upsell-upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+      <form class="upgrade-checkout-form" action="/api/ai-visibility-index/upgrade-checkout?redirect=1" method="post">
+        <button type="submit" class="upsell-upgrade-btn">Unlock AI Visibility Pro — $29/mo</button>
+      </form>
     </div>
   </div>
 
@@ -20902,7 +20905,9 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   <div class="pro-upsell-section">
     <h2 class="questions-heading">Track your AI visibility over time</h2>
     <p class="upsell-copy">AI models re-rank constantly. AI Visibility Pro monitors your score monthly, shows your history chart, and gives you a shareable badge.</p>
-    <a class="cta-primary upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+    <form class="upgrade-checkout-form" action="/api/ai-visibility-index/upgrade-checkout?redirect=1" method="post">
+      <button type="submit" class="cta-primary upgrade-btn">Unlock AI Visibility Pro — $29/mo</button>
+    </form>
   </div>` : isPro ? `
   <div class="pro-embed-section">
     <h2 class="questions-heading">Your embeddable badge</h2>
@@ -20913,7 +20918,9 @@ function renderAiVisIndexCompanyHtml(company, modelResults, questions, hasFricti
   <div class="pro-upsell-section">
     <h2 class="questions-heading">AI Visibility Pro <span class="partial-tag">Preview</span></h2>
     <p class="upsell-copy">Monitoring over time, a shareable score badge, and competitor watch — unlock full AI Visibility Pro for this company.</p>
-    <a class="cta-primary upgrade-btn" href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener">Unlock AI Visibility Pro — $29/mo</a>
+    <form class="upgrade-checkout-form" action="/api/ai-visibility-index/upgrade-checkout?redirect=1" method="post">
+      <button type="submit" class="cta-primary upgrade-btn">Unlock AI Visibility Pro — $29/mo</button>
+    </form>
   </div>`;
 
   const jsonLd = {
@@ -20985,6 +20992,7 @@ ${isPrivate ? '' : `<script type="application/ld+json">${JSON.stringify(jsonLd).
   .history-svg{width:100%;height:140px;background:var(--card);border-radius:12px;padding:8px 0;}
   .history-range{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px;font-family:'DM Mono',monospace;}
   .upsell-copy{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 16px;}
+  .upgrade-checkout-form{display:inline;margin:0;}
   .upgrade-btn{border:none;cursor:pointer;font-family:'Figtree',sans-serif;font-size:14px;}
   .upgrade-status{margin-top:10px;font-size:13px;color:var(--muted);}
   .embed-hint{font-size:13px;color:var(--muted);margin:12px 0 6px;}
@@ -21186,7 +21194,7 @@ function renderAiVisIndexMethodologyHtml() {
       <text x="18" y="106" font-family="Figtree, sans-serif" font-size="10" fill="#5f6b6b">Verified by Strategic Flow</text>
     </svg>
   </div>
-  <p style="margin-top:16px;"><a href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" target="_blank" rel="noopener" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;font-family:'Figtree',sans-serif;">Unlock AI Visibility Pro — $29/mo</a></p>
+  <form action="/api/ai-visibility-index/upgrade-checkout?redirect=1" method="post" style="margin-top:16px;"><button type="submit" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:12px 24px;border:0;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none;font-family:'Figtree',sans-serif;cursor:pointer;">Unlock AI Visibility Pro — $29/mo</button></form>
 
   <a class="back-link" href="/ai-visibility-index">← Back to the AI Visibility Index</a>
 </div>
@@ -24155,7 +24163,7 @@ setupDB().then(async () => {
                   <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 24px;">See your full breakdown — which models mentioned you, where you ranked, and what they said:</p>
                   <a href="${baseUrl}/ai-visibility-index/my-scan/${privateScanId}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 26px;text-decoration:none;font-size:14px;font-weight:700;border-radius:6px;margin-bottom:28px;">View your results →</a>
                   <p style="font-size:13px;color:#9ca3af;line-height:1.6;margin:0 0 20px;padding-top:20px;border-top:1px solid #f3f4f6;">AI models re-rank constantly. Check back monthly to see if your visibility changes.</p>
-                  <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0;">Want ongoing monitoring, a score history chart, and a shareable badge? <a href="https://buy.stripe.com/14A14ndUkebLcxDfVN7wA0e" style="color:#0a1628;font-weight:600;">AI Visibility Pro is $29/mo</a> — no setup required.</p>
+                  <p style="font-size:13px;color:#6b7280;line-height:1.6;margin:0;">Want ongoing monitoring, a score history chart, and a shareable badge? <a href="${baseUrl}/ai-visibility-index" style="color:#0a1628;font-weight:600;">AI Visibility Pro is $29/mo</a> — no setup required.</p>
                 </div>
               </div>
             `
@@ -24554,73 +24562,152 @@ setupDB().then(async () => {
     }
   });
 
-  app.post('/api/ai-visibility-index/upgrade-checkout', (req, res) => {
-    res.json({ status: 'ok' });
+  const AI_VISIBILITY_PRO_METADATA = Object.freeze({
+    source: 'ai_visibility_index',
+    product: 'ai_visibility_pro'
   });
 
-  app.get('/ai-visibility-index/upgrade-success', (req, res) => {
-    res.send(`<!DOCTYPE html>
+  function aiVisibilityCheckoutBaseUrl() {
+    return (process.env.APP_URL || 'https://strategic-flow-audit.replit.app').replace(/\/+$/, '');
+  }
+
+  function isValidAiVisibilityCheckoutId(sessionId) {
+    return typeof sessionId === 'string'
+      && /^cs_[A-Za-z0-9_]+$/.test(sessionId)
+      && sessionId.length <= 255;
+  }
+
+  function isAiVisibilityProCheckout(session, expectedPriceId) {
+    const metadata = session?.metadata || {};
+    const lineItems = session?.line_items?.data || [];
+    const hasExpectedPrice = lineItems.some((item) => {
+      const price = item?.price;
+      return (typeof price === 'string' ? price : price?.id) === expectedPriceId;
+    });
+
+    return session?.mode === 'subscription'
+      && session?.status === 'complete'
+      && session?.payment_status === 'paid'
+      && metadata.source === AI_VISIBILITY_PRO_METADATA.source
+      && metadata.product === AI_VISIBILITY_PRO_METADATA.product
+      && hasExpectedPrice;
+  }
+
+  async function retrieveVerifiedAiVisibilityCheckout(sessionId) {
+    const expectedPriceId = process.env.AI_VIS_STRIPE_PRICE_ID;
+    if (!expectedPriceId) {
+      throw new Error('AI_VIS_STRIPE_PRICE_ID not configured');
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['line_items.data.price']
+    });
+    return {
+      session,
+      verified: isAiVisibilityProCheckout(session, expectedPriceId)
+    };
+  }
+
+  async function createAiVisibilityProCheckout(email) {
+    const priceId = process.env.AI_VIS_STRIPE_PRICE_ID;
+    if (!priceId) {
+      throw new Error('AI_VIS_STRIPE_PRICE_ID not configured');
+    }
+
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const customerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+      ? normalizedEmail
+      : undefined;
+    const baseUrl = aiVisibilityCheckoutBaseUrl();
+
+    return stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      customer_email: customerEmail,
+      success_url: `${baseUrl}/ai-visibility-index/upgrade-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/ai-visibility-index?upgrade=cancelled`,
+      metadata: AI_VISIBILITY_PRO_METADATA,
+      subscription_data: { metadata: AI_VISIBILITY_PRO_METADATA }
+    });
+  }
+
+  function renderAiVisibilityUpgradeStatusHtml({ verified }) {
+    const title = verified
+      ? 'Payment confirmed — AI Visibility Pro | Strategic Flow'
+      : 'AI Visibility Pro payment not confirmed | Strategic Flow';
+    const icon = verified ? '✓' : '!';
+    const heading = verified ? 'Payment confirmed.' : 'We couldn’t confirm your subscription.';
+    const description = verified
+      ? 'Your payment for AI Visibility Pro is confirmed. We’re activating your access and sending a sign-in link to your email now.'
+      : 'This page needs a completed AI Visibility Pro checkout session. No subscription or Pro access has been activated.';
+    const detail = verified
+      ? `<div class="card">
+          <h2>What happens next</h2>
+          <ul>
+            <li>We activate your ongoing AI visibility monitoring</li>
+            <li>We email your secure sign-in link</li>
+            <li>Your Pro dashboard, score history, and badge become available after activation</li>
+          </ul>
+        </div>`
+      : `<a class="cta" href="/ai-visibility-index">Return to the AI Visibility Index →</a>
+         <p class="hint">If you completed payment and still see this message, contact <a href="mailto:strategicflow@proton.me">strategicflow@proton.me</a>.</p>`;
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>You're in — AI Visibility Pro | Strategic Flow</title>
+<title>${title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0a1628;--card:#0f2035;--teal:#00d4c8;--muted:#7a9ab8;--hairline:#1a3050;}
-  *{box-sizing:border-box;}
-  body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column;}
+  *{box-sizing:border-box;}body{background:var(--bg);color:#fff;font-family:'Figtree',sans-serif;margin:0;min-height:100vh;display:flex;flex-direction:column;}
   .site-header{display:flex;align-items:center;justify-content:space-between;max-width:1000px;margin:0 auto;padding:20px 24px;border-bottom:1px solid var(--hairline);flex-wrap:wrap;gap:12px;width:100%;}
-  .site-header .wordmark{font-weight:600;font-size:17px;color:#fff;text-decoration:none;}
-  .site-header nav{display:flex;gap:24px;}
-  .site-header nav a{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}
-  .site-header nav a:hover{color:var(--teal);}
-  .wrap{max-width:560px;margin:0 auto;padding:80px 24px;text-align:center;flex:1;}
-  .check{font-size:52px;margin-bottom:24px;}
-  h1{font-size:32px;margin:0 0 12px;font-weight:700;}
-  .sub{font-size:17px;color:var(--muted);line-height:1.6;margin:0 0 36px;}
-  .card{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:28px 32px;text-align:left;margin-bottom:32px;}
-  .card h2{font-size:14px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:0 0 16px;}
-  .card ul{margin:0;padding:0;list-style:none;}
-  .card li{padding:8px 0;border-bottom:1px solid var(--hairline);font-size:15px;color:#fff;}
-  .card li:last-child{border-bottom:none;}
-  .card li::before{content:"✓ ";color:var(--teal);font-weight:700;}
-  .cta{display:inline-block;background:var(--teal);color:var(--bg);padding:14px 32px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px;}
-  .hint{font-size:13px;color:var(--muted);}
-  .site-footer{max-width:1000px;margin:0 auto;padding:24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;text-align:center;}
-  .site-footer a{color:var(--muted);text-decoration:none;}
+  .site-header .wordmark{font-weight:600;font-size:17px;color:#fff;text-decoration:none;}.site-header nav{display:flex;gap:24px;}.site-header nav a{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;}.site-header nav a:hover{color:var(--teal);}
+  .wrap{max-width:560px;margin:0 auto;padding:80px 24px;text-align:center;flex:1;}.status{width:52px;height:52px;border:2px solid var(--teal);border-radius:50%;display:grid;place-items:center;color:var(--teal);font-size:28px;font-weight:700;margin:0 auto 24px;}
+  h1{font-size:32px;margin:0 0 12px;font-weight:700;}.sub{font-size:17px;color:var(--muted);line-height:1.6;margin:0 0 36px;}.card{background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:28px 32px;text-align:left;margin-bottom:32px;}.card h2{font-size:14px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 16px;}.card ul{margin:0;padding:0;list-style:none;}.card li{padding:8px 0;border-bottom:1px solid var(--hairline);font-size:15px;}.card li:last-child{border-bottom:none;}.card li::before{content:"✓ ";color:var(--teal);font-weight:700;}.cta{display:inline-block;background:var(--teal);color:var(--bg);padding:14px 32px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:16px;}.hint{font-size:13px;color:var(--muted);}.hint a{color:var(--teal);}.site-footer{max-width:1000px;margin:0 auto;padding:24px;border-top:1px solid var(--hairline);color:var(--muted);font-size:13px;text-align:center;}.site-footer a{color:var(--muted);text-decoration:none;}
 </style>
 </head>
 <body>
-<div class="site-header">
-  <a class="wordmark" href="/">Strategic Flow</a>
-  <nav>
-    <a href="/ai-visibility-index">AI Visibility Index</a>
-    <a href="/ai-visibility-index/methodology">How it works</a>
-  </nav>
-</div>
-<div class="wrap">
-  <div class="check">🎉</div>
-  <h1>You're all set.</h1>
-  <p class="sub">Your AI Visibility Pro subscription is active. Check your email — we sent you a sign-in link to access your Pro dashboard.</p>
-  <div class="card">
-    <h2>What you've unlocked</h2>
-    <ul>
-      <li>Score history chart — track your AI visibility over time</li>
-      <li>Competitor watch — see who shows up alongside you</li>
-      <li>Embeddable badge for your website</li>
-      <li>Ongoing rescoring across Claude, GPT, Perplexity, and Gemini</li>
-    </ul>
-  </div>
-  <a class="cta" href="/ai-visibility-index">Browse the AI Visibility Index →</a>
-  <p class="hint">Didn't get the email? Check spam, or <a href="mailto:strategicflow@proton.me" style="color:var(--teal);">contact us</a>.</p>
-</div>
-<footer class="site-footer">
-  © 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a> · <a href="mailto:strategicflow@proton.me">Contact</a>
-</footer>
+<div class="site-header"><a class="wordmark" href="/">Strategic Flow</a><nav><a href="/ai-visibility-index">AI Visibility Index</a><a href="/ai-visibility-index/methodology">How it works</a></nav></div>
+<main class="wrap"><div class="status">${icon}</div><h1>${heading}</h1><p class="sub">${description}</p>${detail}</main>
+<footer class="site-footer">© 2026 Strategic Flow · <a href="https://strategic-flow-pro.replit.app/terms.html">Terms</a> · <a href="mailto:strategicflow@proton.me">Contact</a></footer>
 </body>
-</html>`);
+</html>`;
+  }
+
+  app.post('/api/ai-visibility-index/upgrade-checkout', async (req, res) => {
+    const redirectToCheckout = req.query.redirect === '1';
+    try {
+      const session = await createAiVisibilityProCheckout(req.body?.email);
+      if (!session.url) throw new Error('Stripe did not return a checkout URL');
+      if (redirectToCheckout) return res.redirect(303, session.url);
+      res.json({ status: 'ok', url: session.url });
+    } catch (err) {
+      console.error('[ai-vis-upgrade-checkout]', err.message);
+      if (redirectToCheckout) return res.redirect(303, '/ai-visibility-index?upgrade=unavailable');
+      res.status(502).json({ error: 'Unable to start AI Visibility Pro checkout' });
+    }
+  });
+
+  app.get('/ai-visibility-index/upgrade-success', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const sessionId = typeof req.query.session_id === 'string' ? req.query.session_id : '';
+    if (!isValidAiVisibilityCheckoutId(sessionId)) {
+      return res.status(400).send(renderAiVisibilityUpgradeStatusHtml({ verified: false }));
+    }
+
+    try {
+      const { verified } = await retrieveVerifiedAiVisibilityCheckout(sessionId);
+      if (!verified) {
+        return res.status(403).send(renderAiVisibilityUpgradeStatusHtml({ verified: false }));
+      }
+      res.send(renderAiVisibilityUpgradeStatusHtml({ verified: true }));
+    } catch (err) {
+      console.error('[ai-vis-upgrade-success]', err.message);
+      res.status(400).send(renderAiVisibilityUpgradeStatusHtml({ verified: false }));
+    }
   });
 
   app.post('/api/ai-visibility-index/stripe-webhook', async (req, res) => {
@@ -24651,15 +24738,22 @@ setupDB().then(async () => {
 
     let processingError = null;
     try {
-      if (event.type === 'checkout.session.completed') {
-        const sess = event.data.object;
-        const email = (sess.customer_details?.email || '').toLowerCase().trim();
-        const customerId = sess.customer;
-        const subscriptionId = sess.subscription;
-        if (!email) {
-          console.error('[ai-vis-webhook] no email in checkout session', sess.id);
+      if (
+        event.type === 'checkout.session.completed'
+        || event.type === 'checkout.session.async_payment_succeeded'
+      ) {
+        const eventSession = event.data.object;
+        const { session: sess, verified } = await retrieveVerifiedAiVisibilityCheckout(eventSession.id);
+        if (!verified) {
+          console.warn('[ai-vis-webhook] ignored checkout session that is not a paid AI Visibility Pro purchase', eventSession.id);
         } else {
-          await pool.query(`
+          const email = (sess.customer_details?.email || '').toLowerCase().trim();
+          const customerId = sess.customer;
+          const subscriptionId = sess.subscription;
+          if (!email) {
+            console.error('[ai-vis-webhook] no email in checkout session', sess.id);
+          } else {
+            await pool.query(`
             INSERT INTO ai_visibility_subscribers (email, company_slug, stripe_customer_id, stripe_subscription_id, status)
             VALUES ($1, NULL, $2, $3, 'active')
             ON CONFLICT (email) WHERE company_slug IS NULL
@@ -24667,20 +24761,20 @@ setupDB().then(async () => {
               stripe_customer_id     = EXCLUDED.stripe_customer_id,
               stripe_subscription_id = EXCLUDED.stripe_subscription_id,
               status                 = 'active'
-          `, [email, customerId, subscriptionId]);
-          const token = crypto.randomBytes(32).toString('hex');
-          const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-          await pool.query(
-            `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
-            [token, email, expiresAt]
-          );
-          const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
-          await resend.emails.send({
-            from: 'Strategic Flow <noreply@strategicflow.tech>',
-            replyTo: 'strategicflow@proton.me',
-            to: email,
-            subject: 'Your AI Visibility Pro access link',
-            html: `
+            `, [email, customerId, subscriptionId]);
+            const token = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+            await pool.query(
+              `INSERT INTO magic_tokens (token, email, expires_at) VALUES ($1, $2, $3)`,
+              [token, email, expiresAt]
+            );
+            const baseUrl = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+            await resend.emails.send({
+              from: 'Strategic Flow <noreply@strategicflow.tech>',
+              replyTo: 'strategicflow@proton.me',
+              to: email,
+              subject: 'Your AI Visibility Pro access link',
+              html: `
               <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0a1628;color:#ffffff;padding:40px 32px;border:1px solid #1a3050;">
                 <p style="font-size:11px;letter-spacing:0.1em;color:#7a9ab8;text-transform:uppercase;margin:0 0 32px;">AI Visibility Pro</p>
                 <h2 style="font-size:24px;margin:0 0 16px;font-weight:600;">Your access link</h2>
@@ -24688,13 +24782,14 @@ setupDB().then(async () => {
                 <a href="${baseUrl}/auth/verify/${token}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 28px;text-decoration:none;font-size:14px;font-weight:600;margin-bottom:32px;border-radius:8px;">Access AI Visibility Pro →</a>
                 <p style="font-size:12px;color:#5a7a98;margin:0;line-height:1.6;">If you didn't subscribe, ignore this email.</p>
               </div>
-            `
-          }).catch(e => console.error('[ai-vis-webhook] email send error:', e.message));
-          await writeSecurityAudit('ai_vis_subscription_activated', {
-            actorEmail: email,
-            metadata: { stripe_session_id: sess.id, stripe_customer_id: customerId }
-          });
-          console.log('[ai-vis-webhook] checkout.session.completed — subscriber upserted + magic link sent to', email);
+              `
+            }).catch(e => console.error('[ai-vis-webhook] email send error:', e.message));
+            await writeSecurityAudit('ai_vis_subscription_activated', {
+              actorEmail: email,
+              metadata: { stripe_session_id: sess.id, stripe_customer_id: customerId }
+            });
+            console.log('[ai-vis-webhook] checkout.session.completed — subscriber upserted + magic link sent to', email);
+          }
         }
       } else if (event.type === 'customer.subscription.deleted') {
         const sub = event.data.object;
