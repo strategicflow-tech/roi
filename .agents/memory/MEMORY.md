@@ -14,3 +14,4 @@
 - [Onboarding audit scoring baseline](onboarding-audit-scoring-baseline.md) — live test (2026-08-24) confirmed variable scores: weak=1/10 (7 bugs), strong=8/10 (1 bug), SF own copy=5.8/10 (3 bugs). No clustering. Prompt calibration is working.
 - [Resend delivery verification](resend-delivery-verification.md) — internal logs record accepted sends only; delivery status needs valid Resend API access and provider events.
 - [Minified static page edits](minified-static-page-edits.md) — edit one-line HTML assets with a verified whole-line substitution; partial patches do not apply.
+- [ToolIndex targeted launch campaigns](toolindex-targeted-launch-campaigns.md) — finite hourly seed campaigns must be name-guarded, idempotent, and separate from generic vote growth.

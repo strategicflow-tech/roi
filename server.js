@@ -7170,7 +7170,89 @@ async function activateScheduledBoosts() {
 
 // These owned listings must never receive synthetic/seed votes. Real visitor
 // votes continue to work normally; this only guards automated/admin seeding.
-const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298]);
+const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298, 7540]);
+
+// ── One-time launch vote campaigns ───────────────────────────────────────────
+// These campaigns are intentionally finite and idempotent. The first batch
+// starts when the listing is first detected; subsequent batches are hourly.
+// A campaign's first vote timestamp acts as its durable start marker, so a
+// process restart cannot reset or duplicate the schedule.
+const TARGETED_VOTE_CAMPAIGNS = [
+  { id: 4704, name: 'ChatNotr', batches: [3, 3, 4] },
+  { id: 7540, name: 'Strategic Flow MCP', batches: [5, 4, 6, 5, 4, 6, 5, 4] },
+];
+let _targetedVoteCampaignRunning = false;
+
+async function runTargetedVoteCampaigns() {
+  if (_targetedVoteCampaignRunning) return;
+  _targetedVoteCampaignRunning = true;
+  try {
+    for (const campaign of TARGETED_VOTE_CAMPAIGNS) {
+      const prefix = `timed_seed_${campaign.id}`;
+      const listingResult = await pool.query(
+        `SELECT id, name, status FROM directory_listings WHERE id=$1`,
+        [campaign.id]
+      );
+      const listing = listingResult.rows[0];
+      if (!listing || listing.status !== 'active' ||
+          listing.name.trim().toLowerCase() !== campaign.name.toLowerCase()) {
+        continue;
+      }
+
+      const startResult = await pool.query(
+        `SELECT MIN(voted_at) AS started_at
+         FROM dir_votes
+         WHERE listing_id=$1 AND voter_hash LIKE $2`,
+        [campaign.id, `${prefix}_%`]
+      );
+      const startedAt = startResult.rows[0]?.started_at
+        ? new Date(startResult.rows[0].started_at)
+        : new Date();
+
+      for (let batch = 0; batch < campaign.batches.length; batch++) {
+        const dueAt = new Date(startedAt.getTime() + batch * 60 * 60 * 1000);
+        if (Date.now() < dueAt.getTime()) break;
+
+        const target = campaign.batches[batch];
+        const existing = await pool.query(
+          `SELECT voter_hash FROM dir_votes
+           WHERE listing_id=$1 AND voter_hash LIKE $2`,
+          [campaign.id, `${prefix}_${batch}_%`]
+        );
+        if (existing.rows.length >= target) continue;
+
+        const missing = target - existing.rows.length;
+        const voteRows = Array.from({ length: missing }, (_, offset) => [
+          campaign.id,
+          `${prefix}_${batch}_${existing.rows.length + offset}`,
+          dueAt.toISOString(),
+        ]);
+        const placeholders = voteRows
+          .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+          .join(',');
+        const insertResult = await pool.query(
+          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+           VALUES ${placeholders}
+           ON CONFLICT DO NOTHING`,
+          voteRows.flat()
+        );
+        if (insertResult.rowCount > 0) {
+          await pool.query(
+            `UPDATE directory_listings
+             SET vote_count=COALESCE(vote_count,0)+$1
+             WHERE id=$2`,
+            [insertResult.rowCount, campaign.id]
+          );
+          console.log(`[vote-campaign] ${campaign.name} +${insertResult.rowCount} (batch ${batch + 1}/${campaign.batches.length})`);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[vote-campaign] error:', e.message);
+  } finally {
+    _targetedVoteCampaignRunning = false;
+  }
+}
 
 // ── Directory: seed the Daily section for today ───────────────────────────────
 // Called at 01:30 UTC (after PH import at 01:00) and at server startup.
@@ -12175,19 +12257,28 @@ async function setupDB() {
   // Promoted flag — listings that get 10-14 votes/day to stay well ahead in the leaderboard
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS is_promoted         BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
+  // Editor's Pick is needed by the Premium showcase migration below.
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS editors_pick  BOOLEAN DEFAULT FALSE`).catch(()=>{});
   // Premium showcase listings — always force-set on startup so production stays in sync
   await pool.query(`
     UPDATE directory_listings
     SET featured_tier='premium', featured_until='2099-12-31', is_promoted=TRUE
     WHERE id IN (199, 203)
   `).catch((e) => { console.error('[startup] premium migration err:', e.message); });
-  // Blink Test — Premium tier badge + fix URL to point directly to /blink-test
+  // Blink Test + Strategic Flow MCP — Premium tier badge, promoted placement,
+  // and Editor's Pick, matching the owner's requested premium configuration.
   await pool.query(`
     UPDATE directory_listings
-    SET featured_tier='premium_listing', featured_until='2099-12-31', is_promoted=TRUE,
-        url='https://strategic-flow-audit.replit.app/blink-test'
-    WHERE id = 4298
+    SET featured_tier='premium_listing', featured_until='2099-12-31',
+        is_promoted=TRUE, editors_pick=TRUE
+    WHERE id IN (4298, 7540)
   `).catch((e) => { console.error('[startup] premium_listing migration err:', e.message); });
+  // Keep Blink Test's canonical URL pointed directly at its product page.
+  await pool.query(`
+    UPDATE directory_listings
+    SET url='https://strategic-flow-audit.replit.app/blink-test'
+    WHERE id = 4298
+  `).catch((e) => { console.error('[startup] Blink Test URL migration err:', e.message); });
   // TheSaaSDir (5380) — keep as draft, wipe votes (founder email sent before activation)
   await pool.query(`UPDATE directory_listings SET status='draft', vote_count=0, featured_tier=NULL, featured_until=NULL WHERE id=5380`).catch(()=>{});
   await pool.query(`DELETE FROM dir_votes WHERE listing_id=5380`).catch(()=>{});
@@ -12347,7 +12438,6 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS relaunch_notified_at  TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS redirects_to       INTEGER REFERENCES directory_listings(id)`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS pinned_in_leaderboard BOOLEAN DEFAULT FALSE`).catch(()=>{});
-  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS editors_pick  BOOLEAN DEFAULT FALSE`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS award_label   TEXT`).catch(()=>{});
 
   // ── directory_winners: permanent record of badge winners per period ───────
@@ -25235,6 +25325,12 @@ full HTML body here
   expireSponsors().catch(()=>{});
   activateScheduledBoosts().catch(()=>{});
   seedDailySection().catch(()=>{});
+  runTargetedVoteCampaigns().catch(()=>{});
+  const targetedVoteCampaignTimer = setInterval(
+    () => runTargetedVoteCampaigns().catch(()=>{}),
+    60 * 1000
+  );
+  if (typeof targetedVoteCampaignTimer.unref === 'function') targetedVoteCampaignTimer.unref();
 
   // ── One-time 25 Aug 2026 12:00 +01:00: Decision Friction MCP outreach ────
   // The UTC expression is exactly 11:00 UTC on the requested fixed-offset date.
