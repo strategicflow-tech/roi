@@ -27,8 +27,8 @@ const TRANCHE_SIZE = 180;   // ~3 tranches of 180
 const SLEEP_MS     = 120;   // between emails
 const TRANCHE_PAUSE_MS = 5000; // between tranches
 
-function isOutreachPaused() {
-  return String(process.env.OUTREACH_PAUSED || '').toLowerCase() === 'true';
+function isLifecycleOutreachPaused() {
+  return String(process.env.LIFECYCLE_OUTREACH_PAUSED || '').toLowerCase() === 'true';
 }
 
 const LARGE_COMPANY_BLOCKLIST = new Set([
@@ -142,8 +142,8 @@ function buildHtml(email) {
 async function sendTranche(contacts, trancheNum, totals) {
   console.log(`\n── Tranșa ${trancheNum} (${contacts.length} contacte) ──────────────────`);
   for (let i = 0; i < contacts.length; i++) {
-    if (isOutreachPaused()) {
-      console.log('[playbook-outreach] PAUSED — OUTREACH_PAUSED=true');
+    if (isLifecycleOutreachPaused()) {
+      console.log('[playbook-outreach] PAUSED — LIFECYCLE_OUTREACH_PAUSED=true');
       return;
     }
     const { to_email: email, company } = contacts[i];
@@ -180,8 +180,8 @@ async function sendTranche(contacts, trancheNum, totals) {
 }
 
 async function main() {
-  if (isOutreachPaused()) {
-    console.log('[playbook-outreach] PAUSED — OUTREACH_PAUSED=true; no contacts loaded or emails sent');
+  if (isLifecycleOutreachPaused()) {
+    console.log('[playbook-outreach] PAUSED — LIFECYCLE_OUTREACH_PAUSED=true; no contacts loaded or emails sent');
     await pool.end();
     return;
   }
