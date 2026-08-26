@@ -545,6 +545,7 @@ app.use('/stripe/webhook',          express.raw({ type: 'application/json' }));
 app.use('/webhook/stripe',          express.raw({ type: 'application/json' }));
 app.use('/api/why-stripe-webhook',  express.raw({ type: 'application/json' }));
 app.use('/api/ai-visibility-index/stripe-webhook', express.raw({ type: 'application/json' }));
+app.use('/webhooks/resend',         express.raw({ type: 'application/json' }));
 // Skip JSON body-parsing for multipart upload routes (multer handles those)
 app.use((req, res, next) => {
   if (req.path.includes('/upload-') && req.method === 'POST') return next();
@@ -12963,6 +12964,30 @@ async function setupDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_created ON security_audit_log(created_at DESC)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_listing_created ON security_audit_log(listing_id, created_at DESC)`).catch(()=>{});
 
+  // ── Resend webhook events ──────────────────────────────────────────────────
+  // svix_id is the idempotency key supplied by Resend for each delivery.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS resend_webhook_events (
+      id          BIGSERIAL PRIMARY KEY,
+      svix_id     TEXT NOT NULL UNIQUE,
+      type        TEXT NOT NULL,
+      email_id    TEXT,
+      "to"        TEXT,
+      subject     TEXT,
+      created_at  TIMESTAMPTZ,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      payload     JSONB NOT NULL
+    )
+  `).catch(e => console.error('[DB] resend_webhook_events:', e.message));
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_resend_webhook_events_email_id
+      ON resend_webhook_events(email_id)
+  `).catch(() => {});
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_resend_webhook_events_type_received
+      ON resend_webhook_events(type, received_at DESC)
+  `).catch(() => {});
+
   // ── Playbook purchases ─────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS playbook_purchases (
@@ -17099,6 +17124,143 @@ Rules:
 // ─── END SEQUENCE GAP FINDER ──────────────────────────────────────────────────
 
 // ─── STRIPE INTEGRATION ───────────────────────────────────────────────────────
+
+// ─── RESEND WEBHOOK ───────────────────────────────────────────────────────────
+// Resend signs the exact raw request body using the Svix convention:
+// `${svix-id}.${svix-timestamp}.${raw_body}` with an HMAC-SHA256 key.
+const RESEND_WEBHOOK_TYPES = new Set([
+  'email.sent',
+  'email.delivered',
+  'email.opened',
+  'email.clicked',
+  'email.bounced',
+  'email.complained',
+  'email.delivery_delayed'
+]);
+const RESEND_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 5 * 60;
+
+function verifyResendWebhookSignature(req, rawBody) {
+  const secret = String(process.env.RESEND_WEBHOOK_SECRET || '').trim();
+  const svixId = req.get('svix-id');
+  const svixTimestamp = req.get('svix-timestamp');
+  const svixSignature = req.get('svix-signature');
+
+  if (!secret || !svixId || !svixTimestamp || !svixSignature || !Buffer.isBuffer(rawBody)) {
+    return false;
+  }
+
+  const timestampSeconds = Number(svixTimestamp);
+  if (!Number.isSafeInteger(timestampSeconds)) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) > RESEND_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS) {
+    return false;
+  }
+
+  const encodedSecret = secret.startsWith('whsec_') ? secret.slice('whsec_'.length) : secret;
+  let secretBytes;
+  try {
+    secretBytes = Buffer.from(encodedSecret, 'base64');
+  } catch (_) {
+    return false;
+  }
+  if (!secretBytes.length) return false;
+
+  const signedContent = `${svixId}.${svixTimestamp}.${rawBody.toString('utf8')}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secretBytes)
+    .update(signedContent)
+    .digest('base64');
+  const expectedBytes = Buffer.from(expectedSignature);
+
+  // Svix can include multiple space-separated signatures during secret rotation.
+  return svixSignature.split(/\s+/).some(candidate => {
+    const [version, signature] = candidate.split(',', 2);
+    if (version !== 'v1' || !signature) return false;
+    const candidateBytes = Buffer.from(signature);
+    return candidateBytes.length === expectedBytes.length &&
+      crypto.timingSafeEqual(candidateBytes, expectedBytes);
+  });
+}
+
+function resendWebhookText(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => typeof item === 'string' ? item : item?.email)
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (value === null || value === undefined) return null;
+  return typeof value === 'string' ? value : String(value);
+}
+
+function resendWebhookCreatedAt(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+app.post('/webhooks/resend', async (req, res) => {
+  const rawBody = req.body;
+  if (!verifyResendWebhookSignature(req, rawBody)) {
+    console.warn('[webhooks/resend] signature verification failed');
+    return res.status(401).send('Webhook signature verification failed');
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody.toString('utf8'));
+  } catch (_) {
+    return res.status(400).send('Invalid webhook payload');
+  }
+
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
+    return res.status(400).send('Invalid webhook payload');
+  }
+
+  const type = typeof event.type === 'string' ? event.type : '';
+  if (!RESEND_WEBHOOK_TYPES.has(type)) {
+    console.info('[webhooks/resend] unsupported event type:', type || '(missing)');
+    return res.status(400).send('Unsupported webhook event type');
+  }
+
+  const data = event.data && typeof event.data === 'object' && !Array.isArray(event.data)
+    ? event.data
+    : event;
+  const emailId = resendWebhookText(data.email_id ?? event.email_id);
+  const recipient = resendWebhookText(data.to ?? event.to);
+  const subject = resendWebhookText(data.subject ?? event.subject);
+  const createdAt = resendWebhookCreatedAt(event.created_at ?? data.created_at);
+  const svixId = req.get('svix-id');
+
+  if (!emailId || !createdAt) {
+    return res.status(400).send('Invalid webhook payload');
+  }
+
+  try {
+    const result = await pool.query(`
+      INSERT INTO resend_webhook_events
+        (svix_id, type, email_id, "to", subject, created_at, received_at, payload)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7::jsonb)
+      ON CONFLICT (svix_id) DO NOTHING
+      RETURNING id
+    `, [
+      svixId,
+      type,
+      emailId,
+      recipient,
+      subject,
+      createdAt,
+      JSON.stringify(event)
+    ]);
+
+    return res.status(200).json({
+      received: true,
+      duplicate: result.rowCount === 0
+    });
+  } catch (err) {
+    console.error('[webhooks/resend] persistence failed:', err.message);
+    return res.status(500).send('Webhook persistence failed');
+  }
+});
 
 // POST /stripe/checkout — creează Stripe Checkout Session
 app.post('/stripe/checkout', async (req, res) => {

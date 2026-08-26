@@ -4,7 +4,8 @@
   "description": "Strategic Flow Email Audit Tool",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:resend-webhook": "node scripts/test-resend-webhook.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.86.1",
