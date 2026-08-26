@@ -644,6 +644,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
   '/fix-contacts-batch2', '/send-claim-newsletter-confirmations', '/prune-resend-failures',
+  '/run-followup-batch',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -3999,6 +4000,51 @@ ${buildUnsubFooterHtml(email || '')}
   };
 }
 
+function buildClaimFollowupEmail(name, listingUrl, email) {
+  const safeName = escapeHtml(name || 'your product');
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>Just a quick follow-up — <strong>${safeName}'s ToolIndex listing</strong> is still unclaimed.</p>
+<p>Here are the features you may be missing:</p>
+<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
+  <li><strong>AI-generated profile</strong> with your product summary, key features, audience and verified facts</li>
+  <li><strong>Edit access after claiming</strong> for your description, logo and links</li>
+  <li><strong>Permanent DR 86 dofollow backlink</strong> from strategicflow.tech</li>
+  <li><strong>AI discovery visibility</strong> when people compare tools and ask AI assistants for recommendations</li>
+  <li><strong>Leaderboard and badge eligibility</strong> through real community votes</li>
+</ul>
+<p>Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form — we&rsquo;ll send a separate confirmation email before subscribing you.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${safeName} free &rarr;</a></p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(email || '')}</div>`;
+  const text = `Hi,
+
+Just a quick follow-up — ${name}'s ToolIndex listing is still unclaimed.
+
+Here are the features you may be missing:
+
+✓ AI-generated profile with your product summary, key features, audience and verified facts
+✓ Edit access after claiming for your description, logo and links
+✓ Permanent DR 86 dofollow backlink from strategicflow.tech
+✓ AI discovery visibility when people compare tools and ask AI assistants for recommendations
+✓ Leaderboard and badge eligibility through real community votes
+
+Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form. We will send a separate confirmation email before subscribing you.
+
+Claim ${name} free: ${listingUrl}
+
+--
+Alex Iliescu
+Strategic Flow — strategicflow.tech
+ToolIndex — https://strategic-flow-audit.replit.app/directory
+LinkedIn: https://www.linkedin.com/in/strategic-flow-tech
+Tenerife, Spain${buildUnsubFooterText(email || '')}`;
+  return {
+    subject: `Still unclaimed: ${name} on ToolIndex`,
+    html,
+    text,
+  };
+}
+
 // ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
 app.post('/admin/send-claim-outreach', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -4759,38 +4805,50 @@ app.post('/admin/run-weekly-spotlight', async (req, res) => {
 });
 
 // ── POST /admin/run-followup-batch?key=…&cap=N — send follow-ups to unclaimed listings ──
-app.post('/admin/run-followup-batch', async (req, res) => {
+app.get('/admin/run-followup-batch', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
+  const minHours = Math.max(24, Math.min(parseInt(req.query.min_hours || '168', 10), 720));
   try {
     const { rows } = await pool.query(`
-      SELECT id, name, url, contact_email
+      SELECT id, name, url, contact_email, outreach_emailed_at
       FROM directory_listings
       WHERE outreach_emailed_at IS NOT NULL
         AND follow_up_sent_at IS NULL
         AND claimed_at IS NULL
-        AND outreach_emailed_at < NOW() - INTERVAL '7 days'
+        AND claimed_by IS NULL
+        AND outreach_emailed_at < NOW() - ($2 || ' hours')::INTERVAL
         AND contact_email IS NOT NULL
       ORDER BY outreach_emailed_at ASC
-      LIMIT $1`, [cap]);
+      LIMIT $1`, [cap, String(minHours)]);
     let sent = 0, errors = 0; const log = [];
     for (const listing of rows) {
       if (await isUnsubscribed(listing.contact_email)) {
         log.push(`⊘ unsubscribed → ${listing.contact_email} (${listing.name})`); continue;
       }
+      if (isJunkEmail(listing.contact_email)) {
+        log.push(`⊘ junk → ${listing.contact_email} (${listing.name})`); continue;
+      }
+      const followupBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+      if (followupBlock.blocked) {
+        log.push(`⊘ blocked (${followupBlock.reason}) → ${listing.contact_email} (${listing.name})`); continue;
+      }
       try {
         const slug = toListingSlug(listing.name, listing.id);
         const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-        const name = listing.name;
-        const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;"><p>Hi,</p><p>Just a quick follow-up — <strong>${name}'s ToolIndex listing</strong> is still sitting unclaimed.</p><p>Claiming it takes about a minute and gives you a permanent dofollow backlink from <strong>strategicflow.tech</strong>. You can also edit the description, logo, and links after claiming.</p><p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p><p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(listing.contact_email)}</div>`;
-        const followUpText = `Hi,\n\nJust a quick follow-up — ${name}'s ToolIndex listing is still sitting unclaimed.\n\nClaiming it takes about a minute and gives you a permanent dofollow backlink from strategicflow.tech. You can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
-        await resend.emails.send({
+        const { subject, html: followUpHtml, text: followUpText } = buildClaimFollowupEmail(listing.name, listingUrl, listing.contact_email);
+        const sendResult = await resend.emails.send({
           from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
-          subject: `Still unclaimed: ${name} on ToolIndex`,
+          subject,
           html: followUpHtml, text: followUpText,
         });
+        if (sendResult?.error) throw new Error(sendResult.error.message || 'Resend rejected follow-up');
+        if (sendResult?.cooldownBlocked || sendResult?.unsubscribed) {
+          log.push(`⊘ ${sendResult.cooldownBlocked ? 'cooldown' : 'unsubscribed'} → ${listing.name}`);
+          continue;
+        }
         await pool.query(`UPDATE directory_listings SET follow_up_sent_at=NOW() WHERE id=$1`, [listing.id]);
-        log.push(`✓ followup → ${listing.contact_email} (${name})`); sent++;
+        log.push(`✓ followup → ${listing.name}`); sent++;
       } catch(e) {
         log.push(`✗ ${listing.contact_email}: ${e.message}`); errors++;
       }
