@@ -11188,6 +11188,10 @@ app.get('/admin/prune-resend-failures', async (req, res) => {
   }
 });
 
+// Assigned during startup before app.listen(). The public blog routes are
+// registered earlier, so the renderer must live in module scope.
+let buildBlogPage;
+
 // ── GET /api/blog/latest — returns the most recently published readable post ─
 const BLOG_POSTS = [
   { slug: 'audit-saas-product-emails-checklist', title: 'How to Audit SaaS Product Emails for Structural and Conversion Issues (7-Point Checklist)', excerpt: 'Opens are fine. Clicks aren\'t. A practical framework for diagnosing structural vs. deliverability failures in onboarding, trial, and promo emails — before touching a word of copy.', date: '2026-08-15', dateLabel: 'Aug 15, 2026 · 7 min read' },
@@ -11345,6 +11349,7 @@ app.get('/blog/:slug', async (req, res) => {
   const fs = require('fs');
   // Strip .html suffix if already present so both /blog/foo and /blog/foo.html work
   const slug = req.params.slug.replace(/\.html$/i, '');
+  if (slug === 'index') return res.redirect(301, '/blog');
   if (BLOG_LEGACY_REDIRECTS[slug]) {
     return res.redirect(301, `/blog/${BLOG_LEGACY_REDIRECTS[slug]}`);
   }
@@ -25205,7 +25210,7 @@ setupDB().then(async () => {
     return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
 
-  function buildBlogPage({ title, content, slug, meta_description, keyword, date, read_time }) {
+  buildBlogPage = function ({ title, content, slug, meta_description, keyword, date, read_time }) {
     const today = date || new Date().toISOString().split('T')[0];
     const dateDisplay = new Date(today).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const mins = read_time || Math.max(3, Math.round(content.replace(/<[^>]+>/g, '').split(/\s+/).length / 200));
@@ -25378,7 +25383,7 @@ ${content}
 <script>(function(){var K='sf_consent',s=localStorage.getItem(K),b=document.getElementById('cookie-banner');function g(){gtag('consent','update',{'ad_storage':'granted','ad_user_data':'granted','ad_personalization':'granted','analytics_storage':'granted'});}if(s==='granted'){g();}else if(s!=='denied'){b.classList.add('visible');}document.getElementById('cookie-accept').addEventListener('click',function(){localStorage.setItem(K,'granted');g();b.classList.remove('visible');});document.getElementById('cookie-decline').addEventListener('click',function(){localStorage.setItem(K,'denied');b.classList.remove('visible');});})();</script>
 </body>
 </html>`;
-  }
+  };
 
   // ── Blog auto-generation: topic list + core function ────────────────────────
   const BLOG_TOPICS = [
@@ -25485,6 +25490,7 @@ full HTML body here
     const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + (article.read_time || 8) + ' min read';
     const post = { slug, title: article.title, excerpt: article.excerpt, date: today, dateLabel };
     if (!BLOG_POSTS.some(bp => bp.slug === slug)) BLOG_POSTS.unshift(post);
+    BLOG_POSTS.sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
 
