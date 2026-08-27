@@ -644,8 +644,9 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
   '/fix-contacts-batch2', '/send-claim-newsletter-confirmations', '/prune-resend-failures',
-  '/run-followup-batch', '/batch-update',
+  '/run-followup-batch',
 ]);
+const ADMIN_JOB_POST_PATHS = new Set(['/batch-update']);
 
 function hasMatchingAdminJobToken(req) {
   const expected = process.env.WHY_ADMIN_KEY || '';
@@ -681,7 +682,7 @@ function requireAdminSession(req, res, next) {
 
   const internalBackfillJob = req.baseUrl === '/admin' &&
     req.method === 'POST' &&
-    ADMIN_MUTATING_GET_PATHS.has(req.path) &&
+    (ADMIN_MUTATING_GET_PATHS.has(req.path) || ADMIN_JOB_POST_PATHS.has(req.path)) &&
     hasMatchingAdminJobToken(req);
   const sessionAdmin = isAdmin(req.session?.userEmail);
   if (!sessionAdmin && !internalBackfillJob) {
