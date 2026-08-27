@@ -5418,6 +5418,13 @@ app.post('/admin/batch-update', express.json({ limit: '1mb' }), async (req, res)
     const setParts = [];
     const vals = [];
     let pi = 1;
+    if ('name' in item && item.name !== null && item.name !== undefined) {
+      const cleanName = item.name.toString().trim().slice(0, 80);
+      if (cleanName) {
+        setParts.push(`name = $${pi++}`);
+        vals.push(cleanName);
+      }
+    }
     if ('url' in item) {
       setParts.push(`url = $${pi++}`);
       vals.push(item.url ? item.url.toString().trim().slice(0, 300) : null);
