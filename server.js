@@ -644,7 +644,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/directory/winners/compute', '/insert-liftoff',
   '/sync-outreach-batch1', '/import-contacts-batch2', '/send-claim-outreach-batch',
   '/fix-contacts-batch2', '/send-claim-newsletter-confirmations', '/prune-resend-failures',
-  '/run-followup-batch',
+  '/run-followup-batch', '/batch-update',
 ]);
 
 function hasMatchingAdminJobToken(req) {
