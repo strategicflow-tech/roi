@@ -4542,7 +4542,7 @@ function parseCsvLine(line) {
 function parseSeqCsv(csvText) {
   const lines = csvText.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   if (!lines.length) return [];
-  const hdr = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g,''));
+  const hdr = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g,''));
   const col = k => hdr.findIndex(h => h === k);
   const eIdx = col('to_email'); const cIdx = col('cluster');
   if (eIdx < 0 || cIdx < 0) throw new Error('CSV must have columns: to_email, cluster');
