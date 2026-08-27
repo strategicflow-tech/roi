@@ -4547,7 +4547,10 @@ function parseSeqCsv(csvText) {
   const eIdx = col('to_email'); const cIdx = col('cluster');
   if (eIdx < 0 || cIdx < 0) throw new Error('CSV must have columns: to_email, cluster');
   const fnIdx = col('first_name'); const coIdx = col('company'); const tIdx = col('title');
+  const avIdx = col('ab_variant'); const s1Idx = col('step1_sent_at'); const s2Idx = col('step2_sent_at');
+  const ssIdx = col('stop_sequence'); const impIdx = col('imported_at');
   const VALID = new Set(['A_PMM','B_Lifecycle','C_EmailMgr']);
+  const VALID_AB = new Set(['A', 'B']);
   const seen = new Map();
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim(); if (!line) continue;
@@ -4556,12 +4559,21 @@ function parseSeqCsv(csvText) {
     if (!email || !email.includes('@') || seen.has(email)) continue;
     const cluster = (cols[cIdx]||'').trim();
     if (!VALID.has(cluster)) continue;
+    const abVariant = avIdx >= 0 ? (cols[avIdx]||'').trim() : '';
+    const stopSequence = ssIdx >= 0
+      ? ['true', '1', 'yes'].includes((cols[ssIdx]||'').trim().toLowerCase())
+      : false;
     seen.set(email, {
       to_email:   email,
       first_name: fnIdx >= 0 ? (cols[fnIdx]||'').trim() : '',
       company:    coIdx >= 0 ? (cols[coIdx]||'').trim() : '',
       title:      tIdx  >= 0 ? (cols[tIdx] ||'').trim() : '',
       cluster,
+      ab_variant: VALID_AB.has(abVariant) ? abVariant : null,
+      step1_sent_at: s1Idx >= 0 ? (cols[s1Idx]||'').trim() || null : null,
+      step2_sent_at: s2Idx >= 0 ? (cols[s2Idx]||'').trim() || null : null,
+      stop_sequence: stopSequence,
+      imported_at: impIdx >= 0 ? (cols[impIdx]||'').trim() || null : null,
     });
   }
   return [...seen.values()];
@@ -4650,17 +4662,33 @@ app.post('/admin/seq-upload-csv', csvUpload.single('csv'), async (req, res) => {
   try {
     const contacts = parseSeqCsv(req.file.buffer.toString('utf8'));
     if (!contacts.length) return res.status(400).json({ error: 'No valid contacts found in CSV' });
-    let imported = 0, skipped = 0;
+    let imported = 0, updated = 0, skipped = 0;
     for (const c of contacts) {
       const r = await pool.query(
-        `INSERT INTO outreach_seq_contacts (to_email, first_name, company, title, cluster)
-         VALUES ($1,$2,$3,$4,$5) ON CONFLICT (to_email) DO NOTHING`,
-        [c.to_email, c.first_name, c.company, c.title, c.cluster]
+        `INSERT INTO outreach_seq_contacts
+           (to_email, first_name, company, title, cluster, ab_variant,
+            step1_sent_at, step2_sent_at, stop_sequence, imported_at)
+         VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,'')::timestamptz,NULLIF($8,'')::timestamptz,$9,
+                 COALESCE(NULLIF($10,'')::timestamptz,NOW()))
+         ON CONFLICT (to_email) DO UPDATE SET
+           first_name=EXCLUDED.first_name,
+           company=EXCLUDED.company,
+           title=EXCLUDED.title,
+           cluster=EXCLUDED.cluster,
+           ab_variant=EXCLUDED.ab_variant,
+           step1_sent_at=EXCLUDED.step1_sent_at,
+           step2_sent_at=EXCLUDED.step2_sent_at,
+           stop_sequence=EXCLUDED.stop_sequence,
+           imported_at=EXCLUDED.imported_at`,
+        [
+          c.to_email, c.first_name, c.company, c.title, c.cluster, c.ab_variant,
+          c.step1_sent_at || '', c.step2_sent_at || '', c.stop_sequence, c.imported_at || ''
+        ]
       );
-      if (r.rowCount > 0) imported++; else skipped++;
+      if (r.command === 'INSERT') imported++; else if (r.command === 'UPDATE') updated++; else skipped++;
     }
-    console.log(`[seq-outreach] CSV import: ${imported} imported, ${skipped} skipped (duplicates)`);
-    res.json({ ok: true, imported, skipped, total_in_file: contacts.length });
+    console.log(`[seq-outreach] CSV import: ${imported} imported, ${updated} updated, ${skipped} skipped`);
+    res.json({ ok: true, imported, updated, skipped, total_in_file: contacts.length });
   } catch(e) {
     res.status(400).json({ error: e.message });
   }
@@ -12829,6 +12857,7 @@ async function setupDB() {
   `).catch(e => console.error('[DB] outreach_seq_contacts:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_cluster ON outreach_seq_contacts(cluster)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_osc_stop ON outreach_seq_contacts(stop_sequence) WHERE stop_sequence = false`).catch(()=>{});
+  await pool.query(`ALTER TABLE outreach_seq_contacts ADD COLUMN IF NOT EXISTS ab_variant TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE outreach_seq_contacts ADD COLUMN IF NOT EXISTS engaged_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE outreach_seq_contacts ADD COLUMN IF NOT EXISTS engaged_reason TEXT`).catch(()=>{});
 
