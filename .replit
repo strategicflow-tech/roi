@@ -6,7 +6,7 @@ channel = "stable-24_11"
 packages = ["static-web-server"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 run = ["node", "server.js"]
 build = ["npm", "install"]
 

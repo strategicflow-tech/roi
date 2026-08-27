@@ -646,7 +646,10 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
   '/fix-contacts-batch2', '/send-claim-newsletter-confirmations', '/prune-resend-failures',
   '/run-followup-batch',
 ]);
-const ADMIN_JOB_POST_PATHS = new Set(['/batch-update']);
+const ADMIN_JOB_POST_PATHS = new Set([
+  '/batch-update',
+  '/seq-upload-csv',
+]);
 
 function hasMatchingAdminJobToken(req) {
   const expected = process.env.WHY_ADMIN_KEY || '';
@@ -4112,6 +4115,42 @@ app.get('/admin/outreach', (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const OUTREACH_DAILY_CAP = parseInt(process.env.OUTREACH_DAILY_CAP || '200', 10);
+const STEP3_BATCH_CAP = 100;
+const STEP3_BATCH_HOURS_UTC = [9, 13, 17, 21];
+const STEP3_CAMPAIGN_DATE_UTC = (() => {
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return tomorrow.toISOString().slice(0, 10);
+})();
+
+function isScheduledStep3CampaignDate() {
+  return process.env.NODE_ENV === 'production' &&
+    new Date().toISOString().slice(0, 10) === STEP3_CAMPAIGN_DATE_UTC;
+}
+
+function scheduleTomorrowStep3Batches() {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const now = Date.now();
+  const jobs = STEP3_BATCH_HOURS_UTC
+    .map(hour => Date.parse(`${STEP3_CAMPAIGN_DATE_UTC}T${String(hour).padStart(2, '0')}:00:00Z`))
+    .filter(runAt => runAt > now);
+
+  for (const runAt of jobs) {
+    setTimeout(async () => {
+      try {
+        const result = await runSeqOutreachBatch(STEP3_BATCH_CAP);
+        console.log(`[seq-outreach] scheduled step3 batch: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
+      } catch (e) {
+        console.error('[seq-outreach] scheduled step3 batch error:', e.message);
+      }
+    }, runAt - now);
+  }
+
+  if (jobs.length) {
+    console.log(`[seq-outreach] scheduled ${jobs.length} step3 batches for ${STEP3_CAMPAIGN_DATE_UTC} at ${STEP3_BATCH_HOURS_UTC.join(',')} UTC`);
+  }
+}
 
 const SEQ_TEMPLATES = {
   A_PMM: {
@@ -26355,6 +26394,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 
   // ── Daily 13:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
   cron.schedule('0 13 * * *', async () => {
+    if (isScheduledStep3CampaignDate()) {
+      console.log('[seq-outreach] regular daily batch skipped — scheduled step3 campaign is active');
+      return;
+    }
     if (isLifecycleOutreachPaused()) {
       console.log('[seq-outreach] cron paused — LIFECYCLE_OUTREACH_PAUSED=true');
       return;
@@ -26364,6 +26407,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
       console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
     } catch(e) { console.error('[seq-outreach] cron error:', e.message); }
   });
+  scheduleTomorrowStep3Batches();
 
   // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
   // cron.schedule('0 4 * * *', ...) — batch friction scorer DISABLED
