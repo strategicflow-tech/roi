@@ -3128,7 +3128,7 @@ app.post('/api/directory/submit', async (req, res) => {
     const r = await pool.query(
       `INSERT INTO directory_listings (name, url, category, description, submitter_email, image_url, score_pending, status)
        VALUES ($1,$2,$3,$4,$5,$6,FALSE,'active') ON CONFLICT (url) DO NOTHING RETURNING id`,
-       [name.slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').slice(0,300), normalizedEmail||null, suppliedLogo]
+       [(name||'').trim().slice(0,80), cleanUrl.slice(0,300), (category||'General').slice(0,40), (description||'').trim().slice(0,300), normalizedEmail||null, suppliedLogo]
     );
     if (r.rows.length === 0) return res.status(409).json({ error: 'already_listed', message: 'This product is already in the directory.' });
     const id = r.rows[0].id;
