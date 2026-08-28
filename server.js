@@ -650,6 +650,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/batch-update',
   '/seq-upload-csv',
   '/toolindex-import-drafts',
+  '/seq-send-step3-strict',
 ]);
 
 function hasMatchingAdminJobToken(req) {
