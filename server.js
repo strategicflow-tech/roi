@@ -4118,6 +4118,10 @@ app.get('/admin/outreach', (req, res) => {
 const OUTREACH_DAILY_CAP = parseInt(process.env.OUTREACH_DAILY_CAP || '200', 10);
 const STEP3_BATCH_CAP = 100;
 const STEP3_BATCH_HOURS_UTC = [9, 13, 17, 21];
+const TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID = 'toolindex-draft-batch-04-2026-08-29';
+const TOOLINDEX_DRAFT_OUTREACH_TARGET = new Date('2026-08-29T12:00:00Z');
+const TOOLINDEX_DRAFT_OUTREACH_IDS = Array.from({ length: 63 }, (_, index) => 8114 + index);
+let toolIndexDraftOutreachRunning = false;
 const STEP3_CAMPAIGN_DATE_UTC = (() => {
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -4150,6 +4154,204 @@ function scheduleTomorrowStep3Batches() {
 
   if (jobs.length) {
     console.log(`[seq-outreach] scheduled ${jobs.length} step3 batches for ${STEP3_CAMPAIGN_DATE_UTC} at ${STEP3_BATCH_HOURS_UTC.join(',')} UTC`);
+  }
+}
+
+function buildImportedDraftClaimEmail(listing) {
+  const safeName = escapeHtml(listing.name || 'your product');
+  const firstName = String(listing.founder_name || '').split(/[;,]/)[0].trim();
+  const greeting = firstName ? `Hi ${escapeHtml(firstName)},` : 'Hi,';
+  const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(listing.name, listing.id)}`;
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#182235;line-height:1.7;font-size:15px;">
+<p>${greeting}</p>
+<p>A quick heads-up: we set aside a <strong>private ToolIndex draft page</strong> for <strong>${safeName}</strong>.</p>
+<p>It is <strong>not published or indexed</strong> yet. Claiming it is free and gives you a chance to make the page yours before it appears publicly.</p>
+<div style="margin:22px 0;padding:18px 20px;background:#f6fffe;border:1px solid #bcebe6;border-radius:8px;">
+  <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0f766e;">What you unlock</p>
+  <ul style="margin:0;padding-left:20px;color:#374151;line-height:1.8;">
+    <li>Edit your product description, logo and links</li>
+    <li>Keep a permanent dofollow backlink from strategicflow.tech</li>
+    <li>Control how ${safeName} is presented on ToolIndex</li>
+  </ul>
+</div>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00bfb4;color:#06201f;padding:13px 24px;text-decoration:none;font-weight:700;border-radius:7px;font-size:15px;">Review &amp; claim my draft &rarr;</a></p>
+<p style="font-size:13px;color:#5f6b7a;">Takes about a minute. No payment needed.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>ToolIndex by <a href="https://strategicflow.tech" style="color:#00a99f;">Strategic Flow</a><br>Tenerife, Spain</p>
+${buildUnsubFooterHtml(listing.contact_email || '')}
+</div>`;
+  const text = [
+    greeting,
+    '',
+    `A quick heads-up: we set aside a private ToolIndex draft page for ${listing.name}.`,
+    'It is not published or indexed yet.',
+    '',
+    'Claiming is free and lets you:',
+    '- Edit your product description, logo and links',
+    '- Keep a permanent dofollow backlink from strategicflow.tech',
+    `- Control how ${listing.name} is presented on ToolIndex`,
+    '',
+    `Review and claim your draft: ${listingUrl}`,
+    '',
+    'Takes about a minute. No payment needed.',
+    '',
+    '--',
+    'Alex Iliescu',
+    'ToolIndex by Strategic Flow',
+    'Tenerife, Spain',
+    buildUnsubFooterText(listing.contact_email || ''),
+  ].join('\n');
+  return {
+    subject: `${listing.name} has a private ToolIndex page waiting`,
+    html,
+    text,
+  };
+}
+
+async function prepareImportedDraftFounderCampaign() {
+  if (process.env.TOOLINDEX_DRAFT_OUTREACH_SCHEDULER_ENABLED !== 'true') return 0;
+  const result = await pool.query(
+    `UPDATE directory_listings
+     SET outreach_campaign_id=$1,
+         outreach_campaign_status='scheduled',
+         outreach_campaign_scheduled_at=$2,
+         outreach_followups_disabled=TRUE
+     WHERE id = ANY($3::int[])
+       AND status='draft'
+       AND outreach_emailed_at IS NULL
+       AND outreach_campaign_id IS NULL
+     RETURNING id`,
+    [TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID, TOOLINDEX_DRAFT_OUTREACH_TARGET.toISOString(), TOOLINDEX_DRAFT_OUTREACH_IDS]
+  );
+  return result.rowCount;
+}
+
+async function setImportedDraftCampaignOutcome(listingId, status, reason = null, sent = false) {
+  await pool.query(
+    `UPDATE directory_listings
+     SET outreach_campaign_status=$2,
+         outreach_campaign_reason=$3,
+         outreach_campaign_processed_at=NOW(),
+         outreach_emailed_at=CASE WHEN $4 THEN NOW() ELSE outreach_emailed_at END
+     WHERE id=$1 AND outreach_campaign_id=$5`,
+    [listingId, status, reason, sent, TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID]
+  );
+}
+
+async function runImportedDraftFounderCampaign() {
+  if (process.env.TOOLINDEX_DRAFT_OUTREACH_SCHEDULER_ENABLED !== 'true') return { skipped: true, reason: 'disabled' };
+  if (Date.now() < TOOLINDEX_DRAFT_OUTREACH_TARGET.getTime()) return { skipped: true, reason: 'not_due' };
+  if (toolIndexDraftOutreachRunning) return { skipped: true, reason: 'already_running' };
+
+  toolIndexDraftOutreachRunning = true;
+  const lockClient = await pool.connect();
+  try {
+    const { rows: lockRows } = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID]
+    );
+    if (!lockRows[0]?.locked) return { skipped: true, reason: 'locked_elsewhere' };
+
+    const { rows } = await pool.query(
+      `SELECT id, name, founder_name, contact_email, claimed_by
+       FROM directory_listings
+       WHERE outreach_campaign_id=$1
+         AND outreach_campaign_status='scheduled'
+         AND status='draft'
+         AND outreach_emailed_at IS NULL
+       ORDER BY id ASC`,
+      [TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID]
+    );
+    let sent = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const listing of rows) {
+      let skipReason = null;
+      if (!listing.contact_email) skipReason = 'missing contact email';
+      else if (isJunkEmail(listing.contact_email)) skipReason = 'junk contact email';
+      else if (await isUnsubscribed(listing.contact_email)) skipReason = 'unsubscribed';
+      else {
+        const blocked = isBlockedOutreachTarget(listing.name, listing.contact_email);
+        if (blocked.blocked) skipReason = blocked.reason;
+      }
+      if (!skipReason) {
+        const halted = await isSequenceHalted(listing.contact_email, 'toolindex_draft_claim');
+        if (halted.halted) skipReason = `engagement halted: ${halted.reason}`;
+      }
+      if (!skipReason) {
+        const claim = await pool.query(`SELECT 1 FROM dir_claims WHERE listing_id=$1 LIMIT 1`, [listing.id]);
+        if (claim.rows.length || listing.claimed_by) skipReason = 'listing already claimed';
+      }
+      if (skipReason) {
+        await setImportedDraftCampaignOutcome(listing.id, 'skipped', skipReason);
+        console.log(`[toolindex-draft-outreach] ⊘ ${listing.name}: ${skipReason}`);
+        skipped++;
+        continue;
+      }
+
+      try {
+        const message = buildImportedDraftClaimEmail(listing);
+        const providerResult = await resend.emails.send({
+          from: SENDER,
+          to: listing.contact_email,
+          replyTo: 'strategicflow@proton.me',
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        if (providerResult?.unsubscribed) {
+          await setImportedDraftCampaignOutcome(listing.id, 'skipped', 'unsubscribed');
+          skipped++;
+        } else if (providerResult?.cooldownBlocked) {
+          await setImportedDraftCampaignOutcome(listing.id, 'skipped', '24-hour email cooldown');
+          skipped++;
+        } else if (providerResult?.error) {
+          await setImportedDraftCampaignOutcome(listing.id, 'failed', String(providerResult.error.message || providerResult.error));
+          failed++;
+        } else {
+          await setImportedDraftCampaignOutcome(listing.id, 'sent', null, true);
+          console.log(`[toolindex-draft-outreach] ✓ sent → ${listing.contact_email} (${listing.name})`);
+          sent++;
+        }
+      } catch (error) {
+        await setImportedDraftCampaignOutcome(listing.id, 'failed', String(error.message || error).slice(0, 500));
+        console.error(`[toolindex-draft-outreach] ✗ ${listing.name}:`, error.message);
+        failed++;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    console.log(`[toolindex-draft-outreach] complete: ${sent} sent, ${skipped} skipped, ${failed} failed`);
+    return { sent, skipped, failed, total: rows.length };
+  } finally {
+    try { await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID]); } catch {}
+    lockClient.release();
+    toolIndexDraftOutreachRunning = false;
+  }
+}
+
+async function scheduleImportedDraftFounderCampaign() {
+  if (process.env.TOOLINDEX_DRAFT_OUTREACH_SCHEDULER_ENABLED !== 'true') return;
+  const prepared = await prepareImportedDraftFounderCampaign();
+  const now = Date.now();
+  const target = TOOLINDEX_DRAFT_OUTREACH_TARGET.getTime();
+  if (now < target) {
+    const campaignTask = cron.schedule('0 12 29 8 *', async () => {
+      try {
+        const result = await runImportedDraftFounderCampaign();
+        console.log(`[toolindex-draft-outreach] scheduled run: ${JSON.stringify(result)}`);
+      } catch (error) {
+        console.error('[toolindex-draft-outreach] scheduled run failed:', error.message);
+      } finally {
+        campaignTask.stop();
+        campaignTask.destroy();
+      }
+    }, { timezone: 'UTC' });
+    console.log(`[toolindex-draft-outreach] ${prepared} recipients scheduled for ${TOOLINDEX_DRAFT_OUTREACH_TARGET.toISOString()} (13:00 Tenerife)`);
+  } else if (now < target + 24 * 60 * 60 * 1000) {
+    console.log('[toolindex-draft-outreach] target passed during recovery; running remaining scheduled recipients');
+    setTimeout(() => runImportedDraftFounderCampaign().catch(error => console.error('[toolindex-draft-outreach] recovery failed:', error.message)), 5_000);
+  } else {
+    console.log('[toolindex-draft-outreach] campaign target has passed; no send scheduled');
   }
 }
 
@@ -12560,6 +12762,12 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url     TEXT`).catch(()=>{});
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_id TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_status TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_reason TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_scheduled_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_processed_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_followups_disabled BOOLEAN DEFAULT FALSE`).catch(()=>{});
   // Promoted flag — listings that get 10-14 votes/day to stay well ahead in the leaderboard
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS is_promoted         BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
@@ -25978,6 +26186,7 @@ full HTML body here
         FROM directory_listings
         WHERE outreach_emailed_at IS NOT NULL
           AND follow_up_sent_at IS NULL
+          AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '7 days'
           AND contact_email IS NOT NULL
@@ -26039,6 +26248,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
         WHERE outreach_emailed_at IS NOT NULL
           AND follow_up_sent_at IS NOT NULL
           AND follow_up2_sent_at IS NULL
+          AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '14 days'
           AND contact_email IS NOT NULL
@@ -26595,6 +26805,9 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     } catch(e) { console.error('[seq-outreach] cron error:', e.message); }
   });
   scheduleTomorrowStep3Batches();
+  scheduleImportedDraftFounderCampaign().catch(error => {
+    console.error('[toolindex-draft-outreach] scheduling failed:', error.message);
+  });
 
   // ── Daily batch friction scorer (every day 04:00, up to 20 listings) ───────
   // cron.schedule('0 4 * * *', ...) — batch friction scorer DISABLED

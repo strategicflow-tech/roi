@@ -53,6 +53,7 @@ LIFECYCLE_OUTREACH_PAUSED = "true"
 
 [userenv.production]
 STEP3_CAMPAIGN_SCHEDULER_ENABLED = "true"
+TOOLINDEX_DRAFT_OUTREACH_SCHEDULER_ENABLED = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"
