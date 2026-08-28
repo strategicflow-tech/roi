@@ -16,3 +16,4 @@
 - [Minified static page edits](minified-static-page-edits.md) — edit one-line HTML assets with a verified whole-line substitution; partial patches do not apply.
 - [ToolIndex targeted launch campaigns](toolindex-targeted-launch-campaigns.md) — finite hourly seed campaigns must be name-guarded, idempotent, and separate from generic vote growth.
 - [Production outreach state sync](production-outreach-state-sync.md) — verify the live importer version before migrating contacts; legacy CSV import drops sequence state and A/B assignments.
+- [ToolIndex outreach export sources](toolindex-outreach-export-sources.md) — claim queue and Campaign 3 contacts are separate datasets; combine them only with an explicit source label.
