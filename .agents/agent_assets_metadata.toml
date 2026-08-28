@@ -65,3 +65,10 @@ uri = "file://listings_export.csv"
 type = "table"
 title = "ToolIndex listings export (dev DB — 612 rânduri)"
 description = "Toate listing-urile cu coloanele: id, name, url, category, status, contact_email, outreach_emailed_at, follow_up_sent_at, featured_tier, excluded_from_outreach, exclusion_reason etc."
+
+[[outputs]]
+id = "xoaqwqo1EQSyCew3vL06J"
+uri = "file://.agents/outputs/toolindex_outreach_contacts_filtered.csv"
+type = "table"
+title = "Filtered ToolIndex outreach contacts CSV"
+description = "165 unique email addresses after the requested exclusions."
