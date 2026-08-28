@@ -4139,7 +4139,7 @@ function scheduleTomorrowStep3Batches() {
   for (const runAt of jobs) {
     setTimeout(async () => {
       try {
-        const result = await runSeqOutreachBatch(STEP3_BATCH_CAP);
+        const result = await runSeqOutreachBatch(STEP3_BATCH_CAP, { ignoreLifecyclePause: true });
         console.log(`[seq-outreach] scheduled step3 batch: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
       } catch (e) {
         console.error('[seq-outreach] scheduled step3 batch error:', e.message);
@@ -4584,8 +4584,8 @@ function isLifecycleOutreachPaused() {
 }
 
 // Core batch runner — returns {sent, errors, log[]}
-async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP) {
-  if (isLifecycleOutreachPaused()) {
+async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP, options = {}) {
+  if (!options.ignoreLifecyclePause && isLifecycleOutreachPaused()) {
     console.log('[seq-outreach] PAUSED — LIFECYCLE_OUTREACH_PAUSED=true');
     return { sent: 0, errors: 0, total: 0, log: ['paused'] };
   }

@@ -3,7 +3,7 @@ name: Production outreach state sync
 description: Preserve outreach history and A/B assignments when moving a contact sequence between development and production.
 ---
 
-The contact migration must carry prior step timestamps, stop state, and A/B assignment; importing only email/name fields makes already-contacted recipients look new and can trigger duplicate messages or the wrong template.
+The contact migration must carry prior step timestamps, stop state, and A/B assignment; importing only email/name fields makes already-contacted recipients look new and can trigger duplicate messages or the wrong template. A lifecycle pause must not be removed globally to run a specifically authorized campaign; use a narrowly scoped exception instead.
 
 **Why:** The production importer can be older than the workspace code after a publish, and a successful row count alone does not prove that sequence state was preserved.
 
