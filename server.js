@@ -651,6 +651,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/seq-upload-csv',
   '/toolindex-import-drafts',
   '/seq-send-step3-strict',
+  '/run-followup2-batch',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -5354,6 +5355,173 @@ app.get('/admin/run-followup-batch', async (req, res) => {
     console.log(`[followup-batch] ${sent} sent, ${errors} errors out of ${rows.length} queued`);
     res.json({ ok: true, sent, errors, total: rows.length, log });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/run-followup2-batch — manual 14-day follow-up #2 ─────────────
+// Same queue, guards, and message as the daily 08:05 UTC cron.
+// Authentication is header-only through the global admin job-token middleware.
+app.post('/admin/run-followup2-batch', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const cap = Math.min(
+    Math.max(parseInt(req.query.cap || '50', 10) || 50, 1),
+    50
+  );
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, url, contact_email, category
+      FROM directory_listings
+      WHERE outreach_emailed_at IS NOT NULL
+        AND follow_up_sent_at IS NOT NULL
+        AND follow_up2_sent_at IS NULL
+        AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
+        AND claimed_at IS NULL
+        AND claimed_by IS NULL
+        AND outreach_emailed_at < NOW() - INTERVAL '14 days'
+        AND contact_email IS NOT NULL
+        AND status = 'active'
+      ORDER BY outreach_emailed_at ASC
+      LIMIT $1
+    `, [cap]);
+
+    let sent = 0;
+    let errors = 0;
+    let skipped = 0;
+    const log = [];
+
+    for (const listing of rows) {
+      if (await isUnsubscribed(listing.contact_email)) {
+        log.push(`⊘ unsubscribed → ${listing.contact_email}`);
+        skipped++;
+        continue;
+      }
+      if (isJunkEmail(listing.contact_email)) {
+        log.push(`⊘ junk → ${listing.contact_email}`);
+        skipped++;
+        continue;
+      }
+
+      const fu2Block = isBlockedOutreachTarget(
+        listing.name,
+        listing.contact_email
+      );
+      if (fu2Block.blocked) {
+        log.push(
+          `⊘ blocked (${fu2Block.reason}) → ` +
+          `${listing.contact_email} (${listing.name})`
+        );
+        skipped++;
+        continue;
+      }
+
+      const fu2Halt = await isSequenceHalted(
+        listing.contact_email,
+        'claim_followup'
+      );
+      if (fu2Halt.halted) {
+        log.push(
+          `⊘ engagement-halted (${fu2Halt.reason}) → ` +
+          `${listing.contact_email} (${listing.name})`
+        );
+        skipped++;
+        continue;
+      }
+
+      try {
+        const slug = toListingSlug(listing.name, listing.id);
+        const listingUrl =
+          `https://strategic-flow-audit.replit.app/directory/${slug}`;
+        const name = listing.name;
+        const subject =
+          `${name} is missing a DR 86 backlink every day it stays unclaimed`;
+        const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+ <p>Hi,</p>
+ <p>Two weeks ago we built <strong>${name}'s full ToolIndex profile</strong>. It's still unclaimed — which means it's still missing a permanent <strong>DR 86 dofollow backlink</strong> from strategicflow.tech.</p>
+ <p style="background:#fff8ed;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:0 6px 6px 0;font-size:14px;color:#92400e;margin:20px 0;">
+   Every week unclaimed = a week your competitors are building domain authority you're not.
+ </p>
+ <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">Here's what claiming actually gives you:</p>
+ <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px;">
+   <tr style="border-bottom:1px solid #e5e7eb;">
+     <td style="padding:10px 0;color:#374151;"><strong>✓ DR 86 dofollow backlink</strong></td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">permanent, free</td>
+   </tr>
+   <tr style="border-bottom:1px solid #e5e7eb;">
+     <td style="padding:10px 0;color:#374151;"><strong>✓ Edit your profile</strong></td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">description, logo, links</td>
+   </tr>
+   <tr style="border-bottom:1px solid #e5e7eb;">
+     <td style="padding:10px 0;color:#374151;"><strong>✓ Appear in AI answers</strong></td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">Perplexity, ChatGPT</td>
+   </tr>
+   <tr>
+     <td style="padding:10px 0;color:#374151;"><strong>✓ Leaderboard visibility</strong></td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">votes compound over time</td>
+   </tr>
+ </table>
+ <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">Optional upgrades after claiming:</p>
+ <table style="width:100%;border-collapse:collapse;margin:0 0 28px;font-size:14px;">
+   <tr style="border-bottom:1px solid #e5e7eb;">
+     <td style="padding:10px 0;"><strong style="color:#00d4c8;">Featured</strong></td>
+     <td style="padding:10px 0;color:#374151;">Pinned at top of directory, teal border</td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">from $9/mo</td>
+   </tr>
+   <tr>
+     <td style="padding:10px 0;"><strong style="color:#f59e0b;">Boost</strong></td>
+     <td style="padding:10px 0;color:#374151;">24h jump to top of the leaderboard</td>
+     <td style="padding:10px 0;color:#6b7280;text-align:right;">one-time</td>
+   </tr>
+ </table>
+ <p style="margin:28px 0;">
+   <a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 32px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${name} free — 60 seconds &rarr;</a>
+ </p>
+ <p style="font-size:13px;color:#6b7280;">No payment needed to claim. The backlink and profile editing are permanently free.</p>
+ <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;">
+   <strong>Alex Iliescu</strong><br>
+   Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>
+   ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>
+   LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>
+   Tenerife, Spain
+ </p>
+ ${buildUnsubFooterHtml(listing.contact_email)}
+ </div>`;
+        const text = `Hi,\n\nTwo weeks ago we built ${name}'s full ToolIndex profile. It's still unclaimed — missing a permanent DR 86 dofollow backlink from strategicflow.tech.\n\nEvery week unclaimed = a week your competitors are building domain authority you're not.\n\nWhat claiming gives you (free):\n  ✓ DR 86 dofollow backlink — permanent\n  ✓ Edit your profile (description, logo, links)\n  ✓ Appear in AI answers (Perplexity, ChatGPT)\n  ✓ Leaderboard visibility — votes compound over time\n\nOptional upgrades after claiming:\n  → Featured: pinned at top of directory, from $9/mo\n  → Boost: 24h jump to top of leaderboard, one-time\n\nClaim ${name} free (60 seconds): ${listingUrl}\n\nNo payment needed to claim. The backlink and profile editing are permanently free.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
+
+        await resend.emails.send({
+          from: SENDER,
+          to: listing.contact_email,
+          replyTo: 'strategicflow@proton.me',
+          subject,
+          html,
+          text,
+        });
+        await pool.query(
+          `UPDATE directory_listings
+           SET follow_up2_sent_at=NOW()
+           WHERE id=$1`,
+          [listing.id]
+        );
+        log.push(`✓ followup2 → ${listing.contact_email} (${name})`);
+        sent++;
+      } catch (e) {
+        log.push(`✗ ${listing.contact_email}: ${e.message}`);
+        errors++;
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    console.log(
+      `[followup2-batch] ${sent} sent, ${errors} errors, ` +
+      `${skipped} skipped out of ${rows.length} queued`
+    );
+    res.json({ ok: true, sent, errors, skipped, total: rows.length, log });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── POST /admin/send-claim-outreach-batch?key=…&cap=N — batch initial outreach ─
