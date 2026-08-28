@@ -7682,7 +7682,6 @@ const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298, 7540]);
 // process restart cannot reset or duplicate the schedule.
 const TARGETED_VOTE_CAMPAIGNS = [
   { id: 4704, name: 'ChatNotr', batches: [3, 3, 4] },
-  { id: 7540, name: 'Strategic Flow MCP', batches: [5, 4, 6, 5, 4, 6, 5, 4] },
 ];
 let _targetedVoteCampaignRunning = false;
 
@@ -7755,6 +7754,144 @@ async function runTargetedVoteCampaigns() {
   } finally {
     _targetedVoteCampaignRunning = false;
   }
+}
+
+// ── Explicit, temporary Strategic Flow MCP vote campaign ─────────────────────
+// #7540 remains globally protected in SEED_VOTE_DISABLED_IDS. This campaign is
+// the sole approved exception, scoped to one listing and one short time window.
+const TEMPORARY_MCP_VOTE_CAMPAIGN = Object.freeze({
+  listingId: 7540,
+  listingName: 'Strategic Flow MCP',
+  voterPrefix: 'temporary_mcp_seed_20260828',
+  endsAt: Date.parse('2026-08-29T09:00:00Z'), // 10:00 Atlantic/Canary
+  intervalMs: 2 * 60 * 60 * 1000,
+});
+let _temporaryMcpVoteCampaignRunning = false;
+let _temporaryMcpVoteCampaignTimer = null;
+let _temporaryMcpVoteCampaignStopLogged = false;
+
+function temporaryMcpVotesForBatch(batchIndex) {
+  // A deterministic 2/3-vote pattern provides natural variation without a
+  // restart changing a batch's planned size.
+  let hash = 2166136261;
+  const input = `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}:${batchIndex}`;
+  for (let index = 0; index < input.length; index++) {
+    hash = Math.imul(hash ^ input.charCodeAt(index), 16777619);
+  }
+  return 2 + ((hash >>> 0) & 1);
+}
+
+async function runTemporaryMcpVoteCampaign() {
+  if (process.env.STRATEGIC_FLOW_MCP_TEMPORARY_VOTE_SEED_ENABLED !== 'true') {
+    return { skipped: 'disabled' };
+  }
+  const now = Date.now();
+  if (now >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt) {
+    if (!_temporaryMcpVoteCampaignStopLogged) {
+      console.log('[temporary-mcp-votes] stop time reached — no more batches will run');
+      _temporaryMcpVoteCampaignStopLogged = true;
+    }
+    return { stopped: true };
+  }
+  if (_temporaryMcpVoteCampaignRunning) return { skipped: 'already_running' };
+
+  _temporaryMcpVoteCampaignRunning = true;
+  try {
+    const listingResult = await pool.query(
+      `SELECT id, name, status FROM directory_listings WHERE id=$1`,
+      [TEMPORARY_MCP_VOTE_CAMPAIGN.listingId]
+    );
+    const listing = listingResult.rows[0];
+    if (!listing || listing.status !== 'active' ||
+        listing.name.trim().toLowerCase() !== TEMPORARY_MCP_VOTE_CAMPAIGN.listingName.toLowerCase()) {
+      console.error('[temporary-mcp-votes] listing guard failed; campaign stopped without adding votes');
+      return { stopped: true, reason: 'listing_guard_failed' };
+    }
+
+    const startResult = await pool.query(
+      `SELECT MIN(voted_at) AS started_at
+       FROM dir_votes
+       WHERE listing_id=$1 AND voter_hash LIKE $2`,
+      [TEMPORARY_MCP_VOTE_CAMPAIGN.listingId, `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}_%`]
+    );
+    const startedAt = startResult.rows[0]?.started_at
+      ? new Date(startResult.rows[0].started_at).getTime()
+      : now;
+    let added = 0;
+    let batches = 0;
+
+    for (let batchIndex = 0; ; batchIndex++) {
+      const dueAt = startedAt + batchIndex * TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
+      if (dueAt >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt || dueAt > now) break;
+
+      const target = temporaryMcpVotesForBatch(batchIndex);
+      const existingResult = await pool.query(
+        `SELECT COUNT(*)::int AS count
+         FROM dir_votes
+         WHERE listing_id=$1 AND voter_hash LIKE $2`,
+        [TEMPORARY_MCP_VOTE_CAMPAIGN.listingId, `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}_${batchIndex}_%`]
+      );
+      const existing = existingResult.rows[0]?.count || 0;
+      if (existing >= target) continue;
+
+      const missing = target - existing;
+      const voteRows = Array.from({ length: missing }, (_, offset) => [
+        TEMPORARY_MCP_VOTE_CAMPAIGN.listingId,
+        `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}_${batchIndex}_${existing + offset}`,
+        new Date(dueAt).toISOString(),
+      ]);
+      const placeholders = voteRows
+        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+        .join(',');
+      const inserted = await pool.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+         VALUES ${placeholders}
+         ON CONFLICT DO NOTHING`,
+        voteRows.flat()
+      );
+      if (inserted.rowCount > 0) {
+        await pool.query(
+          `UPDATE directory_listings
+           SET vote_count=COALESCE(vote_count, 0)+$1
+           WHERE id=$2`,
+          [inserted.rowCount, TEMPORARY_MCP_VOTE_CAMPAIGN.listingId]
+        );
+        added += inserted.rowCount;
+        batches++;
+        console.log(`[temporary-mcp-votes] Strategic Flow MCP +${inserted.rowCount} (batch ${batchIndex + 1}, due ${new Date(dueAt).toISOString()})`);
+      }
+    }
+
+    const elapsedBatches = Math.floor((now - startedAt) / TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs);
+    const nextRunAt = startedAt + (elapsedBatches + 1) * TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
+    return { added, batches, nextRunAt };
+  } catch (error) {
+    console.error('[temporary-mcp-votes] campaign error:', error.message);
+    return { error: error.message };
+  } finally {
+    _temporaryMcpVoteCampaignRunning = false;
+  }
+}
+
+async function scheduleTemporaryMcpVoteCampaign() {
+  if (process.env.STRATEGIC_FLOW_MCP_TEMPORARY_VOTE_SEED_ENABLED !== 'true') return;
+  if (_temporaryMcpVoteCampaignTimer) clearTimeout(_temporaryMcpVoteCampaignTimer);
+
+  const result = await runTemporaryMcpVoteCampaign();
+  if (result.stopped || Date.now() >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt) return;
+
+  const nextRunAt = result.nextRunAt || Date.now() + TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
+  const delay = Math.min(
+    Math.max(1_000, nextRunAt - Date.now()),
+    Math.max(1_000, TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt - Date.now())
+  );
+  _temporaryMcpVoteCampaignTimer = setTimeout(() => {
+    scheduleTemporaryMcpVoteCampaign().catch(error => {
+      console.error('[temporary-mcp-votes] scheduler error:', error.message);
+    });
+  }, delay);
+  if (typeof _temporaryMcpVoteCampaignTimer.unref === 'function') _temporaryMcpVoteCampaignTimer.unref();
+  console.log(`[temporary-mcp-votes] next check at ${new Date(nextRunAt).toISOString()}; campaign ends at ${new Date(TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt).toISOString()}`);
 }
 
 // ── Directory: seed the Daily section for today ───────────────────────────────
@@ -26106,6 +26243,9 @@ full HTML body here
   activateScheduledBoosts().catch(()=>{});
   seedDailySection().catch(()=>{});
   runTargetedVoteCampaigns().catch(()=>{});
+  scheduleTemporaryMcpVoteCampaign().catch(error => {
+    console.error('[temporary-mcp-votes] startup scheduling failed:', error.message);
+  });
   const targetedVoteCampaignTimer = setInterval(
     () => runTargetedVoteCampaigns().catch(()=>{}),
     60 * 1000
