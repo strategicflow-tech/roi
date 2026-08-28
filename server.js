@@ -649,6 +649,7 @@ const ADMIN_MUTATING_GET_PATHS = new Set([
 const ADMIN_JOB_POST_PATHS = new Set([
   '/batch-update',
   '/seq-upload-csv',
+  '/toolindex-import-drafts',
 ]);
 
 function hasMatchingAdminJobToken(req) {
@@ -5469,6 +5470,163 @@ app.post('/admin/batch-insert', express.json({ limit: '2mb' }), async (req, res)
     }
   }
   res.json({ total: items.length, results });
+});
+
+function toolIndexRootDomain(rawUrl) {
+  const parsed = new URL(String(rawUrl || '').trim());
+  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+    throw new Error('URL must use http or https');
+  }
+  const labels = parsed.hostname.toLowerCase().replace(/^www\./, '').split('.').filter(Boolean);
+  if (labels.length < 2) return labels.join('.');
+  const compoundSuffixes = new Set([
+    'co.uk', 'org.uk', 'me.uk', 'ac.uk', 'com.au', 'net.au', 'org.au',
+    'co.in', 'firm.in', 'net.in', 'org.in', 'com.br', 'com.cn', 'com.mx',
+    'com.tr', 'com.sg', 'com.my', 'co.nz', 'co.za', 'com.ar', 'com.tw',
+  ]);
+  const suffix = labels.slice(-2).join('.');
+  return compoundSuffixes.has(suffix) && labels.length >= 3
+    ? labels.slice(-3).join('.')
+    : suffix;
+}
+
+function inferToolIndexCategory(name, url, description) {
+  const signal = `${name || ''} ${url || ''} ${description || ''}`.toLowerCase();
+  const rules = [
+    [['ai', 'llm', 'mcp', 'artificial intelligence'], 'AI Tools'],
+    [['clock', 'calculator'], 'Utilities'],
+    [['stay', 'hotel', 'booking', 'guest'], 'Hospitality'],
+    [['audio', 'voice', 'podcast', 'music'], 'Audio'],
+    [['test', 'testing'], 'Testing'],
+    [['writer', 'writing'], 'Writing'],
+    [['pricing'], 'Pricing'],
+    [['seo', 'rank', 'marketing', 'social', 'reddit'], 'Marketing'],
+    [['bitcoin', 'crypto', 'loan', 'protocol'], 'Finance'],
+    [['render', 'gfx', 'design', 'screenshot', 'video', 'image'], 'Design'],
+    [['developer', 'api', 'code', 'sdk', 'proxy', 'chromewebstore'], 'Developer Tools'],
+    [['analytics', 'attribution'], 'Analytics'],
+    [['education', 'institute', 'learn'], 'Education'],
+    [['hiring', 'interview', 'job', 'hr'], 'HR'],
+    [['compliance', 'ciso', 'security', 'privacy'], 'Security'],
+    [['productivity', 'workflow', 'schedule', 'task', 'crm', 'sales'], 'Productivity'],
+    [['directory', 'submit', 'launch', 'affiliate'], 'Distribution'],
+  ];
+  const match = rules.find(([terms]) => terms.some(term => signal.includes(term)));
+  return match ? match[1] : '';
+}
+
+function parseToolIndexDraftCsv(csvText) {
+  const lines = String(csvText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (!lines.length || !lines[0].trim()) throw new Error('CSV has no header row');
+  const header = parseCsvLine(lines[0].replace(/^\uFEFF/, ''));
+  const headers = header.map(h => h.trim().toLowerCase());
+  const index = key => headers.indexOf(key);
+  const required = ['name', 'url', 'description', 'category', 'founder_name', 'contact_email', 'source', 'source_url', 'image_url'];
+  const missing = required.filter(key => index(key) < 0);
+  if (missing.length) throw new Error(`CSV missing columns: ${missing.join(', ')}`);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseCsvLine(lines[i]);
+    const row = {};
+    for (const key of required) row[key] = values[index(key)] ?? '';
+    row.file_row = i + 1;
+    rows.push(row);
+  }
+  return rows;
+}
+
+// POST /admin/toolindex-import-drafts — import one CSV batch as private manual drafts.
+// This route intentionally does not publish, index, score, fetch logos, or send outreach.
+app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const inputRows = parseToolIndexDraftCsv(req.file.buffer.toString('utf8'));
+    const existing = await pool.query(`SELECT id, name, url FROM directory_listings`);
+    const existingNames = new Set(existing.rows.map(row => String(row.name || '').trim().toLowerCase()).filter(Boolean));
+    const existingDomains = new Set();
+    for (const row of existing.rows) {
+      if (!row.url) continue;
+      try { existingDomains.add(toolIndexRootDomain(row.url)); } catch {}
+    }
+    const batchNames = new Set();
+    const batchDomains = new Set();
+    const created = [];
+    const skipped = [];
+    const failed = [];
+
+    for (const row of inputRows) {
+      const name = row.name;
+      const nameKey = name.trim().toLowerCase();
+      if (!nameKey) {
+        failed.push({ file_row: row.file_row, name, reason: 'missing name' });
+        continue;
+      }
+      if (!row.url.trim()) {
+        failed.push({ file_row: row.file_row, name, reason: 'missing URL' });
+        continue;
+      }
+
+      let rootDomain;
+      try {
+        rootDomain = toolIndexRootDomain(row.url);
+      } catch (e) {
+        failed.push({ file_row: row.file_row, name, reason: `invalid URL: ${e.message}` });
+        continue;
+      }
+      const duplicateName = existingNames.has(nameKey) || batchNames.has(nameKey);
+      const duplicateDomain = existingDomains.has(rootDomain) || batchDomains.has(rootDomain);
+      if (duplicateName || duplicateDomain) {
+        skipped.push({
+          file_row: row.file_row,
+          name,
+          reason: duplicateName ? 'duplicate name' : 'duplicate root domain',
+        });
+        continue;
+      }
+
+      const category = row.category || inferToolIndexCategory(row.name, row.url, row.description);
+      try {
+        const inserted = await pool.query(
+          `INSERT INTO directory_listings
+             (name, url, description, category, founder_name, contact_email,
+              source, source_url, image_url, status, is_seeded, is_auto_imported,
+              score_pending, submitted_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',false,false,false,NOW())
+           RETURNING id, name`,
+          [
+            row.name, row.url, row.description, category, row.founder_name,
+            row.contact_email, row.source, row.source_url, row.image_url,
+          ]
+        );
+        const id = inserted.rows[0].id;
+        created.push({
+          file_row: row.file_row,
+          id,
+          name: inserted.rows[0].name,
+          slug: toListingSlug(inserted.rows[0].name, id),
+        });
+        existingNames.add(nameKey);
+        existingDomains.add(rootDomain);
+        batchNames.add(nameKey);
+        batchDomains.add(rootDomain);
+      } catch (e) {
+        failed.push({ file_row: row.file_row, name, reason: e.message });
+      }
+    }
+
+    console.log(`[toolindex-import] ${created.length} drafts created, ${skipped.length} skipped, ${failed.length} failed`);
+    res.json({
+      ok: true,
+      total_rows: inputRows.length,
+      created,
+      skipped,
+      failed,
+    });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // POST /admin/batch-update?key=… — bulk update url + email for listings (admin only).
