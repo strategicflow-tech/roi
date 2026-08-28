@@ -86,3 +86,17 @@ uri = "file://.agents/outputs/toolindex_campaign3_contacts.csv"
 type = "table"
 title = "ToolIndex Campaign 3 contacts"
 description = "526 active contacts from outreach_seq_contacts. All have valid email format; 7 contacts marked stop_sequence were excluded."
+
+[[outputs]]
+id = "OSUIDgMQAQtHsC_PxkWaD"
+uri = "file://.agents/outputs/toolindex_campaign3_contacts_detailed.csv"
+type = "table"
+title = "Campaign 3 — listă detaliată"
+description = "533 contacte, cu segmentul A_PMM/B_Lifecycle/C_EmailMgr, statusul fiecărui pas și timestampurile UTC pentru step 1–3."
+
+[[outputs]]
+id = "25KD_w5ZHic_WbcL9nSy4"
+uri = "file://.agents/outputs/toolindex_claim_outreach_contacts_detailed.csv"
+type = "table"
+title = "Claim outreach — listă detaliată"
+description = "285 rânduri / 281 adrese distincte din directory_listings active/draft, cu starea claim, invitația, follow-up-urile și timestampurile UTC."
