@@ -4144,7 +4144,7 @@ function scheduleTomorrowStep3Batches() {
   for (const runAt of jobs) {
     setTimeout(async () => {
       try {
-        const result = await runSeqOutreachBatch(STEP3_BATCH_CAP, { ignoreLifecyclePause: true });
+        const result = await runStrictStep3Batch(STEP3_BATCH_CAP);
         console.log(`[seq-outreach] scheduled step3 batch: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
       } catch (e) {
         console.error('[seq-outreach] scheduled step3 batch error:', e.message);
@@ -4849,6 +4849,186 @@ async function runSeqOutreachBatch(cap = OUTREACH_DAILY_CAP, options = {}) {
   return { sent, errors, total: r.rows.length, log };
 }
 
+// Strict Campaign 3 Step 3 runner.
+// This runner intentionally has no lifecycle-pause bypass and cannot select
+// Step 1 or Step 2 contacts.
+let strictStep3BatchInFlight = false;
+
+async function runStrictStep3Batch(cap = 100) {
+  const batchCap = Math.min(
+    Math.max(Number.parseInt(String(cap), 10) || 100, 1),
+    100
+  );
+
+  if (strictStep3BatchInFlight) {
+    return {
+      sent: 0,
+      errors: 0,
+      skipped: 0,
+      total: 0,
+      in_flight: true,
+      log: ['strict_step3_batch_already_running'],
+    };
+  }
+
+  if (isLifecycleOutreachPaused()) {
+    console.log('[seq-step3-strict] PAUSED — LIFECYCLE_OUTREACH_PAUSED=true');
+    return {
+      sent: 0,
+      errors: 0,
+      skipped: 0,
+      total: 0,
+      paused: true,
+      log: ['lifecycle_outreach_paused'],
+    };
+  }
+
+  strictStep3BatchInFlight = true;
+  try {
+    try {
+      const { rows: pauseRows } = await pool.query(
+        `SELECT value
+         FROM system_config
+         WHERE key='seq_outreach_paused'
+         LIMIT 1`
+      );
+      if (pauseRows[0]?.value === 'true') {
+        console.log('[seq-step3-strict] PAUSED — seq_outreach_paused=true');
+        return {
+          sent: 0,
+          errors: 0,
+          skipped: 0,
+          total: 0,
+          paused: true,
+          log: ['seq_outreach_paused'],
+        };
+      }
+    } catch (e) {
+      console.error('[seq-step3-strict] pause check failed:', e.message);
+      return {
+        sent: 0,
+        errors: 0,
+        skipped: 0,
+        total: 0,
+        paused: true,
+        pause_check_error: true,
+        log: ['system_config_pause_check_failed'],
+      };
+    }
+
+    const { rows } = await pool.query(
+      `SELECT
+         osc.id,
+         osc.to_email,
+         osc.first_name,
+         osc.company,
+         osc.cluster,
+         osc.ab_variant
+       FROM outreach_seq_contacts osc
+       WHERE osc.stop_sequence = false
+         AND osc.step2_sent_at IS NOT NULL
+         AND osc.step3_sent_at IS NULL
+         AND osc.step2_sent_at <= NOW() - INTERVAL '5 days'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM email_unsubscribes eu
+           WHERE lower(trim(eu.email)) = lower(trim(osc.to_email))
+         )
+       ORDER BY osc.step2_sent_at ASC, osc.imported_at ASC
+       LIMIT $1`,
+      [batchCap]
+    );
+
+    let sent = 0;
+    let errors = 0;
+    let skipped = 0;
+    const log = [];
+
+    for (const contact of rows) {
+      if (await isUnsubscribed(contact.to_email)) {
+        await pool.query(
+          `UPDATE outreach_seq_contacts
+           SET stop_sequence = true
+           WHERE id = $1`,
+          [contact.id]
+        );
+        skipped++;
+        log.push(`unsubscribed → ${contact.to_email}`);
+        continue;
+      }
+
+      const blocked = isBlockedOutreachTarget(
+        contact.company,
+        contact.to_email
+      );
+      if (blocked.blocked) {
+        await pool.query(
+          `UPDATE outreach_seq_contacts
+           SET stop_sequence = true
+           WHERE id = $1`,
+          [contact.id]
+        );
+        skipped++;
+        log.push(`blocked (${blocked.reason}) → ${contact.to_email}`);
+        continue;
+      }
+
+      const halted = await isSequenceHalted(
+        contact.to_email,
+        'agency_outreach'
+      );
+      if (halted.halted) {
+        await pool.query(
+          `UPDATE outreach_seq_contacts
+           SET stop_sequence = true,
+               engaged_at = NOW(),
+               engaged_reason = $2
+           WHERE id = $1`,
+          [contact.id, halted.reason]
+        );
+        skipped++;
+        log.push(`engagement-halted (${halted.reason}) → ${contact.to_email}`);
+        continue;
+      }
+
+      try {
+        const { subject, html, text } = buildSeqEmail(contact, 3);
+        await resend.emails.send({
+          from: SENDER,
+          to: contact.to_email,
+          replyTo: 'strategicflow@proton.me',
+          subject,
+          html,
+          text,
+        });
+        await pool.query(
+          `UPDATE outreach_seq_contacts
+           SET step3_sent_at = NOW()
+           WHERE id = $1`,
+          [contact.id]
+        );
+        sent++;
+        log.push(`step3 → ${contact.to_email}`);
+      } catch (e) {
+        await pool.query(
+          `UPDATE outreach_seq_contacts
+           SET step3_error = $1
+           WHERE id = $2`,
+          [e.message.slice(0, 500), contact.id]
+        ).catch(() => {});
+        errors++;
+        log.push(`step3 error → ${contact.to_email}: ${e.message}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+
+    return { sent, errors, skipped, total: rows.length, log };
+  } finally {
+    strictStep3BatchInFlight = false;
+  }
+}
+
 // Multer instance for CSV uploads
 const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -4997,6 +5177,51 @@ app.post('/admin/seq-run-batch', async (req, res) => {
     console.log(`[seq-outreach] manual batch: ${result.sent} sent, ${result.errors} errors`);
     res.json({ ok: true, ...result });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── POST /admin/seq-send-step3-strict?key=…&cap=N ─────────────────────────────
+// The only manual endpoint for strict Campaign 3 Step 3 sends.
+app.post('/admin/seq-send-step3-strict', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const cap = Math.min(
+    Math.max(Number.parseInt(req.query.cap || '100', 10) || 100, 1),
+    100
+  );
+
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    const result = await runStrictStep3Batch(cap);
+    if (result.paused) {
+      return res.status(423).json({
+        ok: false,
+        runner: 'strict_step3',
+        ...result,
+      });
+    }
+    if (result.in_flight) {
+      return res.status(409).json({
+        ok: false,
+        runner: 'strict_step3',
+        ...result,
+      });
+    }
+    console.log(
+      `[seq-step3-strict] ${result.sent} sent, ` +
+      `${result.errors} errors, ${result.skipped} skipped ` +
+      `out of ${result.total} queued`
+    );
+    res.json({
+      ok: true,
+      runner: 'strict_step3',
+      cap,
+      ...result,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── POST /admin/seq-send-step3-ab?key=…&cap=N&dry_run=1 — send A/B step 3 final email ──
