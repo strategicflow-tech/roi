@@ -7,4 +7,4 @@ Admin maintenance endpoints that must be called without a browser session need a
 
 **Why:** A POST endpoint placed in the GET allowlist can authenticate successfully and still become `Cannot GET` before its handler runs, while query-string keys are intentionally rejected to avoid credential leakage.
 
-**How to apply:** Use `x-admin-job-token` from a shell environment variable, add POST handlers to a dedicated POST allowlist, and only rewrite methods for legacy routes that are actually implemented as GET.
+**How to apply:** Use `x-admin-job-token` from a shell environment variable, add every new POST handler to the dedicated POST allowlist before restarting, and only rewrite methods for legacy routes that are actually implemented as GET. A query-string `key` reaches neither the route nor its own auth check.
