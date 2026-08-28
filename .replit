@@ -51,6 +51,9 @@ WHY_CREDITS_PRICE_ID = "price_1TxF13DpTwoDeZJn43U5Wfmz"
 ADMIN_EMAILS = "strategicflow@proton.me,consultantcalatorii@gmail.com,alex@strategicflow.tech"
 LIFECYCLE_OUTREACH_PAUSED = "true"
 
+[userenv.production]
+STEP3_CAMPAIGN_SCHEDULER_ENABLED = "true"
+
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 60000

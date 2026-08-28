@@ -4124,12 +4124,12 @@ const STEP3_CAMPAIGN_DATE_UTC = (() => {
 })();
 
 function isScheduledStep3CampaignDate() {
-  return process.env.NODE_ENV === 'production' &&
+  return process.env.STEP3_CAMPAIGN_SCHEDULER_ENABLED === 'true' &&
     new Date().toISOString().slice(0, 10) === STEP3_CAMPAIGN_DATE_UTC;
 }
 
 function scheduleTomorrowStep3Batches() {
-  if (process.env.NODE_ENV !== 'production') return;
+  if (process.env.STEP3_CAMPAIGN_SCHEDULER_ENABLED !== 'true') return;
 
   const now = Date.now();
   const jobs = STEP3_BATCH_HOURS_UTC
