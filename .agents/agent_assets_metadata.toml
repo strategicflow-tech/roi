@@ -72,3 +72,10 @@ uri = "file://.agents/outputs/toolindex_outreach_contacts_filtered.csv"
 type = "table"
 title = "Filtered ToolIndex outreach contacts CSV"
 description = "165 unique email addresses after the requested exclusions."
+
+[[outputs]]
+id = "aJiJ_0wWWg2lXMReFdRBy"
+uri = "file://.agents/outputs/toolindex_outreach_contacts_full.csv"
+type = "table"
+title = "Complete ToolIndex outreach queue CSV"
+description = "281 unique email addresses from the admin claim-outreach queue and verified owners."
