@@ -1852,22 +1852,32 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
     </div>
 
     <style>
-    .sf-ticker-wrap{overflow:hidden;border-top:1px solid rgba(0,212,200,0.10);border-bottom:1px solid rgba(0,212,200,0.10);background:rgba(0,212,200,0.025);}
-    .sf-ticker-row{display:flex;align-items:stretch;overflow:hidden;}
+    .sf-ticker-wrap{--sf-ticker-label-width:88px;overflow:hidden;border-top:1px solid rgba(0,212,200,0.10);border-bottom:1px solid rgba(0,212,200,0.10);background:rgba(0,212,200,0.025);contain:layout paint;}
+    .sf-ticker-row{display:flex;align-items:stretch;overflow:hidden;min-width:0;}
     .sf-ticker-row+.sf-ticker-row{border-top:1px solid rgba(0,212,200,0.06);}
-    .sf-ticker-lbl{flex-shrink:0;display:flex;align-items:center;padding:0 14px 0 20px;border-right:1px solid rgba(0,212,200,0.12);font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(0,212,200,0.55);white-space:nowrap;min-height:76px;}
-    .sf-ticker-lbl-spacer{flex-shrink:0;width:68px;border-right:1px solid rgba(0,212,200,0.12);}
-    .sf-ticker-vp{flex:1;overflow:hidden;min-width:0;position:relative;}
+    .sf-ticker-lbl{box-sizing:border-box;flex:0 0 var(--sf-ticker-label-width);width:var(--sf-ticker-label-width);display:flex;align-items:center;padding:0 12px 0 20px;border-right:1px solid rgba(0,212,200,0.12);font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(0,212,200,0.55);white-space:nowrap;min-height:72px;}
+    .sf-ticker-lbl-spacer{box-sizing:border-box;flex:0 0 var(--sf-ticker-label-width);width:var(--sf-ticker-label-width);border-right:1px solid rgba(0,212,200,0.12);}
+    .sf-ticker-vp{flex:1 1 auto;width:calc(100% - var(--sf-ticker-label-width));overflow:hidden;min-width:0;position:relative;isolation:isolate;}
     .sf-ticker-vp::before,.sf-ticker-vp::after{content:'';position:absolute;top:0;bottom:0;width:32px;z-index:2;pointer-events:none;}
     .sf-ticker-vp::before{left:0;background:linear-gradient(to right,rgba(10,15,30,1),transparent);}
     .sf-ticker-vp::after{right:0;background:linear-gradient(to left,rgba(10,15,30,1),transparent);}
-    .sf-ticker-track{display:flex;gap:6px;padding:9px 6px;width:max-content;will-change:transform;animation:dir-scroll 28s linear infinite;}
-    .sf-ticker-track-rtl{display:flex;gap:6px;padding:9px 6px;width:max-content;will-change:transform;animation:dir-scroll-rtl 22s linear infinite;}
+    .sf-ticker-track,.sf-ticker-track-rtl{display:flex;align-items:center;gap:12px;padding:9px 12px;width:max-content;will-change:transform;animation:dir-scroll 28s linear infinite;}
+    .sf-ticker-track-rtl{animation-name:dir-scroll-rtl;}
+    .sf-ticker-track > a,.sf-ticker-track-rtl > a{box-sizing:border-box;display:flex!important;align-items:center!important;justify-content:center;flex:0 0 190px!important;width:190px!important;height:54px!important;min-height:54px;margin:0!important;padding:0 6px;}
+    .sf-ticker-track > a > img,.sf-ticker-track-rtl > a > img{display:block!important;width:auto!important;max-width:100%!important;height:42px!important;max-height:42px!important;object-fit:contain;}
     .sf-ticker-wrap:hover .sf-ticker-track,.sf-ticker-wrap:hover .sf-ticker-track-rtl{animation-play-state:paused;}
     @keyframes dir-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
     @keyframes dir-scroll-rtl{0%{transform:translateX(-50%)}100%{transform:translateX(0)}}
+    @media(max-width:520px){
+      .sf-ticker-wrap{--sf-ticker-label-width:72px;}
+      .sf-ticker-lbl{padding-left:14px;padding-right:8px;font-size:8px;}
+      .sf-ticker-vp::before,.sf-ticker-vp::after{width:20px;}
+      .sf-ticker-track,.sf-ticker-track-rtl{gap:8px;padding-left:8px;padding-right:8px;}
+      .sf-ticker-track > a,.sf-ticker-track-rtl > a{flex-basis:156px!important;width:156px!important;height:50px!important;min-height:50px;}
+      .sf-ticker-track > a > img,.sf-ticker-track-rtl > a > img{height:38px!important;max-height:38px!important;}
+    }
     </style>
-    <div class="sf-ticker-wrap" aria-label="Listed on platforms">
+    <div class="sf-ticker-wrap" id="dirBadgeTicker" aria-label="Listed on platforms">
       <div class="sf-ticker-row">
         <span class="sf-ticker-lbl">Listed<br/>on</span>
         <div class="sf-ticker-vp">
@@ -1886,6 +1896,17 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
       document.querySelectorAll('.sf-ticker-wrap').forEach(function(wrap){
         var tracks=wrap.querySelectorAll('.sf-ticker-track,.sf-ticker-track-rtl');
         var tmr;
+        wrap.querySelectorAll('img').forEach(function(img){
+          var source=img.getAttribute('src')||'';
+          if(source.indexOf('peerlist.io/api/v1/projects/embed/')!==-1){
+            img.setAttribute('src','/badges/peerlist-dark.svg');
+          }
+          img.addEventListener('error',function(){
+            if(this.dataset.sfFallback)return;
+            this.dataset.sfFallback='1';
+            this.setAttribute('src','/badges/toolindex-badge-fallback.svg');
+          });
+        });
         wrap.addEventListener('touchstart',function(e){
           if(e.target.closest('a[href]'))return;
           var paused=false;

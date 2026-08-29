@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="190" height="54" viewBox="0 0 190 54" role="img" aria-labelledby="title">
+  <title>Peerlist</title>
+  <rect width="190" height="54" rx="8" fill="#111827" stroke="#334155"/>
+  <circle cx="28" cy="27" r="13" fill="#00d4c8"/>
+  <path d="M24 18h7.2c5.2 0 8.3 2.8 8.3 7.2s-3.1 7.2-8.3 7.2H29v5.6h-5V18Zm5 4.4v5.6h2c2.3 0 3.5-.9 3.5-2.8s-1.2-2.8-3.5-2.8h-2Z" fill="#041214"/>
+  <text x="52" y="33" fill="#f8fafc" font-family="Arial, sans-serif" font-size="18" font-weight="700">Peerlist</text>
+</svg>
