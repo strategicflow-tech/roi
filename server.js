@@ -48,7 +48,7 @@ FACTS YOU MAY USE:
 - Strategic Flow is an email architecture audit service for B2B SaaS, founded by Alex Iliescu. It diagnoses why opened emails fail to generate clicks and rebuilds the email around reader outcomes.
 - The Decision Friction Model is Strategic Flow's seven-point framework for email conversion: subject line construction, lead framing, feature-to-outcome translation, visual hierarchy, before/after contrast, social proof placement, and CTA language. The score is 1–10.
 - The audit works by accepting pasted newsletter content or a URL, running the seven-point diagnosis in about 90 seconds, then returning named failure patterns, before/after rewrites, subject-line variants, and rebuilt HTML. The first rebuild is free.
-- Pricing is $49 for a single audit, $299/month for Lite, $499/month for Growth, and $899/month for High-Impact.
+- Pricing is $149 for a Decision Friction Review, $299/month for Lite, $499/month for Growth, and $899/month for High-Impact.
 - Refund policy: all sales are final once the audit report or rebuilt HTML has been delivered. No refund or chargeback is available after delivery. The only exception is a technical error that prevented delivery; in that case, the client should contact strategicflow@proton.me within 48 hours. Each audit includes one (1) strategic revision round, which must be requested within 7 days of delivery.
 - Strategic Flow has published 59 real SaaS email teardowns, with an average score improvement from 3.4/10 original to 9.0/10 rebuilt. Audited companies include Semrush, HeyGen, Revolut, Cato Networks, ElevenLabs, Zapier, and others.
 - Alex Iliescu is the founder of Strategic Flow.
@@ -12684,6 +12684,22 @@ async function setupDB() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS access_type VARCHAR(50) DEFAULT NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at  TIMESTAMP  DEFAULT NULL;
   `);
+  // Migrate the retired one-off tier for existing customers without making the
+  // old key valid for new activations or admin upgrades.
+  const retiredTier = ['si', 'ng', 'le'].join('');
+  const migratedUsers = await pool.query(
+    `UPDATE users SET tier = 'decision_friction_review'
+     WHERE tier = $1`,
+    [retiredTier]
+  );
+  const migratedNewsletters = await pool.query(
+    `UPDATE newsletters SET tier = 'decision_friction_review'
+     WHERE tier = $1`,
+    [retiredTier]
+  );
+  if (migratedUsers.rowCount || migratedNewsletters.rowCount) {
+    console.log(`[DB] Migrated retired audit tier: ${migratedUsers.rowCount} users, ${migratedNewsletters.rowCount} newsletters`);
+  }
   // Insert/update guest trial user
   await pool.query(`
     INSERT INTO users (email, tier, access_type, expires_at, vip)
@@ -14233,8 +14249,8 @@ function checkLimit(user) {
   const { tier, newsletter_count, newsletter_count_month, newsletter_month_key } = user;
   const cfg = TIER_CONFIGS[tier];
   if (!cfg) return { allowed: false, reason: 'no_tier' };
-  if (tier === 'free_trial' || tier === 'single') {
-    return newsletter_count < 2 ? { allowed: true } : { allowed: false, reason: tier === 'free_trial' ? 'trial_used' : 'single_used' };
+  if (tier === 'free_trial' || tier === 'decision_friction_review') {
+    return newsletter_count < 2 ? { allowed: true } : { allowed: false, reason: tier === 'free_trial' ? 'trial_used' : 'decision_friction_review_used' };
   }
   const mk = currentMonthKey();
   const used = newsletter_month_key === mk ? newsletter_count_month : 0;
@@ -16274,7 +16290,7 @@ async function handleGenerate(req, res) {
     body = effectiveBody;
 
     const adminAccess = isAdmin(e);
-    const ALLOWED_TIERS = new Set(['free_trial','single','lite','growth','high_impact','architecture']);
+    const ALLOWED_TIERS = new Set(['free_trial','decision_friction_review','lite','growth','high_impact','architecture']);
 
     // Auto-enrol new visitors as free_trial; existing users keep their current tier.
     if (!adminAccess) {
@@ -17089,8 +17105,8 @@ async function handleGenerate(req, res) {
     console.log('STEP 6: Email send attempted');
 
     // Owner notifications
-    if (tier === 'single') {
-      notify(`📨 Single Rebuild — ${company || e}`, `<p>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
+    if (tier === 'decision_friction_review') {
+      notify(`📨 Decision Friction Review — ${company || e}`, `<p>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});
     }
     if ((tier === 'high_impact' || tier === 'architecture') && user?.vip && !adminAccess) {
       notify(`⚡ VIP URGENT — ${company || e}`, `<p><b>VIP Submission</b><br>Email: ${e}<br>Company: ${company}<br>Subject: ${result.rebuilt_subject}</p>`).catch(() => {});

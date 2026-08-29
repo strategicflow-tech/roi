@@ -47,8 +47,8 @@
     }
   ],
   "pricing": {
-    "single_audit": "USD 49 one-time",
-    "plans_url": "https://strategic-flow-pro.replit.app/packages"
+    "decision_friction_review": "USD 149 one-time",
+    "review_url": "https://strategic-flow-pro.replit.app/decision-friction-review/"
   },
   "trust": {
     "wikidata": "https://www.wikidata.org/wiki/Q140086009",

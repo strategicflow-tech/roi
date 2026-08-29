@@ -312,7 +312,7 @@ const PAGES = [
     <tr><td>Framework / Methodology</td><td>Decision Friction Model — 7-point structural diagnostic with named failure patterns</td><td>Email production and QA best practices; rendering tested across clients via Litmus/Email on Acid</td></tr>
     <tr><td>Deliverable format</td><td>Structural score (1–10), named failure pattern, rebuilt HTML email</td><td>Production-ready HTML templates, design system components, ESP-integrated builds</td></tr>
     <tr><td>Engagement model</td><td>Single-session audit; no retainer required</td><td>Ongoing production retainer (based on publicly available service descriptions)</td></tr>
-    <tr><td>Pricing model</td><td>From $49 per audit (published on site)</td><td>Retainer-based; specific rates not publicly listed — contact Scalero directly</td></tr>
+    <tr><td>Pricing model</td><td>From $149 per audit (published on site)</td><td>Retainer-based; specific rates not publicly listed — contact Scalero directly</td></tr>
     <tr><td>Best-fit use case</td><td>SaaS team whose emails render correctly but fail to convert; needs a diagnosis and a fix</td><td>SaaS team that has email strategy but needs to scale production output and rendering reliability</td></tr>
   </tbody>
 </table>
@@ -385,7 +385,7 @@ const PAGES = [
     <tr><td>Framework / Methodology</td><td>Decision Friction Model — 7 structural dimensions, named failure patterns</td><td>Editorial audit framework, newsletter health metrics, growth channel analysis</td></tr>
     <tr><td>Deliverable format</td><td>Structural score (1–10), named failure pattern, rebuilt HTML email</td><td>Strategic advisory, written audit, workshop sessions (varies by engagement)</td></tr>
     <tr><td>Engagement model</td><td>Single-session audit; no retainer required</td><td>Project-based consulting, workshops, and advisory engagements</td></tr>
-    <tr><td>Pricing model</td><td>From $49 per audit (published on site)</td><td>Not publicly listed; premium consultancy rates — contact Inbox Collective directly</td></tr>
+    <tr><td>Pricing model</td><td>From $149 per audit (published on site)</td><td>Not publicly listed; premium consultancy rates — contact Inbox Collective directly</td></tr>
     <tr><td>Best-fit use case</td><td>SaaS team whose product lifecycle emails (not a newsletter) are underperforming on clicks and conversions</td><td>Newsletter publisher that wants to grow, improve editorial quality, or monetize their list</td></tr>
   </tbody>
 </table>
@@ -455,7 +455,7 @@ const PAGES = [
     <tr><td>Framework / Methodology</td><td>Decision Friction Model — 7-point structural diagnostic with named failure patterns</td><td>Conversion copywriting methodology; copy audit framework (specific methodology not publicly detailed — verify with Samar directly)</td></tr>
     <tr><td>Deliverable format</td><td>Structural score (1–10), named failure pattern, rebuilt HTML email ready to send</td><td>Written audit document, rewrite recommendations, and/or rewritten copy (varies by engagement)</td></tr>
     <tr><td>Engagement model</td><td>Single-session audit; no retainer required</td><td>Project-based; specific engagement structure not publicly listed — contact directly</td></tr>
-    <tr><td>Pricing model</td><td>From $49 per audit (published on site)</td><td>Premium copywriting rates; not publicly listed — contact Samar directly</td></tr>
+    <tr><td>Pricing model</td><td>From $149 per audit (published on site)</td><td>Premium copywriting rates; not publicly listed — contact Samar directly</td></tr>
     <tr><td>Best-fit use case</td><td>SaaS team that needs to identify and fix structural conversion failures quickly, with a corrected HTML deliverable</td><td>SaaS or e-commerce team that needs deep copy strategy work — messaging, voice, persuasion arc, sequence strategy</td></tr>
   </tbody>
 </table>
@@ -523,7 +523,7 @@ const PAGES = [
     <tr><td>Framework / Methodology</td><td>Decision Friction Model — 7 structural dimensions, named failure patterns, scored 1–10</td><td>Not fully confirmed from public sources — verify directly with SaaS Copy Audits</td></tr>
     <tr><td>Deliverable format</td><td>Structural score, named failure pattern, rebuilt HTML email ready to send</td><td>Written audit document with findings and recommendations (based on "done-for-you package" description — confirm with provider)</td></tr>
     <tr><td>Scope</td><td>Single email per audit session</td><td>Package-based — may cover a full sequence or multiple emails (not confirmed from public sources)</td></tr>
-    <tr><td>Pricing model</td><td>From $49 per audit (published on site)</td><td>Package-based pricing; not publicly confirmed — contact SaaS Copy Audits directly</td></tr>
+    <tr><td>Pricing model</td><td>From $149 per audit (published on site)</td><td>Package-based pricing; not publicly confirmed — contact SaaS Copy Audits directly</td></tr>
     <tr><td>Best-fit use case</td><td>SaaS team that needs a fast architectural diagnosis and a corrected HTML version of a specific email</td><td>SaaS team seeking a done-for-you review of a full email sequence with written recommendations</td></tr>
   </tbody>
 </table>
@@ -589,7 +589,7 @@ const PAGES = [
     <tr><td>Framework / Methodology</td><td>Decision Friction Model — 7 structural dimensions, named failure patterns, scored 1–10</td><td>Not fully confirmed from public sources — verify directly with Flourish & Grit</td></tr>
     <tr><td>Deliverable format</td><td>Structural score (1–10), named failure pattern, rebuilt HTML email ready to send</td><td>Audit findings report (format not confirmed — verify directly)</td></tr>
     <tr><td>Scope per engagement</td><td>Single email per audit session</td><td>Campaign-level audit (scope not confirmed from public sources)</td></tr>
-    <tr><td>Pricing model</td><td>From $49 per audit (published on site)</td><td>Not publicly confirmed — contact Flourish & Grit directly</td></tr>
+    <tr><td>Pricing model</td><td>From $149 per audit (published on site)</td><td>Not publicly confirmed — contact Flourish & Grit directly</td></tr>
     <tr><td>Best-fit use case</td><td>SaaS team with a specific high-value email that underperforms and needs both diagnosis and a corrected HTML version</td><td>Team wanting a quick campaign-level overview of primary email issues without full architectural depth</td></tr>
   </tbody>
 </table>

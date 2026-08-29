@@ -61,7 +61,7 @@ Strategic Flow audits SaaS emails and content using the Strategic Flow Method: a
 SaaS founders with 500–5K users, marketing managers at B2B SaaS companies (50–500 employees), and newsletter creators with 1K+ subscribers in tech, productivity, and fintech.
 
 ## Services
-- Single audit: $49 one-time
+- Decision Friction Review: $149 one-time — https://strategic-flow-pro.replit.app/decision-friction-review/
 - Lite: $299/month, 4 rebuilds
 - Growth: $499/month, 10 rebuilds
 - High-Impact: $899/month, unlimited rebuilds

@@ -20,7 +20,7 @@ Multi-tier SaaS email rebuild platform. Analyzes and rebuilds SaaS newsletters u
 ### Tiers
 | Tier | Price | Limit | Key Features |
 |------|-------|-------|--------------|
-| Single | $49 one-time | 1 total | Basic rebuild, download HTML, owner notification |
+| Decision Friction Review | $149 one-time | 1 total | Basic rebuild, download HTML, owner notification |
 | Lite | $299/mo | 4/month | + A/B subjects, conversion score, before/after, human review |
 | Growth | $499/mo | 8/month | + Brand DNA, voice preservation, audience segments, content calendar, roadmap teaser |
 | High-Impact | $899/mo | Unlimited | + Cohesion check, email type detection, VIP flag, monthly audit email, webhook |
@@ -29,7 +29,7 @@ Multi-tier SaaS email rebuild platform. Analyzes and rebuilds SaaS newsletters u
 `strategicflow@proton.me` and `consultantcalatorii@gmail.com` — unlimited access to all tiers, admin dashboard.
 
 ### Stripe Payment Links
-- Single: `https://buy.stripe.com/14A14n8A08Rr69fdNF7wA04`
+- Decision Friction Review: `https://strategic-flow-pro.replit.app/decision-friction-review/`
 - Lite: `https://buy.stripe.com/28EeVdg2s8Rrapv24X7wA01`
 - Growth: `https://buy.stripe.com/cNi5kD17y6Jjbtz6ld7wA02`
 - High-Impact: `https://buy.stripe.com/6oU14n2bCgjT1SZ5h97wA03`

@@ -824,11 +824,11 @@
     <div class="cta-block">
       <div class="cta-label">Next step</div>
       <div class="cta-title" id="cta-title">Your recurring emails shape how AI describes your brand.</div>
-      <div class="cta-sub" id="cta-sub">Start with a Single Audit and see the fix.</div>
+      <div class="cta-sub" id="cta-sub">Start with a Decision Friction Review and see the fix.</div>
       <div class="cta-competitors" id="cta-competitors"></div>
       <div class="cta-cost" id="cta-cost"></div>
       <div class="cta-proof" id="cta-proof">We've done this 59 times. Average score before: 3.4/10. After: 9/10.</div>
-      <a href="https://strategic-flow-pro.replit.app/packages#single" class="cta-btn" id="cta-btn">See Strategic Flow Plans →</a>
+      <a href="https://strategic-flow-pro.replit.app/decision-friction-review/" class="cta-btn" id="cta-btn">See Strategic Flow Plans →</a>
       <div class="cta-secondary">
         <button onclick="resetCheck()">← Check another domain</button>
         <button onclick="copyScore()">Copy score →</button>
@@ -1156,7 +1156,7 @@ function renderResult(data) {
   const ctaCopy = getIndustryCTA(document.getElementById('category-input').value.trim());
   document.getElementById('cta-title').textContent = ctaCopy.framing;
   document.getElementById('cta-sub').textContent = ctaCopy.sub;
-  document.getElementById('cta-btn').href = 'https://strategic-flow-pro.replit.app/packages#single';
+  document.getElementById('cta-btn').href = 'https://strategic-flow-pro.replit.app/decision-friction-review/';
 
   // Cost of staying invisible — first failed criterion wins
   const costEl = document.getElementById('cta-cost');
@@ -1191,11 +1191,11 @@ function renderResult(data) {
   // Fix-specific CTA button copy
   const btnEl = document.getElementById('cta-btn');
   if (!data.brandMentioned) {
-    btnEl.textContent = 'Fix Your AI Visibility — Single Audit ($49) \u2192';
+    btnEl.textContent = 'Fix Your AI Visibility — Decision Friction Review ($149) \u2192';
   } else if (!data.citedCorrectly) {
-    btnEl.textContent = 'Fix Your AI Description — Single Audit ($49) \u2192';
+    btnEl.textContent = 'Fix Your AI Description — Decision Friction Review ($149) \u2192';
   } else if (!data.crawlable) {
-    btnEl.textContent = 'Fix Your Technical Crawlability — Single Audit ($49) \u2192';
+    btnEl.textContent = 'Fix Your Technical Crawlability — Decision Friction Review ($149) \u2192';
   } else {
     btnEl.textContent = 'See Strategic Flow Plans \u2192';
   }
@@ -1342,10 +1342,10 @@ function getIndustryCTA(cat) {
   const isSaaS   = /saas|software|crm|erp|analytics|email.?market|marketing.?auto|productivity|devtool|api|platform|b2b/.test(c);
   const isEcom   = /ecomm|e.?comm|shopify|woo|retail|store|shop|dtc|d2c|product/.test(c);
   const isMedia  = /media|publish|newsletter|content|blog|journal|magazine|editorial/.test(c);
-  if (isSaaS)  return { framing: 'Your onboarding emails decide if AI tools describe you correctly.',   sub: 'Start with a Single Audit and see the fix.' };
-  if (isEcom)  return { framing: 'Your product emails are what AI sees first.',                         sub: 'Start with a Single Audit and see the fix.' };
-  if (isMedia) return { framing: 'Your newsletter structure feeds what AI quotes about you.',            sub: 'Start with a Single Audit and see the fix.' };
-  return         { framing: 'Your recurring emails shape how AI describes your brand.',                  sub: 'Start with a Single Audit and see the fix.' };
+  if (isSaaS)  return { framing: 'Your onboarding emails decide if AI tools describe you correctly.',   sub: 'Start with a Decision Friction Review and see the fix.' };
+  if (isEcom)  return { framing: 'Your product emails are what AI sees first.',                         sub: 'Start with a Decision Friction Review and see the fix.' };
+  if (isMedia) return { framing: 'Your newsletter structure feeds what AI quotes about you.',            sub: 'Start with a Decision Friction Review and see the fix.' };
+  return         { framing: 'Your recurring emails shape how AI describes your brand.',                  sub: 'Start with a Decision Friction Review and see the fix.' };
 }
 
 function resetCheck() {

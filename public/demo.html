@@ -1140,31 +1140,31 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
 
         <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
-          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Single Rebuild</div>
-          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$49 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">one time</span></div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Decision Friction Review</div>
+          <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$149 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">one time</span></div>
           <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">One email, rebuilt and scored. The fastest way to see the method on your own material.</p>
-          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToPackages()">Start with one email</button>
+          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToDecisionFrictionReview()">Start with one email</button>
         </div>
 
         <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
           <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Lite</div>
           <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$299 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
           <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">4 rebuilds per month plus A/B subject variants and a content calendar. One rebuilt email typically recovers more revenue than the plan costs.</p>
-          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToPackages()">See Lite</button>
+          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToDecisionFrictionReview()">See Lite</button>
         </div>
 
         <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
           <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">Growth</div>
           <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$499 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
           <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">8 rebuilds per month plus onboarding sequence audit. For teams sending weekly.</p>
-          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToPackages()">See Growth</button>
+          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToDecisionFrictionReview()">See Growth</button>
         </div>
 
         <div style="background:var(--panel);border:1px solid var(--border);padding:20px 20px 24px;">
           <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--scan-cyan);text-transform:uppercase;margin-bottom:8px;">High-Impact</div>
           <div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--text-primary);font-weight:700;margin-bottom:12px;">$899 <span style="font-size:11px;color:var(--text-dim);font-weight:400;">/mo</span></div>
           <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:20px;">Everything in Growth at full volume, with priority turnaround. For marketing teams where email is a primary channel.</p>
-          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToPackages()">See High-Impact</button>
+          <button class="btn btn-primary" style="width:100%;font-size:12px;" onclick="goToDecisionFrictionReview()">See High-Impact</button>
         </div>
 
       </div>
@@ -2389,9 +2389,9 @@ footer{margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-/* ── AFFILIATE / PACKAGE NAVIGATION ───────────────────── */
-function goToPackages() {
-  const base = 'https://strategic-flow-pro.replit.app/packages';
+/* ── AFFILIATE / REVIEW NAVIGATION ────────────────────── */
+function goToDecisionFrictionReview() {
+  const base = 'https://strategic-flow-pro.replit.app/decision-friction-review/';
   const url  = _affiliateRef
     ? base + '?ref=' + encodeURIComponent(_affiliateRef)
     : base;
