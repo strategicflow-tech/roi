@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="190" height="54" viewBox="0 0 190 54" role="img" aria-labelledby="title">
-  <title>ToolIndex badge</title>
-  <rect width="190" height="54" rx="8" fill="#111827" stroke="#334155"/>
-  <circle cx="27" cy="27" r="11" fill="none" stroke="#00d4c8" stroke-width="3"/>
-  <path d="M27 15v24M15 27h24" stroke="#00d4c8" stroke-width="2"/>
-  <text x="48" y="32" fill="#f8fafc" font-family="Arial, sans-serif" font-size="16" font-weight="700">ToolIndex</text>
-</svg>

@@ -1865,6 +1865,7 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
     .sf-ticker-track-rtl{animation-name:dir-scroll-rtl;}
     .sf-ticker-track > a,.sf-ticker-track-rtl > a{box-sizing:border-box;display:flex!important;align-items:center!important;justify-content:center;flex:0 0 190px!important;width:190px!important;height:54px!important;min-height:54px;margin:0!important;padding:0 6px;}
     .sf-ticker-track > a > img,.sf-ticker-track-rtl > a > img{display:block!important;width:auto!important;max-width:100%!important;height:42px!important;max-height:42px!important;object-fit:contain;}
+    .sf-ticker-fallback{box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;height:42px;padding:0 12px;border:1px solid rgba(0,212,200,.35);border-radius:7px;background:rgba(0,212,200,.07);color:#d7f8f5;font-family:var(--mono);font-size:11px;letter-spacing:.03em;text-align:center;white-space:nowrap;}
     .sf-ticker-wrap:hover .sf-ticker-track,.sf-ticker-wrap:hover .sf-ticker-track-rtl{animation-play-state:paused;}
     @keyframes dir-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
     @keyframes dir-scroll-rtl{0%{transform:translateX(-50%)}100%{transform:translateX(0)}}
@@ -1904,7 +1905,13 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
           img.addEventListener('error',function(){
             if(this.dataset.sfFallback)return;
             this.dataset.sfFallback='1';
-            this.setAttribute('src','/badges/toolindex-badge-fallback.svg');
+            var label=(this.getAttribute('alt')||'Directory badge').replace(/^(Featured|Listed|Find us)\s+on\s+/i,'');
+            var fallback=document.createElement('span');
+            fallback.className='sf-ticker-fallback';
+            fallback.setAttribute('role','img');
+            fallback.setAttribute('aria-label',this.getAttribute('alt')||'Directory badge');
+            fallback.textContent=label;
+            this.replaceWith(fallback);
           });
         });
         wrap.addEventListener('touchstart',function(e){
