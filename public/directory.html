@@ -2714,9 +2714,12 @@ function renderVisible(){
   grid.innerHTML = buildGridHtml(filteredListings.slice(0, showing));
   counter.textContent = `Showing ${showing} of ${total} products`;
   const heroCount = document.getElementById('heroCount');
-  if (heroCount && allListings.length) heroCount.textContent = allListings.length + '+';
   const heroBrowseCount = document.getElementById('heroBrowseCount');
-  if (heroBrowseCount && allListings.length) heroBrowseCount.textContent = allListings.length + '+';
+  const activeListingCount = Number(window.__ACTIVE_LISTING_COUNT__);
+  if (Number.isFinite(activeListingCount) && activeListingCount >= 0) {
+    if (heroCount) heroCount.textContent = activeListingCount + '+';
+    if (heroBrowseCount) heroBrowseCount.textContent = activeListingCount + '+';
+  }
   if(showing >= total){
     wrap.style.display = 'flex';
     btn.style.display  = 'none';

@@ -904,6 +904,8 @@ app.get('/directory', async (req, res) => {
     const liveCount = await getActiveListingCount();
     const countStr = liveCount + '+';
     html = html.replace(/\b500\+/g, countStr).replace(/\b544\+/g, countStr).replace(/\b550\+/g, countStr).replace(/\b566\+/g, countStr).replace(/\b892\+/g, countStr);
+    html = html.replace('</head>',
+      `<script>window.__ACTIVE_LISTING_COUNT__=${liveCount};</script>\n</head>`);
 
     // Inject SSR payload so the client JS skips the /api/directory/listings fetch
     const safeListings = JSON.stringify(listings).replace(/<\/script>/gi, '<\\/script>');
