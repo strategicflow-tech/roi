@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test:agency-outreach": "node --test scripts/test-agency-outreach-send.js",
     "test:resend-webhook": "node scripts/test-resend-webhook.js",
     "test:founder-pack": "node scripts/test-founder-pack.js"
   },

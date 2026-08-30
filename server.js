@@ -28,6 +28,7 @@ const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
 const { safeFetchPublicUrl, validatePublicHttpUrl } = require('./safe-url-fetch');
+const { createAgencyOutreachRouter } = require('./agency-outreach-endpoint');
 
 const app    = express();
 app.set('trust proxy', 1);
@@ -266,7 +267,11 @@ function buildDecisionFrictionMcpEmail({ name, context }) {
 {
   const _origSend = resend.emails.send.bind(resend.emails);
   resend.emails.send = async function patchedSend(params) {
-    const { _skipGlobalCooldown = false, ...providerParams } = params;
+    const {
+      _skipGlobalCooldown = false,
+      _skipGlobalEmailLog = false,
+      ...providerParams
+    } = params;
     const toRaw = Array.isArray(providerParams.to) ? providerParams.to[0] : (providerParams.to || '');
     const to    = toRaw.toLowerCase().trim();
     const subj  = providerParams.subject || '';
@@ -289,7 +294,7 @@ function buildDecisionFrictionMcpEmail({ name, context }) {
 
     const result = await _origSend(providerParams);
 
-    if (!isAdminAddr && !result?.error && !result?.cooldownBlocked) {
+    if (!_skipGlobalEmailLog && !isAdminAddr && !result?.error && !result?.cooldownBlocked) {
       recordEmailSent(to, subj).catch(() => {});   // fire-and-forget
     }
     return result;
@@ -570,6 +575,14 @@ function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
   res.header('Access-Control-Allow-Methods', methods);
   res.header('Access-Control-Allow-Headers', 'Content-Type');
 }
+
+app.use('/api/outreach', createAgencyOutreachRouter({
+  sendEmail: params => resend.emails.send({
+    ...params,
+    _skipGlobalCooldown: true,
+    _skipGlobalEmailLog: true
+  })
+}));
 
 // SESSION MIDDLEWARE
 app.use(session({
