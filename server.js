@@ -29,6 +29,12 @@ const {
   freshProductHuntVotesDue,
   freshProductHuntVoteHash,
 } = require('./fresh-product-hunt-votes');
+const {
+  CLAIMED_LISTING_VOTE_INTERVAL_MS,
+  claimedListingVoteTarget,
+  claimedListingVotesDue,
+  claimedListingVoteHash,
+} = require('./claimed-listing-votes');
 
 const multer = require('multer');
 const path   = require('path');
@@ -8454,6 +8460,112 @@ async function runFreshProductHuntVoteSeeding() {
     return { error: error.message };
   } finally {
     _freshProductHuntVoteSeedingRunning = false;
+  }
+}
+
+// ── Claimed listing 24-hour vote boost ───────────────────────────────────────
+// A listing claimed in the last 24 hours and still active appears in the
+// directory's public lists. Give it a separate, finite 5–15 vote boost while
+// preserving the protected first-party exclusions above.
+let _claimedListingVoteBoostRunning = false;
+
+async function runClaimedListingVoteBoost() {
+  if (_claimedListingVoteBoostRunning) return { skipped: 'already_running' };
+  _claimedListingVoteBoostRunning = true;
+
+  try {
+    const { rows: listings } = await pool.query(
+      `SELECT id, name, claimed_at
+       FROM directory_listings
+       WHERE status='active'
+         AND claimed_by IS NOT NULL
+         AND LENGTH(TRIM(claimed_by)) > 0
+         AND claimed_at > NOW() - INTERVAL '24 hours'
+         AND claimed_at <= NOW()
+         AND id <> ALL($1::int[])
+       ORDER BY claimed_at ASC, id ASC`,
+      [Array.from(SEED_VOTE_DISABLED_IDS)]
+    );
+
+    const now = Date.now();
+    let added = 0;
+    let processed = 0;
+
+    for (const listing of listings) {
+      const claimedMs = new Date(listing.claimed_at).getTime();
+      const ageMs = now - claimedMs;
+      const target = claimedListingVoteTarget(listing.id, listing.claimed_at);
+      const dueCount = claimedListingVotesDue(target, ageMs);
+      if (dueCount <= 0) continue;
+
+      const prefix = `claimed_24h_${listing.id}_`;
+      const existingResult = await pool.query(
+        `SELECT voter_hash
+         FROM dir_votes
+         WHERE listing_id=$1
+           AND LEFT(voter_hash, LENGTH($2))=$2`,
+        [listing.id, prefix]
+      );
+      const existingHashes = new Set(existingResult.rows.map(row => row.voter_hash));
+      const missingHashes = [];
+      for (let voteIndex = 0; voteIndex < dueCount; voteIndex++) {
+        const voterHash = claimedListingVoteHash(listing.id, voteIndex);
+        if (!existingHashes.has(voterHash)) missingHashes.push({ voterHash, voteIndex });
+      }
+      if (!missingHashes.length) continue;
+
+      const voteRows = missingHashes.map(({ voterHash, voteIndex }) => [
+        listing.id,
+        voterHash,
+        new Date(Math.min(now, claimedMs + voteIndex * CLAIMED_LISTING_VOTE_INTERVAL_MS)).toISOString(),
+      ]);
+      const placeholders = voteRows
+        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+        .join(',');
+      const params = voteRows.flat();
+      const listingIdParam = params.length + 1;
+      params.push(listing.id);
+
+      const result = await pool.query(
+        `WITH inserted AS (
+           INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+           VALUES ${placeholders}
+           ON CONFLICT DO NOTHING
+           RETURNING listing_id
+         ),
+         updated AS (
+           UPDATE directory_listings
+           SET vote_count=COALESCE(vote_count, 0)+(SELECT COUNT(*) FROM inserted)
+           WHERE id=$${listingIdParam}
+             AND (SELECT COUNT(*) FROM inserted) > 0
+           RETURNING vote_count
+         )
+         SELECT
+           (SELECT COUNT(*)::int FROM inserted) AS added,
+           (SELECT vote_count FROM updated) AS vote_count`,
+        params
+      );
+
+      const inserted = Number(result.rows[0]?.added || 0);
+      if (inserted > 0) {
+        added += inserted;
+        processed++;
+        console.log(
+          `[claimed-boost] ${listing.name} (#${listing.id}) +${inserted} ` +
+          `(target ${target}, due ${dueCount}, now ${result.rows[0]?.vote_count})`
+        );
+      }
+    }
+
+    if (listings.length || added) {
+      console.log(`[claimed-boost] checked=${listings.length} listings, updated=${processed}, added=${added}`);
+    }
+    return { checked: listings.length, updated: processed, added };
+  } catch (error) {
+    console.error('[claimed-boost] error:', error.message);
+    return { error: error.message };
+  } finally {
+    _claimedListingVoteBoostRunning = false;
   }
 }
 
@@ -27609,6 +27721,9 @@ full HTML body here
   runFreshProductHuntVoteSeeding().catch(error => {
     console.error('[fresh-ph-votes] startup seeding failed:', error.message);
   });
+  runClaimedListingVoteBoost().catch(error => {
+    console.error('[claimed-boost] startup boost failed:', error.message);
+  });
   runTargetedVoteCampaigns().catch(()=>{});
   scheduleTemporaryMcpVoteCampaign().catch(error => {
     console.error('[temporary-mcp-votes] startup scheduling failed:', error.message);
@@ -27698,6 +27813,11 @@ full HTML body here
   cron.schedule('0 */2 * * *', () => {
     runFreshProductHuntVoteSeeding().catch(error => {
       console.error('[cron-fresh-ph-votes]', error.message);
+    });
+  }, { timezone: 'UTC' });
+  cron.schedule('0 */2 * * *', () => {
+    runClaimedListingVoteBoost().catch(error => {
+      console.error('[cron-claimed-boost]', error.message);
     });
   }, { timezone: 'UTC' });
 
