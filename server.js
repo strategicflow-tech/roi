@@ -6129,6 +6129,7 @@ function parseToolIndexDraftCsv(csvText) {
     const values = parseCsvLine(lines[i]);
     const row = {};
     for (const key of required) row[key] = values[index(key)] ?? '';
+    row.launch_date = index('launch_date') >= 0 ? values[index('launch_date')] ?? '' : '';
     row.file_row = i + 1;
     rows.push(row);
   }
@@ -6162,20 +6163,33 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         failed.push({ file_row: row.file_row, name, reason: 'missing name' });
         continue;
       }
-      if (!row.url.trim()) {
+      const normalizedUrl = row.url.trim() || null;
+      const contactEmail = row.contact_email.trim().toLowerCase();
+      if (nameKey === 'opentag' || contactEmail === 'privacy@opentag.bot') {
+        skipped.push({
+          file_row: row.file_row,
+          name,
+          reason: 'explicit OpenTag exclusion',
+        });
+        continue;
+      }
+      const emptyUrlAllowed = nameKey === 'milkmode' || nameKey === 'lubb';
+      if (!normalizedUrl && !emptyUrlAllowed) {
         failed.push({ file_row: row.file_row, name, reason: 'missing URL' });
         continue;
       }
 
       let rootDomain;
-      try {
-        rootDomain = toolIndexRootDomain(row.url);
-      } catch (e) {
-        failed.push({ file_row: row.file_row, name, reason: `invalid URL: ${e.message}` });
-        continue;
+      if (normalizedUrl) {
+        try {
+          rootDomain = toolIndexRootDomain(normalizedUrl);
+        } catch (e) {
+          failed.push({ file_row: row.file_row, name, reason: `invalid URL: ${e.message}` });
+          continue;
+        }
       }
       const duplicateName = existingNames.has(nameKey) || batchNames.has(nameKey);
-      const duplicateDomain = existingDomains.has(rootDomain) || batchDomains.has(rootDomain);
+      const duplicateDomain = Boolean(rootDomain && (existingDomains.has(rootDomain) || batchDomains.has(rootDomain)));
       if (duplicateName || duplicateDomain) {
         skipped.push({
           file_row: row.file_row,
@@ -6190,13 +6204,14 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         const inserted = await pool.query(
           `INSERT INTO directory_listings
              (name, url, description, category, founder_name, contact_email,
-              source, source_url, image_url, status, is_seeded, is_auto_imported,
+               source, source_url, image_url, launch_date, status, is_seeded, is_auto_imported,
               score_pending, submitted_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',false,false,false,NOW())
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW())
            RETURNING id, name`,
           [
-            row.name, row.url, row.description, category, row.founder_name,
+            row.name, normalizedUrl, row.description, category, row.founder_name,
             row.contact_email, row.source, row.source_url, row.image_url,
+            row.launch_date.trim() || null,
           ]
         );
         const id = inserted.rows[0].id;
