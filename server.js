@@ -8344,10 +8344,10 @@ async function activateScheduledBoosts() {
 const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298, 7540]);
 
 // ── Fresh Product Hunt vote seeding ──────────────────────────────────────────
-// Product Hunt imports use submitted_at as their durable arrival timestamp.
-// Each listing gets one deterministic 4–12 vote target, then unlocks the
-// target gradually in two-hour slots during its first 24 hours. The hash
-// namespace is isolated from every older seed/growth campaign.
+// Product Hunt imports and other newly active listings use submitted_at as
+// their durable arrival timestamp. Each listing gets one deterministic 4–12
+// vote target, then unlocks the target gradually in two-hour slots during its
+// first 24 hours. The hash namespace is isolated from older seed campaigns.
 let _freshProductHuntVoteSeedingRunning = false;
 
 async function runFreshProductHuntVoteSeeding() {
@@ -8358,8 +8358,13 @@ async function runFreshProductHuntVoteSeeding() {
     const { rows: listings } = await pool.query(
       `SELECT id, name, submitted_at
        FROM directory_listings
-       WHERE LOWER(REPLACE(COALESCE(source, ''), '_', ' ')) = 'product hunt'
-         AND status IN ('active', 'draft')
+       WHERE (
+           status = 'active'
+           OR (
+             status = 'draft'
+             AND LOWER(REPLACE(COALESCE(source, ''), '_', ' ')) = 'product hunt'
+           )
+         )
          AND submitted_at > NOW() - INTERVAL '24 hours'
          AND submitted_at <= NOW()
          AND id <> ALL($1::int[])
