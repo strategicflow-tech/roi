@@ -23,7 +23,7 @@ assert.ok(targets.size > 1, 'targets should vary between listings');
 
 for (const target of [CLAIMED_LISTING_MIN_VOTES, 10, CLAIMED_LISTING_MAX_VOTES]) {
   assert.equal(claimedListingVotesDue(target, -1), 0);
-  assert.equal(claimedListingVotesDue(target, 0), 1);
+  assert.equal(claimedListingVotesDue(target, 0), Math.ceil(target / 12));
   assert.ok(claimedListingVotesDue(target, CLAIMED_LISTING_VOTE_INTERVAL_MS) >= 1);
   assert.equal(claimedListingVotesDue(target, CLAIMED_LISTING_VOTE_WINDOW_MS), target);
   assert.equal(claimedListingVotesDue(target, 22 * 60 * 60 * 1000), target);
