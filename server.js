@@ -620,6 +620,100 @@ app.get(`/outreach/${AGENCY_OUTREACH_TRACKER_SLUG}/tracker.html`, (req, res) => 
       `${tokenFunctionMarker}\n  if (typeof INJECTED_OUTREACH_TOKEN !== 'undefined') return INJECTED_OUTREACH_TOKEN;`
     );
 
+    const replaceTrackerCode = (from, to) => {
+      if (!served.includes(from)) throw new Error('Outreach tracker template is missing an expected code block.');
+      served = served.replace(from, to);
+    };
+
+    replaceTrackerCode(
+      `const STORAGE_KEY = "sf_agency_outreach_contacted";
+const FOLLOWUP_KEY = "sf_agency_outreach_followup_sent";`,
+      `const STORAGE_KEY = "sf_agency_outreach_contacted";
+const FOLLOWUP_KEY = "sf_agency_outreach_followup_sent";
+const CONTACTED_AT_KEY = "sf_agency_outreach_contacted_at";
+const FOLLOWUP_DELAY_DAYS = 4;`
+    );
+
+    replaceTrackerCode(
+      `saveJSON(FOLLOWUP_KEY, followupSent);
+let activeFilter = "ALL";`,
+      `saveJSON(FOLLOWUP_KEY, followupSent);
+let contactedAt = loadJSON(CONTACTED_AT_KEY);
+let activeFilter = "ALL";`
+    );
+
+    replaceTrackerCode(
+      `function toggleContacted(id){
+  checked[id] = !checked[id];
+  saveJSON(STORAGE_KEY, checked);
+  // if un-contacted, also reset its follow-up state so it can't be marked sent before contact
+  if(!checked[id] && followupSent[id]){
+    followupSent[id] = false;
+    saveJSON(FOLLOWUP_KEY, followupSent);
+  }
+  render();
+}`,
+      `function toggleContacted(id){
+  checked[id] = !checked[id];
+  saveJSON(STORAGE_KEY, checked);
+  if(checked[id]){
+    if(!contactedAt[id]){ contactedAt[id] = Date.now(); saveJSON(CONTACTED_AT_KEY, contactedAt); }
+  } else {
+    if(followupSent[id]){ followupSent[id] = 0; saveJSON(FOLLOWUP_KEY, followupSent); }
+    delete contactedAt[id];
+    saveJSON(CONTACTED_AT_KEY, contactedAt);
+  }
+  render();
+}
+function isFollowupDateEligible(id){
+  const ts = contactedAt[id];
+  if(!ts) return true;
+  const days = (Date.now() - ts) / (1000*60*60*24);
+  return days >= FOLLOWUP_DELAY_DAYS;
+}
+function daysUntilFollowupEligible(id){
+  const ts = contactedAt[id];
+  if(!ts) return 0;
+  const days = (Date.now() - ts) / (1000*60*60*24);
+  return Math.max(0, Math.ceil(FOLLOWUP_DELAY_DAYS - days));
+}`
+    );
+
+    replaceTrackerCode(
+      `function isEmailFollowupDue(d){ return d.contact_type === 'email' && checked[d.id] && (followupSent[d.id]||0) < 1; }`,
+      `function isEmailFollowupDue(d){ return d.contact_type === 'email' && checked[d.id] && (followupSent[d.id]||0) < 1 && isFollowupDateEligible(d.id); }`
+    );
+
+    replaceTrackerCode(
+      `  const followupBlockClasses = isDone ? "followup-block" : "followup-block locked";
+  const followupBody = isDone`,
+      `  const followupBlockClasses = isDone ? "followup-block" : "followup-block locked";
+  const daysLeft = isDone ? daysUntilFollowupEligible(item.id) : 0;
+  const waitHint = (isDone && !isFollowedUp && daysLeft > 0) ? \`<div class="lock-hint">Eligibil pentru follow-up peste \${daysLeft} \${daysLeft===1?'zi':'zile'}.</div>\` : '';
+  const followupBody = isDone`
+    );
+
+    replaceTrackerCode(
+      `      <div class="msg-len">\${followupMsg.length} / 500 characters</div>
+      <button class="copy-btn" id="copyfollowbtn-\${item.id}" onclick="copyFollowup('\${item.id}')">Copy follow-up</button>`,
+      `      <div class="msg-len">\${followupMsg.length} / 500 characters</div>
+      \${waitHint}
+      <button class="copy-btn" id="copyfollowbtn-\${item.id}" onclick="copyFollowup('\${item.id}')">Copy follow-up</button>`
+    );
+
+    replaceTrackerCode(
+      `          if(kind === 'initial'){ checked[r.id] = true; }`,
+      `          if(kind === 'initial'){ checked[r.id] = true; contactedAt[r.id] = Date.now(); }`
+    );
+
+    replaceTrackerCode(
+      `      saveJSON(STORAGE_KEY, checked);
+      saveJSON(FOLLOWUP_KEY, followupSent);`,
+      `      saveJSON(STORAGE_KEY, checked);
+      saveJSON(FOLLOWUP_KEY, followupSent);
+      saveJSON(CONTACTED_AT_KEY, contactedAt);`
+    );
+
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(served);
   } catch (error) {
