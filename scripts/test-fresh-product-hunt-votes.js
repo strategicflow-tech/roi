@@ -25,7 +25,7 @@ for (const target of [FRESH_PRODUCT_HUNT_MIN_VOTES, 8, FRESH_PRODUCT_HUNT_MAX_VO
   assert.equal(freshProductHuntVotesDue(target, -1), 0);
   assert.equal(freshProductHuntVotesDue(target, 0), 1);
   assert.ok(freshProductHuntVotesDue(target, FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS) >= 1);
-  assert.equal(freshProductHuntVotesDue(target, FRESH_PRODUCT_HUNT_WINDOW_MS), target);
+  assert.equal(freshProductHuntVotesDue(target, FRESH_PRODUCT_HUNT_VOTE_WINDOW_MS), target);
   assert.equal(freshProductHuntVotesDue(target, 22 * 60 * 60 * 1000), target);
   for (let age = 0; age <= FRESH_PRODUCT_HUNT_VOTE_WINDOW_MS; age += FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS) {
     const due = freshProductHuntVotesDue(target, age);

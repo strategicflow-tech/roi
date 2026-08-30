@@ -25,7 +25,6 @@ const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-genera
 const { enrichListingWithAI } = require('./listing-enricher');
 const {
   FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS,
-  FRESH_PRODUCT_HUNT_VOTE_WINDOW_MS,
   freshProductHuntVoteTarget,
   freshProductHuntVotesDue,
   freshProductHuntVoteHash,
