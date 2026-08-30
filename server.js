@@ -4024,6 +4024,14 @@ function buildClaimFollowupEmail(name, listingUrl, email) {
   <li><strong>AI discovery visibility</strong> when people compare tools and ask AI assistants for recommendations</li>
   <li><strong>Leaderboard and badge eligibility</strong> through real community votes</li>
 </ul>
+<p style="margin:20px 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">After claiming: Founder Pack — one-time $49</p>
+<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
+  <li><strong>30 days of Premium visibility</strong></li>
+  <li><strong>Unlimited relaunches</strong> without the standard 30-day wait</li>
+  <li><strong>Priority logo placement</strong> in the ToolIndex brand carousel</li>
+  <li><strong>Weekly Listing Health Checks</strong> against your verified listing snapshot</li>
+  <li><strong>Editable Relaunch Kit drafts</strong> and <strong>Verified Listing History</strong></li>
+</ul>
 <p>Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form — we&rsquo;ll send a separate confirmation email before subscribing you.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${safeName} free &rarr;</a></p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(email || '')}</div>`;
@@ -4038,6 +4046,13 @@ Here are the features you may be missing:
 ✓ Permanent DR 86 dofollow backlink from strategicflow.tech
 ✓ AI discovery visibility when people compare tools and ask AI assistants for recommendations
 ✓ Leaderboard and badge eligibility through real community votes
+
+After claiming: Founder Pack — one-time $49
+  ✓ 30 days of Premium visibility
+  ✓ Unlimited relaunches without the standard 30-day wait
+  ✓ Priority logo placement in the ToolIndex brand carousel
+  ✓ Weekly Listing Health Checks against your verified listing snapshot
+  ✓ Editable Relaunch Kit drafts and Verified Listing History
 
 Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form. We will send a separate confirmation email before subscribing you.
 
@@ -5368,7 +5383,7 @@ app.post('/admin/run-weekly-spotlight', async (req, res) => {
 app.get('/admin/run-followup-batch', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   const cap = Math.min(parseInt(req.query.cap || '200', 10), 500);
-  const minHours = Math.max(24, Math.min(parseInt(req.query.min_hours || '168', 10), 720));
+  const minHours = Math.max(24, Math.min(parseInt(req.query.min_hours || '96', 10), 720));
   try {
     const { rows } = await pool.query(`
       SELECT id, name, url, contact_email, outreach_emailed_at
@@ -27385,8 +27400,8 @@ full HTML body here
   // cron.schedule('*/20 * * * *', async () => { ... });
 
 
-  // ── Daily 08:00 UTC: 7-day follow-up reminder for unclaimed drafts/actives — DISABLED ──
-  // Sends exactly ONE follow-up per listing, 7+ days after outreach_emailed_at,
+  // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
+  // Sends exactly ONE follow-up per listing, 4+ days after outreach_emailed_at,
   // only if still unclaimed. Tracked via follow_up_sent_at — never repeats.
   cron.schedule('0 8 * * *', async () => {
     console.log('[cron] Follow-up reminder check starting…');
@@ -27398,7 +27413,7 @@ full HTML body here
           AND follow_up_sent_at IS NULL
           AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
           AND claimed_at IS NULL
-          AND outreach_emailed_at < NOW() - INTERVAL '7 days'
+          AND outreach_emailed_at < NOW() - INTERVAL '4 days'
           AND contact_email IS NOT NULL
         ORDER BY outreach_emailed_at ASC
         LIMIT 50
@@ -27430,13 +27445,14 @@ full HTML body here
 ${buildUnsubFooterHtml(listing.contact_email)}
 </div>`;
           const followUpText = `Hi,\n\n${name}'s DR 86 dofollow backlink is sitting uncollected. Claiming the ToolIndex listing takes under a minute — it's free, and the backlink from strategicflow.tech is permanent.\n\nYou can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
+          const canonicalFollowup = buildClaimFollowupEmail(name, listingUrl, listing.contact_email);
           await resend.emails.send({
             from:    SENDER,
             to:      listing.contact_email,
             replyTo: 'strategicflow@proton.me',
-            subject: `Your DR 86 backlink for ${name} is waiting`,
-            html:    followUpHtml,
-            text:    followUpText,
+            subject: canonicalFollowup.subject,
+            html:    canonicalFollowup.html,
+            text:    canonicalFollowup.text,
           });
           await pool.query(`UPDATE directory_listings SET follow_up_sent_at=NOW() WHERE id=$1`, [listing.id]);
           console.log(`[cron-followup] ✓ Follow-up sent → ${listing.contact_email} (${name})`);
