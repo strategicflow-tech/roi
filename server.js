@@ -6148,6 +6148,15 @@ function toolIndexRootDomain(rawUrl) {
     : suffix;
 }
 
+function isSharedProductHost(rawUrl) {
+  try {
+    const hostname = new URL(String(rawUrl || '').trim()).hostname.toLowerCase();
+    return hostname === 'chromewebstore.google.com';
+  } catch {
+    return false;
+  }
+}
+
 function inferToolIndexCategory(name, url, description) {
   const signal = `${name || ''} ${url || ''} ${description || ''}`.toLowerCase();
   const rules = [
@@ -6252,7 +6261,11 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         }
       }
       const duplicateName = existingNames.has(nameKey) || batchNames.has(nameKey);
-      const duplicateDomain = Boolean(rootDomain && (existingDomains.has(rootDomain) || batchDomains.has(rootDomain)));
+      const duplicateDomain = Boolean(
+        rootDomain &&
+        !isSharedProductHost(normalizedUrl) &&
+        (existingDomains.has(rootDomain) || batchDomains.has(rootDomain))
+      );
       if (duplicateName || duplicateDomain) {
         skipped.push({
           file_row: row.file_row,
