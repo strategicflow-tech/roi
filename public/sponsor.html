@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Become a Sponsor — ToolIndex</title>
-<meta name="description" content="Sponsor ToolIndex and get your brand in front of founders browsing 566+ SaaS tools. Only 3 sidebar slots. DR 86 dofollow link included."/>
+<meta name="description" content="Sponsor a ToolIndex category and get your brand in front of founders browsing 566+ SaaS tools. Three sidebar slots per category. DR 86 dofollow link included."/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--teal:#00d4c8;--teal-dim:rgba(0,212,200,.1);--bg:#0a1628;--card:#0f2035;--border:rgba(255,255,255,.08);--muted:#7a9ab8;--text:#e2e8f0;--sub:#a0b4c8;--mono:'DM Mono',monospace}
@@ -54,6 +54,8 @@ h1 span{color:var(--teal)}
 .field input:focus,.field textarea:focus{border-color:var(--teal)}
 .field input::placeholder,.field textarea::placeholder{color:rgba(122,154,184,.5)}
 .field textarea{resize:vertical;min-height:72px}
+.field select{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s;appearance:auto}
+.field select:focus{border-color:var(--teal)}
 /* Pricing */
 .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media(max-width:640px){.pricing-grid{grid-template-columns:1fr}}
@@ -129,8 +131,8 @@ h1 span{color:var(--teal)}
   <div class="hero-tag">🎯 Sponsorship</div>
   <h1>Reach founders browsing <span>566+ SaaS tools</span></h1>
   <p class="hero-sub">
-    Your brand sits in the sidebar of every ToolIndex listing page — the directory with a DR 86 dofollow link.
-    <span id="heroSlotsCopy">Only 3 slots</span>. No scripts, no tracking pixel, no middleman. Just a clean logo, name, and link.
+    Your brand sits in the sidebar beside the ToolIndex category you choose — the directory with a DR 86 dofollow link.
+    <span id="heroSlotsCopy">Three slots per category</span>. No scripts, no tracking pixel, no middleman. Just a clean logo, name, and link.
   </p>
 
   <!-- SLOT COUNTER -->
@@ -145,11 +147,11 @@ h1 span{color:var(--teal)}
     <div class="benefits-title">What you get</div>
     <div class="benefits-list">
       <div class="benefit-item"><span class="benefit-check">✓</span><span>Featured in the sidebar on the main directory page — visible on every scroll</span></div>
-      <div class="benefit-item"><span class="benefit-check">✓</span><span>Displayed on every individual product page across 566+ listings</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Displayed on individual product pages in your selected category</span></div>
       <div class="benefit-item"><span class="benefit-check">✓</span><span>Direct dofollow link from DR 86 domain — genuine SEO value</span></div>
       <div class="benefit-item"><span class="benefit-check">✓</span><span>Audience of founders and makers actively evaluating tools</span></div>
       <div class="benefit-item"><span class="benefit-check">✓</span><span>Instant activation — live as soon as payment clears, no approval queue</span></div>
-      <div class="benefit-item"><span class="benefit-check">✓</span><span>Maximum 3 sponsors at any time — no ad saturation</span></div>
+      <div class="benefit-item"><span class="benefit-check">✓</span><span>Maximum 3 sponsors per category — no ad saturation</span></div>
     </div>
   </div>
 
@@ -159,6 +161,13 @@ h1 span{color:var(--teal)}
     <div class="form-sub">Fill in your info once, then choose a duration below. You'll be taken to Stripe to pay.</div>
 
     <div class="form-grid">
+      <div class="field full">
+        <label>Directory category *</label>
+        <select id="fCategory" required>
+          <option value="">Loading categories…</option>
+        </select>
+        <span style="font-size:11px;color:var(--muted);line-height:1.4;">Your placement appears on listing pages in this category. Each category has its own three-slot limit.</span>
+      </div>
       <div class="field">
         <label>Company name *</label>
         <input type="text" id="fName" placeholder="Acme Corp" maxlength="80" required/>
@@ -211,7 +220,7 @@ h1 span{color:var(--teal)}
 
   <!-- ACTIVE SPONSORS -->
   <div class="sponsors-section">
-    <div class="sponsors-title">Current sponsors</div>
+    <div class="sponsors-title">Current sponsors by category</div>
     <div class="sponsors-grid" id="sponsorsList">
       <!-- populated by JS -->
     </div>
@@ -288,26 +297,50 @@ h1 span{color:var(--teal)}
 // ── SSR data (injected server-side) ────────────────────────────────────────────
 var SSR_SPONSORS  = window.__SSR_SPONSORS__  || [];
 var SSR_SLOTS     = window.__SSR_SLOTS__ !== undefined ? window.__SSR_SLOTS__ : null;
+var SSR_CATEGORIES = window.__SSR_CATEGORIES__ || [];
+var SSR_CATEGORY  = window.__SSR_CATEGORY__ || '';
 var MAX_SLOTS     = 3;
+var selectedCategory = SSR_CATEGORY;
+
+function renderCategories(rows) {
+  var select = document.getElementById('fCategory');
+  if (!select) return;
+  var categories = (rows || []).map(function(row){ return typeof row === 'string' ? row : row.category; }).filter(Boolean);
+  if (!categories.length) {
+    select.innerHTML = '<option value="">No categories available</option>';
+    return;
+  }
+  if (!selectedCategory || categories.indexOf(selectedCategory) === -1) selectedCategory = categories[0];
+  select.innerHTML = '<option value="">Choose a category…</option>' + categories.map(function(category) {
+    return '<option value="'+esc(category)+'"'+(category===selectedCategory?' selected':'')+'>'+esc(category)+'</option>';
+  }).join('');
+  select.value = selectedCategory;
+  select.addEventListener('change', function(){
+    selectedCategory = this.value;
+    refreshSlots();
+  });
+}
 
 // ── Slot counter ───────────────────────────────────────────────────────────────
 function renderSlotCounter(slotsAvailable) {
   var dot  = document.getElementById('slotDot');
   var text = document.getElementById('slotText');
   var heroCopy = document.getElementById('heroSlotsCopy');
+  var category = selectedCategory ? ' in '+selectedCategory : '';
+  document.querySelectorAll('.tier-btn').forEach(function(b){ b.disabled = false; });
   if (slotsAvailable === 0) {
     dot.className = 'slot-dot full';
-    text.textContent = 'All 3 slots taken — check back when one opens';
-    if (heroCopy) heroCopy.textContent = 'All 3 slots taken';
+    text.textContent = 'All 3 slots taken'+category+' — check back when one opens';
+    if (heroCopy) heroCopy.textContent = 'All 3 slots taken'+category;
     document.querySelectorAll('.tier-btn').forEach(function(b){ b.disabled = true; });
   } else if (slotsAvailable === 1) {
     dot.className = 'slot-dot warn';
-    text.textContent = '1 of 3 slots available';
-    if (heroCopy) heroCopy.textContent = 'Only 1 slot left';
+    text.textContent = '1 of 3 slots available'+category;
+    if (heroCopy) heroCopy.textContent = 'Only 1 slot left'+category;
   } else {
     dot.className = 'slot-dot';
-    text.textContent = slotsAvailable + ' of 3 slots available';
-    if (heroCopy) heroCopy.textContent = 'Only ' + slotsAvailable + ' slots available';
+    text.textContent = slotsAvailable + ' of 3 slots available' + category;
+    if (heroCopy) heroCopy.textContent = 'Only ' + slotsAvailable + ' slots available' + category;
   }
 }
 
@@ -330,6 +363,7 @@ function renderSponsors(sponsors) {
       + '</div>'
       + '<div><div class="sponsor-card-name">'+esc(s.sponsor_name)+'</div>'
       + (s.sponsor_tagline ? '<div class="sponsor-card-tag">'+esc(s.sponsor_tagline)+'</div>' : '')
+      + (s.sponsor_category ? '<div class="sponsor-card-tag" style="color:#f59e0b">'+esc(s.sponsor_category)+' sponsor</div>' : '')
       + '</div>'
       + '<a href="'+esc(s.sponsor_url)+'" class="sponsor-card-link" target="_blank" rel="noopener sponsored">'
       + esc(domain)+' →</a>'
@@ -342,23 +376,32 @@ function esc(s) {
 }
 
 // ── Initialise from SSR data ───────────────────────────────────────────────────
+renderCategories(SSR_CATEGORIES);
 if (SSR_SLOTS !== null) renderSlotCounter(SSR_SLOTS);
 renderSponsors(SSR_SPONSORS);
 
 // ── Refresh from API + poll every 30s (Task #38) ──────────────────────────────
 function refreshSlots() {
-  fetch('/api/sponsor/active').then(function(r){return r.json();}).then(function(d){
+  if (!selectedCategory) return;
+  fetch('/api/sponsor/active?category='+encodeURIComponent(selectedCategory)).then(function(r){return r.json();}).then(function(d){
     renderSlotCounter(d.slots_available);
     renderSponsors(d.sponsors);
     // Show urgency warning when only 1 slot left
     var warn = document.getElementById('slotWarn');
     if (warn) {
-      if (d.slots_available === 1) { warn.textContent = '⚡ Only 1 slot left — act fast.'; warn.classList.add('show'); }
+      if (d.slots_available === 1) { warn.textContent = '⚡ Only 1 slot left in '+selectedCategory+' — act fast.'; warn.classList.add('show'); }
       else warn.classList.remove('show');
     }
   }).catch(function(){});
 }
-refreshSlots();
+if (!SSR_CATEGORIES.length) {
+  fetch('/api/sponsor/categories').then(function(r){return r.json();}).then(function(d){
+    renderCategories(d.categories || []);
+    refreshSlots();
+  }).catch(function(){});
+} else {
+  refreshSlots();
+}
 setInterval(refreshSlots, 30000);
 
 // ── Success banner ─────────────────────────────────────────────────────────────
@@ -373,6 +416,7 @@ setInterval(refreshSlots, 30000);
 // ── Checkout form submission ───────────────────────────────────────────────────
 async function startCheckout(tier, btn) {
   var name    = document.getElementById('fName').value.trim();
+  var category = document.getElementById('fCategory').value.trim();
   var url     = document.getElementById('fUrl').value.trim();
   var logo    = document.getElementById('fLogo').value.trim();
   var tagline = document.getElementById('fTagline').value.trim();
@@ -380,6 +424,7 @@ async function startCheckout(tier, btn) {
   var err     = document.getElementById('formErr');
 
   err.style.display = 'none';
+  if (!category) { err.textContent = 'Please choose a directory category.'; err.style.display='block'; return; }
   if (!name) { err.textContent = 'Please enter your company name.'; err.style.display='block'; return; }
   if (!url || !/^https?:\/\//i.test(url)) {
     err.textContent = 'Please enter a valid website URL (starting with https://).';
@@ -393,13 +438,13 @@ async function startCheckout(tier, btn) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tier, sponsor_name:name, sponsor_url:url,
-                             sponsor_logo:logo, sponsor_tagline:tagline, email }),
+                             sponsor_logo:logo, sponsor_tagline:tagline, sponsor_category:category, email }),
     });
     var d = await res.json();
     if (d.url) {
       location.href = d.url;
     } else if (d.error === 'no_slots_available') {
-      err.textContent = 'Sorry, all 3 slots are taken right now. Check back soon.';
+      err.textContent = 'Sorry, all 3 slots in '+category+' are taken right now. Choose another category or check back soon.';
       err.style.display = 'block';
       btn.disabled = false; btn.textContent = 'Buy ' + (tier==='1mo'?'1 Month':tier==='3mo'?'3 Months':'12 Months') + ' →';
     } else {

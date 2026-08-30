@@ -1979,9 +1979,12 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
 
     // Fetch active sponsors for sidebar widget
     const sponsorR = await pool.query(
-      `SELECT sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
-       FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
-       ORDER BY created_at ASC LIMIT 3`
+      `SELECT sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category
+       FROM dir_sponsors
+       WHERE is_active=TRUE AND expires_at > NOW()
+         AND (sponsor_category IS NULL OR sponsor_category=$1)
+       ORDER BY created_at ASC LIMIT 3`,
+      [l.category || 'General']
     );
     const activeSponsors = sponsorR.rows;
 
@@ -2181,6 +2184,10 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
         <button type="button" class="pp-tier-row" onclick="ppCheckout('verified_badge')">
           <span class="pp-tier-row-left"><span class="pp-tier-row-icon">✅</span><span><span class="pp-tier-row-name">Verified Founder</span><span class="pp-tier-row-desc">Gold ✓ Verified Founder badge — permanent, no expiry</span></span></span>
           <span class="pp-tier-row-price">$9</span>
+        </button>
+        <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_solo')">
+          <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🔍</span><span><span class="pp-tier-row-name">Conversion Review · Solo</span><span class="pp-tier-row-desc">Focused diagnosis of landing-page conversion friction</span></span></span>
+          <span class="pp-tier-row-price">$19</span>
         </button>
         <button type="button" class="pp-tier-row" onclick="ppCheckout('teardown_pro')">
           <span class="pp-tier-row-left"><span class="pp-tier-row-icon">🔍</span><span><span class="pp-tier-row-name">Teardown Pro</span><span class="pp-tier-row-desc">Solo + LinkedIn + Startup of the Week</span></span></span>
@@ -2410,7 +2417,7 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
     const sl = s.sponsor_logo || (sd ? `https://www.google.com/s2/favicons?domain=${sd}&sz=128` : '');
     return `<a href="${he(s.sponsor_url)}" class="sponsor-item" target="_blank" rel="noopener sponsored">
   <div class="sp-logo"><span class="sp-init">${he(si)}</span>${sl ? `<img src="${he(sl)}" alt="" onerror="this.style.display='none'"/>` : ''}</div>
-  <div style="min-width:0"><div class="sp-name">${he(s.sponsor_name)}</div>${s.sponsor_tagline ? `<div class="sp-tag">${he(s.sponsor_tagline)}</div>` : ''}</div>
+  <div style="min-width:0"><div class="sp-name">${he(s.sponsor_name)}</div>${s.sponsor_tagline ? `<div class="sp-tag">${he(s.sponsor_tagline)}</div>` : ''}${s.sponsor_category ? `<div class="sp-tag" style="color:#f59e0b;">${he(s.sponsor_category)} sponsor</div>` : ''}</div>
 </a>`;
   }).join('\n')}
 </section>` : '';
@@ -2731,7 +2738,7 @@ function showTierStep(){
 function ppCheckout(tier){
   ppBoostTier=tier;
   ppBoostSelectedDate=null;
-  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Founder — $9',teardown_pro:'🔍 Teardown Pro — $49'};
+  var titles={daily_top:'🔥 Daily Boost — $9',weekly_feature:'⚡ Weekly Feature — $19',premium:'💎 Premium Listing — $29',founder_pack:'🏆 Founder Pack — $49',verified_badge:'✅ Verified Founder — $9',teardown_solo:'🔍 Conversion Review · Solo — $19',teardown_pro:'🔍 Teardown Pro — $49'};
   document.getElementById('ppBoostModalTitle').textContent=titles[tier]||'✨ Boost';
   // Switch to email step
   var ts=document.getElementById('ppTierStep');
@@ -7408,6 +7415,7 @@ const SPONSOR_TIERS = {
   '12mo': { price_id: 'price_1U1NueDpTwoDeZJnLHLlrCw6',  days: 365, label: '12 Months',  amount: 199 },
 };
 const SPONSOR_MAX_SLOTS = 3;
+const EDITORIAL_FEATURE_PRICE_ID = 'price_1UAHxTDpTwoDeZJnzW3fSkkd';
 
 // ── Directory: compute current period winners from dir_votes ─────────────────
 // Cached for 5 minutes to reduce DB load on high-traffic badge requests.
@@ -8881,7 +8889,8 @@ async function seedDailySection() {
 // ── Sponsorship: handle post-payment sponsor record creation ──────────────────
 async function handleSponsorPayment(session) {
   const meta = session.metadata || {};
-  const { sponsor_tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline } = meta;
+  const { sponsor_tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category } = meta;
+  const sponsorCategory = String(sponsor_category || 'General').trim().slice(0, 80);
   if (!sponsor_tier || !SPONSOR_TIERS[sponsor_tier] || !sponsor_name || !sponsor_url) {
     console.error('[sponsor] missing metadata in session', session.id);
     return;
@@ -8890,18 +8899,58 @@ async function handleSponsorPayment(session) {
   const days    = SPONSOR_TIERS[sponsor_tier].days;
   const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   const tierLabel = SPONSOR_TIERS[sponsor_tier].label;
+  let client;
   try {
-    await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`toolindex:sponsor:${sponsorCategory}`]);
+    const existing = await client.query(
+      `SELECT id FROM dir_sponsors WHERE stripe_session_id=$1 LIMIT 1`,
+      [session.id]
+    );
+    if (existing.rows.length) {
+      await client.query('COMMIT');
+      client.release();
+      client = null;
+      return;
+    }
+    const active = await client.query(
+      `SELECT COUNT(*)::int AS n
+       FROM dir_sponsors
+       WHERE is_active=TRUE AND expires_at > NOW()
+         AND (sponsor_category=$1 OR sponsor_category IS NULL)`,
+      [sponsorCategory]
+    );
+    if (Number(active.rows[0]?.n || 0) >= SPONSOR_MAX_SLOTS) {
+      await client.query('COMMIT');
+      client.release();
+      client = null;
+      console.error(`[sponsor] category "${sponsorCategory}" filled before payment ${session.id}; issuing refund`);
+      if (typeof session.payment_intent === 'string') {
+        await stripe.refunds.create({ payment_intent: session.payment_intent });
+      }
+      return;
+    }
+    await client.query(
       `INSERT INTO dir_sponsors
-         (stripe_session_id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline,
+         (stripe_session_id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category,
           payer_email, tier, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (stripe_session_id) DO NOTHING`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [session.id, sponsor_name.slice(0,80), sponsor_url.slice(0,300),
        sponsor_logo?.slice(0,300)||null, (sponsor_tagline||'').slice(0,140),
-       email, sponsor_tier, expires]
+       sponsorCategory, email, sponsor_tier, expires]
     );
-    console.log(`[sponsor] "${sponsor_name}" (${sponsor_tier}) active until ${expires.toISOString()}`);
-  } catch(e) { console.error('[sponsor] DB insert error:', e.message); }
+    await client.query('COMMIT');
+    client.release();
+    client = null;
+    console.log(`[sponsor] "${sponsor_name}" (${sponsor_tier}, ${sponsorCategory}) active until ${expires.toISOString()}`);
+  } catch(e) {
+    if (client) {
+      await client.query('ROLLBACK').catch(()=>{});
+      client.release();
+    }
+    console.error('[sponsor] DB insert error:', e.message);
+  }
 
   // ── Admin notification (Task #39) ────────────────────────────────────────
   resend.emails.send({
@@ -8915,6 +8964,7 @@ async function handleSponsorPayment(session) {
         <li>URL: <a href="${sponsor_url}">${sponsor_url}</a></li>
         ${sponsor_tagline ? `<li>Tagline: ${sponsor_tagline}</li>` : ''}
         <li>Payer: ${email || '—'}</li>
+        <li>Category: ${sponsorCategory}</li>
         <li>Expires: ${expires.toDateString()}</li>
       </ul>
     </div>`
@@ -8928,13 +8978,57 @@ async function handleSponsorPayment(session) {
       subject: `Your ToolIndex sponsorship is live — ${sponsor_name}`,
       html:    `<div style="font-family:sans-serif;max-width:480px;margin:auto;">
         <h2 style="color:#00d4c8;">You're live on ToolIndex! 🎯</h2>
-        <p>Your brand <strong>${sponsor_name}</strong> is now showing in the sidebar across every ToolIndex listing page.</p>
+        <p>Your brand <strong>${sponsor_name}</strong> is now showing in the <strong>${sponsorCategory}</strong> sidebar placement on ToolIndex.</p>
         <p><strong>Expires:</strong> ${expires.toDateString()}</p>
         <p>To update your logo, tagline, or website at any time — no need to repurchase — visit the sponsor page and click <em>Manage my sponsorship</em>:</p>
         <p><a href="https://strategic-flow-audit.replit.app/sponsor" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:10px 22px;border-radius:6px;font-weight:700;text-decoration:none;">Manage sponsorship →</a></p>
         <p style="color:#888;font-size:12px;">Questions? Reply to this email.</p>
       </div>`
     }).catch(() => {});
+  }
+}
+
+// ── Editorial Feature: notify admin with the buyer's short intake ─────────────
+async function handleEditorialFeaturePayment(session) {
+  const meta = session.metadata || {};
+  const email = (session.customer_details?.email || session.customer_email || '').toLowerCase();
+  const clean = value => String(value || '').replace(/[<>&"]/g, char => ({
+    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;'
+  }[char]));
+  if (!meta.editorial_product_name || !meta.editorial_product_url || !meta.editorial_differentiator) {
+    console.error('[editorial-feature] missing intake metadata in session', session.id);
+    return;
+  }
+  const rows = [
+    ['Product', meta.editorial_product_name],
+    ['Website', meta.editorial_product_url],
+    ['Differentiator', meta.editorial_differentiator],
+    ['Ideal audience', meta.editorial_audience],
+    ['Quote / interview angle', meta.editorial_quote],
+    ['Buyer email', email],
+    ['Stripe session', session.id],
+  ].map(([label, value]) => `<li><strong>${label}:</strong> ${clean(value) || '—'}</li>`).join('');
+  await resend.emails.send({
+    from: SENDER,
+    to: 'alex@strategicflow.tech',
+    subject: `[Editorial Feature] ${meta.editorial_product_name}`,
+    html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;">
+      <h2 style="color:#00d4c8;">New ToolIndex Editorial Feature</h2>
+      <p>A buyer paid for the $99 editorial feature and submitted the intake below.</p>
+      <ul style="padding-left:20px;line-height:1.8;">${rows}</ul>
+    </div>`
+  }).catch(error => console.error('[editorial-feature] admin email failed:', error.message));
+  if (email) {
+    await resend.emails.send({
+      from: SENDER,
+      to: email,
+      subject: 'Your ToolIndex Editorial Feature is reserved',
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:auto;">
+        <h2 style="color:#00d4c8;">Your editorial feature is reserved</h2>
+        <p>Thanks for sharing <strong>${clean(meta.editorial_product_name)}</strong>. We received your intake and will follow up with the editorial next steps.</p>
+        <p>Your feature is a one-time purchase and, once published, remains live on ToolIndex without renewal fees.</p>
+      </div>`
+    }).catch(error => console.error('[editorial-feature] buyer email failed:', error.message));
   }
 }
 
@@ -9738,35 +9832,83 @@ app.put('/api/sponsor/manage/update', async (req, res) => {
 // ── GET /api/sponsor/active ────────────────────────────────────────────────────
 app.get('/api/sponsor/active', async (req, res) => {
   try {
+    const category = typeof req.query.category === 'string' ? req.query.category.trim().slice(0, 80) : '';
+    const where = category
+      ? `is_active=TRUE AND expires_at > NOW() AND (sponsor_category=$1 OR sponsor_category IS NULL)`
+      : `is_active=TRUE AND expires_at > NOW()`;
+    const params = category ? [category] : [];
     const r = await pool.query(
-      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
-       FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
-       ORDER BY created_at ASC LIMIT 3`
+      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category
+       FROM dir_sponsors WHERE ${where}
+       ORDER BY created_at ASC LIMIT 3`,
+      params
     );
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM dir_sponsors WHERE ${where}`,
+      params
+    );
+    const used = Number(count.rows[0]?.n || 0);
     res.json({
       sponsors:        r.rows,
-      slots_used:      r.rows.length,
-      slots_available: Math.max(0, SPONSOR_MAX_SLOTS - r.rows.length),
+      category:        category || null,
+      slots_used:      used,
+      slots_available: Math.max(0, SPONSOR_MAX_SLOTS - used),
     });
   } catch(e) { res.status(500).json({ error: 'db_error' }); }
 });
 
+// ── GET /api/sponsor/categories ───────────────────────────────────────────────
+app.get('/api/sponsor/categories', async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT category, COUNT(*)::int AS listing_count
+      FROM directory_listings
+      WHERE status='active' AND category IS NOT NULL AND TRIM(category) <> ''
+      GROUP BY category
+      ORDER BY listing_count DESC, category ASC
+    `);
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json({ categories: r.rows });
+  } catch(e) {
+    console.error('[sponsor/categories]', e.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
 // ── POST /api/sponsor/checkout ─────────────────────────────────────────────────
 app.post('/api/sponsor/checkout', async (req, res) => {
-  const { tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, email } = req.body || {};
+  const { tier, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category, email } = req.body || {};
   if (!SPONSOR_TIERS[tier]) return res.status(400).json({ error: 'invalid_tier' });
   if (!sponsor_name?.trim() || !sponsor_url?.trim())
     return res.status(400).json({ error: 'name_and_url_required' });
+  const category = String(sponsor_category || '').trim().slice(0, 80);
+  if (!category) return res.status(400).json({ error: 'category_required' });
+  const categories = await pool.query(`
+    SELECT DISTINCT TRIM(category) AS category
+    FROM directory_listings
+    WHERE status='active' AND category IS NOT NULL AND TRIM(category) <> ''
+  `).catch(() => ({ rows: [] }));
+  if (!categories.rows.some(row => row.category === category))
+    return res.status(400).json({ error: 'invalid_category' });
 
-  // Enforce hard cap — check live count
-  const active = await pool.query(
-    `SELECT COUNT(*)::int AS n FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()`
-  ).catch(() => ({ rows: [{ n: 0 }] }));
-  if (active.rows[0].n >= SPONSOR_MAX_SLOTS)
-    return res.status(409).json({ error: 'no_slots_available' });
-
+  let client;
   try {
     const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`toolindex:sponsor:${category}`]);
+    const active = await client.query(
+      `SELECT COUNT(*)::int AS n
+       FROM dir_sponsors
+       WHERE is_active=TRUE AND expires_at > NOW()
+         AND (sponsor_category=$1 OR sponsor_category IS NULL)`,
+      [category]
+    );
+    if (Number(active.rows[0]?.n || 0) >= SPONSOR_MAX_SLOTS) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(409).json({ error: 'no_slots_available', category });
+    }
     const sess = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -9781,10 +9923,17 @@ app.post('/api/sponsor/checkout', async (req, res) => {
         sponsor_url:     (sponsor_url||'').slice(0,300),
         sponsor_logo:    (sponsor_logo||'').slice(0,300),
         sponsor_tagline: (sponsor_tagline||'').slice(0,140),
+         sponsor_category: category,
       },
     });
+    await client.query('COMMIT');
+    client.release();
     res.json({ url: sess.url });
   } catch(err) {
+    if (client) {
+      await client.query('ROLLBACK').catch(()=>{});
+      client.release();
+    }
     console.error('[sponsor/checkout]', err.message);
     res.status(500).json({ error: 'checkout_failed' });
   }
@@ -9811,20 +9960,72 @@ app.post('/api/guest-post/checkout', async (req, res) => {
   }
 });
 
+// ── POST /api/editorial-feature/checkout — $99 one-time editorial feature ─────
+app.post('/api/editorial-feature/checkout', async (req, res) => {
+  const { email, product_name, product_url, differentiator, audience, quote } = req.body || {};
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  if (!validEmail) return res.status(400).json({ error: 'valid_email_required' });
+  if (!String(product_name || '').trim() || !String(product_url || '').trim() || !String(differentiator || '').trim()) {
+    return res.status(400).json({ error: 'product_name_url_differentiator_required' });
+  }
+  if (!/^https?:\/\//i.test(String(product_url).trim())) {
+    return res.status(400).json({ error: 'valid_product_url_required' });
+  }
+  try {
+    const base = process.env.APP_URL || 'https://strategic-flow-audit.replit.app';
+    const sess = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{ price: EDITORIAL_FEATURE_PRICE_ID, quantity: 1 }],
+      success_url: `${base}/grow?paid=1&product=editorial_feature`,
+      cancel_url: `${base}/grow#editorial-feature`,
+      customer_email: String(email).trim().toLowerCase(),
+      metadata: {
+        source: 'editorial_feature',
+        editorial_product_name: String(product_name).trim().slice(0, 100),
+        editorial_product_url: String(product_url).trim().slice(0, 300),
+        editorial_differentiator: String(differentiator).trim().slice(0, 500),
+        editorial_audience: String(audience || '').trim().slice(0, 240),
+        editorial_quote: String(quote || '').trim().slice(0, 500),
+      },
+    });
+    res.json({ url: sess.url });
+  } catch(err) {
+    console.error('[editorial-feature/checkout]', err.message);
+    res.status(500).json({ error: 'checkout_failed' });
+  }
+});
+
 // ── GET /sponsor — SSR sponsor page ───────────────────────────────────────────
 app.get('/sponsor', async (req, res) => {
   try {
+    const categoryRows = await pool.query(`
+      SELECT category, COUNT(*)::int AS listing_count
+      FROM directory_listings
+      WHERE status='active' AND category IS NOT NULL AND TRIM(category) <> ''
+      GROUP BY category
+      ORDER BY listing_count DESC, category ASC
+    `);
+    const categories = categoryRows.rows.map(row => row.category);
+    const requestedCategory = typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    const selectedCategory = categories.includes(requestedCategory) ? requestedCategory : (categories[0] || 'General');
     const r = await pool.query(
-      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline
+      `SELECT id, sponsor_name, sponsor_url, sponsor_logo, sponsor_tagline, sponsor_category
        FROM dir_sponsors WHERE is_active=TRUE AND expires_at > NOW()
-       ORDER BY created_at ASC LIMIT 3`
+       ORDER BY created_at ASC LIMIT 100`
     );
     const sponsors        = r.rows;
-    const slots_available = Math.max(0, SPONSOR_MAX_SLOTS - sponsors.length);
+    const categoryActive = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM dir_sponsors
+       WHERE is_active=TRUE AND expires_at > NOW()
+         AND (sponsor_category=$1 OR sponsor_category IS NULL)`,
+      [selectedCategory]
+    );
+    const slots_available = Math.max(0, SPONSOR_MAX_SLOTS - Number(categoryActive.rows[0]?.n || 0));
     let html = require('fs').readFileSync(path.join(__dirname, 'public/sponsor.html'), 'utf8');
     const safe = s => JSON.stringify(s).replace(/<\/script>/gi, '<\\/script>');
     html = html.replace('</head>',
-      `<script>window.__SSR_SPONSORS__=${safe(sponsors)};window.__SSR_SLOTS__=${slots_available};</script>\n</head>`);
+      `<script>window.__SSR_SPONSORS__=${safe(sponsors)};window.__SSR_SLOTS__=${slots_available};window.__SSR_CATEGORIES__=${safe(categoryRows.rows)};window.__SSR_CATEGORY__=${safe(selectedCategory)};</script>\n</head>`);
     // Inject live count into sponsor page hero + meta
     const sponsorCount = await getActiveListingCount();
     const sponsorCountStr = sponsorCount + '+';
@@ -14866,6 +15067,7 @@ async function setupDB() {
       sponsor_url       TEXT NOT NULL,
       sponsor_logo      TEXT,
       sponsor_tagline   TEXT,
+      sponsor_category  TEXT,
       payer_email       TEXT,
       tier              TEXT NOT NULL,
       starts_at         TIMESTAMPTZ DEFAULT NOW(),
@@ -14879,6 +15081,8 @@ async function setupDB() {
   await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS manage_otp TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS manage_otp_expires_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS renewal_reminder_sent BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_sponsors ADD COLUMN IF NOT EXISTS sponsor_category TEXT`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS dir_sponsors_category_active ON dir_sponsors(sponsor_category, is_active, expires_at)`).catch(()=>{});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_claims (
@@ -20333,6 +20537,14 @@ app.post('/webhook/stripe', async (req, res) => {
     if (event.type === 'checkout.session.completed' &&
         event.data.object.metadata?.source === 'sponsor') {
       await handleSponsorPayment(event.data.object);
+      await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
+      return res.json({ received: true });
+    }
+
+    // ── 0c. ToolIndex editorial feature payments ───────────────────────────
+    if (event.type === 'checkout.session.completed' &&
+        event.data.object.metadata?.source === 'editorial_feature') {
+      await handleEditorialFeaturePayment(event.data.object);
       await finishStripeWebhookEvent(event.id, '/webhook/stripe', res.locals.webhookAttemptToken);
       return res.json({ received: true });
     }

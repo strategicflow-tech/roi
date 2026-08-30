@@ -162,6 +162,14 @@ h1 .hl{color:var(--teal);}
 }
 .scifi-email::placeholder{color:rgba(167,139,250,.4);}
 .scifi-email:focus{border-color:rgba(167,139,250,.6);}
+.editorial-form{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.editorial-form .editorial-field.full{grid-column:1/-1;}
+.editorial-input{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(0,212,200,.22);border-radius:8px;padding:10px 12px;color:#fff;font-size:12px;font-family:-apple-system,sans-serif;outline:none;transition:border-color .2s;resize:vertical;}
+.editorial-input:focus{border-color:rgba(0,212,200,.7);}
+.editorial-input::placeholder{color:rgba(160,180,200,.55);}
+.editorial-label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 5px;}
+.editorial-field textarea{min-height:66px;}
+@media(max-width:600px){.editorial-form{grid-template-columns:1fr;}.editorial-form .editorial-field.full{grid-column:auto;}}
 
 /* status line */
 .scifi-status{position:relative;z-index:2;font-family:var(--mono);font-size:10px;color:rgba(167,139,250,.55);text-align:center;letter-spacing:.04em;min-height:14px;}
@@ -227,9 +235,9 @@ footer{border-top:1px solid var(--border);padding:24px 32px;text-align:center;}
 
   <!-- SUCCESS BANNER (shown after ?paid=1) -->
   <div class="paid-banner" id="paidBanner">
-    <div class="paid-banner-head">
+     <div class="paid-banner-head">
       <div class="paid-icon">✓</div>
-      <div class="paid-title">Payment confirmed — you're all set</div>
+       <div class="paid-title" id="paidTitle">Payment confirmed — you're all set</div>
     </div>
     <p class="paid-sub">Your guest post slot on the <a href="/blog" style="color:var(--teal);">ToolIndex blog</a> is reserved. Here's what to do next:</p>
     <div class="paid-steps">
@@ -283,6 +291,52 @@ footer{border-top:1px solid var(--border);padding:24px 32px;text-align:center;}
       <input type="email" class="scifi-email" id="gpEmail" placeholder="Your email (optional)" autocomplete="email" />
       <button class="scifi-btn" id="gpBtn">Continue to checkout →</button>
       <div class="scifi-status" id="gpStatus">Secure · Stripe · One-time charge</div>
+    </div>
+
+    <!-- ══ EDITORIAL FEATURE CARD ══ -->
+    <div class="g-card teal" id="editorial-feature">
+      <div class="g-card-tag">Editorial Feature</div>
+      <div class="g-card-icon">✦</div>
+      <div class="g-card-title">ToolIndex Editorial Feature</div>
+      <p class="g-card-desc">Want a thoughtful feature but don't want to write a full article? Share the essentials and we'll shape your product story for the ToolIndex audience.</p>
+      <div class="g-card-price-row">
+        <span class="g-card-price">$99</span>
+        <span class="g-card-price-note">One-time · No expiry</span>
+      </div>
+      <ul class="g-card-perks">
+        <li>Editorial feature published on the ToolIndex blog</li>
+        <li>Permanent dofollow backlink to your product</li>
+        <li>Short guided intake — no finished draft required</li>
+        <li>We follow up on the story and quote angle</li>
+      </ul>
+      <div class="editorial-form">
+        <div class="editorial-field">
+          <label class="editorial-label" for="efProduct">Product name *</label>
+          <input class="editorial-input" id="efProduct" type="text" maxlength="100" placeholder="Acme AI" autocomplete="organization"/>
+        </div>
+        <div class="editorial-field">
+          <label class="editorial-label" for="efEmail">Email *</label>
+          <input class="editorial-input" id="efEmail" type="email" maxlength="160" placeholder="you@company.com" autocomplete="email"/>
+        </div>
+        <div class="editorial-field full">
+          <label class="editorial-label" for="efUrl">Product URL *</label>
+          <input class="editorial-input" id="efUrl" type="url" maxlength="300" placeholder="https://yourproduct.com"/>
+        </div>
+        <div class="editorial-field full">
+          <label class="editorial-label" for="efDiff">What makes it different? *</label>
+          <textarea class="editorial-input" id="efDiff" maxlength="500" placeholder="The clearest outcome or differentiator for buyers."></textarea>
+        </div>
+        <div class="editorial-field">
+          <label class="editorial-label" for="efAudience">Ideal audience</label>
+          <input class="editorial-input" id="efAudience" maxlength="240" placeholder="Who is it for?"/>
+        </div>
+        <div class="editorial-field">
+          <label class="editorial-label" for="efQuote">Quote / story angle</label>
+          <input class="editorial-input" id="efQuote" maxlength="500" placeholder="A founder quote or question to explore"/>
+        </div>
+      </div>
+      <button class="g-card-btn" id="efBtn" type="button">Continue to checkout →</button>
+      <div class="scifi-status" id="efStatus">Secure · Stripe · One-time charge</div>
     </div>
 
   </div><!-- /editorial grid -->
@@ -418,7 +472,13 @@ footer{border-top:1px solid var(--border);padding:24px 32px;text-align:center;}
 <script>
 // Show paid confirmation if redirected back from Stripe
 (function(){
-  if(new URLSearchParams(location.search).get('paid')==='1'){
+   var paidParams=new URLSearchParams(location.search);
+   if(paidParams.get('paid')==='1'){
+     if(paidParams.get('product')==='editorial_feature'){
+       document.getElementById('paidTitle').textContent='Payment confirmed — your editorial feature is reserved';
+       document.querySelector('.paid-sub').innerHTML='Thanks — we received your intake. We will follow up with the editorial next steps and story angle.';
+       document.querySelector('.paid-steps').innerHTML='<div class="paid-step"><span class="paid-step-num">1.</span><span>We review the product details and differentiator you submitted.</span></div><div class="paid-step"><span class="paid-step-num">2.</span><span>We follow up if we need a quote or one more detail for the feature.</span></div><div class="paid-step"><span class="paid-step-num">3.</span><span>Your published feature and dofollow link stay live permanently.</span></div>';
+     }
     document.getElementById('paidBanner').classList.add('show');
     // scroll to it
     setTimeout(function(){document.getElementById('paidBanner').scrollIntoView({behavior:'smooth',block:'start'});},120);
@@ -439,6 +499,41 @@ document.getElementById('gpBtn').addEventListener('click',async function(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email:email})
+    });
+    var d=await r.json();
+    if(d.url){window.location.href=d.url;}
+    else throw new Error(d.error||'no_url');
+  }catch(e){
+    btn.disabled=false;
+    btn.textContent='Continue to checkout →';
+    status.textContent='Something went wrong — please try again.';
+    status.style.color='#f87171';
+  }
+});
+
+// Editorial feature checkout — the intake is stored in Stripe metadata for fulfillment.
+document.getElementById('efBtn').addEventListener('click',async function(){
+  var btn=this, status=document.getElementById('efStatus');
+  var email=(document.getElementById('efEmail').value||'').trim();
+  var product=(document.getElementById('efProduct').value||'').trim();
+  var url=(document.getElementById('efUrl').value||'').trim();
+  var differentiator=(document.getElementById('efDiff').value||'').trim();
+  var audience=(document.getElementById('efAudience').value||'').trim();
+  var quote=(document.getElementById('efQuote').value||'').trim();
+  if(!product || !email.includes('@') || !/^https?:\/\//i.test(url) || !differentiator){
+    status.textContent='Enter your product name, valid email and URL, plus your differentiator.';
+    status.style.color='#f87171';
+    return;
+  }
+  btn.disabled=true;
+  btn.textContent='Redirecting to Stripe…';
+  status.textContent='Creating secure checkout session…';
+  status.style.color='';
+  try{
+    var r=await fetch('/api/editorial-feature/checkout',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,product_name:product,product_url:url,differentiator:differentiator,audience:audience,quote:quote})
     });
     var d=await r.json();
     if(d.url){window.location.href=d.url;}

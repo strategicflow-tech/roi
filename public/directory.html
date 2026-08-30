@@ -1285,7 +1285,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
       <!-- Free -->
       <div class="dir-pricing-card">
-        <div class="dir-pricing-tier">🆓 Free</div>
+        <div class="dir-pricing-tier">🆓 GET LISTED · Free</div>
         <div class="dir-pricing-desc">Permanent listing, dofollow backlink, upvotes — forever</div>
         <div class="dir-pricing-price-row">
           <span class="dir-pricing-amount">$0</span>
@@ -1300,52 +1300,49 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <button class="dir-pricing-cta" onclick="document.getElementById('submit')?.scrollIntoView({behavior:'smooth'})">Get Listed Free →</button>
       </div>
 
-      <!-- Pro Listing -->
+      <!-- Daily Boost -->
       <div class="dir-pricing-card popular">
-        <div class="dir-pricing-tier">⚡ Pro Listing</div>
-        <div class="dir-pricing-desc">Priority placement, founder tools, and visibility boosts</div>
+        <div class="dir-pricing-tier">🔥 GET MORE TRAFFIC · Daily Boost</div>
+        <div class="dir-pricing-desc">Put your listing first when founders are actively browsing ToolIndex.</div>
         <div class="dir-pricing-price-row">
-          <span class="dir-pricing-amount">$29</span><span style="font-size:14px;color:var(--muted);margin-left:4px;">/mo</span>
+          <span class="dir-pricing-amount">$9</span>
         </div>
-        <div class="dir-pricing-period">One-time · No subscription · Goes live instantly</div>
+        <div class="dir-pricing-period">One-time · 24 hours · No subscription</div>
         <ul class="dir-pricing-perks">
-          <li>💎 Premium badge + top-3 placement for 30 days</li>
-          <li>Featured Spotlight seen by every visitor</li>
-          <li>Priority ranking across all categories</li>
-          <li>Logo, screenshots &amp; founder pack options</li>
+          <li>Pinned to #1 in the main grid for the entire day</li>
+          <li>🔥 Daily Top badge — maximum visual contrast</li>
+          <li>First in every category and search result</li>
+          <li>Activates immediately after payment</li>
         </ul>
-        <button class="dir-pricing-cta" onclick="var fp=document.getElementById('full-pricing');fp.style.display='';fp.scrollIntoView({behavior:'smooth',block:'start'});">See All Plans →</button>
+        <button class="dir-pricing-cta" onclick="startBoostCheckout('daily_top')">Get Daily Boost — $9 →</button>
       </div>
 
-      <!-- Sponsor -->
+      <!-- Conversion Review / Teardown Solo -->
       <div class="dir-pricing-card">
-        <div class="dir-pricing-tier">★ Sponsor</div>
-         <div class="dir-pricing-desc">Sidebar placement across every directory page</div>
-         <div class="dir-pricing-price-row" style="display:block;line-height:1.7;">
-           <div><span class="dir-pricing-amount" style="font-size:24px;">$29</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">1 month, one-time</span></div>
-           <div><span class="dir-pricing-amount" style="font-size:24px;">$59</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">3 months, one-time ($19.67/mo)</span></div>
-           <div><span class="dir-pricing-amount" style="font-size:24px;">$199</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">12 months, one-time ($16.58/mo)</span></div>
+        <div class="dir-pricing-tier">🔍 GET MORE CONVERSIONS · Conversion Review</div>
+        <div class="dir-pricing-desc">A focused teardown that diagnoses the conversion friction keeping visitors from choosing you.</div>
+        <div class="dir-pricing-price-row">
+          <span class="dir-pricing-amount">$19</span>
         </div>
-         <div class="dir-pricing-period">Maximum 3 sponsors · Live after payment clears</div>
+        <div class="dir-pricing-period">One-time · Professional diagnosis · Delivered in 48–72h</div>
         <ul class="dir-pricing-perks">
-           <li>Featured in the sidebar on the main directory page, visible on every scroll</li>
-           <li>Displayed on every individual product page across all listings</li>
-           <li>Direct dofollow link from DR 86 domain</li>
-           <li>Audience of founders and makers actively evaluating tools</li>
-           <li>Instant activation when payment clears, no approval queue</li>
+          <li>Decision-friction review of your landing page or email</li>
+          <li>Specific conversion problems, not generic advice</li>
+          <li>Published as a Teardown Spotlight on ToolIndex</li>
+          <li>Clear next actions to improve sign-ups</li>
         </ul>
-        <a href="/sponsor" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Become a Sponsor →</a>
+        <button class="dir-pricing-cta" onclick="startLevelUpCheckout('teardown_solo')">Get Conversion Review — $19 →</button>
       </div>
 
     </div>
     <p class="dir-pricing-note">
-      <a href="#full-pricing" onclick="event.preventDefault();var fp=document.getElementById('full-pricing');fp.style.display='';fp.scrollIntoView({behavior:'smooth',block:'start'});" style="color:var(--teal);">See all paid placement options ↓</a>
+      <a href="#full-pricing" aria-controls="full-pricing" onclick="event.preventDefault();var fp=document.getElementById('full-pricing');fp.style.display='';this.setAttribute('aria-expanded','true');fp.scrollIntoView({behavior:'smooth',block:'start'});" style="color:var(--teal);">See all placement and growth options ↓</a>
       &nbsp;·&nbsp; Secure payment via Stripe &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a>
     </p>
   </div>
 </section>
 
-<!-- FULL DETAILED PRICING — hidden; revealed by "See All Plans" / "See all paid placement options" / hamburger Pricing link / scrollToPricing() -->
+<!-- SECONDARY PRICING — collapsed by default; revealed by the summary CTA or a listing's Boost action -->
 <div id="full-pricing" style="display:none;">
 
 <section class="dir-pricing-section" style="border-top:none;padding-top:32px;">
@@ -1454,6 +1451,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <button class="dir-lu-cta" onclick="startLevelUpCheckout('verified_badge')">Get Verified Founder →</button>
       </div>
 
+      <!-- Teardown Solo -->
+      <div class="dir-lu-card lu-purple">
+        <span class="dir-lu-topbadge tb-purple">Conversion diagnosis</span>
+        <div class="dir-lu-icon">🔍</div>
+        <div class="dir-lu-name">Teardown Spotlight Solo</div>
+        <div class="dir-lu-price">$19</div>
+        <div class="dir-lu-desc">A professional conversion review of your landing page or email. We identify the decision friction blocking sign-ups, then publish the teardown on ToolIndex within 48–72h.</div>
+        <button class="dir-lu-cta" onclick="startLevelUpCheckout('teardown_solo')">Get Solo Review →</button>
+      </div>
+
       <!-- Teardown Pro -->
       <div class="dir-lu-card lu-purple">
         <span class="dir-lu-topbadge tb-purple">Includes LinkedIn</span>
@@ -1466,6 +1473,41 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 
     </div>
     <p class="dir-pricing-note" style="margin-top:24px;">Secure payment via Stripe &nbsp;·&nbsp; One-time charge &nbsp;·&nbsp; Teardown orders delivered within 48–72h &nbsp;·&nbsp; <a href="mailto:alex@strategicflow.tech" style="color:var(--muted);">Questions? Contact us</a></p>
+  </div>
+</section>
+
+<!-- Secondary products stay available without competing with the primary paths -->
+<section class="dir-pricing-section" style="border-top:1px solid var(--border);padding-top:32px;">
+  <div class="dir-pricing-inner">
+    <div class="dir-pricing-tag">Other ways to grow</div>
+    <h2 class="dir-pricing-title" style="font-size:25px;">Placement, authority, and editorial options</h2>
+    <p class="dir-pricing-sub">Existing one-time products, with the same prices and fulfillment.</p>
+    <div class="dir-pricing-grid">
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">★ Sponsor</div>
+        <div class="dir-pricing-desc">Category-specific sidebar placement with three slots available per category.</div>
+        <div class="dir-pricing-price-row" style="display:block;line-height:1.7;">
+          <div><span class="dir-pricing-amount" style="font-size:24px;">$29</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">1 month, one-time</span></div>
+          <div><span class="dir-pricing-amount" style="font-size:24px;">$59</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">3 months, one-time</span></div>
+          <div><span class="dir-pricing-amount" style="font-size:24px;">$199</span><span style="font-size:13px;color:var(--muted);margin-left:4px;">12 months, one-time</span></div>
+        </div>
+        <a href="/sponsor" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Choose a Sponsor category →</a>
+      </div>
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">✍ Guest Blog Post</div>
+        <div class="dir-pricing-desc">You write it, we review and publish it with a permanent dofollow backlink.</div>
+        <div class="dir-pricing-price-row"><span class="dir-pricing-amount">$29</span></div>
+        <div class="dir-pricing-period">One-time · No expiry</div>
+        <a href="/grow" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Submit a Guest Post →</a>
+      </div>
+      <div class="dir-pricing-card">
+        <div class="dir-pricing-tier">✦ Editorial Feature</div>
+        <div class="dir-pricing-desc">A guided ToolIndex feature for founders who want an editorial story without writing a full draft.</div>
+        <div class="dir-pricing-price-row"><span class="dir-pricing-amount">$99</span></div>
+        <div class="dir-pricing-period">One-time · Short intake · No expiry</div>
+        <a href="/grow#editorial-feature" class="dir-pricing-cta" style="text-decoration:none;display:block;text-align:center;">Start Editorial Feature →</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -2286,6 +2328,22 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
           <span class="tier-price-orig">$58</span>
           <span class="tier-price">$29</span>
           <span class="tier-discount">50% OFF</span>
+        </div>
+      </div>
+
+      <div class="tier-option" data-tier="teardown_solo" onclick="startLevelUpCheckout('teardown_solo')">
+        <div class="tier-radio"></div>
+        <div class="tier-info">
+          <div class="tier-name">🔍 Conversion Review · Teardown Solo</div>
+          <div class="tier-desc">Focused diagnosis of the conversion friction blocking sign-ups</div>
+          <ul class="tier-perks">
+            <li>Professional review of your landing page or email</li>
+            <li>Specific decision-friction findings and next actions</li>
+            <li>Published as a Teardown Spotlight within 48–72 hours</li>
+          </ul>
+        </div>
+        <div class="tier-price-wrap">
+          <span class="tier-price">$19</span>
         </div>
       </div>
 
@@ -4328,6 +4386,7 @@ let levelUpTier = null;
 const LU_LABELS = {
   founder_pack:   'Founder Pack — $49',
   verified_badge: 'Verified Badge — $9',
+  teardown_solo:  'Teardown Spotlight Solo — $19',
   teardown_pro:   'Teardown Spotlight Pro — $49',
 };
 
