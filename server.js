@@ -650,6 +650,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/batch-update',
   '/seq-upload-csv',
   '/toolindex-import-drafts',
+  '/toolindex-draft-previews',
   '/send-claim-outreach',
   '/seq-send-step3-strict',
   '/run-followup2-batch',
@@ -4212,6 +4213,64 @@ ${buildUnsubFooterHtml(listing.contact_email || '')}
   };
 }
 
+// POST /admin/toolindex-draft-previews?ids=… — render review-only claim drafts.
+// This endpoint never sends or persists email; it reuses the production template
+// so signed unsubscribe links and listing-specific URLs remain identical.
+app.post('/admin/toolindex-draft-previews', async (req, res) => {
+  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  const ids = String(req.query.ids || '')
+    .split(',')
+    .map(value => parseInt(value.trim(), 10))
+    .filter(id => Number.isInteger(id) && id > 0);
+  if (!ids.length || ids.length > 100) return res.status(400).json({ error: 'ids_required_or_too_many' });
+  try {
+    const result = await pool.query(
+      `SELECT id, name, url, founder_name, contact_email, claimed_by,
+              outreach_emailed_at, outreach_campaign_id
+       FROM directory_listings
+       WHERE id = ANY($1::int[]) AND status='draft'
+       ORDER BY id`,
+      [ids]
+    );
+    const drafts = [];
+    const skipped = [];
+    for (const listing of result.rows) {
+      const reason = listing.url === ''
+        ? 'missing product URL'
+        : !listing.contact_email
+          ? 'missing contact email'
+          : listing.claimed_by
+            ? 'already claimed'
+            : listing.outreach_emailed_at
+              ? 'already emailed'
+              : listing.outreach_campaign_id
+                ? 'already scheduled'
+                : null;
+      if (reason) {
+        skipped.push({ id: listing.id, name: listing.name, reason });
+        continue;
+      }
+      const message = buildImportedDraftClaimEmail(listing);
+      drafts.push({
+        id: listing.id,
+        name: listing.name,
+        email: listing.contact_email,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+      });
+    }
+    const found = new Set(result.rows.map(row => row.id));
+    for (const id of ids) {
+      if (!found.has(id)) skipped.push({ id, reason: 'not an unclaimed draft' });
+    }
+    res.json({ ok: true, drafts, skipped });
+  } catch (e) {
+    console.error('[toolindex-draft-previews] error:', e.message);
+    res.status(500).json({ error: 'db_error' });
+  }
+});
+
 async function prepareImportedDraftFounderCampaign() {
   if (process.env.TOOLINDEX_DRAFT_OUTREACH_SCHEDULER_ENABLED !== 'true') return 0;
   const result = await pool.query(
@@ -6178,6 +6237,10 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         failed.push({ file_row: row.file_row, name, reason: 'missing URL' });
         continue;
       }
+      // directory_listings.url is NOT NULL; keep the manual no-website state
+      // genuinely empty rather than inventing a product URL.
+      const storedUrl = normalizedUrl || '';
+      const storedSourceUrl = row.source_url.trim() || null;
 
       let rootDomain;
       if (normalizedUrl) {
@@ -6209,8 +6272,8 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW())
            RETURNING id, name`,
           [
-            row.name, normalizedUrl, row.description, category, row.founder_name,
-            row.contact_email, row.source, row.source_url, row.image_url,
+            row.name, storedUrl, row.description, category, row.founder_name,
+            row.contact_email, row.source, storedSourceUrl, row.image_url,
             row.launch_date.trim() || null,
           ]
         );
@@ -13804,7 +13867,7 @@ async function setupDB() {
     CREATE TABLE IF NOT EXISTS directory_listings (
       id            SERIAL PRIMARY KEY,
       name          TEXT NOT NULL,
-      url           TEXT NOT NULL UNIQUE,
+       url           TEXT NOT NULL,
       category      TEXT DEFAULT 'General',
       description   TEXT,
       friction_score INTEGER,

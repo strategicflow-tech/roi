@@ -100,3 +100,10 @@ uri = "file://.agents/outputs/toolindex_claim_outreach_contacts_detailed.csv"
 type = "table"
 title = "Claim outreach — listă detaliată"
 description = "285 rânduri / 281 adrese distincte din directory_listings active/draft, cu starea claim, invitația, follow-up-urile și timestampurile UTC."
+
+[[outputs]]
+id = "P0qbsEvNQ3uIBAFXCMW5L"
+uri = "file://artifacts/toolindex-claim-email-drafts-2026-08-30.html"
+type = "text"
+title = "ToolIndex claim-email drafts — 2026-08-30"
+description = "27 server-generated, review-only claim-email drafts with listing-specific draft URLs and signed unsubscribe links. No emails were sent or scheduled; MilkMode and Lubb are excluded pending product URLs."

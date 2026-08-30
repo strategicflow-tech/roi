@@ -17,3 +17,4 @@
 - [ToolIndex targeted launch campaigns](toolindex-targeted-launch-campaigns.md) — finite hourly seed campaigns must be name-guarded, idempotent, and separate from generic vote growth.
 - [Production outreach state sync](production-outreach-state-sync.md) — verify the live importer version before migrating contacts; legacy CSV import drops sequence state and A/B assignments.
 - [ToolIndex outreach export sources](toolindex-outreach-export-sources.md) — claim queue and Campaign 3 contacts are separate datasets; combine them only with an explicit source label.
+- [No-website directory drafts](directory-no-website-drafts.md) — multiple manual drafts may legitimately have no product URL; empty URL handling must remain compatible with storage uniqueness.
