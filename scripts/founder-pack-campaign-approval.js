@@ -6,7 +6,9 @@ module.exports = Object.freeze({
   campaignId: 'founder-pack-2026-08-30',
   ownerApproved: true,
   allowUnconfirmedDirectoryContacts: true,
-  approvedRecipientCount: 204,
-  approvedGroupCounts: Object.freeze({ A: 33, B: 171 }),
+  approvedCandidateCount: 204,
+  protectedOptOutCount: 16,
+  approvedRecipientCount: 188,
+  approvedGroupCounts: Object.freeze({ A: 31, B: 157 }),
   oneTime: true,
 });
