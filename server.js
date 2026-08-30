@@ -241,7 +241,7 @@ const DECISION_FRICTION_MCP_RECIPIENTS = [
   { name: "May Ventures", email: "hello@mayventures.co", context: "You already work with scaling technology companies on CRM, HubSpot, Salesforce, and customer communications automation" }
 ];
 const DECISION_FRICTION_MCP_SUBJECT = 'Before your next client email ships';
-const DECISION_FRICTION_MCP_TARGET = new Date('2026-08-25T12:00:00+01:00');
+const DECISION_FRICTION_MCP_TARGET = new Date('2026-08-31T12:00:00Z');
 
 function buildDecisionFrictionMcpEmail({ name, context }) {
   const text = [
@@ -27337,12 +27337,11 @@ full HTML body here
   );
   if (typeof targetedVoteCampaignTimer.unref === 'function') targetedVoteCampaignTimer.unref();
 
-  // ── One-time 25 Aug 2026 12:00 +01:00: Decision Friction MCP outreach ────
-  // The UTC expression is exactly 11:00 UTC on the requested fixed-offset date.
+  // ── One-time 31 Aug 2026 12:00 UTC: Decision Friction MCP outreach ────────
   // The task destroys itself after firing so it cannot recur in this process.
   if (Date.now() < DECISION_FRICTION_MCP_TARGET.getTime()) {
     let decisionFrictionMcpTask;
-    decisionFrictionMcpTask = cron.schedule('0 11 25 8 *', async () => {
+    decisionFrictionMcpTask = cron.schedule('0 12 31 8 *', async () => {
       try {
         if (isLifecycleOutreachPaused()) {
           console.log('[decision-friction-mcp] paused — LIFECYCLE_OUTREACH_PAUSED=true');
@@ -27356,6 +27355,17 @@ full HTML body here
         const from = process.env.FROM_EMAIL || SENDER;
         for (const recipient of DECISION_FRICTION_MCP_RECIPIENTS) {
           try {
+            const existing = await pool.query(
+              `SELECT 1
+               FROM global_email_log
+               WHERE lower(email) = lower($1) AND email_subject = $2
+               LIMIT 1`,
+              [recipient.email, DECISION_FRICTION_MCP_SUBJECT]
+            );
+            if (existing.rows.length) {
+              console.log(`[decision-friction-mcp] already sent — ${recipient.email}`);
+              continue;
+            }
             const { text, html } = buildDecisionFrictionMcpEmail(recipient);
             const result = await resend.emails.send({
               from,
@@ -27366,6 +27376,8 @@ full HTML body here
             });
             if (result?.error) {
               console.error(`[decision-friction-mcp] Resend error for ${recipient.email}:`, result.error);
+            } else if (result?.cooldownBlocked || result?.unsubscribed) {
+              console.log(`[decision-friction-mcp] skipped by email guard for ${recipient.email}`);
             } else {
               console.log(`[decision-friction-mcp] sent to ${recipient.email}`);
             }
