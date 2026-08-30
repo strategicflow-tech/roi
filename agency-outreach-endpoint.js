@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const crypto = require('crypto');
 
 const MAX_ITEMS = 20;
 const MAX_ID_LENGTH = 200;
@@ -8,6 +9,8 @@ const MAX_EMAIL_LENGTH = 320;
 const MAX_SUBJECT_LENGTH = 998;
 const MAX_TEXT_LENGTH = 100000;
 const SEND_DELAY_MS = 250;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_KINDS = new Set(['initial', 'followup']);
 const TOP_LEVEL_KEYS = new Set(['kind', 'items']);
@@ -72,16 +75,63 @@ function errorMessage(error) {
 function setOutreachCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Outreach-Token');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
-function createAgencyOutreachRouter({ sendEmail, delay = SEND_DELAY_MS } = {}) {
+function deriveAgencyOutreachToken(secret) {
+  if (typeof secret !== 'string' || secret.length === 0) return '';
+  return crypto.createHmac('sha256', secret).update('agency-outreach-send-v1').digest('hex');
+}
+
+function tokensEqual(expected, supplied) {
+  if (!expected || !supplied) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(supplied);
+  return expectedBuffer.length === suppliedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, suppliedBuffer);
+}
+
+function getSuppliedToken(req) {
+  const authorization = String(req.get('authorization') || '');
+  if (/^Bearer\s+/i.test(authorization)) return authorization.replace(/^Bearer\s+/i, '').trim();
+  return String(req.get('x-outreach-token') || '').trim();
+}
+
+function createAgencyOutreachRouter({
+  sendEmail,
+  delay = SEND_DELAY_MS,
+  authorizationToken = '',
+  rateLimitWindowMs = RATE_LIMIT_WINDOW_MS,
+  rateLimitMaxRequests = RATE_LIMIT_MAX_REQUESTS
+} = {}) {
   if (typeof sendEmail !== 'function') {
     throw new TypeError('sendEmail must be a function');
   }
 
   const router = express.Router();
+  const rateBuckets = new Map();
+
+  function rateLimitKey(req) {
+    return String(req.ip || req.socket?.remoteAddress || 'unknown').trim();
+  }
+
+  function isRateLimited(req) {
+    const now = Date.now();
+    const key = rateLimitKey(req);
+    const current = rateBuckets.get(key);
+    if (!current || now - current.startedAt >= rateLimitWindowMs) {
+      if (rateBuckets.size > 10000) {
+        for (const [bucketKey, bucket] of rateBuckets) {
+          if (now - bucket.startedAt >= rateLimitWindowMs) rateBuckets.delete(bucketKey);
+        }
+      }
+      rateBuckets.set(key, { startedAt: now, count: 1 });
+      return false;
+    }
+    current.count += 1;
+    return current.count > rateLimitMaxRequests;
+  }
 
   router.options('/send', (req, res) => {
     setOutreachCors(res);
@@ -90,6 +140,17 @@ function createAgencyOutreachRouter({ sendEmail, delay = SEND_DELAY_MS } = {}) {
 
   router.post('/send', async (req, res) => {
     setOutreachCors(res);
+
+    if (isRateLimited(req)) {
+      res.setHeader('Retry-After', String(Math.ceil(rateLimitWindowMs / 1000)));
+      return res.status(429).json({ error: 'Too many outreach requests. Try again later.' });
+    }
+    if (!authorizationToken) {
+      return res.status(503).json({ error: 'Outreach sending is not configured.' });
+    }
+    if (!tokensEqual(authorizationToken, getSuppliedToken(req))) {
+      return res.status(401).json({ error: 'Outreach authorization required.' });
+    }
 
     const validation = validateAgencyOutreachPayload(req.body);
     if (!validation.valid) return res.status(400).json({ error: validation.error });
@@ -127,8 +188,11 @@ function createAgencyOutreachRouter({ sendEmail, delay = SEND_DELAY_MS } = {}) {
 
 module.exports = {
   createAgencyOutreachRouter,
+  deriveAgencyOutreachToken,
   validateAgencyOutreachPayload,
   errorMessage,
   MAX_ITEMS,
-  SEND_DELAY_MS
+  SEND_DELAY_MS,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_MAX_REQUESTS
 };

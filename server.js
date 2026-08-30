@@ -28,7 +28,10 @@ const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
 const { safeFetchPublicUrl, validatePublicHttpUrl } = require('./safe-url-fetch');
-const { createAgencyOutreachRouter } = require('./agency-outreach-endpoint');
+const {
+  createAgencyOutreachRouter,
+  deriveAgencyOutreachToken
+} = require('./agency-outreach-endpoint');
 
 const app    = express();
 app.set('trust proxy', 1);
@@ -173,6 +176,8 @@ async function getActiveListingCount() {
 }
 const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
+const OUTREACH_SEND_TOKEN = process.env.OUTREACH_SEND_TOKEN ||
+  deriveAgencyOutreachToken(process.env.SESSION_SECRET);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -577,6 +582,7 @@ function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
 }
 
 app.use('/api/outreach', createAgencyOutreachRouter({
+  authorizationToken: OUTREACH_SEND_TOKEN,
   sendEmail: params => resend.emails.send({
     ...params,
     _skipGlobalCooldown: true,
@@ -762,6 +768,14 @@ app.use('/api/directory/outreach-queue', requireAdminSession);
 app.use('/api/why-stats', requireAdminSession);
 app.use('/api/why-log', requireAdminSession);
 app.use('/test-sequence', requireAdminSession);
+
+app.get('/admin/outreach-send-token', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!OUTREACH_SEND_TOKEN) {
+    return res.status(503).json({ error: 'Outreach sending is not configured.' });
+  }
+  return res.json({ token: OUTREACH_SEND_TOKEN });
+});
 
 // ── AI-crawler visit logger (fire-and-forget, non-blocking) ─────────────────
 const AI_CRAWLERS_RE = /ClaudeBot|GPTBot|OAI-SearchBot|PerplexityBot|Google-Extended|CCBot|anthropic-ai|Claude-Web|Applebot-Extended|Bytespider/i;

@@ -8,10 +8,15 @@ const {
   validateAgencyOutreachPayload
 } = require('../agency-outreach-endpoint');
 
-async function startTestServer(sendEmail) {
+async function startTestServer(sendEmail, options = {}) {
   const app = express();
   app.use(express.json());
-  app.use('/api/outreach', createAgencyOutreachRouter({ sendEmail, delay: 0 }));
+  app.use('/api/outreach', createAgencyOutreachRouter({
+    sendEmail,
+    delay: 0,
+    authorizationToken: options.authorizationToken ?? 'test-token',
+    rateLimitMaxRequests: options.rateLimitMaxRequests
+  }));
   const server = await new Promise((resolve, reject) => {
     const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
     instance.once('error', reject);
@@ -22,10 +27,13 @@ async function startTestServer(sendEmail) {
   };
 }
 
-async function post(baseUrl, body) {
+async function post(baseUrl, body, token = 'test-token') {
   const response = await fetch(`${baseUrl}/api/outreach/send`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(body)
   });
   return { response, json: await response.json() };
@@ -57,7 +65,27 @@ test('handles wildcard CORS preflight', async t => {
   assert.equal(response.status, 204);
   assert.equal(response.headers.get('access-control-allow-origin'), '*');
   assert.equal(response.headers.get('access-control-allow-methods'), 'POST, OPTIONS');
-  assert.equal(response.headers.get('access-control-allow-headers'), 'Content-Type');
+  assert.equal(
+    response.headers.get('access-control-allow-headers'),
+    'Content-Type, Authorization, X-Outreach-Token'
+  );
+});
+
+test('rejects unauthorised requests before calling the provider', async t => {
+  let calls = 0;
+  const server = await startTestServer(async () => {
+    calls++;
+    return { data: { id: 'unexpected' } };
+  });
+  t.after(() => server.close());
+
+  const { response, json } = await post(server.baseUrl, {
+    kind: 'initial',
+    items: [{ id: 'one', to: 'one@example.com', subject: 'Subject', text: 'Body' }]
+  }, null);
+  assert.equal(response.status, 401);
+  assert.deepEqual(json, { error: 'Outreach authorization required.' });
+  assert.equal(calls, 0);
 });
 
 test('rejects invalid batches atomically with no provider calls', async t => {
@@ -134,4 +162,22 @@ test('accepts the 20-item maximum', async t => {
   assert.equal(response.status, 200);
   assert.equal(calls, 20);
   assert.deepEqual(json.results.map(result => result.id), items.map(item => item.id));
+});
+
+test('rate-limits batches from one client without persisting request data', async t => {
+  const server = await startTestServer(async () => ({ data: { id: 'test' } }), {
+    rateLimitMaxRequests: 1
+  });
+  t.after(() => server.close());
+  const body = {
+    kind: 'initial',
+    items: [{ id: 'one', to: 'one@example.com', subject: 'Subject', text: 'Body' }]
+  };
+
+  const first = await post(server.baseUrl, body);
+  const second = await post(server.baseUrl, body);
+  assert.equal(first.response.status, 200);
+  assert.equal(second.response.status, 429);
+  assert.match(second.json.error, /too many/i);
+  assert.ok(second.response.headers.get('retry-after'));
 });
