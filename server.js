@@ -178,6 +178,11 @@ const OWNER_EMAIL    = 'strategicflow@proton.me';
 const SENDER         = 'noreply@strategicflow.tech';
 const OUTREACH_SEND_TOKEN = process.env.OUTREACH_SEND_TOKEN ||
   deriveAgencyOutreachToken(process.env.SESSION_SECRET);
+const AGENCY_OUTREACH_TRACKER_SLUG = '64d6485405e5efa876bc6587dc630f17dbd63f93c88cfee6';
+const AGENCY_OUTREACH_TRACKER_FILE = path.join(
+  __dirname,
+  'agency-outreach-tracker-clean-lifecycle-crm-marketing.html'
+);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -589,6 +594,39 @@ app.use('/api/outreach', createAgencyOutreachRouter({
     _skipGlobalEmailLog: true
   })
 }));
+
+// ── Private outreach tracker ──────────────────────────────────────────────────
+// This route is intentionally unlinked and is protected by its high-entropy path.
+// The uploaded source file remains unchanged; the token is injected only into
+// the response body at request time and is never written to disk or logged.
+app.get(`/outreach/${AGENCY_OUTREACH_TRACKER_SLUG}/tracker.html`, (req, res) => {
+  if (!OUTREACH_SEND_TOKEN) {
+    return res.status(503).send('Outreach sending is not configured.');
+  }
+
+  try {
+    const source = fs.readFileSync(AGENCY_OUTREACH_TRACKER_FILE, 'utf8');
+    const scriptMarker = '<script>\nconst DATA =';
+    const tokenFunctionMarker = 'function getOutreachToken(){';
+    if (!source.includes(scriptMarker) || !source.includes(tokenFunctionMarker)) {
+      return res.status(500).send('Outreach tracker template is invalid.');
+    }
+
+    const injectedScript =
+      `<script>\nconst INJECTED_OUTREACH_TOKEN = ${JSON.stringify(OUTREACH_SEND_TOKEN)};\n</script>\n`;
+    let served = source.replace(scriptMarker, `${injectedScript}${scriptMarker}`);
+    served = served.replace(
+      tokenFunctionMarker,
+      `${tokenFunctionMarker}\n  if (typeof INJECTED_OUTREACH_TOKEN !== 'undefined') return INJECTED_OUTREACH_TOKEN;`
+    );
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(served);
+  } catch (error) {
+    console.error('[outreach-tracker] unable to serve tracker:', error.message);
+    return res.status(500).send('Unable to serve outreach tracker.');
+  }
+});
 
 // SESSION MIDDLEWARE
 app.use(session({
