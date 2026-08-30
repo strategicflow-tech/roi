@@ -23,6 +23,13 @@ const { extractBrandDNA } = require('./brand-dna.js');
 const { runAggregation } = require('./aggregator');
 const { generateShowcaseHtml, extractVisualAssets } = require('./showcase-generator.js');
 const { enrichListingWithAI } = require('./listing-enricher');
+const {
+  FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS,
+  FRESH_PRODUCT_HUNT_VOTE_WINDOW_MS,
+  freshProductHuntVoteTarget,
+  freshProductHuntVotesDue,
+  freshProductHuntVoteHash,
+} = require('./fresh-product-hunt-votes');
 
 const multer = require('multer');
 const path   = require('path');
@@ -8336,6 +8343,115 @@ async function activateScheduledBoosts() {
 // These owned listings must never receive synthetic/seed votes. Real visitor
 // votes continue to work normally; this only guards automated/admin seeding.
 const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298, 7540]);
+
+// ── Fresh Product Hunt vote seeding ──────────────────────────────────────────
+// Product Hunt imports use submitted_at as their durable arrival timestamp.
+// Each listing gets one deterministic 4–12 vote target, then unlocks the
+// target gradually in two-hour slots during its first 24 hours. The hash
+// namespace is isolated from every older seed/growth campaign.
+let _freshProductHuntVoteSeedingRunning = false;
+
+async function runFreshProductHuntVoteSeeding() {
+  if (_freshProductHuntVoteSeedingRunning) return { skipped: 'already_running' };
+  _freshProductHuntVoteSeedingRunning = true;
+
+  try {
+    const { rows: listings } = await pool.query(
+      `SELECT id, name, submitted_at
+       FROM directory_listings
+       WHERE LOWER(REPLACE(COALESCE(source, ''), '_', ' ')) = 'product hunt'
+         AND status IN ('active', 'draft')
+         AND submitted_at > NOW() - INTERVAL '24 hours'
+         AND submitted_at <= NOW()
+         AND id <> ALL($1::int[])
+       ORDER BY submitted_at ASC, id ASC`,
+      [Array.from(SEED_VOTE_DISABLED_IDS)]
+    );
+
+    const now = Date.now();
+    let added = 0;
+    let processed = 0;
+
+    for (const listing of listings) {
+      const submittedMs = new Date(listing.submitted_at).getTime();
+      const ageMs = now - submittedMs;
+      const target = freshProductHuntVoteTarget(listing.id, listing.submitted_at);
+      const dueCount = freshProductHuntVotesDue(target, ageMs);
+      if (dueCount <= 0) continue;
+
+      const prefix = `fresh_ph_24h_${listing.id}_`;
+      const existingResult = await pool.query(
+        `SELECT voter_hash
+         FROM dir_votes
+         WHERE listing_id=$1
+           AND LEFT(voter_hash, LENGTH($2))=$2`,
+        [listing.id, prefix]
+      );
+      const existingHashes = new Set(existingResult.rows.map(row => row.voter_hash));
+      const missingHashes = [];
+      for (let voteIndex = 0; voteIndex < dueCount; voteIndex++) {
+        const voterHash = freshProductHuntVoteHash(listing.id, voteIndex);
+        if (!existingHashes.has(voterHash)) missingHashes.push({ voterHash, voteIndex });
+      }
+      if (!missingHashes.length) continue;
+
+      const voteRows = missingHashes.map(({ voterHash, voteIndex }) => [
+        listing.id,
+        voterHash,
+        new Date(Math.min(now, submittedMs + voteIndex * FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS)).toISOString(),
+      ]);
+      const placeholders = voteRows
+        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+        .join(',');
+      const params = voteRows.flat();
+      const listingIdParam = params.length + 1;
+      params.push(listing.id);
+
+      // The insert and counter update share one statement. If another process
+      // wins the same unique hashes first, rowCount is zero and the counter is
+      // not changed; no synthetic vote can inflate vote_count.
+      const result = await pool.query(
+        `WITH inserted AS (
+           INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+           VALUES ${placeholders}
+           ON CONFLICT DO NOTHING
+           RETURNING listing_id
+         ),
+         updated AS (
+           UPDATE directory_listings
+           SET vote_count=COALESCE(vote_count, 0)+(SELECT COUNT(*) FROM inserted)
+           WHERE id=$${listingIdParam}
+             AND (SELECT COUNT(*) FROM inserted) > 0
+           RETURNING vote_count
+         )
+         SELECT
+           (SELECT COUNT(*)::int FROM inserted) AS added,
+           (SELECT vote_count FROM updated) AS vote_count`,
+        params
+      );
+
+      const inserted = Number(result.rows[0]?.added || 0);
+      if (inserted > 0) {
+        added += inserted;
+        processed++;
+        console.log(
+          `[fresh-ph-votes] ${listing.name} (#${listing.id}) +${inserted} ` +
+          `(target ${target}, due ${dueCount}, now ${result.rows[0]?.vote_count})`
+        );
+      }
+    }
+
+    if (listings.length || added) {
+      console.log(`[fresh-ph-votes] checked=${listings.length} listings, updated=${processed}, added=${added}`);
+    }
+    return { checked: listings.length, updated: processed, added };
+  } catch (error) {
+    console.error('[fresh-ph-votes] error:', error.message);
+    return { error: error.message };
+  } finally {
+    _freshProductHuntVoteSeedingRunning = false;
+  }
+}
 
 // ── One-time launch vote campaigns ───────────────────────────────────────────
 // These campaigns are intentionally finite and idempotent. The first batch
@@ -27486,6 +27602,9 @@ full HTML body here
   expireSponsors().catch(()=>{});
   activateScheduledBoosts().catch(()=>{});
   seedDailySection().catch(()=>{});
+  runFreshProductHuntVoteSeeding().catch(error => {
+    console.error('[fresh-ph-votes] startup seeding failed:', error.message);
+  });
   runTargetedVoteCampaigns().catch(()=>{});
   scheduleTemporaryMcpVoteCampaign().catch(error => {
     console.error('[temporary-mcp-votes] startup scheduling failed:', error.message);
@@ -27569,6 +27688,14 @@ full HTML body here
   // Only seeds listings that are in dir_daily_section for today.
   // ── Every 20 min: seed initial votes for fresh auto-imported listings — DISABLED
   // cron.schedule('*/20 * * * *', async () => { ... });
+
+  // ── Every 2 hours: seed fresh Product Hunt listings for their first 24h ────
+  // Run once at startup so a restart does not wait for the next cron boundary.
+  cron.schedule('0 */2 * * *', () => {
+    runFreshProductHuntVoteSeeding().catch(error => {
+      console.error('[cron-fresh-ph-votes]', error.message);
+    });
+  }, { timezone: 'UTC' });
 
 
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
