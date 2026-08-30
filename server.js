@@ -10232,6 +10232,456 @@ async function authorizeDirectoryClaim(req, listingId, email) {
   return rows[0] || null;
 }
 
+// ── Founder Pack health, revision, and relaunch-kit helpers ───────────────────
+// Founder Pack entitlement is deliberately derived from the existing
+// relaunch_unlimited flag, which is only granted by the existing payment
+// fulfillment path. These records never contain raw uploaded image data.
+const FOUNDER_PACK_HEALTH_FIELDS = ['name', 'description', 'pricing_model', 'logo', 'screenshot_count'];
+
+function normalizeFounderPackText(value, maxLength = 700) {
+  return sanitizeForJSON(String(value || ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function founderPackListingState(row) {
+  return {
+    name: normalizeFounderPackText(row?.name, 180),
+    description: normalizeFounderPackText(row?.owner_description || row?.description, 700),
+    pricing_model: normalizeFounderPackText(row?.pricing_model, 80),
+    logo: row?.owner_image_url ? 'owner-logo' : (row?.image_url ? 'directory-logo' : 'none'),
+    screenshot_count: Array.isArray(row?.screenshots) ? Math.min(row.screenshots.length, 3) : 0,
+  };
+}
+
+function founderPackHealthFacts(page, listing) {
+  const rawHtml = String(page?.rawHtml || '');
+  const heading = rawHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
+    ?.replace(/<[^>]+>/g, ' ') || '';
+  const observedName = normalizeFounderPackText(heading || page?.title || listing?.name, 180);
+  const observedDescription = normalizeFounderPackText(
+    page?.meta || page?.text || '',
+    700
+  );
+  const pricingSource = normalizeFounderPackText(
+    [page?.meta, page?.text].filter(Boolean).join(' '),
+    3500
+  );
+  const pricingMatches = pricingSource.match(
+    /(?:\$\s?\d+(?:[.,]\d{1,2})?(?:\s*\/\s*(?:mo|month|yr|year))?|(?:free|freemium|open source|contact sales|custom pricing|one[- ]time|per month|per year))/gi
+  ) || [];
+  const pricingLanguage = [...new Set(pricingMatches.map(v => normalizeFounderPackText(v, 80).toLowerCase()))]
+    .slice(0, 12).join(' | ');
+
+  return {
+    product_name: observedName,
+    tagline_description: observedDescription,
+    pricing_language: pricingLanguage,
+    reachable: true,
+    live_status: 'live',
+    source_url: listing?.url || page?.url || '',
+  };
+}
+
+function founderPackComparable(value) {
+  return normalizeFounderPackText(value, 700)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}$]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function founderPackHealthChanges(previous, current) {
+  if (!previous) return [];
+  const changes = [];
+  const prevReachable = previous.reachable !== false;
+  const currentReachable = current.reachable !== false;
+  if (prevReachable !== currentReachable) {
+    changes.push({
+      field: 'reachability',
+      label: currentReachable ? 'Site reachable again' : 'Site unreachable',
+      before: prevReachable ? 'live' : 'unreachable',
+      after: currentReachable ? 'live' : 'unreachable',
+    });
+  }
+  if (currentReachable) {
+    if (founderPackComparable(previous.product_name) &&
+        founderPackComparable(current.product_name) &&
+        founderPackComparable(previous.product_name) !== founderPackComparable(current.product_name)) {
+      changes.push({ field: 'product_name', label: 'Product name', before: previous.product_name, after: current.product_name });
+    }
+    const previousDescription = founderPackComparable(previous.tagline_description);
+    const currentDescription = founderPackComparable(current.tagline_description);
+    if (previousDescription !== currentDescription &&
+        (previousDescription.length >= 20 || currentDescription.length >= 20)) {
+      changes.push({ field: 'description', label: 'Description or tagline', before: previous.tagline_description, after: current.tagline_description });
+    }
+    if (founderPackComparable(previous.pricing_language) !== founderPackComparable(current.pricing_language)) {
+      changes.push({ field: 'pricing_language', label: 'Pricing language', before: previous.pricing_language || 'not detected', after: current.pricing_language || 'not detected' });
+    }
+  }
+  return changes;
+}
+
+async function getDirectoryListingState(listingId) {
+  const result = await pool.query(
+    `SELECT id, name, url, description, image_url, owner_image_url,
+            owner_description, pricing_model, screenshots, claimed_by
+       FROM directory_listings WHERE id=$1`,
+    [listingId]
+  );
+  if (!result.rows.length) return null;
+  const row = result.rows[0];
+  return {
+    ...row,
+    description: row.owner_description || row.description || '',
+    ...founderPackListingState(row),
+  };
+}
+
+async function recordDirectoryListingRevision({
+  listingId, ownerEmail, revisionType = 'edit', before, after, changedFields = null, metadata = {}
+}) {
+  const beforeState = before ? founderPackListingState(before) : {};
+  const afterState = after ? founderPackListingState(after) : {};
+  const diff = changedFields || {};
+  if (!changedFields) {
+    for (const field of FOUNDER_PACK_HEALTH_FIELDS) {
+      if (JSON.stringify(beforeState[field]) !== JSON.stringify(afterState[field])) {
+        diff[field] = { before: beforeState[field], after: afterState[field] };
+      }
+    }
+  }
+  if (!Object.keys(diff).length && revisionType !== 'relaunch') return null;
+  const result = await pool.query(
+    `INSERT INTO directory_listing_revisions
+       (listing_id, owner_email, revision_type, changed_fields, metadata)
+     VALUES ($1,$2,$3,$4::jsonb,$5::jsonb)
+     RETURNING id, created_at`,
+    [listingId, String(ownerEmail || '').toLowerCase(), revisionType, JSON.stringify(diff), JSON.stringify(metadata)]
+  );
+  return result.rows[0] || null;
+}
+
+function founderPackCheckKey(date = new Date()) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  return d.toISOString().slice(0, 10);
+}
+
+function founderPackDraftChanges(listingState, snapshot) {
+  const changes = [];
+  const previous = snapshot?.listing_state || {};
+  if (previous.description && listingState.description &&
+      founderPackComparable(previous.description) !== founderPackComparable(listingState.description)) {
+    changes.push({ field: 'description', label: 'updated description', detail: listingState.description });
+  }
+  if (previous.screenshot_count !== undefined &&
+      Number(previous.screenshot_count) !== Number(listingState.screenshot_count)) {
+    changes.push({ field: 'screenshots', label: 'new screenshots', detail: `${listingState.screenshot_count} screenshot(s) now shown` });
+  }
+  const previousPricing = previous.pricing_model || previous.pricing_language || '';
+  if (founderPackComparable(previousPricing) !== founderPackComparable(listingState.pricing_model)) {
+    if (listingState.pricing_model || previousPricing) {
+      changes.push({ field: 'pricing', label: 'updated pricing information', detail: listingState.pricing_model || 'pricing details updated' });
+    }
+  }
+  return changes;
+}
+
+async function generateFounderPackRelaunchDraft(listingId, ownerEmail) {
+  const listing = await getDirectoryListingState(listingId);
+  if (!listing || String(listing.claimed_by || '').toLowerCase() !== String(ownerEmail || '').toLowerCase()) return null;
+  const snapshotResult = await pool.query(
+    `SELECT listing_state, observed_facts FROM directory_site_snapshots
+      WHERE listing_id=$1 ORDER BY captured_at DESC LIMIT 1`,
+    [listingId]
+  );
+  const snapshot = snapshotResult.rows[0] || null;
+  const listingState = founderPackListingState(listing);
+  const changes = founderPackDraftChanges(listingState, snapshot);
+  const prompt = `Write a short ToolIndex relaunch announcement for a SaaS product.
+Return JSON only: {"draft":"..."}.
+Use 2 or 3 concise sentences and no hashtags. Mention that the product is back in New Today.
+Use only the supplied facts. If there are changes, mention them naturally: ${JSON.stringify(changes)}.
+Product: ${normalizeFounderPackText(listing.name, 160)}
+Current description: ${normalizeFounderPackText(listing.description, 500)}
+Pricing: ${normalizeFounderPackText(listing.pricing_model, 80) || 'not supplied'}
+Screenshots: ${listingState.screenshot_count}`;
+  let draft = '';
+  let generationStatus = 'generated';
+  try {
+    const generated = await claudeJSON(prompt, 500, 'founder-relaunch-draft');
+    draft = normalizeFounderPackText(generated?.draft || '', 700);
+    if (!draft) throw new Error('empty_draft');
+  } catch (error) {
+    generationStatus = 'fallback';
+    const changeText = changes.length ? ` It now includes ${changes.map(c => c.label).join(', ')}.` : '';
+    draft = normalizeFounderPackText(
+      `${listing.name} is back in ToolIndex's New Today feed. ${listing.description || 'Discover the latest product update from the founder.'}${changeText}`,
+      700
+    );
+    console.error(`[founder-health] draft generation failed for listing ${listingId}:`, error.message);
+  }
+  const saved = await pool.query(
+    `INSERT INTO directory_relaunch_drafts
+       (listing_id, owner_email, draft_text, source_changes, generation_status)
+     VALUES ($1,$2,$3,$4::jsonb,$5)
+     RETURNING id, created_at, updated_at`,
+    [listingId, String(ownerEmail).toLowerCase(), draft, JSON.stringify(changes), generationStatus]
+  );
+  return { ...saved.rows[0], draft_text: draft, generation_status: generationStatus };
+}
+
+async function sendFounderPackHealthAlert(listing, changes) {
+  const slug = toListingSlug(listing.name, listing.id);
+  const pageUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+  const rows = changes.map(change =>
+    `<tr><td style="padding:8px 10px;border-bottom:1px solid #dbe5ef;color:#52657a;">${escHtml(change.label)}</td>` +
+    `<td style="padding:8px 10px;border-bottom:1px solid #dbe5ef;color:#9b3348;">${escHtml(String(change.before || '—').slice(0, 260))}</td>` +
+    `<td style="padding:8px 10px;border-bottom:1px solid #dbe5ef;color:#176b60;">${escHtml(String(change.after || '—').slice(0, 260))}</td></tr>`
+  ).join('');
+  return resend.emails.send({
+    from: SENDER,
+    to: listing.claimed_by,
+    replyTo: 'strategicflow@proton.me',
+    _skipGlobalCooldown: true,
+    subject: `Founder Pack health update for "${listing.name}"`,
+    html: `<div style="font-family:sans-serif;max-width:600px;margin:auto;color:#17304b;">
+      <div style="background:#0a1628;padding:26px 30px;border-radius:12px 12px 0 0;">
+        <p style="font:11px monospace;letter-spacing:.12em;text-transform:uppercase;color:#00d4c8;margin:0 0 10px;">ToolIndex · Founder Pack</p>
+        <h2 style="color:#fff;margin:0;font-size:20px;">Your listing health check found an update</h2>
+      </div>
+      <div style="padding:24px 30px;background:#f3f8fc;border-radius:0 0 12px 12px;">
+        <p style="line-height:1.6;">The live site for <strong>${escHtml(listing.name)}</strong> no longer matches the latest verified snapshot.</p>
+        <table width="100%" style="border-collapse:collapse;font-size:12px;margin:18px 0;"><tr>
+          <th align="left" style="padding:8px 10px;background:#e5eef5;">Change</th>
+          <th align="left" style="padding:8px 10px;background:#e5eef5;">Before</th>
+          <th align="left" style="padding:8px 10px;background:#e5eef5;">Now</th>
+        </tr>${rows}</table>
+        <a href="${pageUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:11px 22px;border-radius:8px;font-weight:700;text-decoration:none;">Review my listing →</a>
+        <p style="font-size:11px;color:#71869b;margin:18px 0 0;">This alert is sent only for material changes. A failed check is recorded but does not create a false change alert.</p>
+      </div>
+    </div>`
+  });
+}
+
+async function runFounderPackHealthChecks() {
+  const checkKey = founderPackCheckKey();
+  const listings = await pool.query(
+    `SELECT dl.id, dl.name, dl.url, dl.description, dl.owner_description,
+            dl.image_url, dl.owner_image_url, dl.pricing_model, dl.screenshots,
+            dl.claimed_by
+       FROM directory_listings dl
+      WHERE dl.status='active'
+        AND dl.claimed_by IS NOT NULL AND dl.claimed_by <> ''
+        AND EXISTS (
+          SELECT 1 FROM dir_claims dc
+           WHERE dc.listing_id=dl.id AND dc.is_verified=TRUE
+             AND lower(dc.owner_email)=lower(dl.claimed_by)
+        )
+        AND (
+          dl.relaunch_unlimited=TRUE OR EXISTS (
+            SELECT 1 FROM directory_payment_fulfillments dpf
+             WHERE dpf.listing_id=dl.id AND dpf.tier='founder_pack'
+               AND dpf.status='succeeded'
+          )
+        )
+      ORDER BY dl.id`
+  );
+  let checked = 0, changed = 0, failed = 0, skipped = 0;
+  for (const listing of listings.rows) {
+    if (checked + failed > 0) {
+      await new Promise(resolve => setTimeout(resolve, 750));
+    }
+    const reservation = await pool.query(
+      `INSERT INTO directory_health_checks
+         (listing_id, owner_email, check_key, status)
+       VALUES ($1,$2,$3,'running')
+       ON CONFLICT (listing_id, check_key) DO NOTHING
+       RETURNING id`,
+      [listing.id, String(listing.claimed_by).toLowerCase(), checkKey]
+    );
+    if (!reservation.rows.length) { skipped++; continue; }
+    try {
+      const page = await fetchPageContent(listing.url);
+      if (!page) throw new Error('site_unreachable');
+      const observedFacts = founderPackHealthFacts(page, listing);
+      const listingState = founderPackListingState({
+        ...listing,
+        description: listing.owner_description || listing.description,
+      });
+      const previousResult = await pool.query(
+        `SELECT observed_facts, listing_state, reachable
+           FROM directory_site_snapshots
+          WHERE listing_id=$1 AND is_verified=TRUE
+          ORDER BY captured_at DESC LIMIT 1`,
+        [listing.id]
+      );
+      const previous = previousResult.rows[0]
+        ? { ...(previousResult.rows[0].observed_facts || {}), reachable: previousResult.rows[0].reachable }
+        : null;
+      const currentFacts = {
+        ...observedFacts,
+        listing_state: listingState,
+        checked_at: new Date().toISOString(),
+      };
+      const changes = founderPackHealthChanges(previous, observedFacts);
+      const snapshot = await pool.query(
+        `INSERT INTO directory_site_snapshots
+           (listing_id, check_key, observed_facts, listing_state, reachable, live_status)
+         VALUES ($1,$2,$3::jsonb,$4::jsonb,TRUE,'live')
+         RETURNING id`,
+        [listing.id, checkKey, JSON.stringify(currentFacts), JSON.stringify(listingState)]
+      );
+      await pool.query(
+        `UPDATE directory_health_checks
+            SET status='success', material_change=$1, changes=$2::jsonb,
+                snapshot_id=$3, completed_at=NOW(), error_message=NULL
+          WHERE id=$4`,
+        [changes.length > 0, JSON.stringify(changes), snapshot.rows[0].id, reservation.rows[0].id]
+      );
+      if (changes.length) {
+        changed++;
+        await recordDirectoryListingRevision({
+          listingId: listing.id, ownerEmail: listing.claimed_by,
+          revisionType: 'health_check',
+          changedFields: Object.fromEntries(changes.map(change => [
+            change.field, { before: change.before, after: change.after }
+          ])),
+          metadata: { check_key: checkKey }
+        });
+        try {
+          await sendFounderPackHealthAlert(listing, changes);
+        } catch (emailError) {
+          // A provider failure must not turn a completed site check into a
+          // retryable check: the snapshot and material diff are still valid.
+          console.error(`[founder-health] alert failed for listing ${listing.id}:`, emailError.message);
+        }
+      }
+      checked++;
+    } catch (error) {
+      failed++;
+      const failureMessage = String(error.message || error).slice(0, 300);
+      const failedSnapshot = await pool.query(
+        `INSERT INTO directory_site_snapshots
+           (listing_id, check_key, observed_facts, listing_state, reachable, live_status, is_verified)
+         VALUES ($1,$2,$3::jsonb,$4::jsonb,FALSE,'unreachable',FALSE)
+         ON CONFLICT (listing_id, check_key) DO NOTHING
+         RETURNING id`,
+        [
+          listing.id, checkKey,
+          JSON.stringify({
+            product_name: listing.name,
+            tagline_description: '',
+            pricing_language: '',
+            reachable: false,
+            live_status: 'unreachable',
+            error: failureMessage,
+          }),
+          JSON.stringify(founderPackListingState(listing)),
+        ]
+      ).catch(() => ({ rows: [] }));
+      await pool.query(
+        `UPDATE directory_health_checks
+            SET status='failed', material_change=FALSE, changes='[]'::jsonb,
+                snapshot_id=COALESCE($1, snapshot_id), completed_at=NOW(), error_message=$2
+          WHERE id=$3`,
+        [failedSnapshot.rows[0]?.id || null, failureMessage, reservation.rows[0].id]
+      ).catch(() => {});
+      console.error(`[founder-health] listing ${listing.id} failed:`, error.message);
+    }
+  }
+  console.log(`[founder-health] key=${checkKey} checked=${checked} changed=${changed} failed=${failed} skipped=${skipped}`);
+  return { checkKey, checked, changed, failed, skipped };
+}
+
+app.get('/api/directory/claim/history/:id', async (req, res) => {
+  const listingId = parseInt(req.params.id, 10);
+  const email = req.session?.directoryClaims?.[String(listingId)]?.email || '';
+  if (!listingId || !email) return res.status(403).json({ error: 'unauthorized' });
+  try {
+    const claim = await authorizeDirectoryClaim(req, listingId, email);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    const [listingResult, historyResult, draftsResult] = await Promise.all([
+      pool.query(
+        `SELECT (relaunch_unlimited=TRUE OR EXISTS (
+                  SELECT 1 FROM directory_payment_fulfillments dpf
+                   WHERE dpf.listing_id=directory_listings.id
+                     AND dpf.tier='founder_pack' AND dpf.status='succeeded'
+                )) AS entitled
+           FROM directory_listings WHERE id=$1`,
+        [listingId]
+      ),
+      pool.query(
+        `SELECT id, revision_type, changed_fields, metadata, created_at
+           FROM directory_listing_revisions
+          WHERE listing_id=$1 AND lower(owner_email)=lower($2)
+          ORDER BY created_at DESC LIMIT 50`,
+        [listingId, claim.owner_email]
+      ),
+      pool.query(
+        `SELECT id, draft_text, source_changes, generation_status, created_at, updated_at
+           FROM directory_relaunch_drafts
+          WHERE listing_id=$1 AND lower(owner_email)=lower($2)
+          ORDER BY created_at DESC LIMIT 10`,
+        [listingId, claim.owner_email]
+      ),
+    ]);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({
+      ok: true,
+      entitled: !!listingResult.rows[0]?.entitled,
+      history: historyResult.rows.map(row => ({
+        id: row.id, revision_type: row.revision_type,
+        changed_fields: row.changed_fields || {}, created_at: row.created_at,
+      })),
+      drafts: draftsResult.rows.map(row => ({
+        id: row.id, draft_text: normalizeFounderPackText(row.draft_text, 700),
+        source_changes: row.source_changes || [], generation_status: row.generation_status,
+        created_at: row.created_at, updated_at: row.updated_at,
+      })),
+    });
+  } catch (error) {
+    console.error('[dir-claim/history]', error.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/directory/claim/relaunch-draft', async (req, res) => {
+  const listingId = parseInt(req.body?.listing_id, 10);
+  const draftId = parseInt(req.body?.draft_id, 10);
+  const draftText = normalizeFounderPackText(req.body?.draft_text, 700);
+  if (!listingId || !draftId || !draftText) return res.status(400).json({ error: 'invalid_request' });
+  try {
+    const claim = await authorizeDirectoryClaim(req, listingId, req.body?.email);
+    if (!claim) return res.status(403).json({ error: 'unauthorized' });
+    const result = await pool.query(
+      `UPDATE directory_relaunch_drafts
+          SET draft_text=$1, updated_at=NOW()
+        WHERE id=$2 AND listing_id=$3 AND lower(owner_email)=lower($4)
+          AND EXISTS (
+            SELECT 1 FROM directory_listings dl
+             WHERE dl.id=$3 AND (
+               dl.relaunch_unlimited=TRUE OR EXISTS (
+                 SELECT 1 FROM directory_payment_fulfillments dpf
+                  WHERE dpf.listing_id=dl.id AND dpf.tier='founder_pack'
+                    AND dpf.status='succeeded'
+               )
+             )
+          )
+        RETURNING id, updated_at`,
+      [draftText, draftId, listingId, claim.owner_email]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'draft_not_found' });
+    res.json({ ok: true, ...result.rows[0] });
+  } catch (error) {
+    console.error('[dir-claim/relaunch-draft]', error.message);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 app.post('/api/directory/claim/start', async (req, res) => {
   const { listing_id, email, newsletter_opt_in } = req.body || {};
   const ownerEmail = String(email || '').trim().toLowerCase();
@@ -10778,6 +11228,7 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       return res.status(403).json({ error: 'unauthorized' });
     }
 
+    const beforeState = await getDirectoryListingState(Number(listing_id));
     const updates = [];
     const params  = [];
 
@@ -10844,6 +11295,16 @@ app.post('/api/directory/claim/edit', async (req, res) => {
       `UPDATE directory_listings SET ${updates.join(',')} WHERE id=$${params.length}`,
       params
     );
+    const afterState = await getDirectoryListingState(Number(listing_id));
+    if (beforeState && afterState) {
+      await recordDirectoryListingRevision({
+        listingId: Number(listing_id),
+        ownerEmail: claim.owner_email,
+        revisionType: 'edit',
+        before: beforeState,
+        after: afterState,
+      });
+    }
     await writeSecurityAudit('directory_listing_edited', {
       actorType: 'owner',
       listingId: Number(listing_id),
@@ -10882,8 +11343,15 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
       return res.status(403).json({ error: 'unauthorized' });
     }
 
+    const beforeState = await getDirectoryListingState(Number(listing_id));
     const lr = await pool.query(
-      `SELECT submitted_at, name, relaunch_unlimited FROM directory_listings WHERE id=$1 AND status='active'`,
+      `SELECT submitted_at, name, relaunch_unlimited,
+              (relaunch_unlimited=TRUE OR EXISTS (
+                SELECT 1 FROM directory_payment_fulfillments dpf
+                 WHERE dpf.listing_id=directory_listings.id
+                   AND dpf.tier='founder_pack' AND dpf.status='succeeded'
+              )) AS founder_pack_entitled
+         FROM directory_listings WHERE id=$1 AND status='active'`,
       [listing_id]
     );
     if (!lr.rows.length) {
@@ -10904,12 +11372,29 @@ app.post('/api/directory/claim/relaunch', async (req, res) => {
     }
 
     await pool.query(`UPDATE directory_listings SET submitted_at=NOW() WHERE id=$1`, [listing_id]);
+    const afterState = await getDirectoryListingState(Number(listing_id));
+    if (lr.rows[0].founder_pack_entitled) {
+      await recordDirectoryListingRevision({
+        listingId: Number(listing_id),
+        ownerEmail: claim.owner_email,
+        revisionType: 'relaunch',
+        before: beforeState,
+        after: afterState,
+        metadata: { founder_pack: true },
+      });
+    }
     await writeSecurityAudit('directory_relaunched', {
       actorType: 'owner', listingId: Number(listing_id), actorEmail: claim.owner_email,
-      metadata: { relaunch_unlimited: !!lr.rows[0].relaunch_unlimited }
+      metadata: { relaunch_unlimited: !!lr.rows[0].relaunch_unlimited, founder_pack: !!lr.rows[0].founder_pack_entitled }
     });
     console.log(`[dir-relaunch] listing ${listing_id} relaunched by ${claim.owner_email}`);
     res.json({ ok: true });
+    if (lr.rows[0].founder_pack_entitled) {
+      // Relaunch remains fast even when Claude is unavailable or slow. The
+      // owner can refresh the panel while this best-effort draft is generated.
+      setImmediate(() => generateFounderPackRelaunchDraft(Number(listing_id), claim.owner_email)
+        .catch(error => console.error(`[founder-health] draft save failed for listing ${listing_id}:`, error.message)));
+    }
   } catch(err) {
     console.error('[dir-claim/relaunch]', err.message);
     await writeSecurityAudit('directory_relaunch_failed', {
@@ -11154,6 +11639,7 @@ app.post('/api/directory/claim/upload-screenshot', (req, res) => {
       return res.status(400).json({ error: 'unsupported_image' });
     }
     const dataUrl = `data:${image.mime};base64,${req.file.buffer.toString('base64')}`;
+    const beforeState = await getDirectoryListingState(listingId);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -11167,6 +11653,12 @@ app.post('/api/directory/claim/upload-screenshot', (req, res) => {
       screenshots.push(dataUrl);
       await client.query(`UPDATE directory_listings SET screenshots=$1::jsonb WHERE id=$2`, [JSON.stringify(screenshots), listingId]);
       await client.query('COMMIT');
+      const afterState = await getDirectoryListingState(listingId);
+      await recordDirectoryListingRevision({
+        listingId, ownerEmail: claim.owner_email, revisionType: 'edit',
+        before: beforeState, after: afterState,
+        metadata: { upload: 'screenshot', index },
+      });
       await writeSecurityAudit('directory_upload_accepted', {
         actorType: 'owner', listingId, actorEmail: claim.owner_email,
         metadata: { kind: 'screenshot', index, mime: image.mime, width: image.width, height: image.height }
@@ -11218,7 +11710,13 @@ app.post('/api/directory/claim/upload-logo', (req, res) => {
       return res.status(400).json({ error: 'unsupported_image' });
     }
     const dataUrl = `data:${image.mime};base64,${req.file.buffer.toString('base64')}`;
+    const beforeState = await getDirectoryListingState(listingId);
     await pool.query(`UPDATE directory_listings SET owner_image_url=$1 WHERE id=$2`, [dataUrl, listingId]);
+    const afterState = await getDirectoryListingState(listingId);
+    await recordDirectoryListingRevision({
+      listingId, ownerEmail: claim.owner_email, revisionType: 'edit',
+      before: beforeState, after: afterState, metadata: { upload: 'logo' },
+    });
     await writeSecurityAudit('directory_upload_accepted', {
       actorType: 'owner', listingId, actorEmail: claim.owner_email,
       metadata: { kind: 'logo', mime: image.mime, width: image.width, height: image.height }
@@ -11235,6 +11733,7 @@ app.post('/api/directory/claim/remove-screenshot', async (req, res) => {
   }
   const claim = await authorizeDirectoryClaim(req, listingId, req.body?.email);
   if (!claim) return res.status(403).json({ error: 'unauthorized' });
+  const beforeState = await getDirectoryListingState(listingId);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -11247,6 +11746,12 @@ app.post('/api/directory/claim/remove-screenshot', async (req, res) => {
     screenshots.splice(index, 1);
     await client.query(`UPDATE directory_listings SET screenshots=$1::jsonb WHERE id=$2`, [JSON.stringify(screenshots), listingId]);
     await client.query('COMMIT');
+    const afterState = await getDirectoryListingState(listingId);
+    await recordDirectoryListingRevision({
+      listingId, ownerEmail: claim.owner_email, revisionType: 'edit',
+      before: beforeState, after: afterState,
+      metadata: { upload: 'screenshot_removed', index },
+    });
     await writeSecurityAudit('directory_upload_removed', {
       actorType: 'owner', listingId, actorEmail: claim.owner_email, metadata: { kind: 'screenshot', index }
     });
@@ -14018,6 +14523,67 @@ async function setupDB() {
   `).catch(e => console.error('[DB] security_audit_log:', e.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_created ON security_audit_log(created_at DESC)`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_security_audit_log_listing_created ON security_audit_log(listing_id, created_at DESC)`).catch(()=>{});
+
+  // ── Founder Pack verified snapshots, health checks, revisions, and drafts ──
+  // check_key makes the weekly worker safe to run more than once.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_site_snapshots (
+      id              BIGSERIAL PRIMARY KEY,
+      listing_id      INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      check_key       TEXT NOT NULL,
+      observed_facts  JSONB NOT NULL DEFAULT '{}'::jsonb,
+      listing_state   JSONB NOT NULL DEFAULT '{}'::jsonb,
+      reachable       BOOLEAN NOT NULL DEFAULT TRUE,
+      live_status     TEXT NOT NULL DEFAULT 'live',
+      is_verified     BOOLEAN NOT NULL DEFAULT TRUE,
+      captured_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (listing_id, check_key)
+    )
+  `).catch(e => console.error('[DB] directory_site_snapshots:', e.message));
+  await pool.query(`ALTER TABLE directory_site_snapshots ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT TRUE`).catch(()=>{});
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_site_snapshots_listing ON directory_site_snapshots(listing_id, captured_at DESC)`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_health_checks (
+      id              BIGSERIAL PRIMARY KEY,
+      listing_id      INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      owner_email     TEXT NOT NULL,
+      check_key       TEXT NOT NULL,
+      status          TEXT NOT NULL CHECK (status IN ('running','success','failed')),
+      material_change BOOLEAN NOT NULL DEFAULT FALSE,
+      changes         JSONB NOT NULL DEFAULT '[]'::jsonb,
+      snapshot_id     BIGINT REFERENCES directory_site_snapshots(id) ON DELETE SET NULL,
+      error_message   TEXT,
+      started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at    TIMESTAMPTZ,
+      UNIQUE (listing_id, check_key)
+    )
+  `).catch(e => console.error('[DB] directory_health_checks:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_health_checks_listing ON directory_health_checks(listing_id, started_at DESC)`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_listing_revisions (
+      id              BIGSERIAL PRIMARY KEY,
+      listing_id      INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      owner_email     TEXT NOT NULL,
+      revision_type   TEXT NOT NULL,
+      changed_fields  JSONB NOT NULL DEFAULT '{}'::jsonb,
+      metadata        JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] directory_listing_revisions:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_listing_revisions_owner ON directory_listing_revisions(listing_id, owner_email, created_at DESC)`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_relaunch_drafts (
+      id                BIGSERIAL PRIMARY KEY,
+      listing_id        INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      owner_email       TEXT NOT NULL,
+      draft_text        TEXT NOT NULL,
+      source_changes    JSONB NOT NULL DEFAULT '[]'::jsonb,
+      generation_status TEXT NOT NULL DEFAULT 'generated',
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] directory_relaunch_drafts:', e.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_dir_relaunch_drafts_owner ON directory_relaunch_drafts(listing_id, owner_email, created_at DESC)`).catch(()=>{});
 
   // ── Resend webhook events ──────────────────────────────────────────────────
   // svix_id is the idempotency key supplied by Resend for each delivery.
@@ -27251,6 +27817,13 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 
   // ── Daily 10:00: notify claimed owners whose relaunch window just opened ──────
   cron.schedule('0 10 * * *', () => checkRelaunchWindows().catch(()=>{}));
+
+  // ── Weekly Sunday 04:00 UTC: Founder Pack live listing health checks ─────────
+  // The database reservation inside runFounderPackHealthChecks makes this
+  // idempotent if two app processes happen to run the same weekly tick.
+  cron.schedule('0 4 * * 0', () => runFounderPackHealthChecks().catch(error => {
+    console.error('[founder-health] weekly job failed:', error.message);
+  }), { timezone: 'UTC' });
 
   // ── Mon/Wed/Fri 11:00 UTC: send newsletter for newly published posts ─────────
   cron.schedule('0 11 * * 1,3,5', () => checkBlogNewsletters().catch(()=>{}));

@@ -728,6 +728,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
 .claim-relaunch-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:rgba(0,212,200,0.07);border:1px solid rgba(0,212,200,0.28);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);cursor:pointer;transition:background .2s,border-color .2s;letter-spacing:.04em;}
 .claim-relaunch-btn:hover:not(:disabled){background:rgba(0,212,200,0.13);border-color:rgba(0,212,200,0.55);}
 .claim-relaunch-btn:disabled{opacity:.4;cursor:not-allowed;}
+.claim-founder-tools{display:none;margin:14px 0 2px;padding:14px;background:rgba(167,139,250,.06);border:1px solid rgba(167,139,250,.24);border-radius:10px;}
+.claim-founder-tools-title{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd;font-weight:700;margin-bottom:5px;}
+.claim-founder-tools-sub{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px;}
+.claim-draft-area{width:100%;min-height:92px;box-sizing:border-box;resize:vertical;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:9px;font:12px/1.5 var(--font);outline:none;}
+.claim-draft-actions{display:flex;gap:7px;margin-top:7px;}
+.claim-draft-btn{flex:1;padding:8px 10px;background:rgba(0,212,200,.08);border:1px solid rgba(0,212,200,.3);border-radius:6px;color:var(--teal);font:11px var(--mono);font-weight:700;cursor:pointer;}
+.claim-draft-btn.secondary{background:transparent;border-color:var(--border);color:var(--muted);}
+.claim-history{margin-top:15px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;}
+.claim-history-item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;color:var(--muted);line-height:1.45;}
+.claim-history-item strong{color:var(--text);font-weight:600;}
 
 /* ── HAMBURGER BUTTON ─────────────────────────────────────────────────────── */
 .dir-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;width:40px;height:40px;background:transparent;border:none;cursor:pointer;padding:8px;border-radius:8px;transition:background .2s;}
@@ -1422,7 +1432,16 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
         <div class="dir-lu-icon">🏆</div>
         <div class="dir-lu-name">Founder Pack</div>
         <div class="dir-lu-price">$49</div>
-        <div class="dir-lu-desc">The complete package: 30-day Premium visibility + <strong style="color:#fff;">unlimited relaunches</strong> (push to "New Today" any time, no 30-day wait) + priority logo placement in the brand carousel.</div>
+        <div class="dir-lu-desc">
+          <ul style="margin:0;padding-left:18px;text-align:left;line-height:1.65;">
+            <li>30-day Premium visibility</li>
+            <li><strong style="color:#fff;">Unlimited relaunches</strong> — return to "New Today" any time</li>
+            <li>Priority logo placement in the brand carousel</li>
+            <li>Listing Health Checks</li>
+            <li>Editable Relaunch Kit drafts</li>
+            <li>Verified Listing History</li>
+          </ul>
+        </div>
         <button class="dir-lu-cta" onclick="startLevelUpCheckout('founder_pack')">Get Founder Pack →</button>
       </div>
 
@@ -2044,6 +2063,21 @@ fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
         </button>
         <div id="claimRelaunchMsg" style="font-size:11px;text-align:center;margin-top:5px;display:none;"></div>
       </div>
+       <div id="claimFounderPackTools" class="claim-founder-tools">
+         <div class="claim-founder-tools-title">Founder Pack toolkit</div>
+         <div class="claim-founder-tools-sub">Health checks compare your live site with verified snapshots. Your Relaunch Kit is an editable draft only — it is never posted automatically.</div>
+         <div class="claim-edit-label" style="margin-bottom:6px;">Relaunch Kit draft</div>
+         <textarea id="claimRelaunchDraft" class="claim-draft-area" maxlength="700" placeholder="Your draft will appear here after a relaunch."></textarea>
+         <div id="claimDraftStatus" style="display:none;font-size:11px;margin-top:5px;"></div>
+         <div class="claim-draft-actions">
+           <button type="button" class="claim-draft-btn" onclick="saveClaimRelaunchDraft()">Save draft</button>
+           <button type="button" class="claim-draft-btn secondary" onclick="copyClaimRelaunchDraft()">Copy text</button>
+         </div>
+         <div class="claim-history">
+           <div class="claim-edit-label" style="margin-bottom:2px;">Verified Listing History</div>
+           <div id="claimHistoryBody"><span style="font-size:11px;color:var(--muted);">Loading history…</span></div>
+         </div>
+       </div>
       <div style="margin-bottom:4px;">
         <a id="claimBadgeLink" href="/badge-kit" target="_blank"
            style="display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:center;padding:11px;background:rgba(0,212,200,0.10);border:1px solid rgba(0,212,200,0.35);border-radius:8px;font-size:12px;font-weight:700;font-family:var(--mono);color:var(--teal);text-decoration:none;transition:background .2s;">
@@ -3560,12 +3594,18 @@ let claimListingId     = null;
 let claimOwnerEmail    = null;
 let claimListingName   = null;
 let claimListingDomain = null;
+let claimDraftId       = null;
 
 async function openClaimModal(id, name, domain) {
   claimListingId     = id;
   claimOwnerEmail    = null;
   claimListingName   = name   || null;
   claimListingDomain = domain || null;
+  claimDraftId       = null;
+  const founderTools = document.getElementById('claimFounderPackTools');
+  if (founderTools) founderTools.style.display = 'none';
+  const draftArea = document.getElementById('claimRelaunchDraft');
+  if (draftArea) draftArea.value = '';
 
   // Resume only a same-site, server-held owner session. No browser credential is
   // read or written; a 403 simply falls through to the OTP flow.
@@ -3609,6 +3649,7 @@ async function openClaimModal(id, name, domain) {
       document.getElementById('claimModal').classList.add('open');
       document.body.style.overflow = 'hidden';
       loadClaimAnalytics();
+       loadClaimHistory();
       return;
     }
   } catch {}
@@ -3701,6 +3742,7 @@ async function claimConfirmBacklink() {
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
       if (boostBtn) boostBtn.outerHTML = '<button class="dir-claim-btn" onclick="openClaimModal(' + claimListingId + ',\'' + claimListingName.replace(/'/g,"\\'") + '\',\'' + claimListingDomain.replace(/'/g,"\\'") + '\')">Edit listing →</button>';
       loadClaimAnalytics();
+       loadClaimHistory();
     } else {
       errEl.textContent = 'Something went wrong. Try again.';
       errEl.style.display = 'block';
@@ -3725,6 +3767,7 @@ async function claimSkipBacklink() {
       const boostBtn = document.querySelector(`[onclick*="openClaimModal(${claimListingId},"]`);
       if (boostBtn) boostBtn.outerHTML = '<button class="dir-claim-btn" onclick="openClaimModal(' + claimListingId + ',\'' + (claimListingName||'').replace(/'/g,"\\'") + '\',\'' + (claimListingDomain||'').replace(/'/g,"\\'") + '\')">Edit listing →</button>';
       loadClaimAnalytics();
+       loadClaimHistory();
     } else {
       if (btn) { btn.disabled = false; btn.textContent = 'Skip for now — listing still goes live'; }
     }
@@ -3839,6 +3882,8 @@ async function claimRelaunch() {
       msg.textContent = '✅ Relaunched! Your listing is now featured in New Today.';
       msg.style.color = 'var(--teal)';
       msg.style.display = 'block';
+       loadClaimHistory();
+       setTimeout(loadClaimHistory, 2500);
     } else if (d.error === 'too_soon') {
       btn.disabled = true;
       btn.style.opacity = '0.45';
@@ -3860,6 +3905,90 @@ async function claimRelaunch() {
     msg.style.color = '#f87171';
     msg.style.display = 'block';
   }
+}
+
+async function loadClaimHistory() {
+  const tools = document.getElementById('claimFounderPackTools');
+  if (!tools || !claimListingId || !claimOwnerEmail) return;
+  try {
+    const r = await fetch(`/api/directory/claim/history/${claimListingId}`, { cache: 'no-store' });
+    const d = await r.json();
+    if (!r.ok || !d.ok) return;
+    tools.style.display = d.entitled ? 'block' : 'none';
+    if (!d.entitled) return;
+    const latestDraft = Array.isArray(d.drafts) && d.drafts.length ? d.drafts[0] : null;
+    const draftArea = document.getElementById('claimRelaunchDraft');
+    if (latestDraft && draftArea && document.activeElement !== draftArea) {
+      claimDraftId = latestDraft.id;
+      draftArea.value = latestDraft.draft_text || '';
+    }
+    const historyBody = document.getElementById('claimHistoryBody');
+    if (!historyBody) return;
+    if (!Array.isArray(d.history) || !d.history.length) {
+      historyBody.innerHTML = '<div class="claim-history-item">Your verified edits and relaunches will appear here.</div>';
+      return;
+    }
+    const typeLabels = { edit: 'Listing edited', relaunch: 'Relaunched', health_check: 'Health check' };
+    historyBody.innerHTML = d.history.slice(0, 12).map(item => {
+      const fields = Object.keys(item.changed_fields || {}).map(key =>
+        ({ description:'description', logo:'logo', screenshot_count:'screenshots',
+          pricing_model:'pricing', pricing_language:'pricing language',
+          reachability:'reachability', product_name:'product name' }[key] || key.replace(/_/g, ' '))
+      );
+      const when = item.created_at
+        ? new Date(item.created_at).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' })
+        : '';
+      return `<div class="claim-history-item"><strong>${escHtml(typeLabels[item.revision_type] || 'Listing update')}</strong>` +
+        `${fields.length ? ` · ${escHtml(fields.join(', '))}` : ''}<br><span>${escHtml(when)}</span></div>`;
+    }).join('');
+  } catch {}
+}
+
+async function saveClaimRelaunchDraft() {
+  const area = document.getElementById('claimRelaunchDraft');
+  const status = document.getElementById('claimDraftStatus');
+  if (!area || !claimDraftId || !claimListingId || !claimOwnerEmail) return;
+  const draftText = area.value.trim();
+  if (!draftText) {
+    status.textContent = 'Add some text before saving.';
+    status.style.color = '#f87171';
+    status.style.display = 'block';
+    return;
+  }
+  try {
+    const r = await fetch('/api/directory/claim/relaunch-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listing_id: claimListingId, email: claimOwnerEmail,
+        draft_id: claimDraftId, draft_text: draftText
+      })
+    });
+    const d = await r.json();
+    status.textContent = d.ok ? '✓ Draft saved.' : 'Could not save this draft.';
+    status.style.color = d.ok ? 'var(--teal)' : '#f87171';
+    status.style.display = 'block';
+  } catch {
+    status.textContent = 'Network error — draft was not saved.';
+    status.style.color = '#f87171';
+    status.style.display = 'block';
+  }
+}
+
+function copyClaimRelaunchDraft() {
+  const area = document.getElementById('claimRelaunchDraft');
+  const status = document.getElementById('claimDraftStatus');
+  if (!area || !area.value.trim()) return;
+  navigator.clipboard.writeText(area.value).then(() => {
+    status.textContent = '✓ Copied to clipboard.';
+    status.style.color = 'var(--teal)';
+    status.style.display = 'block';
+  }).catch(() => {
+    area.select();
+    status.textContent = 'Select and copy the draft text.';
+    status.style.color = 'var(--muted)';
+    status.style.display = 'block';
+  });
 }
 
 async function claimSaveEdit() {
