@@ -815,6 +815,8 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/toolindex-import-drafts',
   '/toolindex-draft-previews',
   '/send-claim-outreach',
+  '/engage',
+  '/add-unsubscribe',
   '/seq-send-step3-strict',
   '/run-followup2-batch',
 ]);
