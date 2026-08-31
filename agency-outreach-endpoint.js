@@ -12,6 +12,8 @@ const SEND_DELAY_MS = 250;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const OUTREACH_UNSUBSCRIBE_LINE =
+  "To unsubscribe from future outreach emails, reply with 'unsubscribe' or contact alex@strategicflow.tech.";
 const ALLOWED_KINDS = new Set(['initial', 'followup']);
 const TOP_LEVEL_KEYS = new Set(['kind', 'items']);
 const ITEM_KEYS = new Set(['id', 'to', 'subject', 'text']);
@@ -98,6 +100,11 @@ function getSuppliedToken(req) {
   return String(req.get('x-outreach-token') || '').trim();
 }
 
+function appendOutreachUnsubscribeLine(text) {
+  if (text.trimEnd().endsWith(OUTREACH_UNSUBSCRIBE_LINE)) return text;
+  return `${text.trimEnd()}\n\n${OUTREACH_UNSUBSCRIBE_LINE}`;
+}
+
 function createAgencyOutreachRouter({
   sendEmail,
   isSuppressed = async () => false,
@@ -177,7 +184,7 @@ function createAgencyOutreachRouter({
           to: item.to,
           replyTo: 'alex@strategicflow.tech',
           subject: item.subject,
-          text: item.text
+          text: appendOutreachUnsubscribeLine(item.text)
         });
         if (providerResult?.error) {
           results.push({ id: item.id, success: false, error: errorMessage(providerResult.error) });

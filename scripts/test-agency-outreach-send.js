@@ -141,7 +141,10 @@ test('sends sequentially and continues after a provider failure', async t => {
   ]);
   assert.equal(calls[0].from, 'alex@strategicflow.tech');
   assert.equal(calls[0].replyTo, 'alex@strategicflow.tech');
-  assert.equal(calls[0].text, 'First body');
+  assert.equal(
+    calls[0].text,
+    "First body\n\nTo unsubscribe from future outreach emails, reply with 'unsubscribe' or contact alex@strategicflow.tech."
+  );
 });
 
 test('accepts the 20-item maximum', async t => {
