@@ -6281,7 +6281,8 @@ app.get('/admin/send-blog-newsletter', async (req, res) => {
           <p style="font-size:13px;font-family:monospace;color:#4a7a9a;margin:0 0 16px;">${dateLabel}</p>
           <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
           <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
-          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product is listed on the ToolIndex directory. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because your product has a verified claimed listing on ToolIndex. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+          ${buildUnsubFooterHtml(testAddr)}
         </div>`
       });
       return res.json({ ok: true, test_to: testAddr, slug });
@@ -6292,14 +6293,32 @@ app.get('/admin/send-blog-newsletter', async (req, res) => {
   if (req.query.dry === '1') {
     const emailsR = await pool.query(`
       SELECT COUNT(*)::int AS n
-      FROM toolindex_newsletter_contacts c
-      WHERE c.status='confirmed' AND c.confirmed_at IS NOT NULL
-        AND NOT EXISTS (
-          SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
-        )
+      FROM (
+        SELECT lower(trim(dc.owner_email)) AS email
+        FROM dir_claims dc
+        JOIN directory_listings dl ON dl.id=dc.listing_id
+        WHERE dc.is_verified=TRUE
+          AND dc.verified_at IS NOT NULL
+          AND dl.status='active'
+          AND dl.claimed_by IS NOT NULL
+          AND dl.claimed_at IS NOT NULL
+          AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
+          AND length(trim(dc.owner_email)) > 3
+          AND NOT EXISTS (
+            SELECT 1 FROM email_unsubscribes u
+            WHERE lower(trim(u.email))=lower(trim(dc.owner_email))
+          )
+        GROUP BY lower(trim(dc.owner_email))
+      ) verified_claim_owners
     `).catch(() => ({ rows: [{ n: 0 }] }));
     const alreadySent = await pool.query(`SELECT sent_at, recipient_count FROM blog_newsletter_log WHERE slug=$1`, [slug]);
-    return res.json({ slug, dry_run: true, estimated_recipients: emailsR.rows[0].n, already_sent: alreadySent.rows[0] || null });
+    return res.json({
+      slug,
+      dry_run: true,
+      audience: 'verified_claim_owners',
+      estimated_recipients: emailsR.rows[0].n,
+      already_sent: alreadySent.rows[0] || null
+    });
   }
 
   // Force-resend: delete log entry first
@@ -9242,7 +9261,43 @@ async function checkRelaunchWindows() {
   }
 }
 
-// ── Blog newsletter — send to all directory contacts when a new post is published ──
+// ── Resend suppression preflight for scheduled marketing sends ────────────────
+// The Resend SDK does not expose suppressions in the installed version, so use
+// the provider API directly. Fail closed: sending without a complete suppression
+// snapshot could re-contact an address Resend has already suppressed.
+async function getResendSuppressedEmails() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
+
+  const suppressed = new Set();
+  let after = '';
+  for (let page = 0; page < 100; page++) {
+    const params = new URLSearchParams({ limit: '100' });
+    if (after) params.set('after', after);
+    const response = await fetch(`https://api.resend.com/suppressions?${params}`, {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(`Resend suppression lookup failed (${response.status})`);
+    }
+
+    for (const entry of payload?.data || []) {
+      const email = String(entry?.email || '').toLowerCase().trim();
+      if (email) suppressed.add(email);
+    }
+    if (!payload?.has_more) break;
+
+    const nextAfter = payload?.last_id || payload?.data?.[payload.data.length - 1]?.id;
+    if (!nextAfter || nextAfter === after) {
+      throw new Error('Resend suppression pagination did not provide a next cursor');
+    }
+    after = nextAfter;
+  }
+  return suppressed;
+}
+
+// ── Blog newsletter — send to verified ToolIndex claim owners ────────────────
 async function sendBlogNewsletter(post) {
   // post: { slug, title, excerpt, dateLabel }
   const { slug, title, excerpt, dateLabel } = post;
@@ -9260,26 +9315,63 @@ async function sendBlogNewsletter(post) {
     return { skipped: true };
   }
 
-  // Confirmed double-opt-in audience only. Claim, submitter, and extracted
-  // contact addresses never become marketing recipients implicitly.
-  const emailsR = await pool.query(`
-    SELECT c.email
-    FROM toolindex_newsletter_contacts c
-    WHERE c.status='confirmed'
-      AND c.confirmed_at IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM email_unsubscribes u WHERE lower(u.email)=lower(c.email)
-      )
-    ORDER BY c.confirmed_at ASC
-  `);
+  // Verified ownership is the consent boundary for ToolIndex platform
+  // communications. Never include merely-claimed, submitted, or extracted
+  // contact addresses. Group by normalized owner email so one owner receives
+  // one edition even when they have multiple active listings.
+  let emailsR;
+  try {
+    emailsR = await pool.query(`
+      SELECT
+        lower(trim(dc.owner_email)) AS email,
+        string_agg(DISTINCT dl.name, ', ' ORDER BY dl.name) AS listing_names
+      FROM dir_claims dc
+      JOIN directory_listings dl ON dl.id=dc.listing_id
+      WHERE dc.is_verified=TRUE
+        AND dc.verified_at IS NOT NULL
+        AND dl.status='active'
+        AND dl.claimed_by IS NOT NULL
+        AND dl.claimed_at IS NOT NULL
+        AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
+        AND length(trim(dc.owner_email)) > 3
+      GROUP BY lower(trim(dc.owner_email))
+      ORDER BY MIN(dc.verified_at) ASC, lower(trim(dc.owner_email)) ASC
+    `);
+  } catch (error) {
+    await pool.query(
+      `UPDATE blog_newsletter_log SET sent_at=NULL, recipient_count=-1 WHERE slug=$1`,
+      [slug]
+    ).catch(() => {});
+    throw error;
+  }
+
+  // Query Resend immediately before the send loop. If this fails, release the
+  // reservation so the next scheduled run can retry rather than sending blind.
+  let resendSuppressed;
+  try {
+    resendSuppressed = await getResendSuppressedEmails();
+  } catch (error) {
+    await pool.query(
+      `UPDATE blog_newsletter_log SET sent_at=NULL, recipient_count=-1 WHERE slug=$1`,
+      [slug]
+    ).catch(() => {});
+    throw error;
+  }
 
   const postUrl = `https://strategic-flow-audit.replit.app/blog/${slug}`;
   let sent = 0, skipped = 0, errors = 0;
+  let suppressionSkipped = 0;
 
-  for (const { email } of emailsR.rows) {
+  for (const { email, listing_names: listingNames } of emailsR.rows) {
     if (BYPASS_EMAILS.has(email)) { skipped++; continue; }           // skip internal/admin
     if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) { skipped++; continue; }
     if (await isUnsubscribed(email)) { skipped++; continue; }        // respect opt-out
+    if (resendSuppressed.has(email)) {
+      skipped++;
+      suppressionSkipped++;
+      console.log(`[blog-newsletter] provider suppression → ${email}`);
+      continue;
+    }
     // Engagement stop — halts if recipient replied or took a meaningful action
     if ((await isSequenceHalted(email, 'blog_newsletter')).halted) { skipped++; continue; }
     if (await wasEmailedRecently(email, 24)) { skipped++; continue; }
@@ -9295,7 +9387,7 @@ async function sendBlogNewsletter(post) {
           <p style="font-size:13px;font-family:monospace;color:#4a7a9a;margin:0 0 16px;">${dateLabel}</p>
           <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 24px;">${excerpt}</p>
           <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
-          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because you confirmed ToolIndex founder updates. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
+          <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You're receiving this because ${escapeHtml(listingNames || 'your product')} has a verified claimed listing on ToolIndex. <a href="https://strategic-flow-audit.replit.app/directory" style="color:#2a6a6a;">View directory →</a></p>
           ${buildUnsubFooterHtml(email)}
         </div>`
       });
@@ -9314,14 +9406,24 @@ async function sendBlogNewsletter(post) {
     `UPDATE blog_newsletter_log SET sent_at=NOW(), recipient_count=$2 WHERE slug=$1`,
     [slug, sent]
   );
-  console.log(`[blog-newsletter] "${slug}" → ${sent} sent, ${skipped} skipped, ${errors} errors`);
-  return { sent, skipped, errors, total: emailsR.rows.length };
+  console.log(`[blog-newsletter] "${slug}" → ${emailsR.rows.length} eligible, ${sent} sent, ${skipped} skipped (${suppressionSkipped} provider-suppressed), ${errors} errors`);
+  return {
+    eligible: emailsR.rows.length,
+    sent,
+    skipped,
+    errors,
+    total: emailsR.rows.length,
+    audience: 'verified_claim_owners',
+    providerSuppressed: suppressionSkipped
+  };
 }
 
 // ── Check for unpublished blog posts and send newsletters ─────────────────────
 async function checkBlogNewsletters() {
   try {
-    const sentR = await pool.query(`SELECT slug FROM blog_newsletter_log`);
+    const sentR = await pool.query(
+      `SELECT slug FROM blog_newsletter_log WHERE sent_at IS NOT NULL AND recipient_count >= 0`
+    );
     const sentSlugs = new Set(sentR.rows.map(r => r.slug));
     const generatedR = await pool.query(`
       SELECT slug, title, excerpt, date, read_time
