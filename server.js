@@ -28665,22 +28665,18 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     } catch(e) { console.error('[weekly-spotlight] cron error:', e.message); }
   });
 
-  // ── Daily 13:00 UTC: run cold email sequence batch (max OUTREACH_DAILY_CAP) ──
-  cron.schedule('0 13 * * *', async () => {
-    if (isScheduledStep3CampaignDate()) {
-      console.log('[seq-outreach] regular daily batch skipped — scheduled step3 campaign is active');
-      return;
-    }
-    if (isLifecycleOutreachPaused()) {
-      console.log('[seq-outreach] cron paused — LIFECYCLE_OUTREACH_PAUSED=true');
-      return;
-    }
-    try {
-      const result = await runSeqOutreachBatch(OUTREACH_DAILY_CAP);
-      console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
-    } catch(e) { console.error('[seq-outreach] cron error:', e.message); }
-  });
-  scheduleTomorrowStep3Batches();
+  // ── Lifecycle cold-email sequence: DISABLED ────────────────────────────────
+  // This sequence was paused after an unauthorized-looking batch was observed.
+  // Keep the pause env guard as defense-in-depth, but do not register the
+  // recurring 13:00 cron or future step-3 timers until explicitly re-enabled.
+  // cron.schedule('0 13 * * *', async () => {
+  //   if (isScheduledStep3CampaignDate() || isLifecycleOutreachPaused()) return;
+  //   try {
+  //     const result = await runSeqOutreachBatch(OUTREACH_DAILY_CAP);
+  //     console.log(`[seq-outreach] cron: ${result.sent} sent, ${result.errors} errors out of ${result.total} queued`);
+  //   } catch(e) { console.error('[seq-outreach] cron error:', e.message); }
+  // });
+  // scheduleTomorrowStep3Batches();
   scheduleImportedDraftFounderCampaign().catch(error => {
     console.error('[toolindex-draft-outreach] scheduling failed:', error.message);
   });
