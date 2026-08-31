@@ -21,3 +21,4 @@
 - [Marketplace listing deduplication](marketplace-listing-deduplication.md) — shared marketplace hosts need path-aware dedupe; root domain alone can conflate separate products.
 - [ToolIndex sponsor category slots](toolindex-sponsor-category-slots.md) — enforce category caps again at payment fulfillment because checkout-time availability can race.
 - [Outreach suppression enforcement](outreach-suppression.md) — public unsubscribe can stop production sends immediately when the deployed admin route allowlist lags behind workspace code.
+- [Tracker send verification](tracker-send-verification.md) — Resend webhook events prove provider acceptance; request-level failures need their own durable audit trail.
