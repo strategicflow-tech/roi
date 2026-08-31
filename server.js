@@ -633,10 +633,18 @@ app.get(`/outreach/${AGENCY_OUTREACH_TRACKER_SLUG}/tracker.html`, (req, res) => 
     );
 
     const replaceTrackerCode = (from, to) => {
-      if (!served.includes(from)) throw new Error('Outreach tracker template is missing an expected code block.');
+      if (!served.includes(from)) return false;
       served = served.replace(from, to);
+      return true;
     };
 
+    // New uploads already include the 4-day follow-up logic. Only patch older
+    // templates; applying these transforms again would duplicate declarations.
+    const needsFollowupCompatibilityPatch =
+      !served.includes('const CONTACTED_AT_KEY =') ||
+      !served.includes('function isFollowupDateEligible(id){');
+
+    if (needsFollowupCompatibilityPatch) {
     replaceTrackerCode(
       `const STORAGE_KEY = "sf_agency_outreach_contacted";
 const FOLLOWUP_KEY = "sf_agency_outreach_followup_sent";`,
@@ -725,6 +733,7 @@ function daysUntilFollowupEligible(id){
       saveJSON(FOLLOWUP_KEY, followupSent);
       saveJSON(CONTACTED_AT_KEY, contactedAt);`
     );
+    }
 
     res.setHeader('Cache-Control', 'no-store');
     res.type('html').send(served);
