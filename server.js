@@ -600,6 +600,14 @@ function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
 
 app.use('/api/outreach', createAgencyOutreachRouter({
   authorizationToken: OUTREACH_SEND_TOKEN,
+  isSuppressed: async email => {
+    try {
+      return await isUnsubscribed(email);
+    } catch (error) {
+      console.error('[agency-outreach] suppression check failed; blocking recipient:', error.message);
+      return true;
+    }
+  },
   sendEmail: params => resend.emails.send({
     ...params,
     _skipGlobalCooldown: true,
@@ -14801,6 +14809,55 @@ async function setupDB() {
       source          TEXT DEFAULT 'link'
     )
   `).catch(e => console.error('[DB] email_unsubscribes:', e.message));
+
+  // Resend bounce suppression: preserve provider history, but permanently
+  // suppress every address that has bounced so it cannot be re-contacted by
+  // any marketing sender. The recipient field may contain "Name <email>".
+  await pool.query(`
+    INSERT INTO email_unsubscribes (email, source)
+    SELECT DISTINCT lower(trim(
+      CASE
+        WHEN position('<' IN trim("to")) > 0
+          THEN substring(trim("to") FROM '<([^>]+)>')
+        ELSE trim("to")
+      END
+    )), 'resend_bounce'
+    FROM resend_webhook_events
+    WHERE type = 'email.bounced'
+      AND "to" IS NOT NULL
+      AND trim("to") <> ''
+    ON CONFLICT (email) DO NOTHING
+  `).catch(e => console.error('[DB] bounce suppression sync:', e.message));
+
+  // Stop the sequence contacts while retaining their rows for audit/history.
+  await pool.query(`
+    UPDATE outreach_seq_contacts c
+    SET stop_sequence = TRUE,
+        engaged_at = COALESCE(engaged_at, NOW()),
+        engaged_reason = COALESCE(engaged_reason, 'resend_bounce')
+    WHERE c.stop_sequence IS NOT TRUE
+      AND EXISTS (
+        SELECT 1
+        FROM email_unsubscribes u
+        WHERE u.source = 'resend_bounce'
+          AND lower(trim(u.email)) = lower(trim(c.to_email))
+      )
+  `).catch(e => console.error('[DB] bounce sequence stop sync:', e.message));
+
+  // Remove bounced addresses from the active directory outreach source.
+  // The suppression row remains so rediscovery cannot re-enable outreach.
+  await pool.query(`
+    UPDATE directory_listings d
+    SET contact_email = NULL,
+        contact_email_status = 'not_found'
+    WHERE d.contact_email IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM email_unsubscribes u
+        WHERE u.source = 'resend_bounce'
+          AND lower(trim(u.email)) = lower(trim(d.contact_email))
+      )
+  `).catch(e => console.error('[DB] bounce directory cleanup:', e.message));
 
   // ── Confirmed ToolIndex marketing audience — explicit double opt-in only ────
   await pool.query(`

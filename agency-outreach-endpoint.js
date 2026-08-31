@@ -100,6 +100,7 @@ function getSuppliedToken(req) {
 
 function createAgencyOutreachRouter({
   sendEmail,
+  isSuppressed = async () => false,
   delay = SEND_DELAY_MS,
   authorizationToken = '',
   rateLimitWindowMs = RATE_LIMIT_WINDOW_MS,
@@ -107,6 +108,9 @@ function createAgencyOutreachRouter({
 } = {}) {
   if (typeof sendEmail !== 'function') {
     throw new TypeError('sendEmail must be a function');
+  }
+  if (typeof isSuppressed !== 'function') {
+    throw new TypeError('isSuppressed must be a function');
   }
 
   const router = express.Router();
@@ -159,6 +163,15 @@ function createAgencyOutreachRouter({
     for (let index = 0; index < req.body.items.length; index++) {
       const item = req.body.items[index];
       try {
+        if (await isSuppressed(item.to)) {
+          results.push({
+            id: item.id,
+            success: false,
+            skipped: true,
+            error: 'recipient_suppressed'
+          });
+          continue;
+        }
         const providerResult = await sendEmail({
           from: 'alex@strategicflow.tech',
           to: item.to,
