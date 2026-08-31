@@ -195,8 +195,70 @@ const AGENCY_OUTREACH_TRACKER_FILE = path.join(
   __dirname,
   'agency-outreach-tracker-clean-lifecycle-crm-marketing.html'
 );
+// Permanent legal erasure / objection exclusions. These are intentionally
+// code-level safeguards in addition to any provider suppression list so a
+// future import or tracker edit cannot re-enable contact.
+const PERMANENT_OUTREACH_EXCLUSIONS = new Set([
+  'hubspotpartner@karsten.anonaddy.com'
+]);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+function scrubPermanentlyExcludedTrackerContacts() {
+  try {
+    const source = fs.readFileSync(AGENCY_OUTREACH_TRACKER_FILE, 'utf8');
+    const marker = 'const DATA =';
+    const dataStart = source.indexOf(marker);
+    if (dataStart < 0) throw new Error('const DATA marker not found');
+    const arrayStart = source.indexOf('[', dataStart + marker.length);
+    if (arrayStart < 0) throw new Error('DATA array start not found');
+
+    let depth = 0;
+    let quote = '';
+    let escaped = false;
+    let inString = false;
+    let arrayEnd = -1;
+    for (let i = arrayStart; i < source.length; i++) {
+      const ch = source[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === quote) inString = false;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        inString = true;
+        quote = ch;
+        continue;
+      }
+      if (ch === '[') depth++;
+      else if (ch === ']' && --depth === 0) {
+        arrayEnd = i;
+        break;
+      }
+    }
+    if (arrayEnd < 0) throw new Error('DATA array end not found');
+
+    const data = JSON.parse(source.slice(arrayStart, arrayEnd + 1));
+    const filtered = data.filter(row => {
+      const id = String(row?.id || '').trim().toLowerCase();
+      const email = String(row?.contact_value || '').trim().toLowerCase();
+      return id !== 'karstenkohler' && !PERMANENT_OUTREACH_EXCLUSIONS.has(email);
+    });
+    if (filtered.length === data.length) return;
+
+    const replacement = `const DATA = ${JSON.stringify(filtered)};`;
+    const updated = source.slice(0, dataStart) +
+      replacement +
+      source.slice(arrayEnd + 1);
+    fs.writeFileSync(AGENCY_OUTREACH_TRACKER_FILE, updated, 'utf8');
+    console.log(`[gdpr-tracker-erasure] removed ${data.length - filtered.length} permanently excluded tracker contact(s)`);
+  } catch (error) {
+    console.error('[gdpr-tracker-erasure] failed:', error.message);
+  }
+}
+
+scrubPermanentlyExcludedTrackerContacts();
 
 // ── One-time Decision Friction MCP outreach (25 Aug 2026) ───────────────────
 // Recipient shape: { email, name, context }. The real recipient list will be
@@ -4682,9 +4744,11 @@ function unsubLink(email) {
   return `https://strategic-flow-audit.replit.app/unsubscribe?email=${e}&token=${unsubToken(email)}`;
 }
 async function isUnsubscribed(email) {
-  if (!email) return false;
+  const norm = (email || '').toLowerCase().trim();
+  if (!norm) return false;
+  if (PERMANENT_OUTREACH_EXCLUSIONS.has(norm)) return true;
   try {
-    const { rows } = await pool.query(`SELECT 1 FROM email_unsubscribes WHERE email=$1 LIMIT 1`, [(email).toLowerCase().trim()]);
+    const { rows } = await pool.query(`SELECT 1 FROM email_unsubscribes WHERE email=$1 LIMIT 1`, [norm]);
     return rows.length > 0;
   } catch { return false; }
 }
