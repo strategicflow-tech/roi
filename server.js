@@ -214,6 +214,8 @@ const PERMANENT_OUTREACH_EXCLUSIONS = new Set([
   'per@scrimba.com',
   'support@mem.ai',
   'hi@cursor.com',
+  'support@x.ai',
+  'harness-privacy@deepseek.com',
 ]);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -909,6 +911,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/toolindex-draft-previews',
   '/run-daily-launch-rollout',
   '/run-daily-launch-vote-seeding',
+  '/repair-daily-launch-batch-3',
   '/send-claim-outreach',
   '/manual-claim',
   '/block-directory-contact',
@@ -4822,6 +4825,7 @@ let toolIndexDraftOutreachRunning = false;
 const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
   'toolindex-daily-launches-2026-09-01',
   'toolindex-daily-launches-2026-09-01-batch-2',
+  'toolindex-daily-launches-2026-09-01-batch-3',
 ];
 const TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID = 'toolindex-daily-launches-2026-09-01';
 const TOOLINDEX_DAILY_LAUNCH_CAP = 5;
@@ -5246,6 +5250,32 @@ app.post('/admin/run-daily-launch-rollout', async (req, res) => {
     return res.json({ ok: true, ...result });
   } catch (error) {
     console.error('[daily-launches] manual run failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/repair-daily-launch-batch-3', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE directory_listings
+       SET status='draft',
+           outreach_campaign_id=$1,
+           outreach_campaign_status='queued',
+           outreach_campaign_reason=NULL,
+           outreach_campaign_processed_at=NULL,
+           outreach_followups_disabled=TRUE
+       WHERE source='toolindex-daily-launches-2026-09-01-batch-3'
+         AND status='draft'
+       RETURNING id`,
+      [TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID]
+    );
+    console.log(`[toolindex-import] repaired batch 3 queue markers for ${result.rowCount} drafts`);
+    return res.json({ ok: true, repaired: result.rowCount });
+  } catch (error) {
+    console.error('[toolindex-import] batch 3 queue repair failed:', error.message);
     return res.status(500).json({ error: error.message });
   }
 });
