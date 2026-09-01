@@ -4428,9 +4428,12 @@ const TOOLINDEX_FIRST_CONTACT_GENERIC_IDS = new Set([
   10092, 10108, 10112, 10116, 10123, 10129,
 ]);
 
-// ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
+// ── POST /admin/send-claim-outreach — send one claim email via Resend ─────────
+// Browser admins may use a session; maintenance jobs use the header-only token.
 app.post('/admin/send-claim-outreach', async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   const listingId = parseInt(req.query.id || (req.body && req.body.id));
   if (!listingId || isNaN(listingId)) return res.status(400).json({ error: 'missing_id' });
   try {
