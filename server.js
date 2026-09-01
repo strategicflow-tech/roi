@@ -908,6 +908,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/toolindex-import-drafts',
   '/toolindex-draft-previews',
   '/run-daily-launch-rollout',
+  '/run-daily-launch-vote-seeding',
   '/send-claim-outreach',
   '/manual-claim',
   '/block-directory-contact',
@@ -9404,6 +9405,170 @@ const TARGETED_VOTE_CAMPAIGNS = [
   { id: 4704, name: 'ChatNotr', batches: [3, 3, 4] },
 ];
 let _targetedVoteCampaignRunning = false;
+
+// ── Daily-launch vote seeding ────────────────────────────────────────────────
+// Each newly published daily-launch listing receives one deterministic 3–6
+// vote slot per hour for six hours. Hash-based targets make restarts idempotent
+// without changing a listing's planned vote count.
+const DAILY_LAUNCH_VOTE_NAMESPACE = 'daily_launch_6h';
+const DAILY_LAUNCH_VOTE_INTERVAL_MS = 60 * 60 * 1000;
+const DAILY_LAUNCH_VOTE_SLOTS = 6;
+const DAILY_LAUNCH_VOTE_MIN = 3;
+const DAILY_LAUNCH_VOTE_MAX = 6;
+let _dailyLaunchVoteSeedingRunning = false;
+
+function dailyLaunchVoteTarget(listingId, slotIndex) {
+  let hash = 2166136261;
+  const input = `${DAILY_LAUNCH_VOTE_NAMESPACE}:${listingId}:${slotIndex}`;
+  for (let index = 0; index < input.length; index++) {
+    hash = Math.imul(hash ^ input.charCodeAt(index), 16777619);
+  }
+  return DAILY_LAUNCH_VOTE_MIN +
+    ((hash >>> 0) % (DAILY_LAUNCH_VOTE_MAX - DAILY_LAUNCH_VOTE_MIN + 1));
+}
+
+async function runDailyLaunchVoteSeeding(source = 'cron') {
+  if (_dailyLaunchVoteSeedingRunning) return { skipped: 'already_running' };
+  _dailyLaunchVoteSeedingRunning = true;
+  let lockClient;
+  try {
+    lockClient = await pool.connect();
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [`${DAILY_LAUNCH_VOTE_NAMESPACE}:lock`]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: 'locked_elsewhere' };
+
+    const { rows: listings } = await pool.query(
+      `SELECT id, name, outreach_campaign_scheduled_at, claimed_by
+       FROM directory_listings
+       WHERE source=ANY($1::text[])
+         AND status='active'
+         AND outreach_campaign_scheduled_at IS NOT NULL
+         AND (claimed_by IS NULL OR BTRIM(claimed_by)='')
+         AND id <> ALL($2::int[])
+       ORDER BY outreach_campaign_scheduled_at ASC, id ASC`,
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES, Array.from(SEED_VOTE_DISABLED_IDS)]
+    );
+
+    const now = Date.now();
+    let checked = 0;
+    let added = 0;
+    let completed = 0;
+
+    for (const listing of listings) {
+      checked++;
+      const startedAt = new Date(listing.outreach_campaign_scheduled_at).getTime();
+      if (!Number.isFinite(startedAt) || now < startedAt + DAILY_LAUNCH_VOTE_INTERVAL_MS) continue;
+
+      const dueSlots = Math.min(
+        DAILY_LAUNCH_VOTE_SLOTS,
+        Math.floor((now - startedAt) / DAILY_LAUNCH_VOTE_INTERVAL_MS)
+      );
+      let listingAdded = 0;
+
+      for (let slotIndex = 0; slotIndex < dueSlots; slotIndex++) {
+        const prefix = `${DAILY_LAUNCH_VOTE_NAMESPACE}_${listing.id}_${slotIndex}_`;
+        const target = dailyLaunchVoteTarget(listing.id, slotIndex);
+        const dueAt = new Date(startedAt + (slotIndex + 1) * DAILY_LAUNCH_VOTE_INTERVAL_MS);
+        await lockClient.query('BEGIN');
+        try {
+          const current = await lockClient.query(
+            `SELECT status, claimed_by
+             FROM directory_listings
+             WHERE id=$1
+             FOR UPDATE`,
+            [listing.id]
+          );
+          const currentListing = current.rows[0];
+          if (!currentListing || currentListing.status !== 'active' ||
+              (currentListing.claimed_by && BTRIM(currentListing.claimed_by) !== '')) {
+            await lockClient.query('ROLLBACK');
+            continue;
+          }
+
+          const existingResult = await lockClient.query(
+            `SELECT voter_hash
+             FROM dir_votes
+             WHERE listing_id=$1 AND LEFT(voter_hash, LENGTH($2))=$2`,
+            [listing.id, prefix]
+          );
+          const existing = new Set(existingResult.rows.map(row => row.voter_hash));
+          if (existing.size >= target) {
+            await lockClient.query('COMMIT');
+            continue;
+          }
+
+          const voteRows = Array.from(
+            { length: target - existing.size },
+            (_, offset) => [
+              listing.id,
+              `${prefix}${existing.size + offset}`,
+              dueAt.toISOString(),
+            ]
+          );
+          const placeholders = voteRows
+            .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+            .join(',');
+          const inserted = await lockClient.query(
+            `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+             VALUES ${placeholders}
+             ON CONFLICT DO NOTHING`,
+            voteRows.flat()
+          );
+          if (inserted.rowCount) {
+            await lockClient.query(
+              `UPDATE directory_listings
+               SET vote_count=COALESCE(vote_count,0)+$1
+               WHERE id=$2`,
+              [inserted.rowCount, listing.id]
+            );
+            listingAdded += inserted.rowCount;
+            added += inserted.rowCount;
+            console.log(
+              `[daily-launch-votes] ${listing.name} (#${listing.id}) +${inserted.rowCount} ` +
+              `(slot ${slotIndex + 1}/${DAILY_LAUNCH_VOTE_SLOTS})`
+            );
+          }
+          await lockClient.query('COMMIT');
+        } catch (error) {
+          await lockClient.query('ROLLBACK').catch(() => {});
+          throw error;
+        }
+      }
+
+      if (dueSlots >= DAILY_LAUNCH_VOTE_SLOTS) completed++;
+      if (listingAdded) await new Promise(resolve => setTimeout(resolve, 80));
+    }
+
+    if (checked || added) {
+      console.log(`[daily-launch-votes] ${source}: checked=${checked}, added=${added}, completed=${completed}`);
+    }
+    return { checked, added, completed };
+  } catch (error) {
+    console.error('[daily-launch-votes] error:', error.message);
+    return { error: error.message };
+  } finally {
+    try {
+      await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [`${DAILY_LAUNCH_VOTE_NAMESPACE}:lock`]);
+    } catch {}
+    if (lockClient) lockClient.release();
+    _dailyLaunchVoteSeedingRunning = false;
+  }
+}
+
+app.post('/admin/run-daily-launch-vote-seeding', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const result = await runDailyLaunchVoteSeeding('manual');
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error('[daily-launch-votes] manual run failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 async function runTargetedVoteCampaigns() {
   if (_targetedVoteCampaignRunning) return;
@@ -29016,6 +29181,19 @@ full HTML body here
       console.error('[cron-claimed-boost]', error.message);
     });
   }, { timezone: 'UTC' });
+  // ── Every 15 minutes: catch the hourly due slots for daily launches ────────
+  // The first slot is one hour after publication; six slots are the terminal
+  // horizon. Claimed/protected listings are excluded by the runner itself.
+  cron.schedule('*/15 * * * *', () => {
+    runDailyLaunchVoteSeeding('cron').catch(error => {
+      console.error('[cron-daily-launch-votes]', error.message);
+    });
+  }, { timezone: 'UTC' });
+  setTimeout(() => {
+    runDailyLaunchVoteSeeding('startup-recovery').catch(error => {
+      console.error('[daily-launch-votes] startup recovery failed:', error.message);
+    });
+  }, 15_000);
 
 
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
