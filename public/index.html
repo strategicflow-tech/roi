@@ -995,34 +995,99 @@ textarea{resize:vertical;line-height:1.7;}
 <style>
 #sf-carousel{width:100%;max-width:540px;margin:0 auto 32px auto;position:relative;transition:opacity 0.4s ease,transform 0.4s ease,max-height 0.5s ease;overflow:hidden;}
 #sf-carousel.dismissed{opacity:0;transform:translateY(-10px);max-height:0!important;margin-bottom:0;pointer-events:none;}
-.sf-track-outer{overflow:hidden;border-radius:14px;border:1px solid rgba(0,212,200,0.18);box-shadow:0 8px 40px rgba(0,0,0,0.5);}
+.sf-track-outer{overflow:hidden;border-radius:14px;border:1px solid rgba(0,212,200,0.22);box-shadow:0 8px 40px rgba(0,0,0,0.5),0 0 28px rgba(0,212,200,0.08);}
 .sf-track{display:flex;transition:transform 0.42s cubic-bezier(0.4,0,0.2,1);will-change:transform;}
 .sf-slide{min-width:100%;box-sizing:border-box;}
-.sf-slide img{width:100%;height:auto;display:block;border-radius:14px;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+.sf-diagnostic-card{position:relative;isolation:isolate;min-height:418px;overflow:hidden;padding:25px 26px 24px;background:#06131f;color:#eefdfb;font-family:'DM Mono',monospace;}
+.sf-diagnostic-card::before{content:'';position:absolute;inset:0;z-index:-2;background-image:linear-gradient(rgba(0,212,200,0.065) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,200,0.065) 1px,transparent 1px),radial-gradient(circle at 84% 18%,rgba(0,229,160,0.16),transparent 30%),radial-gradient(circle at 12% 90%,rgba(0,126,255,0.11),transparent 34%);background-size:24px 24px,24px 24px,auto,auto;animation:sfGridDrift 16s linear infinite;}
+.sf-diagnostic-card::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(115deg,transparent 0%,rgba(0,229,160,0.035) 46%,rgba(0,229,160,0.12) 50%,rgba(0,229,160,0.035) 54%,transparent 100%);transform:translateX(-110%);animation:sfScanSweep 5.8s ease-in-out infinite;pointer-events:none;}
+.sf-diagnostic-corners{position:absolute;inset:12px;pointer-events:none;border:1px solid rgba(0,212,200,0.12);}
+.sf-diagnostic-corners::before,.sf-diagnostic-corners::after{content:'';position:absolute;width:42px;height:28px;border-color:rgba(0,229,160,0.72);filter:drop-shadow(0 0 5px rgba(0,229,160,0.5));}
+.sf-diagnostic-corners::before{top:-1px;left:-1px;border-top:1px solid;border-left:1px solid;}
+.sf-diagnostic-corners::after{right:-1px;bottom:-1px;border-right:1px solid;border-bottom:1px solid;}
+.sf-diagnostic-topline{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:30px;color:rgba(163,239,229,0.66);font-size:9px;letter-spacing:.12em;text-transform:uppercase;}
+.sf-diagnostic-live{display:inline-flex;align-items:center;gap:7px;color:#00e5a0;}
+.sf-diagnostic-live::before{content:'';width:6px;height:6px;border-radius:50%;background:#00e5a0;box-shadow:0 0 8px #00e5a0,0 0 16px rgba(0,229,160,.7);animation:sfLivePulse 1.4s ease-in-out infinite;}
+.sf-diagnostic-id{color:rgba(162,195,211,0.48);}
+.sf-diagnostic-main{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) 104px;align-items:center;gap:16px;}
+.sf-diagnostic-copy{min-width:0;}
+.sf-diagnostic-label{display:inline-flex;align-items:center;gap:7px;color:#00d4c8;font-size:10px;font-weight:500;letter-spacing:.14em;line-height:1.3;text-transform:uppercase;animation:sfReveal .7s ease both;}
+.sf-diagnostic-label::before{content:'>';color:#00e5a0;text-shadow:0 0 8px rgba(0,229,160,.8);}
+.sf-diagnostic-headline{margin-top:17px;color:#f4fffe;font-family:Inter,sans-serif;font-size:clamp(25px,4.7vw,37px);font-weight:800;letter-spacing:-.045em;line-height:1.02;animation:sfReveal .75s .12s ease both;}
+.sf-diagnostic-headline span{display:block;}
+.sf-diagnostic-headline .sf-unknown{color:#00e5a0;text-shadow:0 0 18px rgba(0,229,160,.25);font-family:'DM Mono',monospace;font-size:.73em;letter-spacing:-.04em;}
+.sf-diagnostic-body{max-width:335px;margin-top:18px;color:rgba(226,245,243,.72);font-family:Inter,sans-serif;font-size:13px;line-height:1.6;animation:sfReveal .75s .28s ease both;}
+.sf-diagnostic-body strong{display:block;color:#fff;font-weight:700;}
+.sf-diagnostic-meta{display:flex;align-items:center;gap:7px;margin-top:24px;color:rgba(148,207,200,.58);font-size:9px;letter-spacing:.08em;text-transform:uppercase;animation:sfReveal .75s .42s ease both;}
+.sf-diagnostic-meta::before{content:'01—07';padding:4px 6px;border:1px solid rgba(0,212,200,.34);border-radius:3px;color:#00d4c8;box-shadow:inset 0 0 9px rgba(0,212,200,.08);}
+.sf-signal-core{position:relative;width:104px;height:104px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,229,160,.44);border-radius:50%;box-shadow:0 0 0 8px rgba(0,229,160,.035),0 0 28px rgba(0,229,160,.14),inset 0 0 24px rgba(0,229,160,.08);animation:sfCoreBreathe 3s ease-in-out infinite;}
+.sf-signal-core::before,.sf-signal-core::after{content:'';position:absolute;border:1px solid rgba(0,212,200,.38);border-radius:50%;}
+.sf-signal-core::before{inset:11px;animation:sfCoreRotate 12s linear infinite;}
+.sf-signal-core::after{inset:23px;border-style:dashed;border-color:rgba(0,229,160,.45);animation:sfCoreRotate 8s linear infinite reverse;}
+.sf-signal-mark{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid rgba(232,69,90,.9);border-radius:8px;color:#ff7180;font-family:Inter,sans-serif;font-size:27px;font-weight:800;line-height:1;box-shadow:0 0 12px rgba(232,69,90,.36),inset 0 0 12px rgba(232,69,90,.12);animation:sfQuestionPulse 2.2s ease-in-out infinite;}
+.sf-signal-tick{position:absolute;width:4px;height:4px;border-radius:50%;background:#00e5a0;box-shadow:0 0 8px #00e5a0;}
+.sf-signal-tick-a{top:4px;left:50%;}.sf-signal-tick-b{right:10px;bottom:21px;}.sf-signal-tick-c{left:10px;bottom:21px;}
+.sf-diagnostic-footer{position:absolute;right:26px;bottom:24px;left:26px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:13px;border-top:1px solid rgba(0,212,200,.16);color:rgba(156,198,202,.45);font-size:9px;letter-spacing:.08em;text-transform:uppercase;}
+.sf-diagnostic-footer strong{color:#00d4c8;font-weight:500;}
 .sf-progress-bar{height:2px;background:rgba(255,255,255,0.06);}
-.sf-progress-fill{height:100%;background:linear-gradient(90deg,#00d4c8,#5E6AD2);transition:width 0.42s cubic-bezier(0.4,0,0.2,1);}
+.sf-progress-fill{height:100%;background:linear-gradient(90deg,#00d4c8,#00e5a0);transition:width 0.42s cubic-bezier(0.4,0,0.2,1);}
 .sf-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;}
 .sf-arrow{background:none;border:1px solid rgba(0,212,200,0.2);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(0,212,200,0.6);transition:border-color 0.2s,color 0.2s,opacity 0.2s;padding:0;}
 .sf-arrow:hover{border-color:rgba(0,212,200,0.5);color:#00d4c8;}
 .sf-arrow:disabled{opacity:0.2;cursor:default;}
+#sf-carousel .sf-arrow{display:none;}
 .sf-dots{display:flex;gap:6px;align-items:center;}
 .sf-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.15);cursor:pointer;transition:background 0.25s,transform 0.25s;border:none;padding:0;}
-.sf-dot.active{background:#00d4c8;transform:scale(1.4);}
+.sf-dot.active{background:#00d4c8;transform:scale(1.4);box-shadow:0 0 8px rgba(0,212,200,.75);}
 .sf-skip{text-align:center;margin-top:8px;}
 .sf-skip a{font-family:'DM Mono',monospace;font-size:10px;color:rgba(160,175,210,0.35);text-decoration:none;letter-spacing:0.08em;cursor:pointer;transition:color 0.2s;}
 .sf-skip a:hover{color:rgba(160,175,210,0.65);}
+@keyframes sfGridDrift{from{background-position:0 0,0 0,0 0,0 0;}to{background-position:24px 24px,-24px 24px,0 0,0 0;}}
+@keyframes sfScanSweep{0%,20%{transform:translateX(-110%);opacity:0;}35%{opacity:1;}70%,100%{transform:translateX(110%);opacity:0;}}
+@keyframes sfReveal{from{opacity:0;transform:translateY(8px);filter:blur(3px);}to{opacity:1;transform:none;filter:none;}}
+@keyframes sfLivePulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.45;transform:scale(.72);}}
+@keyframes sfCoreBreathe{0%,100%{transform:scale(.98);box-shadow:0 0 0 8px rgba(0,229,160,.035),0 0 28px rgba(0,229,160,.14),inset 0 0 24px rgba(0,229,160,.08);}50%{transform:scale(1.03);box-shadow:0 0 0 12px rgba(0,229,160,.02),0 0 42px rgba(0,229,160,.25),inset 0 0 30px rgba(0,229,160,.14);}}
+@keyframes sfCoreRotate{to{transform:rotate(360deg);}}
+@keyframes sfQuestionPulse{0%,100%{opacity:.78;transform:scale(.96);box-shadow:0 0 12px rgba(232,69,90,.3),inset 0 0 12px rgba(232,69,90,.1);}50%{opacity:1;transform:scale(1.06);box-shadow:0 0 22px rgba(232,69,90,.58),inset 0 0 16px rgba(232,69,90,.18);}}
+@media(max-width:430px){.sf-diagnostic-card{min-height:440px;padding:22px 20px 20px;}.sf-diagnostic-topline{margin-bottom:22px;font-size:8px;}.sf-diagnostic-main{grid-template-columns:1fr;gap:24px;}.sf-signal-core{width:82px;height:82px;margin-left:auto;margin-right:4px;}.sf-signal-mark{width:32px;height:32px;font-size:23px;}.sf-diagnostic-footer{right:20px;bottom:20px;left:20px;font-size:8px;}.sf-diagnostic-body{font-size:12px;}.sf-diagnostic-meta{margin-top:18px;}}
+@media(prefers-reduced-motion:reduce){.sf-diagnostic-card::before,.sf-diagnostic-card::after,.sf-diagnostic-label,.sf-diagnostic-headline,.sf-diagnostic-body,.sf-diagnostic-meta,.sf-diagnostic-live::before,.sf-signal-core,.sf-signal-core::before,.sf-signal-core::after,.sf-signal-mark{animation:none;}.sf-diagnostic-card::after{display:none;}}
 </style>
 
 <div id="sf-carousel">
   <div class="sf-track-outer">
     <div class="sf-track" id="sfTrack">
-      <div class="sf-slide"><img src="/slide1.jpg" alt="Slide 1" draggable="false"></div>
-      <div class="sf-slide"><img src="/slide2.jpg" alt="Slide 2" draggable="false"></div>
-      <div class="sf-slide"><img src="/slide3.jpg" alt="Slide 3" draggable="false"></div>
-      <div class="sf-slide"><img src="/slide4.jpg" alt="Slide 4" draggable="false"></div>
-      <div class="sf-slide"><img src="/slide5.jpg" alt="Slide 5" draggable="false"></div>
+      <div class="sf-slide">
+        <article class="sf-diagnostic-card" aria-label="Live Strategic Flow email architecture diagnostic">
+          <span class="sf-diagnostic-corners" aria-hidden="true"></span>
+          <div class="sf-diagnostic-topline">
+            <span class="sf-diagnostic-live">Live diagnostic</span>
+            <span class="sf-diagnostic-id">signal://email_architecture</span>
+          </div>
+          <div class="sf-diagnostic-main">
+            <div class="sf-diagnostic-copy">
+              <div class="sf-diagnostic-label">Strategic Flow Audit</div>
+              <h2 class="sf-diagnostic-headline">
+                <span>Your last product email.</span>
+                <span>Architecture score: <span class="sf-unknown">UNKNOWN.</span></span>
+              </h2>
+              <p class="sf-diagnostic-body">Most SaaS teams never check.<strong>They just hit send.</strong></p>
+              <div class="sf-diagnostic-meta">Scanning structural friction</div>
+            </div>
+            <div class="sf-signal-core" aria-hidden="true">
+              <span class="sf-signal-tick sf-signal-tick-a"></span>
+              <span class="sf-signal-tick sf-signal-tick-b"></span>
+              <span class="sf-signal-tick sf-signal-tick-c"></span>
+              <span class="sf-signal-mark">?</span>
+            </div>
+          </div>
+          <div class="sf-diagnostic-footer">
+            <span>Decision Friction Model</span>
+            <strong>Awaiting input_</strong>
+          </div>
+        </article>
+      </div>
     </div>
-    <div class="sf-progress-bar"><div class="sf-progress-fill" id="sfProgressFill" style="width:20%"></div></div>
+    <div class="sf-progress-bar"><div class="sf-progress-fill" id="sfProgressFill" style="width:100%"></div></div>
   </div>
   <div class="sf-controls">
     <button class="sf-arrow" id="sfPrev" onclick="sfNav(-1)" aria-label="Previous"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -1034,7 +1099,7 @@ textarea{resize:vertical;line-height:1.7;}
 
 <script>
 (function(){
-  const TOTAL=5;
+  const TOTAL=1;
   let current=0,startX=0,isDragging=false,dismissed=false;
   const track=document.getElementById('sfTrack');
   const fill=document.getElementById('sfProgressFill');
