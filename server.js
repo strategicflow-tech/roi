@@ -14670,7 +14670,7 @@ async function setupDB() {
     CREATE TABLE IF NOT EXISTS directory_listings (
       id            SERIAL PRIMARY KEY,
       name          TEXT NOT NULL,
-       url           TEXT NOT NULL,
+       url           TEXT,
       category      TEXT DEFAULT 'General',
       description   TEXT,
       friction_score INTEGER,
@@ -14682,6 +14682,9 @@ async function setupDB() {
       scored_at     TIMESTAMPTZ
     )
   `).catch(e => console.error('[DB] directory_listings:', e.message));
+
+  // Manual drafts may be staged before a product website is known.
+  await pool.query(`ALTER TABLE directory_listings ALTER COLUMN url DROP NOT NULL`).catch(()=>{});
 
   // Add new aggregation columns (idempotent — safe to run on existing DB)
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS source          TEXT`).catch(()=>{});
@@ -14698,6 +14701,7 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS owner_image_url     TEXT`).catch(()=>{});
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verification_note  TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_id TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_status TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_reason TEXT`).catch(()=>{});
