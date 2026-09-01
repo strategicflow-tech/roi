@@ -4345,6 +4345,12 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     if (isJunkEmail(listing.contact_email)) return res.status(400).json({ error: 'junk_email', email: listing.contact_email });
     const singleBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
     if (singleBlock.blocked) return res.status(403).json({ error: 'blocked_target', reason: singleBlock.reason, name: listing.name });
+    if (await isUnsubscribed(listing.contact_email)) {
+      return res.status(409).json({ error: 'unsubscribed', message: 'Recipient is suppressed — skip outreach' });
+    }
+    if (await wasEmailedRecently(listing.contact_email)) {
+      return res.status(409).json({ error: 'emailed_last_24h', message: 'Recipient received another non-transactional email within 24 hours' });
+    }
     if (listing.outreach_emailed_at) {
       return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
     }
@@ -4359,7 +4365,7 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
     const name = listing.name;
     const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(name, listingUrl, listing.ai_insights, listing.contact_email);
-    await resend.emails.send({
+    const sendResult = await resend.emails.send({
       from:    SENDER,
       to:      listing.contact_email,
       replyTo: 'strategicflow@proton.me',
@@ -4367,6 +4373,15 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
       html:    htmlBody,
       text:    textBody,
     });
+    if (sendResult?.error) {
+      return res.status(502).json({ error: 'provider_error', message: sendResult.error.message || String(sendResult.error) });
+    }
+    if (sendResult?.cooldownBlocked) {
+      return res.status(409).json({ error: 'emailed_last_24h', message: 'Recipient received another non-transactional email within 24 hours' });
+    }
+    if (sendResult?.unsubscribed) {
+      return res.status(409).json({ error: 'unsubscribed', message: 'Recipient is suppressed — skip outreach' });
+    }
     await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listingId]);
     console.log(`[outreach] ✓ Claim email → ${listing.contact_email} (${name})`);
     res.json({ ok: true, listing_id: listingId, email: listing.contact_email, sent_at: new Date().toISOString() });
