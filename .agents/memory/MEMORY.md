@@ -24,3 +24,4 @@
 - [Tracker send verification](tracker-send-verification.md) — Resend webhook events prove provider acceptance; request-level failures need their own durable audit trail.
 - [Database identity after secret rotation](database-identity-after-secret-rotation.md) — compare the app’s database identity before operational sends when connection secrets change.
 - [Replit shared database migration quirk](replit-shared-database-migration-quirk.md) — removing DATABASE_URL can switch development to an incomplete database while production retains legacy data.
+- [Directory contact restrictions](directory-contact-restrictions.md) — permanent outreach blocks must cover server sends, claim/checkout/submit entry points, and admin re-imports; UI filtering is only defense in depth.

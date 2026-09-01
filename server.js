@@ -895,6 +895,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/toolindex-draft-previews',
   '/send-claim-outreach',
   '/manual-claim',
+  '/block-directory-contact',
   '/seq-send-step3-strict',
   '/run-followup2-batch',
 ]);
@@ -3219,8 +3220,36 @@ const LARGE_COMPANY_BLOCKLIST = new Set([
 // Returns { blocked: true, reason } if the listing should be skipped for outreach,
 // or { blocked: false } if it is safe to contact.
 // PERMANENT RULE: call before every outreach send, no exceptions.
+const DIRECTORY_BLOCKED_EMAILS = new Set([
+  'jonathan@datafreak.net',
+]);
+const DIRECTORY_BLOCKED_DOMAINS = new Set([
+  'datafreak.net',
+]);
+const DIRECTORY_BLOCKED_LISTING_NAMES = new Set([
+  'stackscope',
+]);
+
+function isBlockedDirectoryEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized || !normalized.includes('@')) return false;
+  if (DIRECTORY_BLOCKED_EMAILS.has(normalized)) return true;
+  return DIRECTORY_BLOCKED_DOMAINS.has(normalized.slice(normalized.lastIndexOf('@') + 1));
+}
+
+function isBlockedDirectoryListingName(name) {
+  return DIRECTORY_BLOCKED_LISTING_NAMES.has(String(name || '').trim().toLowerCase());
+}
+
 function isBlockedOutreachTarget(listingName, email) {
   const e = (email || '').toLowerCase().trim();
+
+  if (isBlockedDirectoryListingName(listingName))
+    return { blocked: true, reason: 'permanent listing restriction (StackScope)' };
+
+  // Permanent contact restriction — exact address plus the whole domain.
+  if (isBlockedDirectoryEmail(e))
+    return { blocked: true, reason: 'permanent do-not-contact restriction (datafreak.net)' };
 
   // Rule 1 — restricted email prefix (compliance / legal / press / abuse / generic role)
   if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
@@ -3371,6 +3400,18 @@ app.post('/api/directory/submit', async (req, res) => {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     return res.status(400).json({ error: 'invalid_email' });
+  }
+  if ((normalizedEmail && isBlockedDirectoryEmail(normalizedEmail)) || isBlockedDirectoryListingName(name)) {
+    await writeSecurityAudit('directory_listing_submit_blocked', {
+      actorType: 'public',
+      actorEmail: normalizedEmail,
+      metadata: {
+        reason: isBlockedDirectoryListingName(name) ? 'permanent_listing_block' : 'permanent_email_block',
+        domain: 'datafreak.net',
+        listing_name: String(name).trim().slice(0, 120)
+      }
+    });
+    return res.status(403).json({ error: 'email_blocked', message: 'This email address is not eligible for ToolIndex.' });
   }
   const submitAllowed = await consumeDirectoryRateLimit(
     `directory-submit:${normalizedClientIp(req)}`, 5, 60 * 60
@@ -4164,8 +4205,10 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
              (SELECT COUNT(*) FROM dir_claims dc WHERE dc.listing_id = dl.id) > 0 AS is_claimed
       FROM directory_listings dl
       WHERE dl.status IN ('active', 'draft')
+        AND split_part(lower(COALESCE(dl.contact_email,'')), '@', 2) <> ALL($1::text[])
+        AND lower(COALESCE(dl.contact_email,'')) <> ALL($2::text[])
       ORDER BY dl.id DESC
-    `);
+    `, [Array.from(DIRECTORY_BLOCKED_DOMAINS), Array.from(DIRECTORY_BLOCKED_EMAILS)]);
     const data = rows.map(r => ({
       id:               String(r.id),
       name:             r.name,
@@ -4478,6 +4521,15 @@ app.post('/admin/manual-claim', async (req, res) => {
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ||
       !founderName || !proofUrl) {
     return res.status(400).json({ error: 'listing_id, owner_email, founder_name and proof_url are required' });
+  }
+  if (isBlockedDirectoryEmail(ownerEmail)) {
+    await writeSecurityAudit('directory_claim_manual_blocked', {
+      actorType: 'admin',
+      listingId,
+      actorEmail: ownerEmail,
+      metadata: { reason: 'permanent_email_block', domain: 'datafreak.net' }
+    });
+    return res.status(403).json({ error: 'email_blocked' });
   }
 
   let normalizedProofUrl;
@@ -5076,6 +5128,7 @@ function newsletterConfirmTokenHash(token) {
 async function queueClaimNewsletterConfirmation(email, listingId, { newConsent = false, hookPost = null } = {}) {
   const norm = (email || '').toLowerCase().trim();
   if (!norm || !norm.includes('@')) return { skipped: 'invalid_email' };
+  if (isBlockedDirectoryEmail(norm)) return { skipped: 'blocked_email' };
 
   if (await isUnsubscribed(norm) && !newConsent) {
     await pool.query(
@@ -6801,6 +6854,14 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
       }
       const normalizedUrl = row.url.trim() || null;
       const contactEmail = row.contact_email.trim().toLowerCase();
+      if (isBlockedDirectoryListingName(name) || isBlockedDirectoryEmail(contactEmail)) {
+        skipped.push({
+          file_row: row.file_row,
+          name,
+          reason: 'permanent listing/contact restriction',
+        });
+        continue;
+      }
       if (nameKey === 'opentag' || contactEmail === 'privacy@opentag.bot') {
         skipped.push({
           file_row: row.file_row,
@@ -6899,6 +6960,24 @@ app.post('/admin/batch-update', express.json({ limit: '1mb' }), async (req, res)
   for (const item of items) {
     const id = Number(item.id);
     if (!id) { results.push({ id, status: 'skipped_no_id' }); continue; }
+    const requestedEmail = item.email ? item.email.toString().trim().toLowerCase() : '';
+    if (requestedEmail && isBlockedDirectoryEmail(requestedEmail)) {
+      results.push({ id, status: 'blocked_restricted_contact' });
+      continue;
+    }
+    if (item.status === 'active') {
+      const existing = await pool.query(
+        'SELECT name, submitter_email, contact_email FROM directory_listings WHERE id=$1',
+        [id]
+      ).catch(() => ({ rows: [] }));
+      const row = existing.rows[0];
+      if (isBlockedDirectoryListingName(item.name || row?.name) ||
+          isBlockedDirectoryEmail(requestedEmail || row?.submitter_email) ||
+          isBlockedDirectoryEmail(row?.contact_email)) {
+        results.push({ id, status: 'blocked_restricted_listing' });
+        continue;
+      }
+    }
     const setParts = [];
     const vals = [];
     let pi = 1;
@@ -6958,6 +7037,134 @@ app.post('/admin/bulk-delete', express.json({ limit: '256kb' }), async (req, res
     );
     res.json({ deleted: r.rows.length, rows: r.rows });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /admin/block-directory-contact — permanently block a contact/domain,
+// preserve an admin-only reason in the security audit, and hard-delete matching
+// StackScope listings. Header-only job-token access is intentionally allowlisted
+// above so this cannot be triggered by URL credentials.
+app.post('/admin/block-directory-contact', express.json({ limit: '32kb' }), async (req, res) => {
+  if (!hasMatchingAdminJobToken(req)) return res.status(403).json({ error: 'forbidden' });
+
+  const blockedEmail = String(req.body?.blocked_email || 'jonathan@datafreak.net').trim().toLowerCase();
+  const blockedDomain = String(req.body?.blocked_domain || 'datafreak.net').trim().toLowerCase().replace(/^@/, '');
+  const listingName = String(req.body?.listing_name || 'StackScope').trim().slice(0, 120);
+  const internalNote = String(req.body?.internal_note ||
+    'Never approve or publish this listing again when resubmitted using jonathan@datafreak.net. Contact and domain permanently blocked after hostile claim interaction.')
+    .trim().slice(0, 1000);
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(blockedEmail) ||
+      !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(blockedDomain) ||
+      !listingName) {
+    return res.status(400).json({ error: 'invalid_block_request' });
+  }
+
+  const client = await pool.connect();
+  let matched = [];
+  let deleted = [];
+  try {
+    await client.query('BEGIN');
+    const listingResult = await client.query(
+      `SELECT id, name, url, status
+         FROM directory_listings
+        WHERE lower(name)=lower($1)
+           OR lower(COALESCE(submitter_email,''))=$2
+           OR lower(COALESCE(contact_email,''))=$2
+           OR lower(COALESCE(claimed_by,''))=$2
+        FOR UPDATE`,
+      [listingName, blockedEmail]
+    );
+    matched = listingResult.rows;
+    const ids = matched.map(row => Number(row.id)).filter(Number.isSafeInteger);
+
+    if (ids.length) {
+      // Remove references first because these legacy relations are not all
+      // declared with ON DELETE CASCADE.
+      await client.query(
+        `UPDATE directory_listings SET redirects_to=NULL WHERE redirects_to = ANY($1::int[])`,
+        [ids]
+      );
+      for (const tableName of [
+        'dir_boost_schedule', 'dir_claims', 'dir_daily_section', 'dir_featured',
+        'dir_listing_clicks', 'dir_listing_views', 'dir_vote_snapshots', 'dir_votes',
+        'directory_health_checks', 'directory_listing_revisions',
+        'directory_payment_fulfillments', 'directory_relaunch_drafts',
+        'directory_site_snapshots', 'directory_winners'
+      ]) {
+        await client.query(`DELETE FROM ${tableName} WHERE listing_id = ANY($1::int[])`, [ids]);
+      }
+      const deletedResult = await client.query(
+        `DELETE FROM directory_listings WHERE id = ANY($1::int[]) RETURNING id, name, url`,
+        [ids]
+      );
+      deleted = deletedResult.rows;
+    }
+
+    // Remove the address/domain from mutable contact and claim queues. The
+    // permanent code-level block remains the defense even if a future import
+    // reintroduces a matching address.
+    await client.query(
+      `UPDATE directory_listings
+          SET submitter_email=NULL, contact_email=NULL
+        WHERE lower(COALESCE(submitter_email,''))=$1
+           OR lower(COALESCE(contact_email,''))=$1
+           OR lower(COALESCE(submitter_email,'')) LIKE $2
+           OR lower(COALESCE(contact_email,'')) LIKE $2`,
+      [blockedEmail, `%@${blockedDomain}`]
+    );
+    await client.query(
+      `UPDATE directory_listings
+          SET claimed_by=NULL, claimed_at=NULL, verified=FALSE
+        WHERE lower(COALESCE(claimed_by,''))=$1
+           OR lower(COALESCE(claimed_by,'')) LIKE $2`,
+      [blockedEmail, `%@${blockedDomain}`]
+    );
+    await client.query(
+      `DELETE FROM dir_claims
+        WHERE lower(owner_email)=$1 OR lower(owner_email) LIKE $2`,
+      [blockedEmail, `%@${blockedDomain}`]
+    );
+    await client.query(
+      `DELETE FROM outreach_seq_contacts
+        WHERE lower(to_email)=$1 OR lower(to_email) LIKE $2`,
+      [blockedEmail, `%@${blockedDomain}`]
+    );
+    await client.query(
+      `DELETE FROM toolindex_newsletter_contacts
+        WHERE lower(email)=$1 OR lower(email) LIKE $2`,
+      [blockedEmail, `%@${blockedDomain}`]
+    );
+    await client.query('COMMIT');
+
+    await writeSecurityAudit('directory_listing_blocked', {
+      actorType: 'admin',
+      listingId: deleted[0]?.id || matched[0]?.id || null,
+      actorEmail: blockedEmail,
+      metadata: {
+        listing_name: listingName,
+        blocked_domain: blockedDomain,
+        internal_note: internalNote,
+        matched_listings: matched.map(row => ({ id: row.id, name: row.name, url: row.url, status: row.status })),
+        deleted_listings: deleted,
+        permanent: true
+      }
+    });
+    return res.json({
+      ok: true,
+      blocked_email: blockedEmail,
+      blocked_domain: blockedDomain,
+      listing_name: listingName,
+      matched: matched.length,
+      deleted: deleted.length,
+      internal_note_recorded: true
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[admin/block-directory-contact]', error.message);
+    return res.status(500).json({ error: 'block_request_failed' });
+  } finally {
+    client.release();
+  }
 });
 
 // GET /admin/fix-peerlist-noclaim?key=… — one-time cleanup: delete placeholder-URL listings + set confirmed URLs+emails. Idempotent.
@@ -10511,6 +10718,15 @@ app.post('/api/directory/checkout', async (req, res) => {
     });
     return res.status(400).json({ error: 'invalid_params' });
   }
+  if (payerEmail && isBlockedDirectoryEmail(payerEmail)) {
+    await writeSecurityAudit('directory_checkout_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: payerEmail,
+      metadata: { reason: 'permanent_email_block', domain: 'datafreak.net', tier }
+    });
+    return res.status(403).json({ error: 'email_blocked' });
+  }
   const listingRow = await pool.query('SELECT id, name, claimed_by FROM directory_listings WHERE id=$1 AND status=\'active\'', [auditListingId]).catch(() => null);
   if (!listingRow?.rows?.length) {
     await writeSecurityAudit('directory_checkout_rejected', {
@@ -11373,6 +11589,7 @@ async function authorizeDirectoryClaim(req, listingId, email) {
   const normalizedEmail = String(saved?.email || '').trim().toLowerCase();
   const token = String(saved?.token || '').trim();
   if (!listingId || !normalizedEmail || !token) return null;
+  if (isBlockedDirectoryEmail(normalizedEmail)) return null;
   if (email && String(email).trim().toLowerCase() !== normalizedEmail) return null;
   if (saved && saved.expiresAt < Date.now()) {
     delete req.session.directoryClaims[String(listingId)];
@@ -11852,6 +12069,15 @@ app.post('/api/directory/claim/start', async (req, res) => {
     return res.status(400).json({ error: 'listing_id and valid email required' });
   }
   const newsletterOptIn = newsletter_opt_in === true;
+  if (isBlockedDirectoryEmail(ownerEmail)) {
+    await writeSecurityAudit('directory_claim_start_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: ownerEmail,
+      metadata: { reason: 'permanent_email_block', domain: 'datafreak.net' }
+    });
+    return res.status(403).json({ error: 'email_blocked' });
+  }
 
   try {
     const row = await pool.query(
@@ -12009,6 +12235,15 @@ app.post('/api/directory/claim/verify', async (req, res) => {
       metadata: { reason: 'invalid_request' }
     });
     return res.status(400).json({ error: 'listing_id, email, otp required' });
+  }
+  if (isBlockedDirectoryEmail(ownerEmail)) {
+    await writeSecurityAudit('directory_claim_verification_rejected', {
+      actorType: 'public',
+      listingId: auditListingId,
+      actorEmail: ownerEmail,
+      metadata: { reason: 'permanent_email_block', domain: 'datafreak.net' }
+    });
+    return res.status(403).json({ error: 'email_blocked' });
   }
 
   try {

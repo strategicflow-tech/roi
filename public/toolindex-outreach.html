@@ -245,6 +245,14 @@
   }
 
   // ── Fetch data ──
+  // Keep the admin tracker defensive even if an importer returns a blocked
+  // address. The server-side gate remains authoritative for every send.
+  const EXCLUDED_IDS = new Set();
+  const RESTRICTED_ADDRESS_RE = /(?:^|@)datafreak\.net$/i;
+  const isRestrictedOutreachRow = row =>
+    EXCLUDED_IDS.has(String(row?.id || '')) ||
+    RESTRICTED_ADDRESS_RE.test(String(row?.email || '').trim());
+
   let DATA = [];
   try {
     const resp = await fetch('/api/directory/outreach-queue', { credentials: 'same-origin' });
@@ -252,7 +260,7 @@
       list.innerHTML = '<div class="empty">Eroare la încărcare (' + resp.status + '). Autentifică-te ca administrator și reîncearcă.</div>';
       return;
     }
-    DATA = await resp.json();
+    DATA = (await resp.json()).filter(row => !isRestrictedOutreachRow(row));
   } catch(e) {
     list.innerHTML = '<div class="empty">Nu s-a putut conecta la server. Încearcă din nou.</div>';
     return;
