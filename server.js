@@ -199,7 +199,21 @@ const AGENCY_OUTREACH_TRACKER_FILE = path.join(
 // code-level safeguards in addition to any provider suppression list so a
 // future import or tracker edit cannot re-enable contact.
 const PERMANENT_OUTREACH_EXCLUSIONS = new Set([
-  'hubspotpartner@karsten.anonaddy.com'
+  'hubspotpartner@karsten.anonaddy.com',
+  // Large/established companies from the ToolIndex daily-launch batch.
+  // They may remain listed, but must never receive founder outreach.
+  'eoin@tines.io',
+  'support@suno.com',
+  'support@zohocliq.com',
+  'support@recall.ai',
+  'support@workos.com',
+  'team@elevenlabs.io',
+  'media@calendly.com',
+  'sales@cloudways.com',
+  'investors@equitybee.com',
+  'per@scrimba.com',
+  'support@mem.ai',
+  'hi@cursor.com',
 ]);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -893,6 +907,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/seq-upload-csv',
   '/toolindex-import-drafts',
   '/toolindex-draft-previews',
+  '/run-daily-launch-rollout',
   '/send-claim-outreach',
   '/manual-claim',
   '/block-directory-contact',
@@ -3250,6 +3265,8 @@ function isBlockedOutreachTarget(listingName, email) {
   // Permanent contact restriction — exact address plus the whole domain.
   if (isBlockedDirectoryEmail(e))
     return { blocked: true, reason: 'permanent do-not-contact restriction (datafreak.net)' };
+  if (PERMANENT_OUTREACH_EXCLUSIONS.has(e))
+    return { blocked: true, reason: 'permanent do-not-contact restriction' };
 
   // Rule 1 — restricted email prefix (compliance / legal / press / abuse / generic role)
   if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
@@ -4207,8 +4224,13 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
       WHERE dl.status IN ('active', 'draft')
         AND split_part(lower(COALESCE(dl.contact_email,'')), '@', 2) <> ALL($1::text[])
         AND lower(COALESCE(dl.contact_email,'')) <> ALL($2::text[])
+        AND lower(COALESCE(dl.contact_email,'')) <> ALL($3::text[])
       ORDER BY dl.id DESC
-    `, [Array.from(DIRECTORY_BLOCKED_DOMAINS), Array.from(DIRECTORY_BLOCKED_EMAILS)]);
+    `, [
+      Array.from(DIRECTORY_BLOCKED_DOMAINS),
+      Array.from(DIRECTORY_BLOCKED_EMAILS),
+      Array.from(PERMANENT_OUTREACH_EXCLUSIONS),
+    ]);
     const data = rows.map(r => ({
       id:               String(r.id),
       name:             r.name,
@@ -4430,6 +4452,120 @@ const TOOLINDEX_FIRST_CONTACT_GENERIC_IDS = new Set([
 
 // ── POST /admin/send-claim-outreach — send one claim email via Resend ─────────
 // Browser admins may use a session; maintenance jobs use the header-only token.
+async function sendClaimOutreachForListing(listingId, { policyOverride = null } = {}) {
+  const { rows } = await pool.query(
+    `SELECT id, name, url, contact_email, outreach_emailed_at, ai_insights
+     FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
+    [listingId]
+  );
+  if (!rows.length) return { ok: false, httpStatus: 404, error: 'not_found' };
+  const listing = rows[0];
+  if (!listing.contact_email) return { ok: false, httpStatus: 400, error: 'no_email' };
+  if (isJunkEmail(listing.contact_email)) {
+    return { ok: false, httpStatus: 400, error: 'junk_email', email: listing.contact_email };
+  }
+
+  const singleBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
+  const emailLocalPart = listing.contact_email.trim().toLowerCase().split('@')[0];
+  const genericFirstContactOverride =
+    policyOverride === TOOLINDEX_FIRST_CONTACT_GENERIC_OVERRIDE &&
+    TOOLINDEX_FIRST_CONTACT_GENERIC_IDS.has(listingId) &&
+    ['support', 'help', 'admin'].includes(emailLocalPart) &&
+    !/^(abuse|noreply|no-reply|donotreply|do-not-reply)$/.test(emailLocalPart) &&
+    singleBlock.reason?.startsWith('restricted email prefix (');
+  if (singleBlock.blocked && !genericFirstContactOverride) {
+    return {
+      ok: false,
+      httpStatus: 403,
+      error: 'blocked_target',
+      reason: singleBlock.reason,
+      name: listing.name,
+    };
+  }
+  if (await isUnsubscribed(listing.contact_email)) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      error: 'unsubscribed',
+      message: 'Recipient is suppressed — skip outreach',
+    };
+  }
+  if (await wasEmailedRecently(listing.contact_email)) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      error: 'emailed_last_24h',
+      message: 'Recipient received another non-transactional email within 24 hours',
+    };
+  }
+  if (listing.outreach_emailed_at) {
+    return { ok: false, httpStatus: 409, error: 'already_sent', sent_at: listing.outreach_emailed_at };
+  }
+
+  // Never send outreach to a claimed listing — owner already knows about ToolIndex.
+  const claimCheck = await pool.query(
+    `SELECT id FROM dir_claims WHERE listing_id=$1 LIMIT 1`, [listingId]
+  );
+  if (claimCheck.rows.length) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      error: 'already_claimed',
+      message: 'Listing is already claimed — skip outreach',
+    };
+  }
+
+  const slug = toListingSlug(listing.name, listing.id);
+  const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
+  const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(
+    listing.name,
+    listingUrl,
+    listing.ai_insights,
+    listing.contact_email
+  );
+  const sendResult = await resend.emails.send({
+    from: SENDER,
+    to: listing.contact_email,
+    replyTo: 'strategicflow@proton.me',
+    subject,
+    html: htmlBody,
+    text: textBody,
+  });
+  if (sendResult?.error) {
+    return {
+      ok: false,
+      httpStatus: 502,
+      error: 'provider_error',
+      message: sendResult.error.message || String(sendResult.error),
+    };
+  }
+  if (sendResult?.cooldownBlocked) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      error: 'emailed_last_24h',
+      message: 'Recipient received another non-transactional email within 24 hours',
+    };
+  }
+  if (sendResult?.unsubscribed) {
+    return {
+      ok: false,
+      httpStatus: 409,
+      error: 'unsubscribed',
+      message: 'Recipient is suppressed — skip outreach',
+    };
+  }
+
+  await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listingId]);
+  console.log(`[outreach] ✓ Claim email → ${listing.contact_email} (${listing.name})`);
+  return {
+    ok: true,
+    listing_id: listingId,
+    email: listing.contact_email,
+    sent_at: new Date().toISOString(),
+  };
+}
+
 app.post('/admin/send-claim-outreach', async (req, res) => {
   if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
     return res.status(403).json({ error: 'forbidden' });
@@ -4437,75 +4573,22 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
   const listingId = parseInt(req.query.id || (req.body && req.body.id));
   if (!listingId || isNaN(listingId)) return res.status(400).json({ error: 'missing_id' });
   try {
-    const { rows } = await pool.query(
-      `SELECT id, name, url, contact_email, outreach_emailed_at, ai_insights
-       FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
-      [listingId]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'not_found' });
-    const listing = rows[0];
-    if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
-    if (isJunkEmail(listing.contact_email)) return res.status(400).json({ error: 'junk_email', email: listing.contact_email });
-    const singleBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
-    const emailLocalPart = listing.contact_email.trim().toLowerCase().split('@')[0];
-    const genericFirstContactOverride =
-      req.body?.outreach_policy_override === TOOLINDEX_FIRST_CONTACT_GENERIC_OVERRIDE &&
-      TOOLINDEX_FIRST_CONTACT_GENERIC_IDS.has(listingId) &&
-      ['support', 'help', 'admin'].includes(emailLocalPart) &&
-      !/^(abuse|noreply|no-reply|donotreply|do-not-reply)$/.test(emailLocalPart) &&
-      singleBlock.reason?.startsWith('restricted email prefix (');
-    if (singleBlock.blocked && !genericFirstContactOverride) {
-      return res.status(403).json({ error: 'blocked_target', reason: singleBlock.reason, name: listing.name });
-    }
-    if (await isUnsubscribed(listing.contact_email)) {
-      return res.status(409).json({ error: 'unsubscribed', message: 'Recipient is suppressed — skip outreach' });
-    }
-    if (await wasEmailedRecently(listing.contact_email)) {
-      return res.status(409).json({ error: 'emailed_last_24h', message: 'Recipient received another non-transactional email within 24 hours' });
-    }
-    if (listing.outreach_emailed_at) {
-      return res.status(409).json({ error: 'already_sent', sent_at: listing.outreach_emailed_at });
-    }
-    // Never send outreach to a claimed listing — owner already knows about ToolIndex
-    const claimCheck = await pool.query(
-      `SELECT id FROM dir_claims WHERE listing_id=$1 LIMIT 1`, [listingId]
-    );
-    if (claimCheck.rows.length) {
-      return res.status(409).json({ error: 'already_claimed', message: 'Listing is already claimed — skip outreach' });
-    }
-    const slug = toListingSlug(listing.name, listing.id);
-    const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-    const name = listing.name;
-    const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(name, listingUrl, listing.ai_insights, listing.contact_email);
-    const sendResult = await resend.emails.send({
-      from:    SENDER,
-      to:      listing.contact_email,
-      replyTo: 'strategicflow@proton.me',
-      subject,
-      html:    htmlBody,
-      text:    textBody,
+    const result = await sendClaimOutreachForListing(listingId, {
+      policyOverride: req.body?.outreach_policy_override || null,
     });
-    if (sendResult?.error) {
-      return res.status(502).json({ error: 'provider_error', message: sendResult.error.message || String(sendResult.error) });
-    }
-    if (sendResult?.cooldownBlocked) {
-      return res.status(409).json({ error: 'emailed_last_24h', message: 'Recipient received another non-transactional email within 24 hours' });
-    }
-    if (sendResult?.unsubscribed) {
-      return res.status(409).json({ error: 'unsubscribed', message: 'Recipient is suppressed — skip outreach' });
-    }
-    await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listingId]);
-    console.log(`[outreach] ✓ Claim email → ${listing.contact_email} (${name})`);
-    res.json({ ok: true, listing_id: listingId, email: listing.contact_email, sent_at: new Date().toISOString() });
-  } catch(e) {
+    if (!result.ok) return res.status(result.httpStatus || 500).json(result);
+    return res.json(result);
+  } catch (e) {
     console.error('[outreach] Send error:', e.message);
-    // Detect Resend quota / rate-limit errors (statusCode 429 or message keywords)
     const isQuota = e.statusCode === 429
       || (e.message && /rate.?limit|quota|daily.?limit|too many/i.test(e.message));
     if (isQuota) {
-      return res.status(429).json({ error: 'quota_exceeded', message: e.message || 'Resend daily quota reached' });
+      return res.status(429).json({
+        error: 'quota_exceeded',
+        message: e.message || 'Resend daily quota reached',
+      });
     }
-    res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message });
   }
 });
 
@@ -4730,6 +4813,15 @@ const TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID = 'toolindex-draft-batch-04-2026-08-2
 const TOOLINDEX_DRAFT_OUTREACH_TARGET = new Date('2026-08-29T12:00:00Z');
 const TOOLINDEX_DRAFT_OUTREACH_IDS = Array.from({ length: 63 }, (_, index) => 8114 + index);
 let toolIndexDraftOutreachRunning = false;
+// One-way daily launch rollout for the verified imports. Sources are ordered:
+// batch 2 cannot start until all queued rows from batch 1 are live.
+const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
+  'toolindex-daily-launches-2026-09-01',
+  'toolindex-daily-launches-2026-09-01-batch-2',
+];
+const TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID = 'toolindex-daily-launches-2026-09-01';
+const TOOLINDEX_DAILY_LAUNCH_CAP = 5;
+let toolIndexDailyLaunchRunning = false;
 const STEP3_CAMPAIGN_DATE_UTC = (() => {
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -5020,6 +5112,139 @@ async function scheduleImportedDraftFounderCampaign() {
     console.log('[toolindex-draft-outreach] campaign target has passed; no send scheduled');
   }
 }
+
+async function setDailyLaunchCampaignOutcome(listingId, status, reason = null) {
+  await pool.query(
+    `UPDATE directory_listings
+     SET outreach_campaign_status=$2,
+         outreach_campaign_reason=$3,
+         outreach_campaign_processed_at=NOW()
+     WHERE id=$1 AND outreach_campaign_id=$4`,
+    [listingId, status, reason, TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID]
+  );
+}
+
+async function runDailyLaunchRollout(source = 'cron') {
+  if (toolIndexDailyLaunchRunning) return { skipped: true, reason: 'already_running' };
+  toolIndexDailyLaunchRunning = true;
+  const lockClient = await pool.connect();
+  try {
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: true, reason: 'locked_elsewhere' };
+
+    const publishedToday = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM directory_listings
+       WHERE source=ANY($1::text[])
+         AND status='active'
+         AND outreach_campaign_scheduled_at IS NOT NULL
+         AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
+             (NOW() AT TIME ZONE 'UTC')::date`,
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES]
+    );
+    const alreadyPublished = publishedToday.rows[0]?.count || 0;
+    const remainingCapacity = Math.max(0, TOOLINDEX_DAILY_LAUNCH_CAP - alreadyPublished);
+    if (!remainingCapacity) {
+      console.log(`[daily-launches] ${source}: daily cap reached (${alreadyPublished}/${TOOLINDEX_DAILY_LAUNCH_CAP})`);
+      return { skipped: true, reason: 'daily_cap_reached', published_today: alreadyPublished };
+    }
+
+    const queued = await pool.query(
+      `SELECT id, name, url, contact_email, ai_insights
+       FROM directory_listings
+       WHERE source=ANY($1::text[]) AND status='draft'
+       ORDER BY array_position($1::text[], source),
+                launch_date ASC NULLS LAST,
+                id ASC
+       LIMIT $2`,
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES, remainingCapacity]
+    );
+
+    let published = 0;
+    let sent = 0;
+    let excluded = 0;
+    let failed = 0;
+
+    for (const listing of queued.rows) {
+      const activated = await pool.query(
+        `UPDATE directory_listings
+         SET status='active',
+             outreach_campaign_id=$2,
+             outreach_campaign_scheduled_at=NOW(),
+             outreach_campaign_status='publishing',
+             outreach_campaign_reason=NULL
+         WHERE id=$1 AND source=ANY($3::text[]) AND status='draft'
+         RETURNING id, name`,
+        [listing.id, TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID, TOOLINDEX_DAILY_LAUNCH_SOURCES]
+      );
+      if (!activated.rows.length) continue;
+      published++;
+
+      try {
+        const result = await sendClaimOutreachForListing(listing.id);
+        if (result.ok) {
+          await setDailyLaunchCampaignOutcome(listing.id, 'sent');
+          sent++;
+        } else {
+          const reason = result.reason || result.message || result.error || 'outreach skipped';
+          const terminalStatus = result.error === 'blocked_target' ||
+            result.error === 'unsubscribed' ||
+            result.error === 'emailed_last_24h' ||
+            result.error === 'already_claimed' ||
+            result.error === 'no_email' ||
+            result.error === 'junk_email'
+            ? 'excluded'
+            : 'failed';
+          await setDailyLaunchCampaignOutcome(listing.id, terminalStatus, reason);
+          if (terminalStatus === 'excluded') excluded++;
+          else failed++;
+          console.log(`[daily-launches] ${source}: ${terminalStatus} outreach for ${listing.name} — ${reason}`);
+        }
+      } catch (error) {
+        await setDailyLaunchCampaignOutcome(listing.id, 'failed', String(error.message || error).slice(0, 500));
+        console.error(`[daily-launches] ${source}: outreach failed for ${listing.name}:`, error.message);
+        failed++;
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    const left = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM directory_listings
+       WHERE source=ANY($1::text[]) AND status='draft'`,
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES]
+    );
+    const remaining = left.rows[0]?.count || 0;
+    console.log(
+      `[daily-launches] ${source}: ${published} published, ${sent} outreach sent, ` +
+      `${excluded} excluded, ${failed} failed; ${remaining} drafts remain`
+    );
+    if (!remaining) console.log('[daily-launches] cohort complete; no future rollout will be scheduled');
+    return { published, sent, excluded, failed, remaining };
+  } finally {
+    try {
+      await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID]);
+    } catch {}
+    lockClient.release();
+    toolIndexDailyLaunchRunning = false;
+  }
+}
+
+app.post('/admin/run-daily-launch-rollout', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const result = await runDailyLaunchRollout('manual');
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error('[daily-launches] manual run failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 const SEQ_TEMPLATES = {
   A_PMM: {
@@ -6913,13 +7138,18 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
           `INSERT INTO directory_listings
              (name, url, description, category, founder_name, contact_email,
                source, source_url, image_url, launch_date, status, is_seeded, is_auto_imported,
-              score_pending, submitted_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW())
+              score_pending, submitted_at, outreach_campaign_id,
+              outreach_campaign_status, outreach_followups_disabled)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW(),
+                    $11,$12,$13)
            RETURNING id, name`,
           [
             row.name, storedUrl, row.description, category, row.founder_name,
             row.contact_email, row.source, storedSourceUrl, row.image_url,
             row.launch_date.trim() || null,
+            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID : null,
+            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? 'queued' : null,
+            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()),
           ]
         );
         const id = inserted.rows[0].id;
@@ -29398,6 +29628,20 @@ ${buildUnsubFooterHtml(listing.contact_email)}
   // A workflow restart after 08:00 must not silently lose that day's scheduled post.
   // It publishes at most one article for the current publishing day.
   setTimeout(() => publishScheduledToolIndexPost('startup-recovery').catch(() => {}), 10_000);
+
+  // ── Daily launches: publish up to five queued verified imports at 08:00 UTC ─
+  // A startup recovery covers restarts after the daily tick without ever
+  // exceeding the cap because published rows carry their rollout timestamp.
+  cron.schedule('0 8 * * *', () => {
+    runDailyLaunchRollout('cron').catch(error => {
+      console.error('[daily-launches] cron failed:', error.message);
+    });
+  }, { timezone: 'UTC' });
+  setTimeout(() => {
+    runDailyLaunchRollout('startup-recovery').catch(error => {
+      console.error('[daily-launches] startup recovery failed:', error.message);
+    });
+  }, 12_000);
 
   // ── Every Tuesday 08:00 UTC: weekly spotlight newsletter (4-template rotation) ──
   cron.schedule('0 8 * * 2', async () => {
