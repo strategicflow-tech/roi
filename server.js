@@ -4326,6 +4326,15 @@ Tenerife, Spain${buildUnsubFooterText(email || '')}`;
   };
 }
 
+// One-off, explicitly authorized exception for the first-contact campaign:
+// generic role addresses may be contacted for these already-reviewed drafts,
+// but only with the campaign marker below. The global blocklist remains intact.
+const TOOLINDEX_FIRST_CONTACT_GENERIC_OVERRIDE = 'toolindex-manual-first-contact';
+const TOOLINDEX_FIRST_CONTACT_GENERIC_IDS = new Set([
+  10070, 10074, 10077, 10078, 10084, 10089,
+  10092, 10108, 10112, 10116, 10123, 10129,
+]);
+
 // ── POST /admin/send-claim-outreach?key=…&id=… — send claim email via Resend ──
 app.post('/admin/send-claim-outreach', async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
@@ -4342,7 +4351,16 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
     if (!listing.contact_email) return res.status(400).json({ error: 'no_email' });
     if (isJunkEmail(listing.contact_email)) return res.status(400).json({ error: 'junk_email', email: listing.contact_email });
     const singleBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
-    if (singleBlock.blocked) return res.status(403).json({ error: 'blocked_target', reason: singleBlock.reason, name: listing.name });
+    const emailLocalPart = listing.contact_email.trim().toLowerCase().split('@')[0];
+    const genericFirstContactOverride =
+      req.body?.outreach_policy_override === TOOLINDEX_FIRST_CONTACT_GENERIC_OVERRIDE &&
+      TOOLINDEX_FIRST_CONTACT_GENERIC_IDS.has(listingId) &&
+      ['support', 'help', 'admin'].includes(emailLocalPart) &&
+      !/^(abuse|noreply|no-reply|donotreply|do-not-reply)$/.test(emailLocalPart) &&
+      singleBlock.reason?.startsWith('restricted email prefix (');
+    if (singleBlock.blocked && !genericFirstContactOverride) {
+      return res.status(403).json({ error: 'blocked_target', reason: singleBlock.reason, name: listing.name });
+    }
     if (await isUnsubscribed(listing.contact_email)) {
       return res.status(409).json({ error: 'unsubscribed', message: 'Recipient is suppressed — skip outreach' });
     }
