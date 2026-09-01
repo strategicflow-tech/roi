@@ -912,6 +912,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/run-daily-launch-rollout',
   '/run-daily-launch-vote-seeding',
   '/repair-daily-launch-batch-3',
+  '/enable-daily-launch-followups',
   '/send-claim-outreach',
   '/manual-claim',
   '/block-directory-contact',
@@ -5266,7 +5267,7 @@ app.post('/admin/repair-daily-launch-batch-3', async (req, res) => {
            outreach_campaign_status='queued',
            outreach_campaign_reason=NULL,
            outreach_campaign_processed_at=NULL,
-           outreach_followups_disabled=TRUE
+           outreach_followups_disabled=FALSE
        WHERE source='toolindex-daily-launches-2026-09-01-batch-3'
          AND status='draft'
        RETURNING id`,
@@ -5276,6 +5277,26 @@ app.post('/admin/repair-daily-launch-batch-3', async (req, res) => {
     return res.json({ ok: true, repaired: result.rowCount });
   } catch (error) {
     console.error('[toolindex-import] batch 3 queue repair failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/enable-daily-launch-followups', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE directory_listings
+       SET outreach_followups_disabled=FALSE
+       WHERE source=ANY($1::text[])
+       RETURNING id`,
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES]
+    );
+    console.log(`[daily-launch-followups] enabled for ${result.rowCount} daily-launch listings`);
+    return res.json({ ok: true, enabled: result.rowCount });
+  } catch (error) {
+    console.error('[daily-launch-followups] enable failed:', error.message);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -6239,6 +6260,7 @@ app.get('/admin/run-followup-batch', async (req, res) => {
       FROM directory_listings
       WHERE outreach_emailed_at IS NOT NULL
         AND follow_up_sent_at IS NULL
+        AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
         AND claimed_at IS NULL
         AND claimed_by IS NULL
         AND outreach_emailed_at < NOW() - ($2 || ' hours')::INTERVAL
@@ -7183,7 +7205,7 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
             row.launch_date.trim() || null,
             TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID : null,
             TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? 'queued' : null,
-            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()),
+            !TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()),
           ]
         );
         const id = inserted.rows[0].id;
