@@ -3268,8 +3268,11 @@ function isBlockedOutreachTarget(listingName, email) {
   if (PERMANENT_OUTREACH_EXCLUSIONS.has(e))
     return { blocked: true, reason: 'permanent do-not-contact restriction' };
 
-  // Rule 1 — restricted email prefix (compliance / legal / press / abuse / generic role)
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
+  // Rule 1 — restricted email prefix (compliance / legal / press / abuse /
+  // generic role). support@ and hello@ are intentionally allowed for the
+  // first claim email; the normal cooldown, unsubscribe and DNC checks still
+  // apply, and a listing can never receive a second first-contact send.
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
     return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
   if (/-abuse@/i.test(e))
     return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
