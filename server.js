@@ -894,6 +894,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/toolindex-import-drafts',
   '/toolindex-draft-previews',
   '/send-claim-outreach',
+  '/manual-claim',
   '/seq-send-step3-strict',
   '/run-followup2-batch',
 ]);
@@ -4326,6 +4327,55 @@ Tenerife, Spain${buildUnsubFooterText(email || '')}`;
   };
 }
 
+function buildManualClaimConfirmationEmail(name, listingUrl, email) {
+  const safeName = escapeHtml(name || 'your product');
+  const founderPack = DIR_PRICES?.founder_pack || { amount: 49 };
+  const founderPackAmount = founderPack.amount;
+  const unsubHtml = buildUnsubFooterHtml(email || '');
+  const unsubText = buildUnsubFooterText(email || '');
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;background:#060e1c;color:#e2e8f0;padding:36px 32px;border-radius:14px;line-height:1.7;font-size:15px;">
+ <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:20px;">ToolIndex · Claim confirmed</div>
+ <h2 style="font-size:22px;color:#fff;margin:0 0 12px;">${safeName} is now verified</h2>
+ <p style="color:#94a3b8;">We verified your ownership of the ToolIndex listing for <strong style="color:#fff;">${safeName}</strong>. Your profile is live and marked as a Verified Founder listing.</p>
+ <p style="margin:24px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 24px;border-radius:8px;text-decoration:none;font-family:monospace;">View your listing →</a></p>
+ <div style="background:#0d2137;border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:20px 22px;margin:24px 0;">
+   <p style="font-family:monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#a78bfa;margin:0 0 8px;">Optional · Founder Pack — one-time $${founderPackAmount}</p>
+   <p style="color:#cbd5e1;margin:0 0 12px;">Add 30 days of Premium visibility, unlimited relaunches, priority placement, and founder tools for your listing.</p>
+   <a href="https://strategic-flow-audit.replit.app/directory#packages" style="color:#c4b5fd;font-weight:700;text-decoration:underline;">See Founder Pack details →</a>
+ </div>
+ <div style="border-top:1px solid rgba(148,163,184,.18);padding-top:20px;margin-top:24px;">
+   <p style="margin:0;color:#94a3b8;"><strong style="color:#fff;">Want founder updates and new ToolIndex articles?</strong><br>We sent a separate confirmation email. You will only be added to the newsletter after you click its confirmation link.</p>
+ </div>
+ <p style="margin-top:28px;padding-top:16px;border-top:1px solid rgba(148,163,184,.18);font-size:12px;color:#64748b;line-height:1.8;">Alex Iliescu<br>Strategic Flow · <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex · <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">directory</a></p>
+ ${unsubHtml}
+ </div>`;
+  const text = `Hi,
+
+${name || 'Your product'} is now verified on ToolIndex. We verified your ownership and marked the listing as a Verified Founder listing.
+
+View your listing: ${listingUrl}
+
+Optional — Founder Pack (one-time $${founderPackAmount})
+  - 30 days of Premium visibility
+  - Unlimited relaunches
+  - Priority placement and founder tools
+See Founder Pack details: https://strategic-flow-audit.replit.app/directory#packages
+
+Want founder updates and new ToolIndex articles? We sent a separate confirmation email. You will only be added after clicking its confirmation link.
+
+--
+Alex Iliescu
+Strategic Flow — strategicflow.tech
+ToolIndex — https://strategic-flow-audit.replit.app/directory
+
+${unsubText}`;
+  return {
+    subject: `Your ${name || 'ToolIndex'} listing is now verified`,
+    html,
+    text,
+  };
+}
+
 // One-off, explicitly authorized exception for the first-contact campaign:
 // generic role addresses may be contacted for these already-reviewed drafts,
 // but only with the campaign marker below. The global blocklist remains intact.
@@ -4410,6 +4460,200 @@ app.post('/admin/send-claim-outreach', async (req, res) => {
       return res.status(429).json({ error: 'quota_exceeded', message: e.message || 'Resend daily quota reached' });
     }
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /admin/manual-claim — admin-verified founder claim ─────────────────
+// Used only when ownership has been independently verified from a public source.
+// The job-token path keeps this maintenance action out of browser sessions and
+// never exposes an edit token or OTP.
+app.post('/admin/manual-claim', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req)) return res.status(403).json({ error: 'forbidden' });
+
+  const listingId = Number(req.body?.listing_id);
+  const ownerEmail = String(req.body?.owner_email || '').trim().toLowerCase();
+  const founderName = String(req.body?.founder_name || '').trim().slice(0, 100);
+  const proofUrl = String(req.body?.proof_url || '').trim();
+  if (!Number.isSafeInteger(listingId) || listingId <= 0 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail) ||
+      !founderName || !proofUrl) {
+    return res.status(400).json({ error: 'listing_id, owner_email, founder_name and proof_url are required' });
+  }
+
+  let normalizedProofUrl;
+  try {
+    normalizedProofUrl = await validatePublicHttpUrl(proofUrl);
+  } catch (_) {
+    return res.status(400).json({ error: 'invalid_proof_url' });
+  }
+  const proofHost = new URL(normalizedProofUrl).hostname.toLowerCase();
+  if (proofHost !== 'apps.apple.com' && !proofHost.endsWith('.apps.apple.com')) {
+    return res.status(400).json({ error: 'proof_url_must_be_apple_public_page' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const listingResult = await client.query(
+      `SELECT id, name, url, status, claimed_by, verified,
+              manual_claim_email_sent_at, manual_claim_email_reserved_at
+       FROM directory_listings
+       WHERE id=$1 AND status IN ('active','draft')
+       FOR UPDATE`,
+      [listingId]
+    );
+    if (!listingResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'listing_not_found' });
+    }
+    const listing = listingResult.rows[0];
+    const currentOwner = String(listing.claimed_by || '').trim().toLowerCase();
+    if (currentOwner && currentOwner !== ownerEmail) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'claimed_by_other' });
+    }
+
+    const existingClaim = await client.query(
+      `SELECT owner_email
+       FROM dir_claims
+       WHERE listing_id=$1
+       ORDER BY created_at ASC
+       LIMIT 1
+       FOR UPDATE`,
+      [listingId]
+    );
+    if (existingClaim.rows.length &&
+        String(existingClaim.rows[0].owner_email || '').trim().toLowerCase() !== ownerEmail) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'claim_record_belongs_to_other' });
+    }
+
+    const notificationReserved =
+      !listing.manual_claim_email_sent_at &&
+      (!listing.manual_claim_email_reserved_at ||
+       new Date(listing.manual_claim_email_reserved_at) < new Date(Date.now() - 15 * 60 * 1000));
+    if (notificationReserved) {
+      await client.query(
+        `UPDATE directory_listings
+         SET manual_claim_email_reserved_at=NOW()
+         WHERE id=$1 AND manual_claim_email_sent_at IS NULL`,
+        [listingId]
+      );
+    }
+
+    await client.query(
+      `UPDATE directory_listings
+       SET claimed_by=$1,
+           claimed_at=COALESCE(claimed_at,NOW()),
+           status='active',
+           verified=TRUE,
+           founder_name=COALESCE(NULLIF(founder_name,''),$2),
+           contact_email=COALESCE(NULLIF(contact_email,''),$1),
+           verification_note=$3
+       WHERE id=$4`,
+      [
+        ownerEmail,
+        founderName,
+        `Founder manually verified via public Apple Developer page: ${normalizedProofUrl}`,
+        listingId
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO dir_claims
+         (listing_id, owner_email, otp, otp_expires_at, is_verified, verified_at,
+          otp_hash, otp_attempt_count, otp_locked_until, otp_sent_at,
+          edit_token_hash, edit_token_expires_at, edit_token_revoked_at)
+       VALUES ($1,$2,'[manual]',NOW(),TRUE,NOW(),NULL,0,NULL,NULL,NULL,NULL,NULL)
+       ON CONFLICT (listing_id, owner_email)
+       DO UPDATE SET is_verified=TRUE,
+                     verified_at=COALESCE(dir_claims.verified_at,NOW()),
+                     otp='[manual]',
+                     otp_expires_at=NOW(),
+                     otp_hash=NULL,
+                     otp_attempt_count=0,
+                     otp_locked_until=NULL,
+                     otp_sent_at=NULL,
+                     edit_token_hash=NULL,
+                     edit_token_expires_at=NULL,
+                     edit_token_revoked_at=NULL`,
+      [listingId, ownerEmail]
+    );
+    await client.query('COMMIT');
+
+    await writeSecurityAudit('directory_claim_manually_verified', {
+      actorType: 'admin',
+      listingId,
+      actorEmail: ownerEmail,
+      metadata: {
+        founder_name: founderName,
+        verification_source: normalizedProofUrl,
+        previous_claimed: Boolean(currentOwner),
+        previous_verified: Boolean(listing.verified)
+      }
+    }).catch(auditError => console.error('[dir-claim/manual] audit failed:', auditError.message));
+
+    let email = { skipped: 'already_sent' };
+    if (notificationReserved) {
+      const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(listing.name, listingId)}`;
+      const message = buildManualClaimConfirmationEmail(listing.name, listingUrl, ownerEmail);
+      try {
+        const sendResult = await resend.emails.send({
+          _skipGlobalCooldown: true,
+          from: SENDER,
+          replyTo: 'strategicflow@proton.me',
+          to: ownerEmail,
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        if (sendResult?.error) throw new Error(sendResult.error.message || String(sendResult.error));
+        await pool.query(
+          `UPDATE directory_listings
+           SET manual_claim_email_sent_at=NOW(), manual_claim_email_reserved_at=NULL
+           WHERE id=$1`,
+          [listingId]
+        );
+        email = { sent: true };
+        console.log(`[dir-claim] claim confirmation email → ${ownerEmail} (${listing.name})`);
+      } catch (emailError) {
+        await pool.query(
+          `UPDATE directory_listings
+           SET manual_claim_email_reserved_at=NULL
+           WHERE id=$1 AND manual_claim_email_sent_at IS NULL`,
+          [listingId]
+        ).catch(() => {});
+        email = { error: 'send_failed' };
+        console.error(`[dir-claim/manual] confirmation email failed for ${ownerEmail}:`, emailError.message);
+      }
+    }
+
+    let newsletter = null;
+    try {
+      // This sends a separate double-opt-in email; it never subscribes silently.
+      newsletter = await queueClaimNewsletterConfirmation(ownerEmail, listingId);
+    } catch (newsletterError) {
+      newsletter = { error: 'confirmation_send_failed' };
+      console.error(`[dir-claim/manual] newsletter confirmation failed for ${ownerEmail}:`, newsletterError.message);
+    }
+
+    console.log(`[dir-claim] manually verified ${ownerEmail} → listing ${listingId}`);
+    return res.json({
+      ok: true,
+      listing_id: listingId,
+      name: listing.name,
+      owner_email: ownerEmail,
+      email,
+      newsletter,
+      verified: true,
+      status: 'active'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[dir-claim/manual]', error.message);
+    return res.status(500).json({ error: 'server_error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -14733,6 +14977,8 @@ async function setupDB() {
   // Contact extraction columns
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email       TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS verification_note  TEXT`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS manual_claim_email_sent_at TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS manual_claim_email_reserved_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_id TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_status TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_reason TEXT`).catch(()=>{});
