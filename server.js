@@ -4233,7 +4233,7 @@ ${checkList}
 </ul>
 <p>These are AI-inferred from ${name}'s homepage — accurate most of the time, but you can correct anything after claiming. Every listing also gets a permanent dofollow backlink from <strong>strategicflow.tech</strong> (DR&nbsp;86).</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">See the full profile + claim it free &rarr;</a></p>
-<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
+ <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>Tenerife, Spain</p>
 ${buildUnsubFooterHtml(email || '')}
 </div>`;
 
@@ -4256,7 +4256,6 @@ ${buildUnsubFooterHtml(email || '')}
     '', '--', 'Alex Iliescu',
     'Strategic Flow — strategicflow.tech',
     'ToolIndex — https://strategic-flow-audit.replit.app/directory',
-    'LinkedIn: https://www.linkedin.com/in/strategic-flow-tech',
     'Tenerife, Spain', '',
     buildUnsubFooterText(email || '')
   );
@@ -4291,7 +4290,7 @@ function buildClaimFollowupEmail(name, listingUrl, email) {
 </ul>
 <p>Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form — we&rsquo;ll send a separate confirmation email before subscribing you.</p>
 <p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${safeName} free &rarr;</a></p>
-<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(email || '')}</div>`;
+ <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(email || '')}</div>`;
   const text = `Hi,
 
 Just a quick follow-up — ${name}'s ToolIndex listing is still unclaimed.
@@ -4319,7 +4318,6 @@ Claim ${name} free: ${listingUrl}
 Alex Iliescu
 Strategic Flow — strategicflow.tech
 ToolIndex — https://strategic-flow-audit.replit.app/directory
-LinkedIn: https://www.linkedin.com/in/strategic-flow-tech
 Tenerife, Spain${buildUnsubFooterText(email || '')}`;
   return {
     subject: `Still unclaimed: ${name} on ToolIndex`,
