@@ -5603,7 +5603,7 @@ async function syncClaimedFounderNewsletterContacts({ includeAllVerified = false
 }
 
 function buildUnsubFooterHtml(email) {
-  return `<p style="font-size:11px;color:#9ca3af;margin-top:8px;">Don&rsquo;t want to hear from us? <a href="${unsubLink(email)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a> from all ToolIndex emails.</p>`;
+  return `<p style="font-size:11px;color:#9ca3af;margin-top:8px;"><a href="${unsubLink(email)}" style="color:#9ca3af;text-decoration:underline;">Manage email preferences / unsubscribe</a> from ToolIndex emails.</p>`;
 }
 
 // ── Centralized stop-on-engagement gate — shared by every automated sequence ──
@@ -10351,6 +10351,180 @@ async function sendBlogNewsletter(post) {
     audience: 'verified_claim_owners',
     providerSuppressed: suppressionSkipped
   };
+}
+
+async function getToolIndexBlogPosts() {
+  const generatedR = await pool.query(`
+    SELECT slug, title, excerpt, date, read_time, created_at
+    FROM blog_auto_posts
+    WHERE length(trim(content)) > 0
+    ORDER BY created_at ASC, date ASC, slug ASC
+  `);
+  const generatedPosts = generatedR.rows.map(post => ({
+    ...post,
+    publishedAt: post.created_at || `${post.date}T00:00:00.000Z`,
+    dateLabel: new Date(post.date + 'T12:00:00Z').toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    }) + ' · ' + (post.read_time || 8) + ' min read'
+  }));
+  const generatedSlugs = new Set(generatedPosts.map(post => post.slug));
+  const staticPosts = BLOG_POSTS
+    .filter(post => !generatedSlugs.has(post.slug))
+    .map(post => ({
+      ...post,
+      publishedAt: `${post.date}T00:00:00.000Z`,
+      dateLabel: post.dateLabel || new Date(post.date + 'T12:00:00Z').toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      })
+    }));
+  return [...generatedPosts, ...staticPosts]
+    .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+}
+
+function buildClaimedBlogEditionEmail(posts, email) {
+  const articleHtml = posts.map(post => {
+    const title = escapeHtml(post.title || 'New ToolIndex article');
+    const excerpt = escapeHtml(post.excerpt || '');
+    const postUrl = `${BASE_URL}/blog/${encodeURIComponent(post.slug)}`;
+    return `<article style="padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid rgba(148,163,184,.16);">
+      <p style="font-size:11px;font-family:monospace;color:#4a7a9a;margin:0 0 8px;">${escapeHtml(post.dateLabel || '')}</p>
+      <h2 style="font-size:20px;font-weight:800;color:#ffffff;margin:0 0 10px;line-height:1.3;">${title}</h2>
+      <p style="font-size:15px;color:#94a3b8;line-height:1.7;margin:0 0 16px;">${excerpt}</p>
+      <a href="${postUrl}" style="display:inline-block;background:#00d4c8;color:#041214;font-weight:700;font-size:13px;padding:12px 26px;border-radius:8px;text-decoration:none;font-family:monospace;letter-spacing:.04em;">Read the full article →</a>
+    </article>`;
+  }).join('');
+  const articleText = posts.map(post => {
+    const postUrl = `${BASE_URL}/blog/${encodeURIComponent(post.slug)}`;
+    return `${post.title || 'New ToolIndex article'}\n${post.excerpt || ''}\nRead the full article: ${postUrl}`;
+  }).join('\n\n');
+  const subject = posts.length === 1
+    ? `New on ToolIndex: ${posts[0].title}`
+    : `New on ToolIndex: ${posts.length} articles`;
+  const html = `<div style="font-family:sans-serif;max-width:560px;margin:auto;background:#060e1c;color:#e2e8f0;padding:32px 28px;border-radius:12px;">
+    <div style="font-family:monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#00d4c8;margin-bottom:18px;">ToolIndex Blog</div>
+    <p style="font-size:15px;color:#cbd5e1;line-height:1.7;margin:0 0 24px;">New articles published since the last ToolIndex newsletter:</p>
+    ${articleHtml}
+    <p style="font-size:11px;color:#2a4a6a;margin-top:28px;line-height:1.5;">You&rsquo;re receiving this because you have a verified claimed listing on ToolIndex. <a href="${BASE_URL}/directory" style="color:#2a6a6a;">View directory →</a></p>
+    ${buildUnsubFooterHtml(email)}
+  </div>`;
+  const text = `ToolIndex Blog\n\nNew articles published since the last ToolIndex newsletter:\n\n${articleText}\n\nYou are receiving this because you have a verified claimed listing on ToolIndex.\n${buildUnsubFooterText(email)}`;
+  return { subject, html, text };
+}
+
+async function runClaimedBlogNewsletterEdition(source = 'cron') {
+  const now = new Date();
+  if (![1, 3, 5].includes(now.getUTCDay())) {
+    return { skipped: true, reason: 'not_publishing_day' };
+  }
+  const editionKey = `claimed-blog-${now.toISOString().slice(0, 10)}`;
+  const lastEdition = await pool.query(
+    `SELECT sent_at FROM claimed_blog_newsletter_log
+     WHERE sent_at IS NOT NULL
+     ORDER BY sent_at DESC LIMIT 1`
+  );
+  let lastSentAt = lastEdition.rows[0]?.sent_at || null;
+  if (!lastSentAt) {
+    const legacy = await pool.query(
+      `SELECT MAX(sent_at) AS sent_at
+       FROM blog_newsletter_log
+       WHERE sent_at IS NOT NULL AND recipient_count >= 0`
+    );
+    lastSentAt = legacy.rows[0]?.sent_at || new Date(0);
+  }
+  const posts = (await getToolIndexBlogPosts()).filter(post =>
+    new Date(post.publishedAt) > new Date(lastSentAt)
+  );
+  if (!posts.length) {
+    console.log(`[claimed-blog-newsletter] ${source}: no new articles since ${new Date(lastSentAt).toISOString()}, skipping`);
+    return { skipped: true, reason: 'no_new_posts', editionKey };
+  }
+
+  const reservation = await pool.query(
+    `INSERT INTO claimed_blog_newsletter_log (edition_key, sent_at, recipient_count, post_slugs)
+     VALUES ($1, NOW(), -1, $2::text[])
+     ON CONFLICT (edition_key) DO NOTHING
+     RETURNING edition_key`,
+    [editionKey, posts.map(post => post.slug)]
+  );
+  if (!reservation.rows.length) {
+    return { skipped: true, reason: 'edition_already_reserved', editionKey };
+  }
+
+  let emailsR;
+  try {
+    emailsR = await pool.query(`
+      SELECT
+        lower(trim(dc.owner_email)) AS email,
+        string_agg(DISTINCT dl.name, ', ' ORDER BY dl.name) AS listing_names
+      FROM dir_claims dc
+      JOIN directory_listings dl ON dl.id=dc.listing_id
+      WHERE dc.is_verified=TRUE
+        AND dc.verified_at IS NOT NULL
+        AND dl.status='active'
+        AND dl.claimed_by IS NOT NULL
+        AND dl.claimed_at IS NOT NULL
+        AND lower(trim(dl.claimed_by))=lower(trim(dc.owner_email))
+        AND length(trim(dc.owner_email)) > 3
+      GROUP BY lower(trim(dc.owner_email))
+      ORDER BY MIN(dc.verified_at) ASC, lower(trim(dc.owner_email)) ASC
+    `);
+    const resendSuppressed = await getResendSuppressedEmails();
+    let sent = 0, skipped = 0, errors = 0, suppressionSkipped = 0;
+    for (const { email } of emailsR.rows) {
+      if (BYPASS_EMAILS.has(email)) { skipped++; continue; }
+      if (/^(noreply|no-reply|donotreply|postmaster|bounce)@/i.test(email)) { skipped++; continue; }
+      if (await isUnsubscribed(email)) { skipped++; continue; }
+      if (resendSuppressed.has(email)) { skipped++; suppressionSkipped++; continue; }
+      if ((await isSequenceHalted(email, 'claimed_blog_newsletter')).halted) { skipped++; continue; }
+      if (await wasEmailedRecently(email, 24)) { skipped++; continue; }
+      try {
+        const personalized = buildClaimedBlogEditionEmail(posts, email);
+        const sendResult = await resend.emails.send({
+          from: SENDER,
+          replyTo: 'strategicflow@proton.me',
+          to: email,
+          subject: personalized.subject,
+          html: personalized.html,
+          text: personalized.text,
+        });
+        if (sendResult?.cooldownBlocked || sendResult?.error) {
+          skipped++;
+          if (sendResult?.error) errors++;
+        } else {
+          sent++;
+        }
+      } catch (error) {
+        errors++;
+        console.error(`[claimed-blog-newsletter] send error → ${email}:`, error.message);
+      }
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    await pool.query(
+      `UPDATE claimed_blog_newsletter_log
+       SET sent_at=NOW(), recipient_count=$2
+       WHERE edition_key=$1`,
+      [editionKey, sent]
+    );
+    console.log(`[claimed-blog-newsletter] ${source}: ${posts.length} article(s), ${emailsR.rows.length} claimed owners, ${sent} sent, ${skipped} skipped, ${errors} errors (${suppressionSkipped} provider-suppressed)`);
+    return {
+      editionKey,
+      posts: posts.map(post => post.slug),
+      eligible: emailsR.rows.length,
+      sent,
+      skipped,
+      errors,
+      providerSuppressed: suppressionSkipped,
+      audience: 'verified_claim_owners'
+    };
+  } catch (error) {
+    await pool.query(
+      `UPDATE claimed_blog_newsletter_log
+       SET sent_at=NULL, recipient_count=-1
+       WHERE edition_key=$1`,
+      [editionKey]
+    ).catch(() => {});
+    throw error;
+  }
 }
 
 // ── Check for unpublished blog posts and send newsletters ─────────────────────
@@ -16026,6 +16200,16 @@ async function setupDB() {
       recipient_count  INTEGER DEFAULT 0
     )
   `).catch(e => console.error('[DB] blog_newsletter_log:', e.message));
+
+  // ── Claimed-owner newsletter editions — one M/W/F send can contain many posts
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS claimed_blog_newsletter_log (
+      edition_key      TEXT PRIMARY KEY,
+      sent_at          TIMESTAMPTZ DEFAULT NOW(),
+      recipient_count  INTEGER DEFAULT 0,
+      post_slugs       TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]
+    )
+  `).catch(e => console.error('[DB] claimed_blog_newsletter_log:', e.message));
 
   // ── Weekly spotlight log — tracks which template was sent to which contact ───
   await pool.query(`
@@ -29020,10 +29204,13 @@ full HTML body here
 
     console.log(`[blog-auto] Published: "${article.title}" → /blog/${slug}.html`);
 
-    // Send newsletter to all ToolIndex contacts
-    const newsletterResult = await sendBlogNewsletter(post);
-    console.log(`[blog-auto] Newsletter: ${JSON.stringify(newsletterResult)}`);
-    return { slug, title: article.title, newsletter: newsletterResult };
+    // The Mon/Wed/Fri claimed-owner edition collects this article together
+    // with every other article published since the previous edition.
+    return {
+      slug,
+      title: article.title,
+      newsletter: { queued: true, audience: 'verified_claim_owners' }
+    };
   }
 
   // ── POST /admin/generate-blog-post?key= — manually trigger AI article generation ─
@@ -29780,8 +29967,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     console.error('[founder-health] weekly job failed:', error.message);
   }), { timezone: 'UTC' });
 
-  // ── Mon/Wed/Fri 11:00 UTC: send newsletter for newly published posts ─────────
-  cron.schedule('0 11 * * 1,3,5', () => checkBlogNewsletters().catch(()=>{}));
+  // ── Mon/Wed/Fri 11:00 UTC: send all ToolIndex posts since last edition ───────
+  cron.schedule('0 11 * * 1,3,5', () => runClaimedBlogNewsletterEdition('cron').catch(error => {
+    console.error('[claimed-blog-newsletter] cron error:', error.message);
+  }), { timezone: 'UTC' });
 
   // ── Daily 07:00 UTC: reconcile opted-in claimed founders with audience ────────
   cron.schedule('0 7 * * *', async () => {
