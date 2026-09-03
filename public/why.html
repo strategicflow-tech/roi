@@ -1960,6 +1960,20 @@ Or paste a cold email, landing page, proposal — anything with a reader who nee
     </div>
   </div>
   <script>
+  // Add the PeerPush badge to the same seamless platform ticker as the other listings.
+  (function(){
+    var track = document.querySelector('.why-ticker-track-rtl');
+    if(!track || track.querySelector('[data-peerpush-badge]')) return;
+    var peer = '<a data-peerpush-badge href="https://peerpush.com/p/why" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;flex-shrink:0;margin:0 16px;"><img src="https://peerpush.com/p/why/badge.png" alt="WHY. on PeerPush" height="54" style="max-height:54px;width:auto;display:block;" loading="lazy" /></a>';
+    var items = Array.prototype.slice.call(track.querySelectorAll(':scope > a'));
+    if(items.length && items.length % 2 === 0){
+      track.insertAdjacentHTML('beforeend', peer);
+      track.insertBefore(track.lastElementChild, items[items.length / 2]);
+      track.insertAdjacentHTML('beforeend', peer);
+    }
+  })();
+  </script>
+  <script>
   (function(){
     var br=document.getElementById('whyTickerBrands');
     var brands=['Semrush','HeyGen','Optimizely','Revolut','Medallia','Wrike','Zoho','ElevenLabs','Cato Networks','Userpilot','Xelix','Intercom','HubSpot','Pitch','Miro','Clay','Zapier','ClickUp','Airtable','Calendly','Circle','Webflow','Linear','Perplexity','Booking.com','Figma','Gamma','Landbot','Neon','Spreedly','Lodgify','Weaviate','Seamless','Sequel AI','LeadPages','Limelight','dotCompliance','EasyLlama','SplitMetrics','TripleDart','Confluence','dbt Labs','Qonto','Alt21','Wizzair','Tilled','Rize','SoFi'];
@@ -3020,11 +3034,6 @@ function copyResults() {
 <footer style="text-align:center;padding:24px 20px;margin-top:40px;border-top:1px solid rgba(255,255,255,0.08);font-size:15px;color:#1D9E75;">
   © 2026 Strategic Flow · By continuing on this page you agree to our
   <a href="https://strategic-flow-pro.replit.app/terms.html" target="_blank" style="color:#1D9E75;text-decoration:underline;">Terms of Service</a>
-  <div style="margin-top:16px;">
-    <a href="https://peerpush.com/p/why" target="_blank" rel="noopener">
-      <img src="https://peerpush.com/p/why/badge.png" alt="WHY. on PeerPush" style="width:230px;max-width:100%;height:auto;display:block;margin:0 auto;" />
-    </a>
-  </div>
 </footer>
 </body>
 </html>
