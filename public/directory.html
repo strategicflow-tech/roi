@@ -2941,19 +2941,19 @@ function buildPaidMarquee(){
     premium:        '💎 Premium',
     weekly_feature: '⚡ Weekly Feature',
     daily_top:      '🔥 Daily Boost',
-    verified:       '✅ Verified',
   };
 
   const fav = d => 'https://www.google.com/s2/favicons?domain='+d+'&sz=64';
 
-  const paid = allListings.filter(l => l.priority_marquee || l.featured_tier || l.verified);
+  // Verified proves ownership; it is not a paid visibility package.
+  const paid = allListings.filter(l => l.priority_marquee || l.featured_tier);
   if(!paid.length){ section.style.display='none'; return; }
   section.style.display='';
 
   const mk = l => {
     const domain = (()=>{ try{ return new URL(l.url||'').hostname.replace(/^www\./,''); }catch{return '';} })();
     const slug   = toSlug(l.name, l.id);
-    const tier   = l.priority_marquee ? 'founder_pack' : (l.featured_tier || (l.verified ? 'verified' : ''));
+    const tier   = l.priority_marquee ? 'founder_pack' : l.featured_tier;
     const label  = TIER_LABELS[tier] || tier;
     const logoSrc = l.image_url || (domain ? fav(domain) : '');
     const logo   = logoSrc ? `<img class="dir-paid-logo" src="${escHtml(logoSrc)}" alt="" loading="lazy" onerror="this.src='${domain ? fav(domain) : ''}';this.onerror=function(){this.style.display='none';}"/>` : '';
