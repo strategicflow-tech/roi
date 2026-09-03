@@ -35,6 +35,20 @@ const {
   claimedListingVotesDue,
   claimedListingVoteHash,
 } = require('./claimed-listing-votes');
+const {
+  MAX_SYNTHETIC_SEED_VOTES,
+  syntheticSeedVotePredicate,
+  remainingSyntheticSeedVotes,
+} = require('./seed-vote-policy');
+const {
+  TEMPORARY_MCP_VOTE_INTERVAL_MS,
+  TEMPORARY_MCP_VOTE_DURATION_MS,
+  TEMPORARY_MCP_VOTES_PER_BATCH,
+  TEMPORARY_MCP_MAX_BATCHES,
+  temporaryMcpCampaignEndsAt,
+  temporaryMcpDueBatchCount,
+  temporaryMcpVoteHash,
+} = require('./temporary-mcp-vote-campaign');
 
 const multer = require('multer');
 const path   = require('path');
@@ -8153,13 +8167,11 @@ app.get('/admin/seed-votes', async (req, res) => {
     async function insertVoteRows(rows) {
       for (let b = 0; b < rows.length; b += 50) {
         const chunk = rows.slice(b, b + 50);
-        const ph    = chunk.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',');
-        const params = chunk.flat();
         try {
-          await pool.query(
-            `INSERT INTO dir_votes (listing_id,voter_hash,voted_at) VALUES ${ph} ON CONFLICT DO NOTHING`,
-            params
-          );
+          const inserted = await insertSyntheticVotesCapped(chunk[0][0], chunk);
+          if (inserted < chunk.length) {
+            log(`Seed cap: listing ${chunk[0][0]} accepted ${inserted}/${chunk.length} new votes (max ${MAX_SYNTHETIC_SEED_VOTES} synthetic votes).`);
+          }
         } catch(e) {
           log(`WARN insert chunk lid=${chunk[0][0]}: ${e.message}`);
         }
@@ -9228,6 +9240,70 @@ async function activateScheduledBoosts() {
 // votes continue to work normally; this only guards automated/admin seeding.
 const SEED_VOTE_DISABLED_IDS = new Set([199, 203, 4298, 7540]);
 
+// Keep every normal synthetic seed namespace below the same absolute per-listing
+// ceiling. The MCP campaign is deliberately excluded from this predicate and
+// is guarded separately by its fixed listing/name and 48-hour window.
+async function insertSyntheticVotesCapped(listingId, voteRows, { enforceCap = true } = {}) {
+  if (!Array.isArray(voteRows) || voteRows.length === 0) return 0;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const listing = await client.query(
+      `SELECT id FROM directory_listings WHERE id=$1 FOR UPDATE`,
+      [listingId]
+    );
+    if (!listing.rows.length) {
+      await client.query('COMMIT');
+      return 0;
+    }
+
+    const seededCount = enforceCap
+      ? await client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM dir_votes dv
+         WHERE dv.listing_id=$1
+           AND (${syntheticSeedVotePredicate('dv')})`,
+        [listingId]
+      )
+      : null;
+    const allowed = enforceCap
+      ? remainingSyntheticSeedVotes(seededCount.rows[0]?.count)
+      : voteRows.length;
+    const rows = voteRows.slice(0, allowed);
+    if (!rows.length) {
+      await client.query('COMMIT');
+      return 0;
+    }
+
+    const placeholders = rows
+      .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+      .join(',');
+    const inserted = await client.query(
+      `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+       VALUES ${placeholders}
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+      rows.flat()
+    );
+    if (inserted.rowCount > 0) {
+      await client.query(
+        `UPDATE directory_listings
+         SET vote_count=COALESCE(vote_count,0)+$1
+         WHERE id=$2`,
+        [inserted.rowCount, listingId]
+      );
+    }
+    await client.query('COMMIT');
+    return inserted.rowCount;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // ── Fresh Product Hunt vote seeding ──────────────────────────────────────────
 // Product Hunt imports and other newly active listings use submitted_at as
 // their durable arrival timestamp. Each listing gets one deterministic 4–12
@@ -9289,43 +9365,13 @@ async function runFreshProductHuntVoteSeeding() {
         voterHash,
         new Date(Math.min(now, submittedMs + voteIndex * FRESH_PRODUCT_HUNT_VOTE_INTERVAL_MS)).toISOString(),
       ]);
-      const placeholders = voteRows
-        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
-        .join(',');
-      const params = voteRows.flat();
-      const listingIdParam = params.length + 1;
-      params.push(listing.id);
-
-      // The insert and counter update share one statement. If another process
-      // wins the same unique hashes first, rowCount is zero and the counter is
-      // not changed; no synthetic vote can inflate vote_count.
-      const result = await pool.query(
-        `WITH inserted AS (
-           INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-           VALUES ${placeholders}
-           ON CONFLICT DO NOTHING
-           RETURNING listing_id
-         ),
-         updated AS (
-           UPDATE directory_listings
-           SET vote_count=COALESCE(vote_count, 0)+(SELECT COUNT(*) FROM inserted)
-           WHERE id=$${listingIdParam}
-             AND (SELECT COUNT(*) FROM inserted) > 0
-           RETURNING vote_count
-         )
-         SELECT
-           (SELECT COUNT(*)::int FROM inserted) AS added,
-           (SELECT vote_count FROM updated) AS vote_count`,
-        params
-      );
-
-      const inserted = Number(result.rows[0]?.added || 0);
+      const inserted = await insertSyntheticVotesCapped(listing.id, voteRows);
       if (inserted > 0) {
         added += inserted;
         processed++;
         console.log(
           `[fresh-ph-votes] ${listing.name} (#${listing.id}) +${inserted} ` +
-          `(target ${target}, due ${dueCount}, now ${result.rows[0]?.vote_count})`
+          `(target ${target}, due ${dueCount})`
         );
       }
     }
@@ -9398,40 +9444,13 @@ async function runClaimedListingVoteBoost() {
         voterHash,
         new Date(Math.min(now, claimedMs + voteIndex * CLAIMED_LISTING_VOTE_INTERVAL_MS)).toISOString(),
       ]);
-      const placeholders = voteRows
-        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
-        .join(',');
-      const params = voteRows.flat();
-      const listingIdParam = params.length + 1;
-      params.push(listing.id);
-
-      const result = await pool.query(
-        `WITH inserted AS (
-           INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-           VALUES ${placeholders}
-           ON CONFLICT DO NOTHING
-           RETURNING listing_id
-         ),
-         updated AS (
-           UPDATE directory_listings
-           SET vote_count=COALESCE(vote_count, 0)+(SELECT COUNT(*) FROM inserted)
-           WHERE id=$${listingIdParam}
-             AND (SELECT COUNT(*) FROM inserted) > 0
-           RETURNING vote_count
-         )
-         SELECT
-           (SELECT COUNT(*)::int FROM inserted) AS added,
-           (SELECT vote_count FROM updated) AS vote_count`,
-        params
-      );
-
-      const inserted = Number(result.rows[0]?.added || 0);
+      const inserted = await insertSyntheticVotesCapped(listing.id, voteRows);
       if (inserted > 0) {
         added += inserted;
         processed++;
         console.log(
           `[claimed-boost] ${listing.name} (#${listing.id}) +${inserted} ` +
-          `(target ${target}, due ${dueCount}, now ${result.rows[0]?.vote_count})`
+          `(target ${target}, due ${dueCount})`
         );
       }
     }
@@ -9546,13 +9565,22 @@ async function runDailyLaunchVoteSeeding(source = 'cron') {
             [listing.id, prefix]
           );
           const existing = new Set(existingResult.rows.map(row => row.voter_hash));
-          if (existing.size >= target) {
+          const seededCountResult = await lockClient.query(
+            `SELECT COUNT(*)::int AS count
+             FROM dir_votes dv
+             WHERE dv.listing_id=$1
+               AND (${syntheticSeedVotePredicate('dv')})`,
+            [listing.id]
+          );
+          const remaining = remainingSyntheticSeedVotes(seededCountResult.rows[0]?.count);
+          const missingCount = Math.min(target - existing.size, remaining);
+          if (missingCount <= 0) {
             await lockClient.query('COMMIT');
             continue;
           }
 
           const voteRows = Array.from(
-            { length: target - existing.size },
+            { length: missingCount },
             (_, offset) => [
               listing.id,
               `${prefix}${existing.size + offset}`,
@@ -9666,23 +9694,9 @@ async function runTargetedVoteCampaigns() {
           `${prefix}_${batch}_${existing.rows.length + offset}`,
           dueAt.toISOString(),
         ]);
-        const placeholders = voteRows
-          .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
-          .join(',');
-        const insertResult = await pool.query(
-          `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-           VALUES ${placeholders}
-           ON CONFLICT DO NOTHING`,
-          voteRows.flat()
-        );
-        if (insertResult.rowCount > 0) {
-          await pool.query(
-            `UPDATE directory_listings
-             SET vote_count=COALESCE(vote_count,0)+$1
-             WHERE id=$2`,
-            [insertResult.rowCount, campaign.id]
-          );
-          console.log(`[vote-campaign] ${campaign.name} +${insertResult.rowCount} (batch ${batch + 1}/${campaign.batches.length})`);
+        const inserted = await insertSyntheticVotesCapped(campaign.id, voteRows);
+        if (inserted > 0) {
+          console.log(`[vote-campaign] ${campaign.name} +${inserted} (batch ${batch + 1}/${campaign.batches.length})`);
         }
       }
     }
@@ -9695,45 +9709,27 @@ async function runTargetedVoteCampaigns() {
 
 // ── Explicit, temporary Strategic Flow MCP vote campaign ─────────────────────
 // #7540 remains globally protected in SEED_VOTE_DISABLED_IDS. This campaign is
-// the sole approved exception, scoped to one listing and one short time window.
+// the sole approved exception, scoped to one listing and one 48-hour window.
 const TEMPORARY_MCP_VOTE_CAMPAIGN = Object.freeze({
   listingId: 7540,
   listingName: 'Strategic Flow MCP',
-  voterPrefix: 'temporary_mcp_seed_20260828',
-  endsAt: Date.parse('2026-08-29T09:00:00Z'), // 10:00 Atlantic/Canary
-  intervalMs: 2 * 60 * 60 * 1000,
+  voterPrefix: 'temporary_mcp_seed_20260903',
+  intervalMs: TEMPORARY_MCP_VOTE_INTERVAL_MS,
+  durationMs: TEMPORARY_MCP_VOTE_DURATION_MS,
 });
 let _temporaryMcpVoteCampaignRunning = false;
 let _temporaryMcpVoteCampaignTimer = null;
 let _temporaryMcpVoteCampaignStopLogged = false;
 
-function temporaryMcpVotesForBatch(batchIndex) {
-  // A deterministic 2/3-vote pattern provides natural variation without a
-  // restart changing a batch's planned size.
-  let hash = 2166136261;
-  const input = `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}:${batchIndex}`;
-  for (let index = 0; index < input.length; index++) {
-    hash = Math.imul(hash ^ input.charCodeAt(index), 16777619);
-  }
-  return 2 + ((hash >>> 0) & 1);
-}
-
 async function runTemporaryMcpVoteCampaign() {
   if (process.env.STRATEGIC_FLOW_MCP_TEMPORARY_VOTE_SEED_ENABLED !== 'true') {
     return { skipped: 'disabled' };
-  }
-  const now = Date.now();
-  if (now >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt) {
-    if (!_temporaryMcpVoteCampaignStopLogged) {
-      console.log('[temporary-mcp-votes] stop time reached — no more batches will run');
-      _temporaryMcpVoteCampaignStopLogged = true;
-    }
-    return { stopped: true };
   }
   if (_temporaryMcpVoteCampaignRunning) return { skipped: 'already_running' };
 
   _temporaryMcpVoteCampaignRunning = true;
   try {
+    const now = Date.now();
     const listingResult = await pool.query(
       `SELECT id, name, status FROM directory_listings WHERE id=$1`,
       [TEMPORARY_MCP_VOTE_CAMPAIGN.listingId]
@@ -9754,54 +9750,44 @@ async function runTemporaryMcpVoteCampaign() {
     const startedAt = startResult.rows[0]?.started_at
       ? new Date(startResult.rows[0].started_at).getTime()
       : now;
+    const endsAt = temporaryMcpCampaignEndsAt(startedAt);
+    if (now >= endsAt) {
+      if (!_temporaryMcpVoteCampaignStopLogged) {
+        console.log('[temporary-mcp-votes] 48-hour window reached — no more batches will run');
+        _temporaryMcpVoteCampaignStopLogged = true;
+      }
+      return { stopped: true, startedAt, endsAt };
+    }
     let added = 0;
     let batches = 0;
 
-    for (let batchIndex = 0; ; batchIndex++) {
+    const dueBatchCount = temporaryMcpDueBatchCount(startedAt, now);
+    for (let batchIndex = 0; batchIndex < dueBatchCount && batchIndex < TEMPORARY_MCP_MAX_BATCHES; batchIndex++) {
       const dueAt = startedAt + batchIndex * TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
-      if (dueAt >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt || dueAt > now) break;
+      if (dueAt >= endsAt || dueAt > now) break;
 
-      const target = temporaryMcpVotesForBatch(batchIndex);
-      const existingResult = await pool.query(
-        `SELECT COUNT(*)::int AS count
-         FROM dir_votes
-         WHERE listing_id=$1 AND voter_hash LIKE $2`,
-        [TEMPORARY_MCP_VOTE_CAMPAIGN.listingId, `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}_${batchIndex}_%`]
-      );
-      const existing = existingResult.rows[0]?.count || 0;
-      if (existing >= target) continue;
-
-      const missing = target - existing;
-      const voteRows = Array.from({ length: missing }, (_, offset) => [
+      const voteRows = Array.from({ length: TEMPORARY_MCP_VOTES_PER_BATCH }, (_, offset) => [
         TEMPORARY_MCP_VOTE_CAMPAIGN.listingId,
-        `${TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix}_${batchIndex}_${existing + offset}`,
+        temporaryMcpVoteHash(TEMPORARY_MCP_VOTE_CAMPAIGN.voterPrefix, batchIndex, offset),
         new Date(dueAt).toISOString(),
       ]);
-      const placeholders = voteRows
-        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
-        .join(',');
-      const inserted = await pool.query(
-        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
-         VALUES ${placeholders}
-         ON CONFLICT DO NOTHING`,
-        voteRows.flat()
+      // This is the one explicit exception to the normal 35-vote synthetic
+      // seed ceiling. Hashes are fixed per batch, so retries are idempotent.
+      const inserted = await insertSyntheticVotesCapped(
+        TEMPORARY_MCP_VOTE_CAMPAIGN.listingId,
+        voteRows,
+        { enforceCap: false }
       );
-      if (inserted.rowCount > 0) {
-        await pool.query(
-          `UPDATE directory_listings
-           SET vote_count=COALESCE(vote_count, 0)+$1
-           WHERE id=$2`,
-          [inserted.rowCount, TEMPORARY_MCP_VOTE_CAMPAIGN.listingId]
-        );
-        added += inserted.rowCount;
+      if (inserted > 0) {
+        added += inserted;
         batches++;
-        console.log(`[temporary-mcp-votes] Strategic Flow MCP +${inserted.rowCount} (batch ${batchIndex + 1}, due ${new Date(dueAt).toISOString()})`);
+        console.log(`[temporary-mcp-votes] Strategic Flow MCP +${inserted} (batch ${batchIndex + 1}/${TEMPORARY_MCP_MAX_BATCHES}, due ${new Date(dueAt).toISOString()})`);
       }
     }
 
-    const elapsedBatches = Math.floor((now - startedAt) / TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs);
-    const nextRunAt = startedAt + (elapsedBatches + 1) * TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
-    return { added, batches, nextRunAt };
+    const nextBatchIndex = Math.min(TEMPORARY_MCP_MAX_BATCHES, dueBatchCount);
+    const nextRunAt = startedAt + nextBatchIndex * TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
+    return { added, batches, startedAt, endsAt, nextRunAt };
   } catch (error) {
     console.error('[temporary-mcp-votes] campaign error:', error.message);
     return { error: error.message };
@@ -9815,12 +9801,14 @@ async function scheduleTemporaryMcpVoteCampaign() {
   if (_temporaryMcpVoteCampaignTimer) clearTimeout(_temporaryMcpVoteCampaignTimer);
 
   const result = await runTemporaryMcpVoteCampaign();
-  if (result.stopped || Date.now() >= TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt) return;
+  if (result.stopped) return;
 
+  const startedAt = result.startedAt || Date.now();
+  const endsAt = result.endsAt || temporaryMcpCampaignEndsAt(startedAt);
   const nextRunAt = result.nextRunAt || Date.now() + TEMPORARY_MCP_VOTE_CAMPAIGN.intervalMs;
   const delay = Math.min(
     Math.max(1_000, nextRunAt - Date.now()),
-    Math.max(1_000, TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt - Date.now())
+    Math.max(1_000, endsAt - Date.now())
   );
   _temporaryMcpVoteCampaignTimer = setTimeout(() => {
     scheduleTemporaryMcpVoteCampaign().catch(error => {
@@ -9828,7 +9816,7 @@ async function scheduleTemporaryMcpVoteCampaign() {
     });
   }, delay);
   if (typeof _temporaryMcpVoteCampaignTimer.unref === 'function') _temporaryMcpVoteCampaignTimer.unref();
-  console.log(`[temporary-mcp-votes] next check at ${new Date(nextRunAt).toISOString()}; campaign ends at ${new Date(TEMPORARY_MCP_VOTE_CAMPAIGN.endsAt).toISOString()}`);
+  console.log(`[temporary-mcp-votes] next check at ${new Date(nextRunAt).toISOString()}; campaign ends at ${new Date(endsAt).toISOString()}`);
 }
 
 // ── Directory: seed the Daily section for today ───────────────────────────────
@@ -11947,28 +11935,58 @@ app.get('/api/directory/leaderboard', async (req, res) => {
       // Daily tab = listings with the most real organic votes cast today.
       // Owner's own apps (199,203,4298) excluded — they're already featured in the grid.
       // Numbers are always <= weekly which are <= all-time.
-      q = `SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
-                  dl.friction_score, dl.score_pending,
-                  CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
-                       WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
-                       ELSE NULL END AS image_url, dl.source, dl.source_url,
-                  dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                  COUNT(dv.id)::int AS period_votes,
-                  FALSE                                                                  AS is_founder_pack,
-                  (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-                   AND dl.claimed_by IS NOT NULL)                                        AS claimed_today
-           FROM directory_listings dl
-           LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
-             AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-             AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
-             AND dv.voter_hash NOT LIKE 'daily_growth_%'
-             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
-             AND dv.voter_hash NOT LIKE 'seed_%'
-           WHERE dl.status='active'
-             AND dl.id NOT IN (199,203,4298)
-           GROUP BY dl.id
-           HAVING COUNT(dv.id) > 0
-           ORDER BY period_votes DESC, dl.vote_count DESC
+      // The display score is a deterministic, strictly unique projection of
+      // the organic ordering. It prevents a tie-heavy batch (for example,
+      // many listings with 27 votes) from rendering repeated Daily numbers
+      // while keeping the highest-vote listing first.
+      q = `WITH daily_raw AS (
+             SELECT dl.id, dl.name, dl.url, dl.category, dl.description,
+                    dl.friction_score, dl.score_pending,
+                    CASE WHEN dl.owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || dl.id::text
+                         WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
+                         ELSE NULL END AS image_url, dl.source, dl.source_url,
+                    dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
+                    COUNT(dv.id)::int AS raw_period_votes,
+                    FALSE AS is_founder_pack,
+                    (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+                     AND dl.claimed_by IS NOT NULL) AS claimed_today
+             FROM directory_listings dl
+             LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
+               AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+               AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
+               AND dv.voter_hash NOT LIKE 'daily_growth_%'
+               AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+               AND dv.voter_hash NOT LIKE 'seed_%'
+               AND dv.voter_hash NOT LIKE 'fresh_ph_24h_%'
+               AND dv.voter_hash NOT LIKE 'claimed_24h_%'
+               AND dv.voter_hash NOT LIKE 'daily_launch_6h_%'
+               AND dv.voter_hash NOT LIKE 'timed_seed_%'
+               AND dv.voter_hash NOT LIKE 'promoted_growth_%'
+               AND dv.voter_hash NOT LIKE 'promoted_boost_%'
+               AND dv.voter_hash NOT LIKE 'temporary_mcp_seed_%'
+             WHERE dl.status='active'
+               AND dl.id NOT IN (199,203,4298)
+             GROUP BY dl.id
+             HAVING COUNT(dv.id) > 0
+           ),
+           daily_ranked AS (
+             SELECT daily_raw.*,
+                    ROW_NUMBER() OVER (
+                      ORDER BY raw_period_votes DESC, vote_count DESC, id ASC
+                    ) AS daily_rank,
+                    GREATEST(
+                      MAX(raw_period_votes) OVER (),
+                      COUNT(*) OVER ()
+                    ) AS display_ceiling
+             FROM daily_raw
+           )
+           SELECT id, name, url, category, description, friction_score, score_pending,
+                  image_url, source, source_url, featured_tier, vote_count,
+                  pinned_in_leaderboard,
+                  (display_ceiling - daily_rank + 1)::int AS period_votes,
+                  is_founder_pack, claimed_today
+           FROM daily_ranked
+           ORDER BY daily_rank
            LIMIT 25`;
     } else if (period === 'weekly') {
       // Weekly: total accumulated votes (synthetic + real) — always larger than daily
@@ -29645,7 +29663,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
   // console.log('[cron] Claimed boost — DISABLED');
 
   // ── GET /admin/spread-votes?key=… — redistribute vote counts to wide unique range ──
-  // Uses hashtext(id) to give each listing a stable, unique-ish vote count across 4–55.
+  // Uses hashtext(id) to give each listing a stable, unique-ish vote count across 4–35.
   // Never reduces listings that already have real activity (>55v).
   // Safe to re-run — idempotent for listings already in the spread range.
   app.get('/admin/spread-votes', async (req, res) => {
@@ -29655,11 +29673,11 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     res.flushHeaders();
     const log = m => { console.log(m); res.write(m + '\n'); };
     try {
-      // Give each listing a stable hash-based vote count in range 4–55.
+      // Give each listing a stable hash-based vote count in range 4–35.
       // GREATEST ensures we never decrease a listing that's earned more.
       const r = await pool.query(`
         UPDATE directory_listings
-        SET vote_count = GREATEST(vote_count, 4 + ABS(hashtext(id::text)) % 52)
+         SET vote_count = GREATEST(vote_count, 4 + ABS(hashtext(id::text)) % 32)
         WHERE id <> ALL($1::int[])
           AND status = 'active'
           AND is_seeded = FALSE
@@ -29687,7 +29705,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     res.setHeader('Transfer-Encoding', 'chunked');
     res.flushHeaders();
     const log = m => { console.log(m); res.write(m + '\n'); };
-    const POS_CAP = [44,40,36,32,28,26,24,22,20,18,16,14];
+    const POS_CAP = [35,32,29,26,24,22,20,18,16,14,12,10];
     try {
       const today = new Date().toISOString().slice(0, 10);
       const dateTag = today.replace(/-/g, '');
@@ -29728,14 +29746,39 @@ ${buildUnsubFooterHtml(listing.contact_email)}
         ORDER BY dds.position ASC`, [today, Array.from(SEED_VOTE_DISABLED_IDS)]);
       for (const l of rows) {
         const target = POS_CAP[l.position - 1] ?? 14;
-        const diff = target - l.vote_count;
-        if (diff <= 0) { log(`#${l.position} ${l.name} — already ${l.vote_count}v (cap ${target})`); continue; }
-        const voteRows = Array.from({length: diff}, (_, i) =>
+         const diff = target - l.vote_count;
+         if (diff <= 0) { log(`#${l.position} ${l.name} — already ${l.vote_count}v (cap ${target})`); continue; }
+         const seededCountResult = await pool.query(
+           `SELECT COUNT(*)::int AS count
+            FROM dir_votes dv
+            WHERE dv.listing_id=$1
+              AND (${syntheticSeedVotePredicate('dv')})`,
+           [l.id]
+         );
+         const allowed = Math.min(
+           diff,
+           remainingSyntheticSeedVotes(seededCountResult.rows[0]?.count)
+         );
+         if (allowed <= 0) {
+           log(`#${l.position} ${l.name} — seed cap reached (${MAX_SYNTHETIC_SEED_VOTES} synthetic votes)`);
+           continue;
+         }
+         const voteRows = Array.from({length: allowed}, (_, i) =>
           `(${l.id}, 'daily_growth_${l.id}_${dateTag}_reseed_${i}', NOW() - INTERVAL '${i * 5} minutes')`
         ).join(',');
-        await pool.query(`INSERT INTO dir_votes (listing_id, voter_hash, voted_at) VALUES ${voteRows} ON CONFLICT DO NOTHING`);
-        await pool.query('UPDATE directory_listings SET vote_count=$1 WHERE id=$2', [target, l.id]);
-        log(`#${l.position} ${l.name}: ${l.vote_count}v → ${target}v (+${diff})`);
+         const inserted = await pool.query(
+           `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+            VALUES ${voteRows}
+            ON CONFLICT DO NOTHING
+            RETURNING id`
+         );
+         if (inserted.rowCount > 0) {
+           await pool.query(
+             'UPDATE directory_listings SET vote_count=vote_count+$1 WHERE id=$2',
+             [inserted.rowCount, l.id]
+           );
+         }
+         log(`#${l.position} ${l.name}: ${l.vote_count}v → ${l.vote_count + inserted.rowCount}v (+${inserted.rowCount}; cap ${MAX_SYNTHETIC_SEED_VOTES})`);
       }
       log('Done.');
     } catch(e) { log(`ERROR: ${e.message}`); }
