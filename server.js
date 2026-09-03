@@ -22438,6 +22438,7 @@ app.get('/subscribe', (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The 7-Point Email Diagnostic — Strategic Flow</title>
+<meta name="description" content="Get the free Strategic Flow 7-point email diagnostic framework and learn which structural friction points stop SaaS readers from clicking.">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -27784,6 +27785,13 @@ setupDB().then(async () => {
     const staticUrls = [
       { loc: `${base}/`,                                        priority: '1.0', changefreq: 'weekly'  },
       { loc: `${base}/why`,                                     priority: '0.9', changefreq: 'weekly'  },
+      { loc: `${base}/why.html`,                                priority: '0.9', changefreq: 'weekly'  },
+      { loc: `${base}/demo.html`,                               priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/login.html`,                              priority: '0.3', changefreq: 'yearly'   },
+      { loc: `${base}/magic.html`,                              priority: '0.2', changefreq: 'yearly'   },
+      { loc: `${base}/guide.html`,                              priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/subscribe`,                               priority: '0.4', changefreq: 'monthly' },
+      { loc: `${base}/blink-test`,                              priority: '0.6', changefreq: 'monthly' },
       { loc: `${base}/friction-index`,                          priority: '0.9', changefreq: 'daily'   },
       { loc: `${base}/friction-index/methodology`,              priority: '0.6', changefreq: 'monthly' },
       { loc: `${base}/ai-visibility-index`,                     priority: '0.9', changefreq: 'daily'   },
