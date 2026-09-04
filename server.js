@@ -9859,9 +9859,34 @@ const DAILY_SECTION_TARGET = 12;
 // Other synthetic campaigns are intentionally not counted in the displayed
 // Daily number, so those campaigns cannot push a Daily entry above the cap.
 const DAILY_LEADERBOARD_TARGET = 10;
-const DAILY_LEADERBOARD_SEED_MAX = 20;
+const DAILY_LEADERBOARD_SEED_MAX = 30;
+const DAILY_LEADERBOARD_ALL_TIME_CAP = 35;
 const DAILY_LEADERBOARD_VOTE_PREFIX = 'daily_leaderboard_';
 const DAILY_LEADERBOARD_RECENT_DAYS = 30;
+const DAILY_LEADERBOARD_STRATEGY = 'staggered_v2';
+const DAILY_LEADERBOARD_PROFILES = Object.freeze([
+  { initial: 27, afterFiveHours: 29, final: 30 },
+  { initial: 24, afterFiveHours: 26, final: 27 },
+  { initial: 21, afterFiveHours: 23, final: 24 },
+  { initial: 18, afterFiveHours: 20, final: 21 },
+  { initial: 15, afterFiveHours: 17, final: 18 },
+  { initial: 12, afterFiveHours: 14, final: 15 },
+  { initial: 9, afterFiveHours: 11, final: 12 },
+  { initial: 6, afterFiveHours: 8, final: 9 },
+  { initial: 4, afterFiveHours: 5, final: 6 },
+  { initial: 2, afterFiveHours: 3, final: 3 },
+]);
+
+function dailyLeaderboardGrowthStage(now = new Date()) {
+  const utcStart = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    1, 30, 0, 0
+  );
+  const elapsedHours = (now.getTime() - utcStart) / 3600000;
+  return elapsedHours >= 10 ? 2 : elapsedHours >= 5 ? 1 : 0;
+}
 
 const DAILY_LEADERBOARD_COUNT_FILTER = (alias, prefixParameter = '$2') => `
   (
@@ -9896,6 +9921,7 @@ async function seedDailyLeaderboard() {
     const existingResult = await client.query(`
       SELECT
         ddb.listing_id,
+        ddb.strategy,
         ddb.notified_at,
         ddb.notification_status,
         dl.name,
@@ -9920,6 +9946,15 @@ async function seedDailyLeaderboard() {
       ORDER BY ddb.position ASC
     `, [today, dailySeedPattern]);
 
+    if (
+      existingResult.rows.length >= DAILY_LEADERBOARD_TARGET &&
+      existingResult.rows.every(row => row.status === 'active')
+    ) {
+      await client.query('COMMIT');
+      console.log(`[daily-leaderboard] ${today}: existing cohort preserved (${existingResult.rows.length} listings)`);
+      return existingResult.rows.length;
+    }
+
     const existingById = new Map(existingResult.rows.map(row => [
       row.listing_id,
       {
@@ -9938,6 +9973,13 @@ async function seedDailyLeaderboard() {
         dl.id AS listing_id,
         dl.name,
         dl.status,
+        dl.vote_count,
+        dl.featured_tier,
+        dl.featured_until,
+        (
+          dl.featured_tier IS NOT NULL
+          AND (dl.featured_until IS NULL OR dl.featured_until > NOW())
+        ) AS is_paid,
         COALESCE((
           SELECT COUNT(*)::int
           FROM dir_votes dv
@@ -10009,8 +10051,15 @@ async function seedDailyLeaderboard() {
     const selected = [];
     for (const row of orderedCandidates) {
       if (selected.length >= DAILY_LEADERBOARD_TARGET) break;
-      const target = DAILY_LEADERBOARD_SEED_MAX - selected.length;
-      if (row.today_votes <= target) selected.push({ ...row, seedTarget: target });
+      const profile = DAILY_LEADERBOARD_PROFILES[selected.length];
+      if (profile && row.today_votes <= profile.final) {
+        selected.push({
+          ...row,
+          profile,
+          seedTarget: profile.final,
+          initialTarget: profile.initial,
+        });
+      }
     }
 
     const selectedIds = selected.map(row => row.listing_id);
@@ -10021,23 +10070,30 @@ async function seedDailyLeaderboard() {
       const previous = existingById.get(row.listing_id);
       await client.query(`
         INSERT INTO dir_daily_leaderboard
-          (listing_id, display_date, position, seed_target, notified_at, notification_status)
-        VALUES ($1, $2, $3, $4, $5, $6)
+          (listing_id, display_date, position, seed_target, initial_target, strategy,
+           growth_stage, notified_at, notification_status)
+        VALUES ($1, $2, $3, $4, $5, $6, 0, $7, $8)
       `, [
         row.listing_id,
         today,
         index + 1,
         row.seedTarget,
+        row.initialTarget,
+        DAILY_LEADERBOARD_STRATEGY,
         previous?.notified_at || null,
         previous?.notification_status || null,
       ]);
 
-      const needed = Math.max(0, row.seedTarget - row.today_votes);
-      if (needed <= 0) continue;
+      const needed = Math.max(0, row.initialTarget - row.today_votes);
+      const allTimeHeadroom = row.is_paid
+        ? needed
+        : Math.max(0, DAILY_LEADERBOARD_ALL_TIME_CAP - Number(row.vote_count || 0));
+      const allowed = Math.min(needed, allTimeHeadroom);
+      if (allowed <= 0) continue;
 
       const values = [];
       const placeholders = [];
-      for (let offset = 0; offset < needed; offset++) {
+      for (let offset = 0; offset < allowed; offset++) {
         const parameterOffset = values.length;
         placeholders.push(`($${parameterOffset + 1}, $${parameterOffset + 2}, NOW() - ($${parameterOffset + 3} || ' seconds')::interval)`);
         values.push(
@@ -10063,11 +10119,113 @@ async function seedDailyLeaderboard() {
     }
 
     await client.query('COMMIT');
-    console.log(`[daily-leaderboard] ${today}: ${selected.length}/${DAILY_LEADERBOARD_TARGET} listings seeded (${selectedIds.join(', ')})`);
+    console.log(`[daily-leaderboard] ${today}: ${selected.length}/${DAILY_LEADERBOARD_TARGET} listings seeded with staggered profiles (${selectedIds.join(', ')})`);
     return selected.length;
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('[daily-leaderboard] seed error:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function advanceDailyLeaderboard() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['toolindex:daily-leaderboard']);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const dateTag = today.replace(/-/g, '');
+    const dailySeedPattern = `${DAILY_LEADERBOARD_VOTE_PREFIX}${dateTag}_%`;
+    const phase = dailyLeaderboardGrowthStage();
+
+    const { rows } = await client.query(`
+      SELECT
+        ddb.listing_id,
+        ddb.position,
+        ddb.growth_stage,
+        ddb.seed_target,
+        dl.vote_count,
+        (
+          dl.featured_tier IS NOT NULL
+          AND (dl.featured_until IS NULL OR dl.featured_until > NOW())
+        ) AS is_paid,
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM dir_votes dv
+          WHERE dv.listing_id = ddb.listing_id
+            AND dv.voted_at >= ($1::date AT TIME ZONE 'UTC')
+            AND dv.voted_at < (($1::date + INTERVAL '1 day') AT TIME ZONE 'UTC')
+            AND ${DAILY_LEADERBOARD_COUNT_FILTER('dv')}
+        ), 0)::int AS today_votes,
+        COALESCE((
+          SELECT COUNT(*)::int
+          FROM dir_votes dv
+          WHERE dv.listing_id = ddb.listing_id
+            AND dv.voter_hash LIKE $2
+        ), 0)::int AS daily_seed_votes
+      FROM dir_daily_leaderboard ddb
+      JOIN directory_listings dl ON dl.id = ddb.listing_id
+      WHERE ddb.display_date = $1
+        AND ddb.strategy = $3
+        AND dl.status = 'active'
+      ORDER BY ddb.position ASC
+    `, [today, dailySeedPattern, DAILY_LEADERBOARD_STRATEGY]);
+
+    for (const row of rows) {
+      if (Number(row.growth_stage || 0) >= phase) continue;
+      const profile = DAILY_LEADERBOARD_PROFILES[row.position - 1];
+      if (!profile) continue;
+
+      const target = phase >= 2 ? profile.final : profile.afterFiveHours;
+      const needed = Math.max(0, target - Number(row.today_votes || 0));
+      const allTimeHeadroom = row.is_paid
+        ? needed
+        : Math.max(0, DAILY_LEADERBOARD_ALL_TIME_CAP - Number(row.vote_count || 0));
+      const allowed = Math.min(needed, allTimeHeadroom);
+
+      if (allowed > 0) {
+        const values = [];
+        const placeholders = [];
+        for (let offset = 0; offset < allowed; offset++) {
+          const parameterOffset = values.length;
+          placeholders.push(`($${parameterOffset + 1}, $${parameterOffset + 2}, NOW())`);
+          values.push(
+            row.listing_id,
+            `${DAILY_LEADERBOARD_VOTE_PREFIX}${dateTag}_${row.listing_id}_${row.daily_seed_votes + offset}`
+          );
+        }
+
+        const inserted = await client.query(`
+          INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+          VALUES ${placeholders.join(', ')}
+          ON CONFLICT DO NOTHING
+          RETURNING id
+        `, values);
+
+        if (inserted.rowCount > 0) {
+          await client.query(
+            `UPDATE directory_listings SET vote_count = COALESCE(vote_count, 0) + $1 WHERE id = $2`,
+            [inserted.rowCount, row.listing_id]
+          );
+        }
+      }
+
+      await client.query(`
+        UPDATE dir_daily_leaderboard
+        SET growth_stage = $1
+        WHERE display_date = $2 AND listing_id = $3
+      `, [phase, today, row.listing_id]);
+    }
+
+    await client.query('COMMIT');
+    console.log(`[daily-leaderboard] ${today}: growth phase ${phase} applied to ${rows.length} staggered listings`);
+    return rows.length;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[daily-leaderboard] growth error:', error.message);
     throw error;
   } finally {
     client.release();
@@ -10080,7 +10238,15 @@ async function notifyDailyLeaderboardFounders() {
     SELECT
       ddb.listing_id,
       ddb.position,
-      (21 - ddb.position)::int AS displayed_votes,
+      ddb.strategy,
+      COALESCE((
+        SELECT COUNT(*)::int
+        FROM dir_votes dv
+        WHERE dv.listing_id = ddb.listing_id
+          AND dv.voted_at >= ($1::date AT TIME ZONE 'UTC')
+          AND dv.voted_at < (($1::date + INTERVAL '1 day') AT TIME ZONE 'UTC')
+          AND ${DAILY_LEADERBOARD_COUNT_FILTER('dv')}
+      ), 0)::int AS raw_period_votes,
       dl.name,
       dl.url,
       NULLIF(TRIM(dl.claimed_by), '') AS claimed_email,
@@ -10091,7 +10257,7 @@ async function notifyDailyLeaderboardFounders() {
       AND ddb.notified_at IS NULL
       AND dl.status = 'active'
     ORDER BY ddb.position ASC
-  `, [today]);
+  `, [today, `${DAILY_LEADERBOARD_VOTE_PREFIX}${today.replace(/-/g, '')}_%`]);
 
   let sent = 0;
   let skipped = 0;
@@ -10129,6 +10295,9 @@ async function notifyDailyLeaderboardFounders() {
       continue;
     }
 
+    const displayedVotes = row.strategy === 'legacy'
+      ? 21 - row.position
+      : Math.min(DAILY_LEADERBOARD_SEED_MAX, Number(row.raw_period_votes || 0));
     const slug = toListingSlug(row.name, row.listing_id);
     const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
     try {
@@ -10144,7 +10313,7 @@ async function notifyDailyLeaderboardFounders() {
               <h2 style="color:#fff;margin:0;font-size:24px;line-height:1.25;">${escapeHtml(row.name)} is #${row.position} today</h2>
             </div>
             <div style="background:#f0f7ff;padding:26px 32px;border-radius:0 0 12px 12px;">
-              <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Your listing is currently <strong>#${row.position}</strong> on ToolIndex's Daily leaderboard with <strong>${row.displayed_votes} votes</strong> in today's UTC leaderboard window.</p>
+              <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">Your listing is currently <strong>#${row.position}</strong> on ToolIndex's Daily leaderboard with <strong>${displayedVotes} votes</strong> in today's UTC leaderboard window.</p>
               <p style="font-size:14px;line-height:1.6;margin:0 0 20px;">This is an operational update for the founder or public contact attached to the listing. No action is required.</p>
               <a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:11px 22px;border-radius:8px;font-weight:700;text-decoration:none;">View your listing →</a>
               <p style="font-size:11px;color:#7a9ab8;line-height:1.5;margin:22px 0 0;">You received this because ${escapeHtml(row.name)} is listed on ToolIndex today.</p>
@@ -12310,7 +12479,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
                          WHEN dl.image_url NOT LIKE '%google.com/s2/favicons%' THEN dl.image_url
                          ELSE NULL END AS image_url, dl.source, dl.source_url,
                     dl.featured_tier, dl.vote_count, dl.pinned_in_leaderboard,
-                     ddb.position, ddb.seed_target,
+                     ddb.position, ddb.seed_target, ddb.strategy,
                      COUNT(dv.id)::int AS raw_period_votes,
                     FALSE AS is_founder_pack,
                     (dl.claimed_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
@@ -12324,7 +12493,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
               WHERE ddb.display_date = (NOW() AT TIME ZONE 'UTC')::date
                 AND dl.status = 'active'
                 AND dl.id <> ALL($2::int[])
-              GROUP BY dl.id, ddb.listing_id, ddb.position, ddb.seed_target
+              GROUP BY dl.id, ddb.listing_id, ddb.position, ddb.seed_target, ddb.strategy
            ),
            daily_ranked AS (
              SELECT daily_raw.*,
@@ -12336,7 +12505,10 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            SELECT id, name, url, category, description, friction_score, score_pending,
                   image_url, source, source_url, featured_tier, vote_count,
                   pinned_in_leaderboard,
-                   (21 - daily_rank)::int AS period_votes,
+                   CASE
+                     WHEN strategy = 'legacy' THEN (21 - daily_rank)::int
+                     ELSE LEAST(${DAILY_LEADERBOARD_SEED_MAX}, raw_period_votes)::int
+                   END AS period_votes,
                   is_founder_pack, claimed_today
            FROM daily_ranked
            ORDER BY daily_rank
@@ -16715,6 +16887,9 @@ async function setupDB() {
       UNIQUE(display_date, position)
     )
   `).catch(e => console.error('[DB] dir_daily_leaderboard:', e.message));
+  await pool.query(`ALTER TABLE dir_daily_leaderboard ADD COLUMN IF NOT EXISTS strategy TEXT NOT NULL DEFAULT 'legacy'`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_daily_leaderboard ADD COLUMN IF NOT EXISTS initial_target INTEGER`).catch(()=>{});
+  await pool.query(`ALTER TABLE dir_daily_leaderboard ADD COLUMN IF NOT EXISTS growth_stage INTEGER NOT NULL DEFAULT 0`).catch(()=>{});
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_ddl_date ON dir_daily_leaderboard(display_date DESC)`).catch(()=>{});
 
   // ── Daily vote snapshots — one row per active listing per day for climber stats
@@ -29715,9 +29890,11 @@ full HTML body here
   expireSponsors().catch(()=>{});
   activateScheduledBoosts().catch(()=>{});
   seedDailySection().catch(()=>{});
-  seedDailyLeaderboard().catch(error => {
-    console.error('[daily-leaderboard] startup seeding failed:', error.message);
-  });
+  seedDailyLeaderboard()
+    .then(() => advanceDailyLeaderboard())
+    .catch(error => {
+      console.error('[daily-leaderboard] startup seeding failed:', error.message);
+    });
   runFreshProductHuntVoteSeeding().catch(error => {
     console.error('[fresh-ph-votes] startup seeding failed:', error.message);
   });
@@ -29795,7 +29972,14 @@ full HTML body here
   // ── Daily 01:30 UTC: refresh the permanent 10-app Daily leaderboard cohort
   cron.schedule('30 1 * * *', () => {
     seedDailySection().catch(e => console.error('[cron-daily-section]', e.message));
-    seedDailyLeaderboard().catch(e => console.error('[cron-daily-leaderboard]', e.message));
+    seedDailyLeaderboard()
+      .then(() => advanceDailyLeaderboard())
+      .catch(e => console.error('[cron-daily-leaderboard]', e.message));
+  }, { timezone: 'UTC' });
+
+  // ── Every 5h after the 01:30 UTC seed: add only the small planned increments
+  cron.schedule('30 6,11,16,21 * * *', () => {
+    advanceDailyLeaderboard().catch(e => console.error('[cron-daily-leaderboard-growth]', e.message));
   }, { timezone: 'UTC' });
 
   // ── Daily 17:00 UTC: notify founders whose listing is in today's Daily
