@@ -145,8 +145,30 @@ a:hover{text-decoration:underline;}
 .dir-activity-text{font-size:12px;color:#cbd5e1;line-height:1.4;font-family:var(--mono);}
 .dir-activity-text strong{color:#eef1f7;}
 .dir-activity-time{font-size:10px;color:#475569;font-family:var(--mono);}
-.dir-activity-top3{grid-column:1/-1;border-top:1px solid rgba(0,212,200,0.12);background:rgba(0,212,200,0.025);padding:10px 18px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;}
-.dir-activity-top3-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#94a3b8;margin-right:6px;}
+ .dir-activity-top3{grid-column:1/-1;border-top:1px solid rgba(0,212,200,0.16);background:linear-gradient(135deg,rgba(0,212,200,0.075),rgba(10,22,40,0.72) 58%,rgba(14,35,56,0.9));padding:20px 22px 22px;}
+ .dir-activity-top3-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px;}
+ .dir-activity-top3-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#00d4c8;font-weight:700;}
+ .dir-activity-top3-subtitle{font-size:11px;color:#64748b;margin-top:3px;}
+ .dir-activity-top3-updated{font-family:var(--mono);font-size:9px;color:#64748b;white-space:nowrap;}
+ .dir-activity-top3-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+ .dir-activity-top3-card{min-width:0;min-height:148px;padding:16px;border:1px solid rgba(148,163,184,0.16);border-radius:12px;background:rgba(7,18,31,0.72);display:flex;flex-direction:column;justify-content:space-between;gap:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.025);transition:transform .18s,border-color .18s,background .18s,box-shadow .18s;}
+ .dir-activity-top3-card:hover{transform:translateY(-2px);border-color:rgba(0,212,200,0.58);background:rgba(8,27,43,0.92);box-shadow:0 10px 26px rgba(0,0,0,0.2),0 0 20px rgba(0,212,200,0.08);text-decoration:none;}
+ .dir-activity-top3-card.rank-1{border-color:rgba(245,190,72,0.42);background:linear-gradient(150deg,rgba(245,190,72,0.13),rgba(7,18,31,0.78) 46%);}
+ .dir-activity-top3-card.rank-1:hover{border-color:rgba(245,190,72,0.8);box-shadow:0 10px 26px rgba(0,0,0,0.2),0 0 20px rgba(245,190,72,0.1);}
+ .dir-activity-top3-rank{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;color:#94a3b8;letter-spacing:.1em;text-transform:uppercase;}
+ .dir-activity-top3-medal{font-size:20px;line-height:1;}
+ .dir-activity-top3-product{display:flex;align-items:center;gap:10px;min-width:0;}
+ .dir-activity-top3-avatar{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:rgba(0,212,200,0.12);border:1px solid rgba(0,212,200,0.2);color:#8ff8ed;font-family:var(--mono);font-size:13px;font-weight:700;flex-shrink:0;}
+ .dir-activity-top3-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f8fafc;font-size:14px;font-weight:700;line-height:1.3;}
+ .dir-activity-top3-name:hover{text-decoration:underline;text-decoration-color:#00d4c8;text-underline-offset:3px;}
+ .dir-activity-top3-domain{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;font-family:var(--mono);font-size:10px;margin-top:3px;}
+ .dir-activity-top3-bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
+ .dir-activity-top3-score{font-family:var(--mono);color:#eef1f7;font-size:24px;font-weight:700;line-height:1;}
+ .dir-activity-top3-score small{display:block;color:#64748b;font-size:9px;font-weight:400;letter-spacing:.08em;text-transform:uppercase;margin-top:5px;}
+ .dir-activity-top3-open{font-family:var(--mono);font-size:10px;color:#00d4c8;white-space:nowrap;}
+ .dir-activity-top3-open:hover{text-decoration:underline;text-underline-offset:3px;}
+ @media(max-width:900px){.dir-activity-top3-grid{grid-template-columns:1fr;}.dir-activity-top3-card{min-height:0;}}
+ @media(max-width:760px){.dir-activity-top3{padding:18px 14px 16px;}.dir-activity-top3-head{align-items:flex-start;flex-direction:column;gap:4px;}.dir-activity-top3-updated{display:none;}.dir-activity-top3-card{padding:14px;}}
 @media(max-width:760px){.dir-activity-section{padding:0 16px 24px;}.dir-activity-grid{grid-template-columns:1fr;}.dir-activity-row{border-right:none;}.dir-activity-row:nth-last-child(-n+3){border-bottom:1px solid rgba(0,212,200,0.07);}.dir-activity-row:last-child{border-bottom:none;}}
 /* DAILY SECTION */
 .dir-daily-section{padding:0 40px 36px;max-width:1200px;margin:0 auto;}
@@ -3253,11 +3275,32 @@ function loadActivityFeed(){
           <div class="dir-activity-time">${timeAgo(e.occurred_at)}</div>
         </div>`;
       }).join('');
-      // Top-3 snapshot row — always shown if data exists (today or 7d fallback)
-      const top3Label = top3Period==='today' ? "Today's Top 3" : "Top 3 This Week";
-      const top3Html = top3.length
-        ? `<div class="dir-activity-top3"><span class="dir-activity-top3-label">${top3Label}</span>${top3.map((p,i)=>`<span style="font-size:12px;font-family:var(--mono);color:#eef1f7;">${medals[i]} <strong>${escHtml(p.name)}</strong> <span style="color:#94a3b8;">${p.votes}v</span></span>`).join('')}</div>`
-        : '';
+       // Top-3 snapshot — each card links to the listing and directly to the app.
+       const top3Label = top3Period==='today' ? "Today's Top 3" : "Top 3 This Week";
+       const top3Html = top3.length
+         ? `<div class="dir-activity-top3">
+              <div class="dir-activity-top3-head">
+                <div><div class="dir-activity-top3-kicker">${top3Label}</div><div class="dir-activity-top3-subtitle">The products getting the most attention right now</div></div>
+                <span class="dir-activity-top3-updated">LIVE RANKING</span>
+              </div>
+              <div class="dir-activity-top3-grid">${top3.map((p,i)=>{
+                const listingHref = '/directory/'+toSlug(p.name,p.id);
+                const appHref = (()=>{ try { const u=new URL(p.url||''); return /^https?:$/.test(u.protocol) ? u.href : ''; } catch(e) { return ''; } })();
+                const domain = (()=>{ try { return new URL(p.url||'').hostname.replace(/^www\./,''); } catch(e) { return 'ToolIndex listing'; } })();
+                const initial = (p.name||'?').trim().charAt(0).toUpperCase();
+                const openHref = appHref || listingHref;
+                const openLabel = appHref ? 'Open app ↗' : 'View listing ↗';
+                return `<div class="dir-activity-top3-card rank-${i+1}">
+                  <div class="dir-activity-top3-rank"><span>#${i+1}</span><span class="dir-activity-top3-medal">${medals[i]}</span></div>
+                  <div class="dir-activity-top3-product">
+                    <span class="dir-activity-top3-avatar">${escHtml(initial)}</span>
+                    <span style="min-width:0;"><a class="dir-activity-top3-name" href="${listingHref}">${escHtml(p.name)}</a><span class="dir-activity-top3-domain">${escHtml(domain)}</span></span>
+                  </div>
+                  <div class="dir-activity-top3-bottom"><span class="dir-activity-top3-score">${escHtml(String(p.votes))}<small>votes today</small></span><a class="dir-activity-top3-open" href="${escHtml(openHref)}"${appHref?' target="_blank" rel="noopener"':''}>${openLabel}</a></div>
+                </div>`;
+              }).join('')}</div>
+            </div>`
+         : '';
       grid.innerHTML = rows + top3Html;
       if(age) age.textContent = 'Updated just now';
       section.style.display = '';
