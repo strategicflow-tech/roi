@@ -27,3 +27,4 @@
 - [Directory contact restrictions](directory-contact-restrictions.md) — permanent outreach blocks must cover server sends, claim/checkout/submit entry points, and admin re-imports; UI filtering is only defense in depth.
 - [GitHub write fallback](github-write-fallback.md) — when the GitHub connector reads successfully but write calls hit Replit Cloudflare, use the authenticated GitHub CLI rather than a raw token.
 - [Agency tracker suppression correlation](agency-tracker-suppression-correlation.md) — identify a skipped batch from its send-window history; global suppression rows can include other cohorts.
+- [Daily leaderboard cohort](daily-leaderboard-cohort.md) — keep a durable UTC 10-app cohort with unique bounded counts and restart-safe founder notifications.
