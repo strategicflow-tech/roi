@@ -26,3 +26,4 @@
 - [Replit shared database migration quirk](replit-shared-database-migration-quirk.md) — removing DATABASE_URL can switch development to an incomplete database while production retains legacy data.
 - [Directory contact restrictions](directory-contact-restrictions.md) — permanent outreach blocks must cover server sends, claim/checkout/submit entry points, and admin re-imports; UI filtering is only defense in depth.
 - [GitHub write fallback](github-write-fallback.md) — when the GitHub connector reads successfully but write calls hit Replit Cloudflare, use the authenticated GitHub CLI rather than a raw token.
+- [Agency tracker suppression correlation](agency-tracker-suppression-correlation.md) — identify a skipped batch from its send-window history; global suppression rows can include other cohorts.
