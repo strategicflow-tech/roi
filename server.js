@@ -12027,7 +12027,7 @@ app.get('/api/directory/activity-feed', async (req, res) => {
       `),
        pool.query(`
          WITH today_raw AS (
-           SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+           SELECT dl.id, dl.name, dl.url, COUNT(dv.id)::int AS votes
            FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
            WHERE dl.status='active'
              AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
@@ -12037,11 +12037,11 @@ app.get('/api/directory/activity-feed', async (req, res) => {
            GROUP BY dl.id, dl.name ORDER BY votes DESC, dl.id ASC LIMIT 3
          ),
          today AS (
-           SELECT id, name, votes
+           SELECT id, name, url, votes
            FROM today_raw
          ),
          fallback_raw AS (
-           SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+           SELECT dl.id, dl.name, dl.url, COUNT(dv.id)::int AS votes
            FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
            WHERE dl.status='active'
              AND dv.voted_at >= NOW() - INTERVAL '7 days'
@@ -12051,14 +12051,14 @@ app.get('/api/directory/activity-feed', async (req, res) => {
            GROUP BY dl.id, dl.name ORDER BY votes DESC, dl.id ASC LIMIT 3
          ),
          fallback AS (
-           SELECT id, name, votes
+           SELECT id, name, url, votes
            FROM fallback_raw
          )
         SELECT *, (SELECT COUNT(*) FROM today) > 0 AS is_today
         FROM (
           SELECT * FROM today
           UNION ALL
-          SELECT id, name, votes FROM fallback WHERE (SELECT COUNT(*) FROM today) = 0
+           SELECT id, name, url, votes FROM fallback WHERE (SELECT COUNT(*) FROM today) = 0
         ) t LIMIT 3
       `),
     ]);
