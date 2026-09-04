@@ -7,4 +7,4 @@ When a healthy GitHub connection can read a repository and reports push permissi
 
 **Why:** The connector's read path and push permission can be healthy while the Replit proxy blocks GitHub write requests at Cloudflare, so retrying the same REST method does not make progress.
 
-**How to apply:** Verify the repository HEAD before editing, work in a temporary clone, validate the complete diff, and push through the authenticated CLI. Keep workspace files untouched when the target repository is external.
+**How to apply:** Verify the repository HEAD before editing, work in a temporary clone, validate the complete diff, run `gh auth setup-git` if Git HTTPS still lacks credentials after `gh auth status`, and push through the authenticated CLI. Keep workspace files untouched when the target repository is external.
