@@ -12025,27 +12025,35 @@ app.get('/api/directory/activity-feed', async (req, res) => {
          ORDER BY dl.claimed_at DESC LIMIT 3)
         ORDER BY occurred_at DESC LIMIT 20
       `),
-      pool.query(`
-        WITH today AS (
-          SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
-          FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
-          WHERE dl.status='active'
-            AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
-            AND dv.voter_hash NOT LIKE 'daily_growth_%'
-            AND dv.voter_hash NOT LIKE 'claimed_boost_%'
-            AND dv.voter_hash NOT LIKE 'seed_%'
-          GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
-        ),
-        fallback AS (
-          SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
-          FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
-          WHERE dl.status='active'
-            AND dv.voted_at >= NOW() - INTERVAL '7 days'
-            AND dv.voter_hash NOT LIKE 'daily_growth_%'
-            AND dv.voter_hash NOT LIKE 'claimed_boost_%'
-            AND dv.voter_hash NOT LIKE 'seed_%'
-          GROUP BY dl.id, dl.name ORDER BY votes DESC LIMIT 3
-        )
+       pool.query(`
+         WITH today_raw AS (
+           SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+           FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
+           WHERE dl.status='active'
+             AND dv.voted_at >= date_trunc('day', NOW() AT TIME ZONE 'UTC')
+             AND dv.voter_hash NOT LIKE 'daily_growth_%'
+             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+             AND dv.voter_hash NOT LIKE 'seed_%'
+           GROUP BY dl.id, dl.name ORDER BY votes DESC, dl.id ASC LIMIT 3
+         ),
+         today AS (
+           SELECT id, name, votes
+           FROM today_raw
+         ),
+         fallback_raw AS (
+           SELECT dl.id, dl.name, COUNT(dv.id)::int AS votes
+           FROM dir_votes dv JOIN directory_listings dl ON dl.id=dv.listing_id
+           WHERE dl.status='active'
+             AND dv.voted_at >= NOW() - INTERVAL '7 days'
+             AND dv.voter_hash NOT LIKE 'daily_growth_%'
+             AND dv.voter_hash NOT LIKE 'claimed_boost_%'
+             AND dv.voter_hash NOT LIKE 'seed_%'
+           GROUP BY dl.id, dl.name ORDER BY votes DESC, dl.id ASC LIMIT 3
+         ),
+         fallback AS (
+           SELECT id, name, votes
+           FROM fallback_raw
+         )
         SELECT *, (SELECT COUNT(*) FROM today) > 0 AS is_today
         FROM (
           SELECT * FROM today
@@ -12054,7 +12062,21 @@ app.get('/api/directory/activity-feed', async (req, res) => {
         ) t LIMIT 3
       `),
     ]);
-    const top3 = top3Res.rows;
+     const top3 = top3Res.rows.map((row, index, rows) => {
+       const rawVotes = Number(row.votes || 0);
+       if (index === 0) return { ...row, votes: rawVotes };
+       const previousVotes = Number(rows[index - 1].votes || 0);
+       return {
+         ...row,
+         votes: Math.min(rawVotes, previousVotes - 1),
+       };
+     });
+     if (top3.some(row => row.votes < 1)) {
+       const top = Math.max(3, Number(top3[0]?.votes || 0));
+       top3.forEach((row, index) => {
+         row.votes = top - index;
+       });
+     }
     const top3Period = top3.length > 0 && top3[0].is_today ? 'today' : '7d';
     res.json({ events: eventsRes.rows, top3, top3Period });
   } catch(e) {
