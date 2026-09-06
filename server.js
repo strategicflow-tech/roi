@@ -15143,6 +15143,16 @@ const SFTECH = 'https://strategicflow.tech';
   '/why-saas-emails-get-opened-but-not-clicked.html',
   '/how-to-fix-saas-email-ctr.html',
   '/saas-email-conversion-failure.html',
+  '/zoho-analytics-q1-2026-showcase.html',
+  '/memrise_newsletter_showcase.html',
+  '/email-architecture-audit.html',
+  '/wizzair_easter_showcase.html',
+  '/field-note-guest-language-cta.html',
+  '/field-note-filing-label-subject.html',
+  '/term-filing-label-subject.html',
+  '/term-guest-language-cta.html',
+  '/teardown-vs-lifecycle-audit.html',
+  '/field-note-feature-first-bias.html',
   '/saas-email-architecture-study.html',
   '/decision-friction-report-2026.html',
   '/decision-friction-model.html',
@@ -15160,6 +15170,9 @@ const SFTECH = 'https://strategicflow.tech';
   '/limelight-teardown.html',
 ].forEach(p => app.get(p, (req, res) => res.redirect(301, SFTECH + p)));
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Legacy onboarding URL: keep old Search Console discoveries on the current page.
+app.get('/onboarding-audit', (req, res) => res.redirect(301, '/onboarding-audit-page'));
 
 // Blink Test — serve before static middleware (no auth required)
 app.get('/blink-test', (req, res) => res.sendFile(require('path').join(__dirname, 'public', 'blink-test.html')));
