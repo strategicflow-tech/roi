@@ -7252,7 +7252,9 @@ function parseToolIndexDraftCsv(csvText) {
 // verified daily rollout queue. Without it, the route remains a manual-draft
 // import and never publishes, indexes, scores, fetches logos, or sends outreach.
 app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, res) => {
-  if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
     const inputRows = parseToolIndexDraftCsv(req.file.buffer.toString('utf8'));
