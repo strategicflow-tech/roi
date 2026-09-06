@@ -28,3 +28,4 @@
 - [GitHub write fallback](github-write-fallback.md) — when the GitHub connector reads successfully but write calls hit Replit Cloudflare, use the authenticated GitHub CLI rather than a raw token.
 - [Agency tracker suppression correlation](agency-tracker-suppression-correlation.md) — identify a skipped batch from its send-window history; global suppression rows can include other cohorts.
 - [Daily leaderboard cohort](daily-leaderboard-cohort.md) — keep a durable UTC 10-app cohort with unique bounded counts and restart-safe founder notifications.
+- [Production versus preview imports](production-vs-preview-imports.md) — production mutations must use the published deployment URL, not the workspace preview.
