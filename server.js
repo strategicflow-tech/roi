@@ -30721,40 +30721,153 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     } catch(e) { console.error('[newsletter-sync] cron error:', e.message); }
   });
 
-  // ── Daily 09:00 UTC: auto-send claim outreach to newly-discovered listing emails ─
-  cron.schedule('0 9 * * *', async () => {
+  // ── Daily 09:00 UTC: auto-send claim outreach to newly-discovered listing emails
+  // node-cron can miss an exact minute when the single Node process is busy.
+  // The durable run reservation + watchdog make the job at-least-once per UTC
+  // day while the listing/email guards keep each recipient idempotent.
+  async function runDailyClaimOutreach(source = 'cron') {
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    const runDate = now.toISOString().slice(0, 10);
+    if (utcHour < 9) return { skipped: true, reason: 'not_due', run_date: runDate };
+
+    const lockClient = await pool.connect();
+    let reserved = false;
     try {
+      const lock = await lockClient.query(
+        `SELECT pg_try_advisory_lock(hashtext('toolindex-claim-outreach-daily')) AS locked`
+      );
+      if (!lock.rows[0]?.locked) return { skipped: true, reason: 'locked_elsewhere', run_date: runDate };
+
+      const reservation = await lockClient.query(
+        `INSERT INTO directory_outreach_daily_runs
+           (run_date, status, source, started_at)
+         VALUES ($1, 'running', $2, NOW())
+         ON CONFLICT (run_date) DO UPDATE
+           SET status='running', source=EXCLUDED.source, started_at=NOW()
+         WHERE directory_outreach_daily_runs.status <> 'completed'
+            OR directory_outreach_daily_runs.started_at < NOW() - INTERVAL '20 minutes'
+         RETURNING run_date`,
+        [runDate, source]
+      );
+      if (!reservation.rows.length) {
+        return { skipped: true, reason: 'already_completed_or_running', run_date: runDate };
+      }
+      reserved = true;
+
       const { rows } = await pool.query(`
-        SELECT id, name, contact_email, ai_insights FROM directory_listings
+        SELECT id, name, contact_email, ai_insights
+        FROM directory_listings
         WHERE contact_email_status='found' AND outreach_emailed_at IS NULL
           AND claimed_by IS NULL AND status='active' AND contact_email IS NOT NULL
         ORDER BY id ASC LIMIT 100`);
-      let sent = 0, skipped = 0;
+      let sent = 0, skipped = 0, errors = 0;
       for (const listing of rows) {
         if (isJunkEmail(listing.contact_email)) {
-          await pool.query(`UPDATE directory_listings SET contact_email=NULL,contact_email_status='not_found' WHERE id=$1`, [listing.id]);
-          skipped++; continue;
+          await pool.query(
+            `UPDATE directory_listings
+             SET contact_email=NULL, contact_email_status='not_found'
+             WHERE id=$1`,
+            [listing.id]
+          );
+          skipped++;
+          continue;
         }
-        if (await isUnsubscribed(listing.contact_email)) { skipped++; continue; }
+        if (await isUnsubscribed(listing.contact_email)) {
+          skipped++;
+          continue;
+        }
         const cronBlock = isBlockedOutreachTarget(listing.name, listing.contact_email);
         if (cronBlock.blocked) {
-          await pool.query(`UPDATE directory_listings SET contact_email_status='excluded' WHERE id=$1`, [listing.id]);
+          await pool.query(
+            `UPDATE directory_listings SET contact_email_status='excluded' WHERE id=$1`,
+            [listing.id]
+          );
           console.log(`[outreach-cron] ⊘ blocked (${cronBlock.reason}) → ${listing.contact_email} (${listing.name})`);
-          skipped++; continue;
+          skipped++;
+          continue;
         }
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-          const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights, listing.contact_email);
-          await resend.emails.send({ from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me', subject, html: htmlBody, text: textBody });
-          await pool.query(`UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`, [listing.id]);
-          sent++;
-        } catch(e) { console.error(`[outreach-cron] error ${listing.contact_email}:`, e.message); }
+          const { subject, html: htmlBody, text: textBody } =
+            buildClaimOutreachEmail(listing.name, listingUrl, listing.ai_insights, listing.contact_email);
+          const providerResult = await resend.emails.send({
+            from: SENDER,
+            to: listing.contact_email,
+            replyTo: 'strategicflow@proton.me',
+            subject,
+            html: htmlBody,
+            text: textBody,
+          });
+          if (providerResult?.error || providerResult?.cooldownBlocked || providerResult?.unsubscribed) {
+            errors++;
+            console.error(`[outreach-cron] provider rejected ${listing.contact_email}:`,
+              providerResult.error?.message || providerResult.error || 'suppressed/cooldown');
+          } else {
+            await pool.query(
+              `UPDATE directory_listings SET outreach_emailed_at=NOW() WHERE id=$1`,
+              [listing.id]
+            );
+            sent++;
+          }
+        } catch (e) {
+          errors++;
+          console.error(`[outreach-cron] error ${listing.contact_email}:`, e.message);
+        }
         await new Promise(r => setTimeout(r, 300));
       }
-      console.log(`[outreach-cron] ${sent} sent, ${skipped} junk skipped out of ${rows.length} candidates`);
-    } catch(e) { console.error('[outreach-cron] error:', e.message); }
-  });
+
+      await lockClient.query(
+        `UPDATE directory_outreach_daily_runs
+         SET status='completed', completed_at=NOW(), candidates=$2, sent=$3,
+             skipped=$4, errors=$5
+         WHERE run_date=$1`,
+        [runDate, rows.length, sent, skipped, errors]
+      );
+      console.log(`[outreach-cron] ${source}: ${sent} sent, ${skipped} skipped, ${errors} errors out of ${rows.length} candidates`);
+      return { run_date: runDate, candidates: rows.length, sent, skipped, errors };
+    } catch (e) {
+      if (reserved) {
+        await lockClient.query(
+          `UPDATE directory_outreach_daily_runs
+           SET status='failed', completed_at=NOW(), errors=COALESCE(errors, 0) + 1
+           WHERE run_date=$1`,
+          [runDate]
+        ).catch(() => {});
+      }
+      console.error(`[outreach-cron] ${source} error:`, e.message);
+      return { run_date: runDate, error: e.message };
+    } finally {
+      try {
+        await lockClient.query(
+          `SELECT pg_advisory_unlock(hashtext('toolindex-claim-outreach-daily'))`
+        );
+      } catch {}
+      lockClient.release();
+    }
+  }
+
+  cron.schedule('0 9 * * *', () => {
+    runDailyClaimOutreach('cron').catch(error => {
+      console.error('[outreach-cron] scheduled run failed:', error.message);
+    });
+  }, { timezone: 'UTC' });
+
+  // Retry missed 09:00 ticks every five minutes. The DB reservation makes
+  // successful runs no-ops for the rest of that UTC day.
+  cron.schedule('*/5 9-23 * * *', () => {
+    runDailyClaimOutreach('watchdog').catch(error => {
+      console.error('[outreach-cron] watchdog failed:', error.message);
+    });
+  }, { timezone: 'UTC' });
+
+  // A restart after 09:00 must not lose the day.
+  setTimeout(() => {
+    runDailyClaimOutreach('startup-recovery').catch(error => {
+      console.error('[outreach-cron] startup recovery failed:', error.message);
+    });
+  }, 15_000);
 
   const isToolIndexPublishingDay = (date = new Date()) => [1, 3, 5].includes(date.getUTCDay());
   let scheduledBlogGenerationInFlight = false;
