@@ -4874,7 +4874,9 @@ const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
   'toolindex-daily-launches-2026-09-01-batch-3',
 ];
 const TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID = 'toolindex-daily-launches-2026-09-01';
-const TOOLINDEX_DAILY_LAUNCH_CAP = 5;
+const TOOLINDEX_DAILY_LAUNCH_CAP = 10;
+const TOOLINDEX_DAILY_LAUNCH_LEGACY_CAP = 5;
+const TOOLINDEX_DAILY_LAUNCH_BATCH_CAP = 5;
 let toolIndexDailyLaunchRunning = false;
 
   function normalizeDailyLaunchBatchId(value) {
@@ -5207,7 +5209,12 @@ async function runDailyLaunchRollout(source = 'cron') {
     if (!lock.rows[0]?.locked) return { skipped: true, reason: 'locked_elsewhere' };
 
     const publishedToday = await pool.query(
-      `SELECT COUNT(*)::int AS count
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (
+           WHERE launch_batch_id IS NULL AND source=ANY($1::text[])
+         )::int AS legacy_count,
+         COUNT(*) FILTER (WHERE launch_batch_id IS NOT NULL)::int AS batch_count
        FROM directory_listings
        WHERE (launch_batch_id IS NOT NULL OR source=ANY($1::text[]))
          AND status='active'
@@ -5216,32 +5223,68 @@ async function runDailyLaunchRollout(source = 'cron') {
              (NOW() AT TIME ZONE 'UTC')::date`,
       [TOOLINDEX_DAILY_LAUNCH_SOURCES]
     );
-    const alreadyPublished = publishedToday.rows[0]?.count || 0;
+    const alreadyPublished = publishedToday.rows[0]?.total || 0;
+    const legacyPublished = publishedToday.rows[0]?.legacy_count || 0;
+    const batchPublished = publishedToday.rows[0]?.batch_count || 0;
     const remainingCapacity = Math.max(0, TOOLINDEX_DAILY_LAUNCH_CAP - alreadyPublished);
     if (!remainingCapacity) {
       console.log(`[daily-launches] ${source}: daily cap reached (${alreadyPublished}/${TOOLINDEX_DAILY_LAUNCH_CAP})`);
       return { skipped: true, reason: 'daily_cap_reached', published_today: alreadyPublished };
     }
 
-    const queued = await pool.query(
-      `SELECT dl.id, dl.name, dl.url, dl.contact_email, dl.ai_insights,
-              dl.launch_batch_id
-       FROM directory_listings dl
-        WHERE status='draft'
-          AND (dl.launch_batch_id IS NOT NULL OR dl.source=ANY($1::text[]))
-        ORDER BY CASE WHEN dl.launch_batch_id IS NULL THEN 1 ELSE 0 END,
-                 COALESCE(
-                   (SELECT created_at FROM directory_launch_batches
-                    WHERE batch_id=dl.launch_batch_id),
-                   dl.submitted_at
-                 ) ASC,
-                 array_position($1::text[], dl.source) NULLS LAST,
-                 dl.launch_date ASC NULLS LAST,
-                 dl.id ASC
-       LIMIT $2`,
-      [TOOLINDEX_DAILY_LAUNCH_SOURCES, remainingCapacity]
+    const legacyCapacity = Math.min(
+      Math.max(0, TOOLINDEX_DAILY_LAUNCH_LEGACY_CAP - legacyPublished),
+      remainingCapacity
     );
+    const batchCapacity = Math.min(
+      Math.max(0, TOOLINDEX_DAILY_LAUNCH_BATCH_CAP - batchPublished),
+      Math.max(0, remainingCapacity - legacyCapacity)
+    );
+    const [legacyQueued, batchQueued] = await Promise.all([
+      legacyCapacity
+        ? pool.query(
+          `SELECT dl.id, dl.name, dl.url, dl.contact_email, dl.ai_insights,
+                  dl.launch_batch_id
+           FROM directory_listings dl
+           WHERE dl.status='draft'
+             AND dl.launch_batch_id IS NULL
+             AND dl.source=ANY($1::text[])
+           ORDER BY dl.launch_date ASC NULLS LAST, dl.id ASC
+           LIMIT $2`,
+          [TOOLINDEX_DAILY_LAUNCH_SOURCES, legacyCapacity]
+        )
+        : { rows: [] },
+      batchCapacity
+        ? pool.query(
+          `SELECT dl.id, dl.name, dl.url, dl.contact_email, dl.ai_insights,
+                  dl.launch_batch_id
+           FROM directory_listings dl
+           WHERE dl.status='draft'
+             AND dl.launch_batch_id IS NOT NULL
+           ORDER BY
+             COALESCE(
+               (SELECT created_at FROM directory_launch_batches
+                WHERE batch_id=dl.launch_batch_id),
+               dl.submitted_at
+             ) ASC,
+             dl.launch_date ASC NULLS LAST,
+             dl.id ASC
+           LIMIT $1`,
+          [batchCapacity]
+        )
+        : { rows: [] },
+    ]);
+    const queued = {
+      rows: [...legacyQueued.rows, ...batchQueued.rows],
+    };
+    if (!queued.rows.length) {
+      console.log(`[daily-launches] ${source}: no queued listings for today's quotas`);
+      return { skipped: true, reason: 'no_queued_listings', published_today: alreadyPublished };
+    }
 
+    /* Keep the two cohorts independent: the imported batch contributes at
+       most five applications while the existing queue contributes at most
+       five, for a maximum of ten active launches per UTC day. */
     let published = 0;
     let sent = 0;
     let excluded = 0;
@@ -7229,7 +7272,7 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         `INSERT INTO directory_launch_batches (batch_id, source, daily_cap)
          VALUES ($1, $2, $3)
          ON CONFLICT (batch_id) DO NOTHING`,
-        [dailyLaunchBatchId, batchSource, TOOLINDEX_DAILY_LAUNCH_CAP]
+          [dailyLaunchBatchId, batchSource, TOOLINDEX_DAILY_LAUNCH_BATCH_CAP]
       );
     }
     const existing = await pool.query(`SELECT id, name, url FROM directory_listings`);
