@@ -31,3 +31,4 @@
 - [Production versus preview imports](production-vs-preview-imports.md) — production mutations must use the published deployment URL, not the workspace preview.
 - [Directory import sequences](directory-import-sequences.md) — explicit-ID historical imports can leave SERIAL behind; repair it before accepting new listings.
 - [Claim outreach cron reliability](claim-outreach-cron-reliability.md) — use durable daily reservation plus watchdog/recovery; one exact node-cron minute is not reliable.
+- [Lead spreadsheet imports](lead-spreadsheet-imports.md) — aggregator XLSX exports need normalization to the draft-import schema; preserve source facts and let root-domain dedupe decide duplicates.
