@@ -4865,8 +4865,9 @@ const TOOLINDEX_DRAFT_OUTREACH_CAMPAIGN_ID = 'toolindex-draft-batch-04-2026-08-2
 const TOOLINDEX_DRAFT_OUTREACH_TARGET = new Date('2026-08-29T12:00:00Z');
 const TOOLINDEX_DRAFT_OUTREACH_IDS = Array.from({ length: 63 }, (_, index) => 8114 + index);
 let toolIndexDraftOutreachRunning = false;
-// One-way daily launch rollout for the verified imports. Sources are ordered:
-// batch 2 cannot start until all queued rows from batch 1 are live.
+  // One-way daily launch rollout for verified imports. New imports opt in with
+  // a persistent launch_batch_id; these legacy sources remain supported so
+  // older queued rows can finish without a data rewrite.
 const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
   'toolindex-daily-launches-2026-09-01',
   'toolindex-daily-launches-2026-09-01-batch-2',
@@ -4875,6 +4876,23 @@ const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
 const TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID = 'toolindex-daily-launches-2026-09-01';
 const TOOLINDEX_DAILY_LAUNCH_CAP = 5;
 let toolIndexDailyLaunchRunning = false;
+
+  function normalizeDailyLaunchBatchId(value) {
+    const batchId = String(value || '').trim().toLowerCase();
+    if (!batchId) return null;
+    if (!/^[a-z0-9][a-z0-9._-]{2,119}$/.test(batchId)) {
+      throw new Error('batch_id must be 3-120 characters using letters, numbers, dots, dashes, or underscores');
+    }
+    return batchId;
+  }
+
+  function isLegacyDailyLaunchSource(source) {
+    return TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(String(source || '').trim());
+  }
+
+  function dailyLaunchCampaignId(batchId) {
+    return batchId || TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID;
+  }
 const STEP3_CAMPAIGN_DATE_UTC = (() => {
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -5166,14 +5184,14 @@ async function scheduleImportedDraftFounderCampaign() {
   }
 }
 
-async function setDailyLaunchCampaignOutcome(listingId, status, reason = null) {
+async function setDailyLaunchCampaignOutcome(listingId, campaignId, status, reason = null) {
   await pool.query(
     `UPDATE directory_listings
      SET outreach_campaign_status=$2,
          outreach_campaign_reason=$3,
          outreach_campaign_processed_at=NOW()
-     WHERE id=$1 AND outreach_campaign_id=$4`,
-    [listingId, status, reason, TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID]
+      WHERE id=$1 AND outreach_campaign_id=$4`,
+    [listingId, status, reason, campaignId]
   );
 }
 
@@ -5191,7 +5209,7 @@ async function runDailyLaunchRollout(source = 'cron') {
     const publishedToday = await pool.query(
       `SELECT COUNT(*)::int AS count
        FROM directory_listings
-       WHERE source=ANY($1::text[])
+       WHERE (launch_batch_id IS NOT NULL OR source=ANY($1::text[]))
          AND status='active'
          AND outreach_campaign_scheduled_at IS NOT NULL
          AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
@@ -5206,12 +5224,20 @@ async function runDailyLaunchRollout(source = 'cron') {
     }
 
     const queued = await pool.query(
-      `SELECT id, name, url, contact_email, ai_insights
-       FROM directory_listings
-       WHERE source=ANY($1::text[]) AND status='draft'
-       ORDER BY array_position($1::text[], source),
-                launch_date ASC NULLS LAST,
-                id ASC
+      `SELECT dl.id, dl.name, dl.url, dl.contact_email, dl.ai_insights,
+              dl.launch_batch_id
+       FROM directory_listings dl
+        WHERE status='draft'
+          AND (dl.launch_batch_id IS NOT NULL OR dl.source=ANY($1::text[]))
+        ORDER BY CASE WHEN dl.launch_batch_id IS NULL THEN 1 ELSE 0 END,
+                 COALESCE(
+                   (SELECT created_at FROM directory_launch_batches
+                    WHERE batch_id=dl.launch_batch_id),
+                   dl.submitted_at
+                 ) ASC,
+                 array_position($1::text[], dl.source) NULLS LAST,
+                 dl.launch_date ASC NULLS LAST,
+                 dl.id ASC
        LIMIT $2`,
       [TOOLINDEX_DAILY_LAUNCH_SOURCES, remainingCapacity]
     );
@@ -5220,26 +5246,31 @@ async function runDailyLaunchRollout(source = 'cron') {
     let sent = 0;
     let excluded = 0;
     let failed = 0;
+    const completedBatchIds = new Set();
 
     for (const listing of queued.rows) {
+      const campaignId = dailyLaunchCampaignId(listing.launch_batch_id);
       const activated = await pool.query(
         `UPDATE directory_listings
          SET status='active',
-             outreach_campaign_id=$2,
+              outreach_campaign_id=$2,
              outreach_campaign_scheduled_at=NOW(),
              outreach_campaign_status='publishing',
              outreach_campaign_reason=NULL
-         WHERE id=$1 AND source=ANY($3::text[]) AND status='draft'
+         WHERE id=$1
+           AND status='draft'
+           AND (launch_batch_id IS NOT NULL OR source=ANY($3::text[]))
          RETURNING id, name`,
-        [listing.id, TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID, TOOLINDEX_DAILY_LAUNCH_SOURCES]
+        [listing.id, campaignId, TOOLINDEX_DAILY_LAUNCH_SOURCES]
       );
       if (!activated.rows.length) continue;
       published++;
+      if (listing.launch_batch_id) completedBatchIds.add(listing.launch_batch_id);
 
       try {
         const result = await sendClaimOutreachForListing(listing.id);
         if (result.ok) {
-          await setDailyLaunchCampaignOutcome(listing.id, 'sent');
+          await setDailyLaunchCampaignOutcome(listing.id, campaignId, 'sent');
           sent++;
         } else {
           const reason = result.reason || result.message || result.error || 'outreach skipped';
@@ -5251,13 +5282,18 @@ async function runDailyLaunchRollout(source = 'cron') {
             result.error === 'junk_email'
             ? 'excluded'
             : 'failed';
-          await setDailyLaunchCampaignOutcome(listing.id, terminalStatus, reason);
+          await setDailyLaunchCampaignOutcome(listing.id, campaignId, terminalStatus, reason);
           if (terminalStatus === 'excluded') excluded++;
           else failed++;
           console.log(`[daily-launches] ${source}: ${terminalStatus} outreach for ${listing.name} — ${reason}`);
         }
       } catch (error) {
-        await setDailyLaunchCampaignOutcome(listing.id, 'failed', String(error.message || error).slice(0, 500));
+        await setDailyLaunchCampaignOutcome(
+          listing.id,
+          campaignId,
+          'failed',
+          String(error.message || error).slice(0, 500)
+        );
         console.error(`[daily-launches] ${source}: outreach failed for ${listing.name}:`, error.message);
         failed++;
       }
@@ -5267,10 +5303,24 @@ async function runDailyLaunchRollout(source = 'cron') {
     const left = await pool.query(
       `SELECT COUNT(*)::int AS count
        FROM directory_listings
-       WHERE source=ANY($1::text[]) AND status='draft'`,
+       WHERE status='draft'
+         AND (launch_batch_id IS NOT NULL OR source=ANY($1::text[]))`,
       [TOOLINDEX_DAILY_LAUNCH_SOURCES]
     );
     const remaining = left.rows[0]?.count || 0;
+    if (completedBatchIds.size) {
+      await pool.query(
+        `UPDATE directory_launch_batches b
+         SET status='complete', completed_at=COALESCE(b.completed_at, NOW())
+         WHERE b.batch_id = ANY($1::text[])
+           AND b.status <> 'complete'
+           AND NOT EXISTS (
+             SELECT 1 FROM directory_listings dl
+             WHERE dl.launch_batch_id=b.batch_id AND dl.status='draft'
+           )`,
+        [[...completedBatchIds]]
+      );
+    }
     console.log(
       `[daily-launches] ${source}: ${published} published, ${sent} outreach sent, ` +
       `${excluded} excluded, ${failed} failed; ${remaining} drafts remain`
@@ -7147,19 +7197,41 @@ function parseToolIndexDraftCsv(csvText) {
     const row = {};
     for (const key of required) row[key] = values[index(key)] ?? '';
     row.launch_date = index('launch_date') >= 0 ? values[index('launch_date')] ?? '' : '';
+    row.launch_batch_id = index('launch_batch_id') >= 0 ? values[index('launch_batch_id')] ?? '' : '';
     row.file_row = i + 1;
     rows.push(row);
   }
   return rows;
 }
 
-// POST /admin/toolindex-import-drafts — import one CSV batch as private manual drafts.
-// This route intentionally does not publish, index, score, fetch logos, or send outreach.
+// POST /admin/toolindex-import-drafts — import one CSV batch as private drafts.
+// Pass multipart `batch_id` (or include a launch_batch_id CSV column) for the
+// verified daily rollout queue. Without it, the route remains a manual-draft
+// import and never publishes, indexes, scores, fetches logos, or sends outreach.
 app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, res) => {
   if (req.query.key !== process.env.WHY_ADMIN_KEY) return res.status(403).json({ error: 'forbidden' });
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
     const inputRows = parseToolIndexDraftCsv(req.file.buffer.toString('utf8'));
+    const requestedBatchId = normalizeDailyLaunchBatchId(
+      req.body?.batch_id || req.query.batch_id || inputRows.find(row => row.launch_batch_id)?.launch_batch_id
+    );
+    const batchIdsInFile = new Set(
+      inputRows.map(row => normalizeDailyLaunchBatchId(row.launch_batch_id)).filter(Boolean)
+    );
+    if (batchIdsInFile.size > 1 || (requestedBatchId && batchIdsInFile.size && !batchIdsInFile.has(requestedBatchId))) {
+      throw new Error('all rows in a daily launch import must use the same batch_id');
+    }
+    const dailyLaunchBatchId = requestedBatchId || [...batchIdsInFile][0] || null;
+    if (dailyLaunchBatchId) {
+      const batchSource = inputRows.find(row => row.source.trim())?.source.trim() || 'verified import';
+      await pool.query(
+        `INSERT INTO directory_launch_batches (batch_id, source, daily_cap)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (batch_id) DO NOTHING`,
+        [dailyLaunchBatchId, batchSource, TOOLINDEX_DAILY_LAUNCH_CAP]
+      );
+    }
     const existing = await pool.query(`SELECT id, name, url FROM directory_listings`);
     const existingNames = new Set(existing.rows.map(row => String(row.name || '').trim().toLowerCase()).filter(Boolean));
     const existingDomains = new Set();
@@ -7233,23 +7305,27 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
       }
 
       const category = row.category || inferToolIndexCategory(row.name, row.url, row.description);
+      const rowBatchId = dailyLaunchBatchId || normalizeDailyLaunchBatchId(row.launch_batch_id);
+      const queuedForDailyRollout = Boolean(rowBatchId) || isLegacyDailyLaunchSource(row.source);
+      const campaignId = rowBatchId || (queuedForDailyRollout ? TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID : null);
       try {
         const inserted = await pool.query(
           `INSERT INTO directory_listings
              (name, url, description, category, founder_name, contact_email,
                source, source_url, image_url, launch_date, status, is_seeded, is_auto_imported,
               score_pending, submitted_at, outreach_campaign_id,
-              outreach_campaign_status, outreach_followups_disabled)
+               outreach_campaign_status, outreach_followups_disabled, launch_batch_id)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW(),
-                    $11,$12,$13)
+                    $11,$12,$13,$14)
            RETURNING id, name`,
           [
             row.name, storedUrl, row.description, category, row.founder_name,
             row.contact_email, row.source, storedSourceUrl, row.image_url,
             row.launch_date.trim() || null,
-            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID : null,
-            TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()) ? 'queued' : null,
-            !TOOLINDEX_DAILY_LAUNCH_SOURCES.includes(row.source.trim()),
+            campaignId,
+            queuedForDailyRollout ? 'queued' : null,
+            !queuedForDailyRollout,
+            rowBatchId,
           ]
         );
         const id = inserted.rows[0].id;
@@ -7272,6 +7348,8 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
     res.json({
       ok: true,
       total_rows: inputRows.length,
+      batch_id: dailyLaunchBatchId,
+      queued_for_daily_rollout: Boolean(dailyLaunchBatchId),
       created,
       skipped,
       failed,
@@ -16385,6 +16463,17 @@ async function setupDB() {
       scored_at     TIMESTAMPTZ
     )
   `).catch(e => console.error('[DB] directory_listings:', e.message));
+  // Some historical imports supplied explicit listing IDs, leaving the
+  // SERIAL sequence behind the current maximum. Keep future safe imports
+  // insertable without changing any existing listing IDs.
+  await pool.query(`
+    SELECT setval(
+      pg_get_serial_sequence('directory_listings', 'id'),
+      COALESCE(MAX(id), 1),
+      MAX(id) IS NOT NULL
+    )
+    FROM directory_listings
+  `).catch(e => console.error('[DB] directory_listings sequence:', e.message));
 
   // Manual drafts may be staged before a product website is known.
   await pool.query(`ALTER TABLE directory_listings ALTER COLUMN url DROP NOT NULL`).catch(()=>{});
@@ -16413,6 +16502,21 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_scheduled_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_campaign_processed_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_followups_disabled BOOLEAN DEFAULT FALSE`).catch(()=>{});
+  await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS launch_batch_id TEXT`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_launch_batches (
+      batch_id    TEXT PRIMARY KEY,
+      source      TEXT NOT NULL,
+      daily_cap   INTEGER NOT NULL DEFAULT 5,
+      status      TEXT NOT NULL DEFAULT 'queued',
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ
+    )
+  `).catch(e => console.error('[DB] directory_launch_batches:', e.message));
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS directory_listings_launch_batch_idx
+    ON directory_listings (launch_batch_id, status, submitted_at)
+  `).catch(() => {});
   // Promoted flag — listings that get 10-14 votes/day to stay well ahead in the leaderboard
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS is_promoted         BOOLEAN DEFAULT FALSE`).catch(()=>{});
 
