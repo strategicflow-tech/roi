@@ -16650,6 +16650,19 @@ async function setupDB() {
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_source TEXT`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS contact_email_fetched_at TIMESTAMPTZ`).catch(()=>{});
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS outreach_emailed_at     TIMESTAMPTZ`).catch(()=>{});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS directory_outreach_daily_runs (
+      run_date    DATE PRIMARY KEY,
+      status      TEXT NOT NULL DEFAULT 'running',
+      source      TEXT,
+      started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      candidates  INTEGER NOT NULL DEFAULT 0,
+      sent        INTEGER NOT NULL DEFAULT 0,
+      skipped     INTEGER NOT NULL DEFAULT 0,
+      errors      INTEGER NOT NULL DEFAULT 0
+    )
+  `).catch(e => console.error('[DB] directory_outreach_daily_runs:', e.message));
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS follow_up_sent_at       TIMESTAMPTZ`).catch(()=>{});
   // Reciprocal backlink requirement — added as part of claim flow
   await pool.query(`ALTER TABLE directory_listings ADD COLUMN IF NOT EXISTS backlink_confirmed      BOOLEAN DEFAULT FALSE`).catch(()=>{});
