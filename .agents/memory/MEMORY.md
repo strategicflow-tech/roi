@@ -30,3 +30,4 @@
 - [Daily leaderboard cohort](daily-leaderboard-cohort.md) — keep a durable UTC 10-app cohort with unique bounded counts and restart-safe founder notifications.
 - [Production versus preview imports](production-vs-preview-imports.md) — production mutations must use the published deployment URL, not the workspace preview.
 - [Directory import sequences](directory-import-sequences.md) — explicit-ID historical imports can leave SERIAL behind; repair it before accepting new listings.
+- [Claim outreach cron reliability](claim-outreach-cron-reliability.md) — use durable daily reservation plus watchdog/recovery; one exact node-cron minute is not reliable.
