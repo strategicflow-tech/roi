@@ -8525,9 +8525,11 @@ async function computeTrending() {
       FROM dir_votes
       WHERE voted_at >= NOW() - INTERVAL '48 hours'
         AND voted_at <= NOW()
+        AND ${ORGANIC_VOTE_FILTER('dir_votes')}
       GROUP BY listing_id
       HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours'
-                                AND voted_at <= NOW()) >= 3
+                                 AND voted_at <= NOW()
+                                 AND ${ORGANIC_VOTE_FILTER('dir_votes')}) >= 3
     `);
     const data = r.rows
       .filter(row => row.cur > row.prev)
@@ -10030,6 +10032,20 @@ const DAILY_LEADERBOARD_COUNT_FILTER = (alias, prefixParameter = '$2') => `
   )
 `;
 
+const ORGANIC_VOTE_FILTER = alias => `
+  ${alias}.voter_hash NOT LIKE 'seed_%'
+  AND ${alias}.voter_hash NOT LIKE 'fresh_ph_24h_%'
+  AND ${alias}.voter_hash NOT LIKE 'claimed_24h_%'
+  AND ${alias}.voter_hash NOT LIKE 'daily_launch_6h_%'
+  AND ${alias}.voter_hash NOT LIKE 'timed_seed_%'
+  AND ${alias}.voter_hash NOT LIKE 'daily_growth_%'
+  AND ${alias}.voter_hash NOT LIKE 'claimed_boost_%'
+  AND ${alias}.voter_hash NOT LIKE 'promoted_growth_%'
+  AND ${alias}.voter_hash NOT LIKE 'promoted_boost_%'
+  AND ${alias}.voter_hash NOT LIKE 'temporary_mcp_seed_%'
+  AND ${alias}.voter_hash NOT LIKE 'daily_leaderboard_%'
+`;
+
 async function seedDailyLeaderboard() {
   const client = await pool.connect();
   try {
@@ -10045,6 +10061,8 @@ async function seedDailyLeaderboard() {
       SELECT
         ddb.listing_id,
         ddb.strategy,
+        ddb.initial_target,
+        ddb.seed_target,
         ddb.notified_at,
         ddb.notification_status,
         dl.name,
@@ -10069,9 +10087,17 @@ async function seedDailyLeaderboard() {
       ORDER BY ddb.position ASC
     `, [today, dailySeedPattern]);
 
+    const existingCohortHealthy = existingResult.rows.length >= DAILY_LEADERBOARD_TARGET &&
+      existingResult.rows.every(row =>
+        row.status === 'active' &&
+        (row.strategy !== DAILY_LEADERBOARD_STRATEGY ||
+          (row.initial_target !== null &&
+            Number(row.daily_seed_votes) >= Number(row.initial_target)))
+      );
+
     if (
       existingResult.rows.length >= DAILY_LEADERBOARD_TARGET &&
-      existingResult.rows.every(row => row.status === 'active')
+      existingCohortHealthy
     ) {
       await client.query('COMMIT');
       console.log(`[daily-leaderboard] ${today}: existing cohort preserved (${existingResult.rows.length} listings)`);
@@ -10087,6 +10113,10 @@ async function seedDailyLeaderboard() {
         daily_seed_votes: Number(row.daily_seed_votes) || 0,
       },
     ]));
+
+    // A broken or capped staggered cohort must not be preserved. This also
+    // prevents today's empty Daily surface from surviving a restart forever.
+    if (!existingCohortHealthy) existingById.clear();
 
     // Prefer recent launches and any claimed listing. If the preferred pool is
     // too small, the second query is a safe fill so Daily remains a 10-app
@@ -10123,6 +10153,19 @@ async function seedDailyLeaderboard() {
         AND dl.id <> ALL($3::int[])
         AND dl.description IS NOT NULL
         AND LENGTH(dl.description) > 20
+         AND (
+           (
+             dl.featured_tier IS NOT NULL
+             AND (dl.featured_until IS NULL OR dl.featured_until > NOW())
+           )
+           OR COALESCE(dl.vote_count, 0) <= ${DAILY_LEADERBOARD_ALL_TIME_CAP - DAILY_LEADERBOARD_PROFILES[0].final}
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM dir_daily_leaderboard recent
+           WHERE recent.listing_id = dl.id
+             AND recent.display_date >= ($1::date - $4::int)
+         )
         AND NOT EXISTS (
           SELECT 1
           FROM dir_daily_leaderboard ddb
@@ -10141,7 +10184,7 @@ async function seedDailyLeaderboard() {
         ) DESC,
         dl.id DESC
       LIMIT 100
-    `, [today, dailySeedPattern, protectedIds]);
+    `, [today, dailySeedPattern, protectedIds, DAILY_LEADERBOARD_RECENT_DAYS]);
 
     let candidateRows = (await candidateQuery(true)).rows;
     if (existingById.size + candidateRows.length < DAILY_LEADERBOARD_TARGET) {
@@ -12692,6 +12735,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= NOW() - INTERVAL '24 hours'
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
+              AND ${ORGANIC_VOTE_FILTER('dv')}
            WHERE dl.status='active'
            GROUP BY dl.id
            HAVING COUNT(dv.id) > 0
