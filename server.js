@@ -4413,6 +4413,7 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
 
 // ── Shared helper: build catchy claim outreach email with AI profile preview ──
 function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
+  const safeName     = escapeHtml(name || 'your product');
   const ai = (typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights) || {};
   const rawSummary   = (ai.summary || '').trim();
   const snippet      = rawSummary.length > 230 ? rawSummary.slice(0, 230) + '…' : rawSummary;
@@ -4426,7 +4427,7 @@ function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
 
   // ── Profile preview card (only shown when ai_insights present) ──
   const previewParts = [];
-  if (snippet)          previewParts.push(`<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.6;font-style:italic;">"${snippet}"</p>`);
+  if (snippet)          previewParts.push(`<p style="margin:0 0 14px;font-size:14px;color:#374151;line-height:1.6;font-style:italic;">"${escapeHtml(snippet)}"</p>`);
   if (features.length)  previewParts.push(`<p style="margin:0 0 5px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9ca3af;">Key Features</p><ul style="margin:0 0 12px;padding-left:18px;font-size:13px;color:#374151;line-height:1.75;">${features.map(f => `<li>${f}</li>`).join('')}</ul>`);
   if (audience.target)  previewParts.push(`<p style="margin:0 0 5px;font-size:13px;color:#374151;"><strong>For:</strong> ${audience.target}</p>`);
   if (competitors.length) previewParts.push(`<p style="margin:0 0 5px;font-size:13px;color:#374151;"><strong>Vs:</strong> ${competitors.join(', ')}</p>`);
@@ -4435,49 +4436,56 @@ function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
 
   const previewCardHtml = previewParts.length ? `
 <div style="background:#f9fafb;border:1px solid #e5e7eb;border-left:3px solid #00d4c8;border-radius:6px;padding:18px 20px;margin:20px 0;">
-  <p style="margin:0 0 12px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#9ca3af;">AI-generated profile preview</p>
+  <p style="margin:0 0 12px;font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#9ca3af;">Profile draft</p>
   ${previewParts.join('\n  ')}
 </div>` : '';
 
   const checkList = [
-    '✓&nbsp; About — AI summary from your homepage',
-    features.length   ? `✓&nbsp; Key Features — ${features.length} inferred`      : '✓&nbsp; Key Features',
-    audience.target   ? `✓&nbsp; Audience — ${audience.target}`                    : '✓&nbsp; Who It\'s For',
-    '✓&nbsp; Strengths &amp; Weaknesses',
-    competitors.length ? `✓&nbsp; ${competitors.length} Likely Alternatives`       : '✓&nbsp; Likely Alternatives',
-    '✓&nbsp; Verified Facts (pricing, platforms, languages)',
+    '✓&nbsp; About — drafted from the public site',
+    features.length ? `✓&nbsp; Key Features — ${features.length} currently listed` : '✓&nbsp; Key Features',
+    audience.target ? `✓&nbsp; Who It\'s For — ${audience.target}` : '✓&nbsp; Who It\'s For',
+    '✓&nbsp; Links and verified facts',
   ].map(s => `<li style="margin-bottom:5px;">${s}</li>`).join('');
 
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
 <p>Hi,</p>
-<p>We already built <strong>${name}'s full ToolIndex profile</strong> — it's live now.</p>
+<p>I’m Alex from Strategic Flow. We added <strong>${safeName}</strong> to ToolIndex after finding it on your public site.</p>
+<p>The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.</p>
 ${previewCardHtml}
-<p style="margin:0 0 8px;">The listing already includes:</p>
+<p style="margin:0 0 8px;">Here is what the draft currently contains:</p>
 <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
 ${checkList}
 </ul>
-<p>These are AI-inferred from ${name}'s homepage — accurate most of the time, but you can correct anything after claiming. Every listing also gets a permanent dofollow backlink from <strong>strategicflow.tech</strong> (DR&nbsp;86).</p>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">See the full profile + claim it free &rarr;</a></p>
+<p>Claiming gives you control of the page: correct the wording, add the right links, and keep the profile accurate as the product changes. It also keeps the permanent dofollow backlink from <strong>strategicflow.tech</strong>.</p>
+<p>This is free. There is no subscription or payment required.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Take ownership of ${safeName}'s profile &rarr;</a></p>
+<p>If you are not the right person, forwarding this note to whoever manages ${safeName} is enough.</p>
  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>Tenerife, Spain</p>
 ${buildUnsubFooterHtml(email || '')}
 </div>`;
 
   const textParts = [
     'Hi,', '',
-    `We already built ${name}'s full ToolIndex profile — it's live now.`,
+    `I’m Alex from Strategic Flow. We added ${name} to ToolIndex after finding it on your public site.`,
+    '',
+    `The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.`,
   ];
   if (snippet) textParts.push('', `"${snippet}"`);
-  textParts.push('', 'The listing already includes:');
-  textParts.push('  ✓ About (AI-generated from your homepage)');
-  if (features.length)   textParts.push(`  ✓ Key Features — ${features.length} listed`);
-  if (audience.target)   textParts.push(`  ✓ Audience — ${audience.target}`);
-  textParts.push('  ✓ Strengths & Weaknesses');
-  if (competitors.length) textParts.push(`  ✓ ${competitors.length} Likely Alternatives`);
-  textParts.push('  ✓ Verified Facts (pricing, platforms, languages)');
+  textParts.push('', 'Here is what the draft currently contains:');
+  textParts.push('  ✓ About — drafted from the public site');
+  if (features.length) textParts.push(`  ✓ Key Features — ${features.length} currently listed`);
+  if (audience.target) textParts.push(`  ✓ Who It’s For — ${audience.target}`);
+  textParts.push('  ✓ Links and verified facts');
   textParts.push(
     '',
-    `These are AI-inferences from your homepage — claim it to correct anything. Every listing also gets a permanent dofollow backlink from strategicflow.tech (DR 86).`,
-    '', `See the full profile + claim it free: ${listingUrl}`,
+    `Claiming gives you control of the page: correct the wording, add the right links, and keep the profile accurate as the product changes.`,
+    `It also keeps the permanent dofollow backlink from strategicflow.tech.`,
+    '',
+    'This is free. There is no subscription or payment required.',
+    '',
+    `Take ownership of ${name}'s profile: ${listingUrl}`,
+    '',
+    `If you are not the right person, forwarding this note to whoever manages ${name} is enough.`,
     '', '--', 'Alex Iliescu',
     'Strategic Flow — strategicflow.tech',
     'ToolIndex — https://strategic-flow-audit.replit.app/directory',
@@ -4486,7 +4494,7 @@ ${buildUnsubFooterHtml(email || '')}
   );
 
   return {
-    subject: `We built ${name}'s full ToolIndex profile — it's live now`,
+    subject: `A ToolIndex profile for ${name}`,
     html,
     text: textParts.join('\n'),
   };
@@ -4496,48 +4504,29 @@ function buildClaimFollowupEmail(name, listingUrl, email) {
   const safeName = escapeHtml(name || 'your product');
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
 <p>Hi,</p>
-<p>Just a quick follow-up — <strong>${safeName}'s ToolIndex listing</strong> is still unclaimed.</p>
-<p>Here are the features you may be missing:</p>
+<p>I’m following up once because <strong>${safeName}'s ToolIndex profile</strong> is still unclaimed.</p>
+<p>The draft is based on public information, which means the most important perspective — the one from the people who built the product — is still missing.</p>
 <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
-  <li><strong>AI-generated profile</strong> with your product summary, key features, audience and verified facts</li>
-  <li><strong>Edit access after claiming</strong> for your description, logo and links</li>
-  <li><strong>Permanent DR 86 dofollow backlink</strong> from strategicflow.tech</li>
-  <li><strong>AI discovery visibility</strong> when people compare tools and ask AI assistants for recommendations</li>
-  <li><strong>Leaderboard and badge eligibility</strong> through real community votes</li>
+  <li>Correct the description and facts</li>
+  <li>Add the right logo and links</li>
+  <li>Keep the permanent dofollow backlink from strategicflow.tech</li>
 </ul>
-<p style="margin:20px 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">After claiming: Founder Pack — one-time $49</p>
-<ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
-  <li><strong>30 days of Premium visibility</strong></li>
-  <li><strong>Unlimited relaunches</strong> without the standard 30-day wait</li>
-  <li><strong>Priority logo placement</strong> in the ToolIndex brand carousel</li>
-  <li><strong>Weekly Listing Health Checks</strong> against your verified listing snapshot</li>
-  <li><strong>Editable Relaunch Kit drafts</strong> and <strong>Verified Listing History</strong></li>
-</ul>
-<p>Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form — we&rsquo;ll send a separate confirmation email before subscribing you.</p>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${safeName} free &rarr;</a></p>
+<p>Claiming is free. If the profile is already accurate, no action is needed.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Take ownership of ${safeName}'s profile &rarr;</a></p>
  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>Tenerife, Spain</p>${buildUnsubFooterHtml(email || '')}</div>`;
   const text = `Hi,
 
-Just a quick follow-up — ${name}'s ToolIndex listing is still unclaimed.
+ I’m following up once because ${name}'s ToolIndex profile is still unclaimed.
 
-Here are the features you may be missing:
+The draft is based on public information, which means the most important perspective — the one from the people who built the product — is still missing.
 
-✓ AI-generated profile with your product summary, key features, audience and verified facts
-✓ Edit access after claiming for your description, logo and links
-✓ Permanent DR 86 dofollow backlink from strategicflow.tech
-✓ AI discovery visibility when people compare tools and ask AI assistants for recommendations
-✓ Leaderboard and badge eligibility through real community votes
+✓ Correct the description and facts
+✓ Add the right logo and links
+✓ Keep the permanent dofollow backlink from strategicflow.tech
 
-After claiming: Founder Pack — one-time $49
-  ✓ 30 days of Premium visibility
-  ✓ Unlimited relaunches without the standard 30-day wait
-  ✓ Priority logo placement in the ToolIndex brand carousel
-  ✓ Weekly Listing Health Checks against your verified listing snapshot
-  ✓ Editable Relaunch Kit drafts and Verified Listing History
+Claiming is free. If the profile is already accurate, no action is needed.
 
-Claiming is free and takes about a minute. If you also want ToolIndex founder updates and new articles, tick the newsletter checkbox in the claim form. We will send a separate confirmation email before subscribing you.
-
-Claim ${name} free: ${listingUrl}
+Take ownership of ${name}'s profile: ${listingUrl}
 
 --
 Alex Iliescu
@@ -4545,7 +4534,7 @@ Strategic Flow — strategicflow.tech
 ToolIndex — https://strategic-flow-audit.replit.app/directory
 Tenerife, Spain${buildUnsubFooterText(email || '')}`;
   return {
-    subject: `Still unclaimed: ${name} on ToolIndex`,
+    subject: `One detail remains on ${name}'s ToolIndex profile`,
     html,
     text,
   };
@@ -5045,35 +5034,36 @@ function buildImportedDraftClaimEmail(listing) {
   const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(listing.name, listing.id)}`;
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#182235;line-height:1.7;font-size:15px;">
 <p>${greeting}</p>
-<p>A quick heads-up: we set aside a <strong>private ToolIndex draft page</strong> for <strong>${safeName}</strong>.</p>
-<p>It is <strong>not published or indexed</strong> yet. Claiming it is free and gives you a chance to make the page yours before it appears publicly.</p>
+<p>I’m Alex from Strategic Flow. We drafted a <strong>private ToolIndex profile</strong> for <strong>${safeName}</strong> from the information on your public site.</p>
+<p>It is <strong>not published or indexed</strong> yet. Since it is still a draft, the people behind the product have the first chance to correct the wording and decide how the page should represent it.</p>
 <div style="margin:22px 0;padding:18px 20px;background:#f6fffe;border:1px solid #bcebe6;border-radius:8px;">
-  <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0f766e;">What you unlock</p>
+  <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#0f766e;">What you control</p>
   <ul style="margin:0;padding-left:20px;color:#374151;line-height:1.8;">
-    <li>Edit your product description, logo and links</li>
-    <li>Keep a permanent dofollow backlink from strategicflow.tech</li>
-    <li>Control how ${safeName} is presented on ToolIndex</li>
+    <li>The description and product facts</li>
+    <li>The logo and links attached to the profile</li>
+    <li>A permanent dofollow backlink from strategicflow.tech</li>
   </ul>
 </div>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00bfb4;color:#06201f;padding:13px 24px;text-decoration:none;font-weight:700;border-radius:7px;font-size:15px;">Review &amp; claim my draft &rarr;</a></p>
-<p style="font-size:13px;color:#5f6b7a;">Takes about a minute. No payment needed.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00bfb4;color:#06201f;padding:13px 24px;text-decoration:none;font-weight:700;border-radius:7px;font-size:15px;">Take ownership of ${safeName}'s draft &rarr;</a></p>
+<p style="font-size:13px;color:#5f6b7a;">Claiming is free. If you are not the right person, forwarding this note to whoever manages ${safeName} is enough.</p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>ToolIndex by <a href="https://strategicflow.tech" style="color:#00a99f;">Strategic Flow</a><br>Tenerife, Spain</p>
 ${buildUnsubFooterHtml(listing.contact_email || '')}
 </div>`;
   const text = [
     greeting,
     '',
-    `A quick heads-up: we set aside a private ToolIndex draft page for ${listing.name}.`,
+    `I’m Alex from Strategic Flow. We drafted a private ToolIndex profile for ${listing.name} from the information on your public site.`,
     'It is not published or indexed yet.',
+    'Since it is still a draft, the people behind the product have the first chance to correct the wording and decide how the page should represent it.',
     '',
-    'Claiming is free and lets you:',
-    '- Edit your product description, logo and links',
-    '- Keep a permanent dofollow backlink from strategicflow.tech',
-    `- Control how ${listing.name} is presented on ToolIndex`,
+    'What you control:',
+    '- The description and product facts',
+    '- The logo and links attached to the profile',
+    '- A permanent dofollow backlink from strategicflow.tech',
     '',
-    `Review and claim your draft: ${listingUrl}`,
+    `Take ownership of ${listing.name}'s draft: ${listingUrl}`,
     '',
-    'Takes about a minute. No payment needed.',
+    `Claiming is free. If you are not the right person, forwarding this note to whoever manages ${listing.name} is enough.`,
     '',
     '--',
     'Alex Iliescu',
@@ -5082,7 +5072,7 @@ ${buildUnsubFooterHtml(listing.contact_email || '')}
     buildUnsubFooterText(listing.contact_email || ''),
   ].join('\n');
   return {
-    subject: `${listing.name} has a private ToolIndex page waiting`,
+    subject: `A private ToolIndex draft for ${listing.name}`,
     html,
     text,
   };
@@ -30576,16 +30566,7 @@ full HTML body here
         try {
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-          const name = listing.name;
-          const followUpHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
-<p>Hi,</p>
-<p><strong>${name}'s DR 86 dofollow backlink</strong> is sitting uncollected. Claiming the ToolIndex listing takes under a minute — it's free, and the backlink from <strong>strategicflow.tech</strong> is permanent.</p>
-<p>You can also edit the description, logo, and links after claiming.</p>
-<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:13px 28px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim it free &rarr;</a></p>
-<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>LinkedIn: <a href="https://www.linkedin.com/in/strategic-flow-tech" style="color:#00d4c8;">linkedin.com/in/strategic-flow-tech</a><br>Tenerife, Spain</p>
-${buildUnsubFooterHtml(listing.contact_email)}
-</div>`;
-          const followUpText = `Hi,\n\n${name}'s DR 86 dofollow backlink is sitting uncollected. Claiming the ToolIndex listing takes under a minute — it's free, and the backlink from strategicflow.tech is permanent.\n\nYou can also edit the description, logo, and links after claiming.\n\nClaim it free: ${listingUrl}\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
+           const name = listing.name;
           const canonicalFollowup = buildClaimFollowupEmail(name, listingUrl, listing.contact_email);
           await resend.emails.send({
             from:    SENDER,
@@ -30642,14 +30623,12 @@ ${buildUnsubFooterHtml(listing.contact_email)}
           const slug = toListingSlug(listing.name, listing.id);
           const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
           const name = listing.name;
-          const subject = `${name} is missing a DR 86 backlink every day it stays unclaimed`;
+          const subject = `One final note about ${name}'s ToolIndex profile`;
           const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
 <p>Hi,</p>
-<p>Two weeks ago we built <strong>${name}'s full ToolIndex profile</strong>. It's still unclaimed — which means it's still missing a permanent <strong>DR 86 dofollow backlink</strong> from strategicflow.tech.</p>
-<p style="background:#fff8ed;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:0 6px 6px 0;font-size:14px;color:#92400e;margin:20px 0;">
-  Every week unclaimed = a week your competitors are building domain authority you're not.
-</p>
-<p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">Here's what claiming actually gives you:</p>
+ <p>Two weeks ago we drafted <strong>${name}'s ToolIndex profile</strong> from public information. It is still unclaimed, so the people behind the product have not had a chance to correct or complete it.</p>
+ <p style="margin:20px 0;">If you take ownership of the profile, you can set the wording, links, and logo yourself. The permanent dofollow backlink from <strong>strategicflow.tech</strong> remains part of the free listing.</p>
+ <p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">What you can control:</p>
 <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px;">
   <tr style="border-bottom:1px solid #e5e7eb;">
     <td style="padding:10px 0;color:#374151;"><strong>✓ DR 86 dofollow backlink</strong></td>
@@ -30668,23 +30647,10 @@ ${buildUnsubFooterHtml(listing.contact_email)}
     <td style="padding:10px 0;color:#6b7280;text-align:right;">votes compound over time</td>
   </tr>
 </table>
-<p style="margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;">Optional upgrades after claiming:</p>
-<table style="width:100%;border-collapse:collapse;margin:0 0 28px;font-size:14px;">
-  <tr style="border-bottom:1px solid #e5e7eb;">
-    <td style="padding:10px 0;"><strong style="color:#00d4c8;">Featured</strong></td>
-    <td style="padding:10px 0;color:#374151;">Pinned at top of directory, teal border</td>
-    <td style="padding:10px 0;color:#6b7280;text-align:right;">from $9/mo</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 0;"><strong style="color:#f59e0b;">Boost</strong></td>
-    <td style="padding:10px 0;color:#374151;">24h jump to top of the leaderboard</td>
-    <td style="padding:10px 0;color:#6b7280;text-align:right;">one-time</td>
-  </tr>
-</table>
 <p style="margin:28px 0;">
-  <a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 32px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Claim ${name} free — 60 seconds &rarr;</a>
+  <a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 32px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Take ownership of ${name}'s profile &rarr;</a>
 </p>
-<p style="font-size:13px;color:#6b7280;">No payment needed to claim. The backlink and profile editing are permanently free.</p>
+<p style="font-size:13px;color:#6b7280;">Claiming is free. If the profile is already accurate, no action is needed.</p>
 <p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;">
   <strong>Alex Iliescu</strong><br>
   Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>
@@ -30694,7 +30660,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
 </p>
 ${buildUnsubFooterHtml(listing.contact_email)}
 </div>`;
-          const text = `Hi,\n\nTwo weeks ago we built ${name}'s full ToolIndex profile. It's still unclaimed — missing a permanent DR 86 dofollow backlink from strategicflow.tech.\n\nEvery week unclaimed = a week your competitors are building domain authority you're not.\n\nWhat claiming gives you (free):\n  ✓ DR 86 dofollow backlink — permanent\n  ✓ Edit your profile (description, logo, links)\n  ✓ Appear in AI answers (Perplexity, ChatGPT)\n  ✓ Leaderboard visibility — votes compound over time\n\nOptional upgrades after claiming:\n  → Featured: pinned at top of directory, from $9/mo\n  → Boost: 24h jump to top of leaderboard, one-time\n\nClaim ${name} free (60 seconds): ${listingUrl}\n\nNo payment needed to claim. The backlink and profile editing are permanently free.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
+          const text = `Hi,\n\nTwo weeks ago we drafted ${name}'s ToolIndex profile from public information. It is still unclaimed, so the people behind the product have not had a chance to correct or complete it.\n\nIf you take ownership of the profile, you can set the wording, links, and logo yourself. The permanent dofollow backlink from strategicflow.tech remains part of the free listing.\n\nWhat you can control:\n  ✓ The description and product facts\n  ✓ The logo and links attached to the profile\n  ✓ The permanent dofollow backlink from strategicflow.tech\n\nTake ownership of ${name}'s profile: ${listingUrl}\n\nClaiming is free. If the profile is already accurate, no action is needed.\n\n--\nAlex Iliescu\nStrategic Flow — strategicflow.tech\nToolIndex — https://strategic-flow-audit.replit.app/directory\nLinkedIn: https://www.linkedin.com/in/strategic-flow-tech\nTenerife, Spain${buildUnsubFooterText(listing.contact_email)}`;
           await resend.emails.send({
             from: SENDER, to: listing.contact_email, replyTo: 'strategicflow@proton.me',
             subject, html, text,
