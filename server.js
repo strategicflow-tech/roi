@@ -1125,6 +1125,55 @@ function sanitizeDesc(name, desc, url) {
   return desc;
 }
 
+function listingSeoData(listing) {
+  const insights = listing.ai_insights && typeof listing.ai_insights === 'object'
+    ? listing.ai_insights
+    : {};
+  const facts = insights.facts && typeof insights.facts === 'object' ? insights.facts : {};
+  const audience = insights.audience && typeof insights.audience === 'object' ? insights.audience : {};
+  const description = sanitizeDesc(listing.name, listing.description || '', listing.url)
+    || `${listing.name} is listed in the ${listing.category || 'SaaS'} category on ToolIndex.`;
+  const summary = typeof insights.summary === 'string' ? insights.summary.trim() : '';
+  const features = Array.isArray(insights.features)
+    ? insights.features.filter(item => typeof item === 'string' && item.trim()).slice(0, 8)
+    : [];
+  const startingPrice = typeof facts.starting_price === 'string' ? facts.starting_price.trim() : '';
+  const pricing = String(listing.pricing_model || startingPrice || '').trim();
+  const priceMatch = pricing.match(/\$\s*(\d+(?:\.\d{1,2})?)/);
+  const price = priceMatch ? Number(priceMatch[1]) : null;
+  const periodMatch = pricing.match(/(month|mo|year|yr|annual|one[- ]time)/i);
+
+  return {
+    description,
+    summary,
+    features,
+    pricing,
+    audience,
+    strength: typeof insights.strength === 'string' ? insights.strength.trim() : '',
+    weakness: typeof insights.weakness === 'string' ? insights.weakness.trim() : '',
+    offer: price !== null ? {
+      '@type': 'Offer',
+      price: price.toFixed(2).replace(/\.00$/, ''),
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      ...(periodMatch ? { description: `${periodMatch[1]} pricing` } : {})
+    } : (/^free$/i.test(pricing) ? {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock'
+    } : null)
+  };
+}
+
+function listingSeoMeta(listing, seo) {
+  const category = listing.category || 'SaaS';
+  const pricingText = seo.pricing ? ` ${seo.pricing} pricing.` : '';
+  const source = seo.summary || seo.description;
+  const text = `${listing.name} is listed in the ${category} category on ToolIndex.${pricingText} ${source} Explore features, category details, and alternatives.`;
+  return text.replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
 function ssrCard(l, clickMap) {
   const clicks = (clickMap && clickMap[l.id]) || 0;
   let domain = '';
@@ -1202,6 +1251,7 @@ app.get('/directory', async (req, res) => {
     );
     const listings = r.rows.map(l => ({
       ...l,
+      slug: toListingSlug(l.name, l.id),
       description: sanitizeDesc(l.name, l.description, l.url),
     }));
 
@@ -1220,10 +1270,39 @@ app.get('/directory', async (req, res) => {
     // Inject live product count into all hardcoded "500+" / "544+" / "566+" occurrences
     // (meta tags, JSON-LD, FAQ text, search placeholder — JS-hydrated spans are updated by client)
     const liveCount = await getActiveListingCount();
-    const countStr = liveCount + '+';
-    html = html.replace(/\b500\+/g, countStr).replace(/\b544\+/g, countStr).replace(/\b550\+/g, countStr).replace(/\b566\+/g, countStr).replace(/\b892\+/g, countStr);
+    const countStr = `${liveCount.toLocaleString('en-US')}+`;
+    html = html
+      .replace(/\b500\+/g, countStr)
+      .replace(/\b544\+/g, countStr)
+      .replace(/\b550\+/g, countStr)
+      .replace(/\b566\+/g, countStr)
+      .replace(/\b892\+/g, countStr)
+      .replace(/\b948\+/g, countStr);
     html = html.replace('</head>',
       `<script>window.__ACTIVE_LISTING_COUNT__=${liveCount};</script>\n</head>`);
+
+    const directoryItemList = {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      '@id': 'https://strategic-flow-audit.replit.app/directory#listing',
+      name: 'ToolIndex SaaS and Tool Directory',
+      url: 'https://strategic-flow-audit.replit.app/directory',
+      numberOfItems: listings.length,
+      itemListElement: listings.map((l, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'SoftwareApplication',
+          name: l.name,
+          url: `https://strategic-flow-audit.replit.app/directory/${l.slug}`,
+          applicationCategory: l.category || 'SaaS',
+          description: (l.description || '').slice(0, 300)
+        }
+      }))
+    };
+    const safeDirectorySchema = JSON.stringify(directoryItemList).replace(/</g, '\\u003c');
+    html = html.replace('</head>',
+      `<script type="application/ld+json">${safeDirectorySchema}</script>\n</head>`);
 
     // Inject SSR payload so the client JS skips the /api/directory/listings fetch
     const safeListings = JSON.stringify(listings).replace(/<\/script>/gi, '<\\/script>');
@@ -2168,9 +2247,10 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
     const absImg = rawImg.startsWith('http') ? rawImg : (rawImg ? `${BASE}${rawImg}` : '');
     const hostname = (() => { try { return new URL(l.url).hostname.replace(/^www\./, ''); } catch { return l.url; } })();
     const favImg = hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=128` : '';
-    const metaDesc = (l.description || `${l.name} is listed on ToolIndex — the free SaaS directory with a DR 86 dofollow backlink.`)
-      .slice(0, 160).replace(/"/g, '&quot;');
-    const pageTitle = `${l.name} — ToolIndex`;
+    const seoFacts = listingSeoData(l);
+    const metaDesc = listingSeoMeta(l, seoFacts).replace(/"/g, '&quot;');
+    const titleCategory = String(l.category || 'SaaS').replace(/\s+tools?$/i, '').trim() || 'SaaS';
+    const pageTitle = `${l.name} — ${titleCategory} Tool | ToolIndex`;
     const votes = Number(l.vote_count) || 0;
     const views30 = Number(l.views_30d) || 0;
     const clicks30 = Number(l.clicks_30d) || 0;
@@ -2184,8 +2264,11 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
       name: l.name,
       url: l.url,
       applicationCategory: cat,
-      description: (l.description || '').slice(0, 500) || undefined,
+      description: seoFacts.summary || seoFacts.description,
+      ...(seoFacts.features.length ? { featureList: seoFacts.features } : {}),
+      ...(seoFacts.audience.target ? { audience: { '@type': 'Audience', audienceType: seoFacts.audience.target } } : {}),
     };
+    if (seoFacts.offer) ld.offers = seoFacts.offer;
     if (votes > 0) ld.aggregateRating = { '@type': 'AggregateRating', ratingValue: '5', reviewCount: votes };
 
     // ── Similar tools HTML ─────────────────────────────────────────────────
@@ -2524,6 +2607,29 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
   </p>
 </div>` : '';
 
+    // Keep a concise, server-rendered facts section in the HTML for search
+    // engines and answer engines, even when the visual cards are hydrated later.
+    const seoFeatureList = seoFacts.features.length
+      ? `<h3>Features</h3><ul>${seoFacts.features.map(feature => `<li>${he(feature)}</li>`).join('')}</ul>`
+      : '';
+    const seoProsCons = (seoFacts.strength || seoFacts.weakness) ? `
+      <div class="seo-pros-cons">
+        ${seoFacts.strength ? `<p><strong>Strength:</strong> ${he(seoFacts.strength)}</p>` : ''}
+        ${seoFacts.weakness ? `<p><strong>Consideration:</strong> ${he(seoFacts.weakness)}</p>` : ''}
+      </div>` : '';
+    const seoIndexableHtml = `
+<section class="seo-indexable ai-section">
+  <div class="ai-section-head">
+    <span class="ai-section-title">Listing details</span>
+  </div>
+  <div class="ai-card">
+    <p><strong>${he(l.name)}</strong> is listed in the ${he(cat)} category in the ToolIndex directory. ${he(seoFacts.summary || seoFacts.description)}</p>
+    ${seoFacts.pricing ? `<p><strong>Pricing:</strong> ${he(seoFacts.pricing)}</p>` : ''}
+    ${seoFeatureList}
+    ${seoProsCons}
+  </div>
+</section>`;
+
     // ── similar tools section ──────────────────────────────────────────────
     const catLabel = cat.toLowerCase().includes('tool') ? cat : `${cat} tools`;
     const similarHtml = similar.length > 0 ? `
@@ -2576,6 +2682,8 @@ h1{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
 <title>${he(pageTitle)}</title>
 <meta name="description" content="${metaDesc}"/>
 <link rel="canonical" href="${he(canonicalUrl)}"/>
+<link rel="alternate" hreflang="en-us" href="${he(canonicalUrl)}"/>
+<link rel="alternate" hreflang="x-default" href="${he(canonicalUrl)}"/>
 <meta property="og:type" content="website"/>
 <meta property="og:url" content="${he(canonicalUrl)}"/>
 <meta property="og:title" content="${he(pageTitle)}"/>
@@ -2837,6 +2945,7 @@ main{margin-top:72px;padding:24px 24px 80px;max-width:680px;margin-left:auto;mar
   ${aiStrengthsHtml}
   ${aiCompetitorsHtml}
   ${aiFactsHtml}
+  ${seoIndexableHtml}
   ${founderHtml}
   ${socialsHtml}
   ${metaHtml}
