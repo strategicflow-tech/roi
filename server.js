@@ -20612,6 +20612,74 @@ app.post('/generate/start', async (req, res) => {
   });
 });
 
+// Public preview: run the same primary audit rubric without creating an account.
+// The response is intentionally limited to a score and one short insight; the
+// full rebuild still goes through /check-email and /generate/start.
+app.post('/api/public-score', async (req, res) => {
+  const { subject, body } = req.body || {};
+  if (typeof subject !== 'string' || typeof body !== 'string' ||
+      subject.trim().length < 3 || body.trim().length < 20) {
+    return res.status(400).json({ error: 'subject and body are required' });
+  }
+
+  const jobId = makeJobId();
+  await setJob(jobId, { status: 'pending' });
+  res.json({ jobId });
+
+  (async () => {
+    try {
+      const prompt = getAuditPrompt({
+        tier: 'free_trial',
+        company: 'Your Company',
+        goal: 'Improve reader action and conversion',
+        subject: subject.trim().slice(0, 300),
+        body: body.trim().slice(0, 14000),
+        brandDNA: null,
+        voiceProfile: null,
+        emailType: 'product_update',
+        roadmapNotes: '',
+        priorExamples: '',
+        analysis: { weaknesses: [], directives: [] }
+      });
+      const result = await scoreContentWithClaude(prompt);
+      const conversion = result?.conversion_score || {};
+      const rawScore = Number(conversion.original_score ?? result?.score);
+      const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(10, rawScore)) : null;
+      const insight = String(
+        conversion.original_explanation ||
+        result?.key_changes?.[0]?.why ||
+        result?.key_changes?.[0]?.description ||
+        'The audit found structural friction that may be reducing reader action.'
+      ).replace(/\s+/g, ' ').trim().slice(0, 320);
+      if (score === null) throw new Error('score_missing');
+      await setJob(jobId, { status: 'complete', result: { score, insight } });
+    } catch (err) {
+      console.error('[api/public-score]', err.message);
+      await setJob(jobId, { status: 'failed', error: 'Preview scoring failed. Please try again.' });
+    }
+  })();
+});
+
+// Capture the unlock email after a visitor has seen the free preview.
+app.post('/api/public-lead', async (req, res) => {
+  const { email } = req.body || {};
+  const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO friction_model_leads (email) VALUES ($1)
+       ON CONFLICT (email) DO NOTHING`,
+      [normalized]
+    );
+  } catch (err) {
+    console.error('[api/public-lead]', err.message);
+    return res.status(500).json({ error: 'Could not save your email. Please try again.' });
+  }
+  res.json({ ok: true });
+});
+
 app.get('/generate/status/:jobId', async (req, res) => {
   const job = await getJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found or expired' });
