@@ -3382,6 +3382,8 @@ const LARGE_COMPANY_BLOCKLIST = new Set([
   'notion','coda','roam research','obsidian','logseq','grammarly','jasper',
   'copy ai','writer','lemon squeezy','paddle','gumroad','lemonsqueezy',
   'plausible','fathom','umami','pirsch','cal','dub','short.io',
+  // Large companies present in reconstructed launch imports
+  'databox','jetbrains','deepseek',
   // Added 2026-08-24: product names that differ from company name (filter missed these)
   'midjourney',                                            // product = company
   'capcut',                                               // ByteDance product (bytedance already listed)
@@ -3426,11 +3428,9 @@ function isBlockedOutreachTarget(listingName, email) {
   if (PERMANENT_OUTREACH_EXCLUSIONS.has(e))
     return { blocked: true, reason: 'permanent do-not-contact restriction' };
 
-  // Rule 1 — restricted email prefix (compliance / legal / press / abuse /
-  // generic role). support@ and hello@ are intentionally allowed for the
-  // first claim email; the normal cooldown, unsubscribe and DNC checks still
-  // apply, and a listing can never receive a second first-contact send.
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|help|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin)@/i.test(e))
+  // Rule 1 — restricted email prefix. Generic role inboxes are not founder
+  // contacts and must not receive claim outreach.
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|hello|contact|info|care|service|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin|team|dev-support)@/i.test(e))
     return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
   if (/-abuse@/i.test(e))
     return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
@@ -4983,8 +4983,9 @@ const TOOLINDEX_DAILY_LAUNCH_SOURCES = [
   'toolindex-daily-launches-2026-09-01-batch-3',
 ];
 const TOOLINDEX_DAILY_LAUNCH_CAMPAIGN_ID = 'toolindex-daily-launches-2026-09-01';
-const TOOLINDEX_DAILY_LAUNCH_CAP = 10;
-const TOOLINDEX_DAILY_LAUNCH_LEGACY_CAP = 5;
+const TOOLINDEX_RECONSTRUCTED_LEADS_SOURCE = 'strategic-flow-reconstructed-leads-2026-09-07-08';
+const TOOLINDEX_DAILY_LAUNCH_CAP = 15;
+const TOOLINDEX_DAILY_LAUNCH_LEGACY_CAP = 10;
 const TOOLINDEX_DAILY_LAUNCH_BATCH_CAP = 5;
 let toolIndexDailyLaunchRunning = false;
 
@@ -5393,7 +5394,7 @@ async function runDailyLaunchRollout(source = 'cron') {
 
     /* Keep the two cohorts independent: the imported batch contributes at
        most five applications while the existing queue contributes at most
-       five, for a maximum of ten active launches per UTC day. */
+       ten, for a maximum of fifteen active launches per UTC day. */
     let published = 0;
     let sent = 0;
     let excluded = 0;
@@ -5527,19 +5528,72 @@ app.post('/admin/repair-daily-launch-batch-3', async (req, res) => {
   }
 });
 
+app.post('/admin/queue-daily-launch-source', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const source = String(req.body?.source || req.query.source || '').trim();
+    const batchId = normalizeDailyLaunchBatchId(req.body?.batch_id || req.query.batch_id);
+    if (source !== TOOLINDEX_RECONSTRUCTED_LEADS_SOURCE) {
+      return res.status(400).json({ error: 'unsupported_source' });
+    }
+    if (!batchId) return res.status(400).json({ error: 'batch_id_required' });
+
+    await pool.query(
+      `INSERT INTO directory_launch_batches (batch_id, source, daily_cap)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (batch_id) DO NOTHING`,
+      [batchId, source, TOOLINDEX_DAILY_LAUNCH_BATCH_CAP]
+    );
+    const queued = await pool.query(
+      `UPDATE directory_listings
+       SET launch_batch_id=$2,
+           outreach_campaign_id=$2,
+           outreach_campaign_status='queued',
+           outreach_campaign_reason=NULL,
+           outreach_campaign_processed_at=NULL,
+           outreach_followups_disabled=FALSE,
+           contact_email_status=CASE
+             WHEN NULLIF(contact_email, '') IS NULL THEN 'pending'
+             ELSE 'found'
+           END
+       WHERE source=$1
+         AND status='draft'
+         AND launch_batch_id IS NULL
+       RETURNING id, name`,
+      [source, batchId]
+    );
+    return res.json({
+      ok: true,
+      source,
+      batch_id: batchId,
+      queued: queued.rowCount,
+      listings: queued.rows,
+    });
+  } catch (error) {
+    console.error('[daily-launches] source queue failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/admin/enable-daily-launch-followups', async (req, res) => {
   if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
     return res.status(403).json({ error: 'forbidden' });
   }
   try {
+    const requestedBatchId = normalizeDailyLaunchBatchId(
+      req.body?.batch_id || req.query.batch_id
+    );
     const result = await pool.query(
       `UPDATE directory_listings
        SET outreach_followups_disabled=FALSE
        WHERE source=ANY($1::text[])
+          OR launch_batch_id=$2
        RETURNING id`,
-      [TOOLINDEX_DAILY_LAUNCH_SOURCES]
+      [TOOLINDEX_DAILY_LAUNCH_SOURCES, requestedBatchId]
     );
-    console.log(`[daily-launch-followups] enabled for ${result.rowCount} daily-launch listings`);
+    console.log(`[daily-launch-followups] enabled for ${result.rowCount} daily-launch listings${requestedBatchId ? ` in ${requestedBatchId}` : ''}`);
     return res.json({ ok: true, enabled: result.rowCount });
   } catch (error) {
     console.error('[daily-launch-followups] enable failed:', error.message);
@@ -7487,10 +7541,11 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
           `INSERT INTO directory_listings
              (name, url, description, category, founder_name, contact_email,
                source, source_url, image_url, launch_date, status, is_seeded, is_auto_imported,
-              score_pending, submitted_at, outreach_campaign_id,
+              score_pending, submitted_at, contact_email_status, outreach_campaign_id,
                outreach_campaign_status, outreach_followups_disabled, launch_batch_id)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft',false,false,false,NOW(),
-                    $11,$12,$13,$14)
+                    CASE WHEN NULLIF($6,'') IS NULL THEN 'pending' ELSE 'found' END,
+                    $11,$12,false,$13)
            RETURNING id, name`,
           [
             row.name, storedUrl, row.description, category, row.founder_name,
@@ -7498,7 +7553,6 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
             row.launch_date.trim() || null,
             campaignId,
             queuedForDailyRollout ? 'queued' : null,
-            !queuedForDailyRollout,
             rowBatchId,
           ]
         );
@@ -30500,6 +30554,7 @@ full HTML body here
         WHERE outreach_emailed_at IS NOT NULL
           AND follow_up_sent_at IS NULL
           AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
+          AND claimed_by IS NULL
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '4 days'
           AND contact_email IS NOT NULL
@@ -30563,6 +30618,7 @@ ${buildUnsubFooterHtml(listing.contact_email)}
           AND follow_up_sent_at IS NOT NULL
           AND follow_up2_sent_at IS NULL
           AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
+          AND claimed_by IS NULL
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '14 days'
           AND contact_email IS NOT NULL
