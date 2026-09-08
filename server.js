@@ -722,6 +722,7 @@ function applyTrustedCors(req, res, methods = 'GET, POST, OPTIONS') {
 
 app.use('/api/outreach', createAgencyOutreachRouter({
   authorizationToken: OUTREACH_SEND_TOKEN,
+  recordAttempt: recordAgencyOutreachAttempt,
   isSuppressed: async email => {
     try {
       return await isUnsubscribed(email);
@@ -732,8 +733,7 @@ app.use('/api/outreach', createAgencyOutreachRouter({
   },
   sendEmail: params => resend.emails.send({
     ...params,
-    _skipGlobalCooldown: true,
-    _skipGlobalEmailLog: true
+    _skipGlobalCooldown: true
   })
 }));
 
@@ -5648,6 +5648,26 @@ async function recordEmailSent(email, subject) {
       [email.toLowerCase().trim(), (subject || '').slice(0, 255)]
     );
   } catch { /* non-fatal — never block a send for a log failure */ }
+}
+
+async function recordAgencyOutreachAttempt({
+  campaign, id, email, subject, kind, status, error, providerId, httpStatus
+}) {
+  await pool.query(`
+    INSERT INTO agency_outreach_send_log
+      (campaign_key, contact_id, email, email_subject, kind, status, error, provider_id, http_status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+  `, [
+    campaign || 'agency-outreach-tracker',
+    id || null,
+    String(email || '').toLowerCase().trim(),
+    subject || '',
+    kind || '',
+    status || 'failed',
+    error || null,
+    providerId || null,
+    httpStatus || null
+  ]);
 }
 
 function newsletterConfirmTokenHash(token) {
@@ -17173,6 +17193,31 @@ async function setupDB() {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_gel_email_sent ON global_email_log(lower(email), sent_at DESC)`
   ).catch(() => {});
+
+  // ── Agency outreach audit — one durable row for every contact attempt ─────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS agency_outreach_send_log (
+      id             BIGSERIAL PRIMARY KEY,
+      campaign_key   TEXT NOT NULL,
+      contact_id     TEXT,
+      email          TEXT NOT NULL DEFAULT '',
+      email_subject  TEXT NOT NULL DEFAULT '',
+      kind           TEXT NOT NULL DEFAULT '',
+      status         TEXT NOT NULL,
+      error          TEXT,
+      provider_id    TEXT,
+      http_status    INTEGER,
+      attempted_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] agency_outreach_send_log:', e.message));
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_aosl_campaign_time
+    ON agency_outreach_send_log(campaign_key, attempted_at DESC)
+  `).catch(() => {});
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_aosl_contact_time
+    ON agency_outreach_send_log(lower(email), attempted_at DESC)
+  `).catch(() => {});
 
   // ── Auto-generated blog posts — persistent store across restarts ─────────
   await pool.query(`

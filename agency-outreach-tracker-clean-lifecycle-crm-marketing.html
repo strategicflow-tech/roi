@@ -118,6 +118,7 @@ const FOLLOWUP_TEMPLATE = "Following up on the note about Strategic Flow's Decis
 
 const STORAGE_KEY = "sf_agency_outreach_contacted";
 const FOLLOWUP_KEY = "sf_agency_outreach_followup_sent";
+const SEND_STATE_KEY = "sf_agency_outreach_send_state";
 const SEND_ENDPOINT = "https://strategic-flow-audit.replit.app/api/outreach/send";
 const TOKEN_KEY = "sf_outreach_token";
 function getOutreachToken(){
@@ -141,6 +142,7 @@ const CONTACTED_AT_KEY = "sf_agency_outreach_contacted_at";
 const FOLLOWUP_DELAY_DAYS = 4; // schimbă aici dacă vrei alt interval
 
 let followupSent = loadJSON(FOLLOWUP_KEY); // values are now integers: 0 = none, 1 = first follow-up sent
+let sendState = loadJSON(SEND_STATE_KEY); // { contactId: { status, error, at } }
 // migrate any legacy boolean values (true/false) from before level-tracking existed
 Object.keys(followupSent).forEach(id => {
   if (followupSent[id] === true) followupSent[id] = 1;
@@ -330,6 +332,12 @@ function cardHtml(item){
   const isDone = !!checked[item.id];
   const followupLevel = followupSent[item.id] || 0;
   const isFollowedUp = followupLevel >= 1;
+  const deliveryState = sendState[item.id];
+  const deliveryBadge = deliveryState
+    ? `<span class="level-badge ${deliveryState.status === 'failed' ? 'zero' : ''}">${
+        deliveryState.status === 'failed' ? 'Send failed' : 'Sent'
+      }</span>`
+    : '';
   const contactHtml = item.contact_type === 'email'
     ? `<span class="contact-badge">EMAIL</span><a class="contact-link" href="mailto:${item.contact_value}">${item.contact_value}</a>`
     : item.contact_type === 'manual'
@@ -367,6 +375,10 @@ function cardHtml(item){
       </div>
       <span class="prio-badge prio-${item.priority}">${item.priority}</span>
     </div>
+    ${deliveryBadge}
+    ${deliveryState?.status === 'failed'
+      ? `<div class="lock-hint" style="color:#c17f7f;">${deliveryState.error || 'Send failed'} <button class="copy-btn" onclick="retryFailed('${item.id}')">Retry this contact</button></div>`
+      : ''}
     <div class="contact-row">${contactHtml}</div>
     ${subjectHtml}
     <div class="opening">${item.opening}</div>
@@ -418,17 +430,19 @@ function chunk(arr, size){
   return out;
 }
 
-async function sendBatch(kind){
-  const list = kind === 'initial' ? DATA.filter(isEmailPending) : DATA.filter(isEmailFollowupDue);
+async function sendBatch(kind, requestedList = null){
+  const list = requestedList || (kind === 'initial' ? DATA.filter(isEmailPending) : DATA.filter(isEmailFollowupDue));
   if(list.length === 0) return;
   const token = getOutreachToken();
   if(!token) return;
-  const ok = confirm(
-    kind === 'initial'
-      ? `Trimit valul inițial la ${list.length} contacte cu email, prin Resend. Continui?`
-      : `Trimit follow-up la ${list.length} contacte deja contactate, prin Resend. Continui?`
-  );
-  if(!ok) return;
+  if(!requestedList){
+    const ok = confirm(
+      kind === 'initial'
+        ? `Trimit valul inițial la ${list.length} contacte cu email, prin Resend. Continui?`
+        : `Trimit follow-up la ${list.length} contacte deja contactate, prin Resend. Continui?`
+    );
+    if(!ok) return;
+  }
 
   document.getElementById('btnInitial').disabled = true;
   document.getElementById('btnFollowup').disabled = true;
@@ -459,31 +473,67 @@ async function sendBatch(kind){
       if(res.status === 401){
         log.textContent += `✗ Token respins (401). Șterge-l din setări și repune-l.\n`;
         localStorage.removeItem(TOKEN_KEY);
-        batches[b].forEach(d => failedIds.push(d.id));
+        batches[b].forEach(d => {
+          failedIds.push(d.id);
+          sendState[d.id] = {status:'failed', error:'Authorization failed (401)', at:Date.now()};
+        });
         failedTotal += batches[b].length;
+        saveJSON(SEND_STATE_KEY, sendState);
         continue;
       }
-      const data = await res.json();
-      (data.results || []).forEach(r => {
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if(!res.ok){
+        const reason = data.error || `Request failed (${res.status})`;
+        const failedBatchIds = Array.isArray(data.failedIds) && data.failedIds.length
+          ? data.failedIds : batches[b].map(d => d.id);
+        failedBatchIds.forEach(id => {
+          failedIds.push(id);
+          sendState[id] = {status:'failed', error:reason, at:Date.now()};
+          log.textContent += `✗ ${id} — ${reason}\n`;
+        });
+        failedTotal += failedBatchIds.length;
+        saveJSON(SEND_STATE_KEY, sendState);
+        continue;
+      }
+      const results = Array.isArray(data.results) ? data.results : [];
+      if(results.length !== batches[b].length){
+        const returned = new Set(results.map(result => result.id));
+        const missing = batches[b].filter(item => !returned.has(item.id));
+        missing.forEach(item => {
+          failedIds.push(item.id);
+          sendState[item.id] = {status:'failed', error:'No result returned for this contact', at:Date.now()};
+          log.textContent += `✗ ${item.id} — No result returned for this contact\n`;
+        });
+        failedTotal += missing.length;
+      }
+      results.forEach(r => {
         if(r.success){
           sentTotal++;
+          sendState[r.id] = {status:'sent', at:Date.now()};
           if(kind === 'initial'){ checked[r.id] = true; contactedAt[r.id] = Date.now(); }
           else { followupSent[r.id] = (followupSent[r.id]||0) + 1; }
           log.textContent += `✓ ${r.id}\n`;
         } else {
           failedTotal++;
           failedIds.push(r.id);
+          sendState[r.id] = {status:'failed', error:r.error || 'Send failed', at:Date.now()};
           log.textContent += `✗ ${r.id} — ${r.error || 'eroare necunoscută'}\n`;
         }
       });
       saveJSON(STORAGE_KEY, checked);
       saveJSON(FOLLOWUP_KEY, followupSent);
       saveJSON(CONTACTED_AT_KEY, contactedAt);
+      saveJSON(SEND_STATE_KEY, sendState);
       render();
     }catch(e){
       log.textContent += `✗ Lot ${b+1} a eșuat complet: ${e.message}\n`;
-      batches[b].forEach(d => failedIds.push(d.id));
+      batches[b].forEach(d => {
+        failedIds.push(d.id);
+        sendState[d.id] = {status:'failed', error:e.message || 'Network error', at:Date.now()};
+      });
       failedTotal += batches[b].length;
+      saveJSON(SEND_STATE_KEY, sendState);
     }
   }
 
@@ -492,6 +542,13 @@ async function sendBatch(kind){
     log.textContent += `\nEșuate (pot fi reîncercate apăsând din nou butonul): ${failedIds.join(', ')}`;
   }
   render();
+}
+
+function retryFailed(id){
+  const item = DATA.find(d => d.id === id);
+  if(!item || sendState[id]?.status !== 'failed') return;
+  const kind = checked[id] ? 'followup' : 'initial';
+  sendBatch(kind, [item]);
 }
 
 render();

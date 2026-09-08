@@ -10,7 +10,9 @@ const MAX_SUBJECT_LENGTH = 998;
 const MAX_TEXT_LENGTH = 100000;
 const SEND_DELAY_MS = 250;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 10;
+// One tracker run can legitimately need ~20 requests for the current list.
+// Keep a guard against abuse, but do not make a normal run fail halfway through.
+const RATE_LIMIT_MAX_REQUESTS = 60;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTREACH_UNSUBSCRIBE_LINE =
   "To unsubscribe from future outreach emails, reply with 'unsubscribe' or contact alex@strategicflow.tech.";
@@ -105,9 +107,30 @@ function appendOutreachUnsubscribeLine(text) {
   return `${text.trimEnd()}\n\n${OUTREACH_UNSUBSCRIBE_LINE}`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function textToMinimalHtml(text) {
+  const paragraphs = String(text).split(/\n\n+/);
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#202124;max-width:640px;">${
+    paragraphs.map(paragraph =>
+      `<p style="margin:0 0 16px;">${escapeHtml(paragraph)
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#2563eb;">$1</a>')
+        .replace(/\n/g, '<br>')}</p>`
+    ).join('')
+  }</div>`;
+}
+
 function createAgencyOutreachRouter({
   sendEmail,
   isSuppressed = async () => false,
+  recordAttempt = async () => {},
   delay = SEND_DELAY_MS,
   authorizationToken = '',
   rateLimitWindowMs = RATE_LIMIT_WINDOW_MS,
@@ -119,6 +142,9 @@ function createAgencyOutreachRouter({
   if (typeof isSuppressed !== 'function') {
     throw new TypeError('isSuppressed must be a function');
   }
+  if (typeof recordAttempt !== 'function') {
+    throw new TypeError('recordAttempt must be a function');
+  }
 
   const router = express.Router();
   const rateBuckets = new Map();
@@ -127,7 +153,7 @@ function createAgencyOutreachRouter({
     return String(req.ip || req.socket?.remoteAddress || 'unknown').trim();
   }
 
-  function isRateLimited(req) {
+  function rateLimitDecision(req) {
     const now = Date.now();
     const key = rateLimitKey(req);
     const current = rateBuckets.get(key);
@@ -138,10 +164,36 @@ function createAgencyOutreachRouter({
         }
       }
       rateBuckets.set(key, { startedAt: now, count: 1 });
-      return false;
+      return { limited: false, retryAfterSeconds: 0 };
     }
     current.count += 1;
-    return current.count > rateLimitMaxRequests;
+    if (current.count <= rateLimitMaxRequests) {
+      return { limited: false, retryAfterSeconds: 0 };
+    }
+    return {
+      limited: true,
+      retryAfterSeconds: Math.max(1, Math.ceil((rateLimitWindowMs - (now - current.startedAt)) / 1000))
+    };
+  }
+
+  async function recordItems(items, fields) {
+    for (const item of Array.isArray(items) ? items : []) {
+      try {
+        await recordAttempt({
+          campaign: 'agency-outreach-tracker',
+          id: typeof item?.id === 'string' ? item.id : '',
+          email: typeof item?.to === 'string' ? item.to : '',
+          subject: typeof item?.subject === 'string' ? item.subject : '',
+          kind: fields.kind || '',
+          status: fields.status,
+          error: fields.error || null,
+          providerId: fields.providerId || null,
+          httpStatus: fields.httpStatus || null
+        });
+      } catch (_) {
+        // Audit failure must never turn a provider result into a duplicate send.
+      }
+    }
   }
 
   router.options('/send', (req, res) => {
@@ -152,19 +204,52 @@ function createAgencyOutreachRouter({
   router.post('/send', async (req, res) => {
     setOutreachCors(res);
 
-    if (isRateLimited(req)) {
-      res.setHeader('Retry-After', String(Math.ceil(rateLimitWindowMs / 1000)));
-      return res.status(429).json({ error: 'Too many outreach requests. Try again later.' });
-    }
     if (!authorizationToken) {
+      await recordItems(req.body?.items, {
+        kind: req.body?.kind,
+        status: 'failed',
+        error: 'Outreach sending is not configured.',
+        httpStatus: 503
+      });
       return res.status(503).json({ error: 'Outreach sending is not configured.' });
     }
     if (!tokensEqual(authorizationToken, getSuppliedToken(req))) {
       return res.status(401).json({ error: 'Outreach authorization required.' });
     }
 
+    const rateLimit = rateLimitDecision(req);
+    if (rateLimit.limited) {
+      const items = Array.isArray(req.body?.items) ? req.body.items : [];
+      await recordItems(items, {
+        kind: req.body?.kind,
+        status: 'rate_limited',
+        error: 'Too many outreach requests. Retry after the indicated delay.',
+        httpStatus: 429
+      });
+      res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+      return res.status(429).json({
+        error: 'Too many outreach requests. Retry after the indicated delay.',
+        code: 'rate_limited',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        failedIds: items.map(item => item?.id).filter(id => typeof id === 'string')
+      });
+    }
+
     const validation = validateAgencyOutreachPayload(req.body);
-    if (!validation.valid) return res.status(400).json({ error: validation.error });
+    if (!validation.valid) {
+      const items = Array.isArray(req.body?.items) ? req.body.items : [];
+      await recordItems(items, {
+        kind: req.body?.kind,
+        status: 'failed',
+        error: validation.error,
+        httpStatus: 400
+      });
+      return res.status(400).json({
+        error: validation.error,
+        code: 'invalid_batch',
+        failedIds: items.map(item => item?.id).filter(id => typeof id === 'string')
+      });
+    }
 
     const results = [];
     for (let index = 0; index < req.body.items.length; index++) {
@@ -177,22 +262,46 @@ function createAgencyOutreachRouter({
             skipped: true,
             error: 'recipient_suppressed'
           });
+          await recordItems([item], {
+            kind: req.body.kind,
+            status: 'suppressed',
+            error: 'recipient_suppressed'
+          });
           continue;
         }
+        const text = appendOutreachUnsubscribeLine(item.text);
         const providerResult = await sendEmail({
           from: 'alex@strategicflow.tech',
           to: item.to,
           replyTo: 'alex@strategicflow.tech',
           subject: item.subject,
-          text: appendOutreachUnsubscribeLine(item.text)
+          text,
+          html: textToMinimalHtml(text)
         });
         if (providerResult?.error) {
-          results.push({ id: item.id, success: false, error: errorMessage(providerResult.error) });
+          const error = errorMessage(providerResult.error);
+          results.push({ id: item.id, success: false, error });
+          await recordItems([item], {
+            kind: req.body.kind,
+            status: 'failed',
+            error
+          });
         } else {
           results.push({ id: item.id, success: true });
+          await recordItems([item], {
+            kind: req.body.kind,
+            status: 'accepted',
+            providerId: providerResult?.id || providerResult?.data?.id || null
+          });
         }
       } catch (error) {
-        results.push({ id: item.id, success: false, error: errorMessage(error) });
+        const message = errorMessage(error);
+        results.push({ id: item.id, success: false, error: message });
+        await recordItems([item], {
+          kind: req.body.kind,
+          status: 'failed',
+          error: message
+        });
       }
 
       if (index < req.body.items.length - 1) {

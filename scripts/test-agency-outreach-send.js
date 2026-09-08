@@ -15,7 +15,8 @@ async function startTestServer(sendEmail, options = {}) {
     sendEmail,
     delay: 0,
     authorizationToken: options.authorizationToken ?? 'test-token',
-    rateLimitMaxRequests: options.rateLimitMaxRequests
+    rateLimitMaxRequests: options.rateLimitMaxRequests,
+    recordAttempt: options.recordAttempt
   }));
   const server = await new Promise((resolve, reject) => {
     const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
@@ -145,6 +146,32 @@ test('sends sequentially and continues after a provider failure', async t => {
     calls[0].text,
     "First body\n\nTo unsubscribe from future outreach emails, reply with 'unsubscribe' or contact alex@strategicflow.tech."
   );
+  assert.match(calls[0].html, /<p[^>]*>First body<\/p>/);
+  assert.match(calls[0].html, /To unsubscribe from future outreach emails/);
+});
+
+test('renders the same text as safe HTML with trackable links', async t => {
+  let sent;
+  const server = await startTestServer(async params => {
+    sent = params;
+    return { data: { id: 'resend-html' } };
+  });
+  t.after(() => server.close());
+
+  const { response } = await post(server.baseUrl, {
+    kind: 'initial',
+    items: [{
+      id: 'html-contact',
+      to: 'html@example.com',
+      subject: 'Subject',
+      text: 'Read https://example.com/?a=1&b=2'
+    }]
+  });
+  assert.equal(response.status, 200);
+  assert.match(sent.html, /href="https:\/\/example\.com\/\?a=1&amp;b=2"/);
+  assert.match(sent.html, /https:\/\/example\.com\/\?a=1&amp;b=2<\/a>/);
+  assert.match(sent.html, /To unsubscribe from future outreach emails/);
+  assert.match(sent.text, /Read https:\/\/example\.com\/\?a=1&b=2/);
 });
 
 test('accepts the 20-item maximum', async t => {
@@ -167,9 +194,11 @@ test('accepts the 20-item maximum', async t => {
   assert.deepEqual(json.results.map(result => result.id), items.map(item => item.id));
 });
 
-test('rate-limits batches from one client without persisting request data', async t => {
+test('rate-limits batches from one client and persists every rejected contact', async t => {
+  const attempts = [];
   const server = await startTestServer(async () => ({ data: { id: 'test' } }), {
-    rateLimitMaxRequests: 1
+    rateLimitMaxRequests: 1,
+    recordAttempt: attempt => attempts.push(attempt)
   });
   t.after(() => server.close());
   const body = {
@@ -183,4 +212,50 @@ test('rate-limits batches from one client without persisting request data', asyn
   assert.equal(second.response.status, 429);
   assert.match(second.json.error, /too many/i);
   assert.ok(second.response.headers.get('retry-after'));
+  const rateLimited = attempts.filter(attempt => attempt.status === 'rate_limited');
+  assert.equal(rateLimited.length, 1);
+  assert.equal(rateLimited[0].id, 'one');
+  assert.equal(rateLimited[0].httpStatus, 429);
+});
+
+test('persists provider failures and returns a retryable per-contact result', async t => {
+  const attempts = [];
+  const server = await startTestServer(async () => ({ error: { message: 'provider unavailable' } }), {
+    recordAttempt: attempt => attempts.push(attempt)
+  });
+  t.after(() => server.close());
+
+  const { response, json } = await post(server.baseUrl, {
+    kind: 'initial',
+    items: [{ id: 'failed-contact', to: 'failed@example.com', subject: 'Subject', text: 'Body' }]
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(json.results, [{
+    id: 'failed-contact',
+    success: false,
+    error: 'provider unavailable'
+  }]);
+  assert.equal(attempts.length, 1);
+  assert.equal(attempts[0].status, 'failed');
+  assert.equal(attempts[0].email, 'failed@example.com');
+});
+
+test('returns failed IDs for invalid batches so the UI can mark every contact', async t => {
+  const attempts = [];
+  const server = await startTestServer(async () => ({ data: { id: 'unexpected' } }), {
+    recordAttempt: attempt => attempts.push(attempt)
+  });
+  t.after(() => server.close());
+
+  const { response, json } = await post(server.baseUrl, {
+    kind: 'initial',
+    items: [
+      { id: 'valid-id', to: 'valid@example.com', subject: 'Subject', text: 'Body' },
+      { id: 'invalid-id', to: 'not-an-email', subject: 'Subject', text: 'Body' }
+    ]
+  });
+  assert.equal(response.status, 400);
+  assert.deepEqual(json.failedIds, ['valid-id', 'invalid-id']);
+  assert.deepEqual(attempts.map(attempt => attempt.status), ['failed', 'failed']);
+  assert.deepEqual(attempts.map(attempt => attempt.httpStatus), [400, 400]);
 });
