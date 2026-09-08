@@ -1,16 +1,16 @@
 ---
 name: Outreach email prefix blocklist
-description: Role-based/generic email prefixes that must never receive outreach emails — user explicitly required this after support@ addresses sent auto-replies.
+description: Email prefix rules for outreach; founder-facing role inboxes are allowed while automated, compliance, and bounce prefixes remain blocked.
 ---
 
 # Outreach email prefix blocklist
 
-**Rule:** Never send outreach or campaign emails to role-based / generic email prefixes.
+**Rule:** Allow `support@`, `hello@`, `info@`, `contact@`, `care@`, `team@`, `dev-support@`, and `admin@` as eligible outreach targets. Continue blocking clearly automated, compliance, and bounce addresses.
 
-**Why:** Sending to support@, help@, etc. triggers automated out-of-office / "not interested" auto-replies, wastes sends, and upsets the user.
+**Why:** The user explicitly chose to keep these founder-facing inboxes eligible; the remaining blocked prefixes are still poor or unsafe outreach targets.
 
 **Blocked prefixes (in isBlockedOutreachTarget in server.js):**
-privacy, legal, abuse, press, dpo, eudatarep, gdpr, compliance, security, **support, help, noreply, no-reply, donotreply, do-not-reply, billing, notifications, newsletter, mailer, bounce, postmaster, webmaster, admin**
+privacy, legal, abuse, press, dpo, eudatarep, gdpr, compliance, security, service, noreply, no-reply, donotreply, do-not-reply, billing, notifications, newsletter, mailer, bounce, postmaster, webmaster
 
 **How to apply:**
 - The filter lives in `isBlockedOutreachTarget()` in server.js — all outreach paths (server routes + campaign scripts) must call this function before sending.

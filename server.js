@@ -3300,8 +3300,6 @@ function isJunkEmail(email) {
   if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe)@/i.test(e)) return true;
   // Reject any -abuse@ pattern (e.g. heroku-abuse@, aws-abuse@)
   if (/-abuse@/i.test(e)) return true;
-  // Reject generic free-provider addresses used as placeholders
-  if (/^(hello|support|contact|info|admin)@(gmail|yahoo|hotmail|outlook)\.com$/.test(e)) return true;
   return false;
 }
 
@@ -3428,9 +3426,9 @@ function isBlockedOutreachTarget(listingName, email) {
   if (PERMANENT_OUTREACH_EXCLUSIONS.has(e))
     return { blocked: true, reason: 'permanent do-not-contact restriction' };
 
-  // Rule 1 — restricted email prefix. Generic role inboxes are not founder
-  // contacts and must not receive claim outreach.
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|support|help|hello|contact|info|care|service|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster|admin|team|dev-support)@/i.test(e))
+  // Rule 1 — restricted email prefix. Keep founder-facing role inboxes
+  // eligible; block only clearly automated, compliance, or bounce addresses.
+  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|service|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster)@/i.test(e))
     return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
   if (/-abuse@/i.test(e))
     return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
@@ -6853,7 +6851,7 @@ app.post('/admin/extract-contacts-deep', async (req, res) => {
   setImmediate(async () => {
     const CONCURRENCY = 10;
     const EMAIL_RE = /\b([a-zA-Z0-9._%+\-]{1,40}@[a-zA-Z0-9.\-]{1,60}\.[a-zA-Z]{2,10})\b/g;
-    const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your|admin|webmaster|info@example|hello@gmail|support@gmail|contact@gmail|you@|hello@email|hello@company|hello@lawfirm|footer_|logo@|gf-icn)/i;
+    const SKIP_L = /^(noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe|privacy@example|test|user|name|someone|your|webmaster|info@example|you@|hello@email|hello@company|hello@lawfirm|footer_|logo@|gf-icn)/i;
     const SKIP_D = /example\.|test\.|placeholder\.|sentry\.|mailchimp\.com|sendgrid\.net|amazonaws\.com|wixpress\.com|squarespace\.com|gmail\.com$|yahoo\.com$|hotmail\.com$/i;
     const tf = (u) => safeFetchPublicUrl(u, { timeoutMs: 8000, maxBytes: 1024 * 1024, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ToolIndex/1.0)' } });
     const cl = h => h.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'');

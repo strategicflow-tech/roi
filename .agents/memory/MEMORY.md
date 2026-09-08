@@ -9,7 +9,7 @@
 - [Public fetches and admin authorization](public-fetches-admin-authorization.md) — user-controlled URLs use the shared safe fetch boundary; browser admin actions use session plus CSRF, never URL keys.
 - [ToolIndex pricing restructure](toolindex-pricing-restructure.md) — directory homepage now shows 3-tier summary (Free / Pro $29 / Sponsor from $149); full detailed tiers in hidden #full-pricing div revealed by "See All Plans"; teardown_solo removed everywhere.
 - [Stripe webhook recovery](stripe-webhook-recovery.md) — scope ledger entries by endpoint plus event; never acknowledge an in-flight delivery, and make payment grants durably idempotent.
-- [Outreach email prefix blocklist](outreach-email-prefix-blocklist.md) — never send to support/help/noreply/admin/billing/etc; user explicitly required this; rule is in isBlockedOutreachTarget() and must be copied into every standalone script.
+- [Outreach email prefix rules](outreach-email-prefix-blocklist.md) — allow founder-facing role inboxes; continue blocking automated, compliance, and bounce prefixes.
 - [Admin job-token endpoint pattern](admin-job-token-endpoint-pattern.md) — use ShellExec + $WHY_ADMIN_KEY env var for job-token calls; requestSecrets in CodeExecution has timing issues. Route-level requireAdminSession conflicts with app.use global middleware when job tokens are used.
 - [Onboarding audit scoring baseline](onboarding-audit-scoring-baseline.md) — live test (2026-08-24) confirmed variable scores: weak=1/10 (7 bugs), strong=8/10 (1 bug), SF own copy=5.8/10 (3 bugs). No clustering. Prompt calibration is working.
 - [Resend delivery verification](resend-delivery-verification.md) — internal logs record accepted sends only; delivery status needs valid Resend API access and provider events.
