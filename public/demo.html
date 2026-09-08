@@ -837,6 +837,8 @@
 </style>
 <meta name="description" content="Try the Strategic Flow email audit. Get a free 1–10 score across five conversion signals and one actionable insight before unlocking the full report.">
 <link rel="canonical" href="https://strategic-flow-audit.replit.app/demo.html">
+<link rel="alternate" hreflang="en-us" href="https://strategic-flow-audit.replit.app/demo.html">
+<link rel="alternate" hreflang="x-default" href="https://strategic-flow-audit.replit.app/demo.html">
 <meta property="og:title" content="Strategic Flow Audit — Live Demo">
 <meta property="og:description" content="Live demo: score a real SaaS email across five conversion signals and see the clearest friction point before the rebuild.">
 <meta property="og:url" content="https://strategic-flow-audit.replit.app/demo.html">
@@ -849,6 +851,7 @@
       "@id": "https://strategic-flow-audit.replit.app/#organization",
       "name": "Strategic Flow",
       "url": "https://strategicflow.tech",
+      "areaServed": "US",
       "founder": { "@id": "https://strategic-flow-audit.replit.app/#alex-iliescu" }
     },
     {
@@ -880,6 +883,49 @@
       "itemListElement": [
         { "@type": "ListItem", "position": 1, "name": "Strategic Flow Audit", "item": "https://strategic-flow-audit.replit.app/" },
         { "@type": "ListItem", "position": 2, "name": "Free Demo", "item": "https://strategic-flow-audit.replit.app/demo.html" }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://strategic-flow-audit.replit.app/demo.html#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How does the free demo work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Paste your content and receive a free 1–10 score across five conversion signals plus one actionable insight before the full report is unlocked."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need an account to see my score?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. You can see the free score and one actionable insight before entering an email or creating an account."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens after I see my score?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can enter your email to unlock the full diagnostic, rebuilt copy, named friction points, and the available HTML output."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "ItemList",
+      "@id": "https://strategic-flow-audit.replit.app/demo.html#signals",
+      "name": "Five conversion signals in the Strategic Flow demo",
+      "numberOfItems": 5,
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Subject specificity" },
+        { "@type": "ListItem", "position": 2, "name": "Hook strength" },
+        { "@type": "ListItem", "position": 3, "name": "Feature-to-outcome translation" },
+        { "@type": "ListItem", "position": 4, "name": "Proof specificity" },
+        { "@type": "ListItem", "position": 5, "name": "CTA ownership" }
       ]
     }
   ]
@@ -2032,7 +2078,7 @@ function renderResults(result, subscribers) {
 
   document.getElementById('origScore').textContent = score + '/10';
   document.getElementById('newScore').textContent  = rebuilt + '/10';
-  document.getElementById('bugsFound').textContent = bugs.length + '/7';
+  document.getElementById('bugsFound').textContent = bugs.length + '/5';
 
   const bugList = document.getElementById('bugList');
   bugList.innerHTML = bugs.length > 0 ? bugs.map(b => `
@@ -2199,7 +2245,7 @@ function renderResults(result, subscribers) {
       document.getElementById('roiCurrent').textContent          = Math.round(curr * 100) + '%';
       document.getElementById('roiCurrentReaders').textContent   = 'current headline + hook performance';
       document.getElementById('roiProjected').textContent        = Math.round(proj * 100) + '%';
-      document.getElementById('roiProjectedReaders').textContent = 'with optimised headline + hook';
+      document.getElementById('roiProjectedReaders').textContent = 'with optimized headline + hook';
       document.getElementById('roiDelta').textContent            = '+' + uplift + '%';
       document.getElementById('roiDeltaNote').textContent        = 'Estimated click-through / read-through lift';
       engagementNoteEl.style.display = 'none';
