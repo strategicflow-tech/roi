@@ -1104,7 +1104,6 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
       <button class="dir-lb-tab" data-period="all">All-time</button>
       <button class="dir-lb-tab" data-period="trending">🔥 Trending</button>
       <button class="dir-lb-tab" data-period="new">New today</button>
-      <button class="dir-lb-tab" data-period="clicked">Most clicked</button>
     </div>
   </div>
   <div class="dir-lb-list" id="lbList">
@@ -2689,7 +2688,6 @@ const LB_EMPTY_STATES = {
   all:      'No listings yet.',
   trending: 'No trending activity in the last 24 hours yet — check back soon.',
   new:      'No new listings added today yet.',
-  clicked:  'No outbound clicks tracked yet — check back once real traffic flows.',
 };
 
 const LB_SCORE_LABELS = {
@@ -2698,7 +2696,6 @@ const LB_SCORE_LABELS = {
   all:      l => (l.period_votes > 0 ? `▲ ${l.period_votes}` : ''),
   trending: l => (l.period_votes > 0 ? `▲ ${l.period_votes} today` : ''),
   new:      l => `New`,
-  clicked:  l => (l.period_votes > 0 ? `${l.period_votes} clicks` : ''),
 };
 
 async function loadLeaderboard(period){
