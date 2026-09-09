@@ -4302,7 +4302,7 @@ app.get('/api/directory/outreach-queue', async (req, res) => {
 });
 
 // ── Shared helper: build catchy claim outreach email with AI profile preview ──
-function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
+function buildClaimOutreachEmail(name, listingUrl, aiInsights, email, { isDraft = false } = {}) {
   const safeName     = escapeHtml(name || 'your product');
   const ai = (typeof aiInsights === 'string' ? JSON.parse(aiInsights) : aiInsights) || {};
   const rawSummary   = (ai.summary || '').trim();
@@ -4337,10 +4337,16 @@ function buildClaimOutreachEmail(name, listingUrl, aiInsights, email) {
     '✓&nbsp; Links and verified facts',
   ].map(s => `<li style="margin-bottom:5px;">${s}</li>`).join('');
 
+  const introLine = isDraft
+    ? `We prepared a private ToolIndex draft for <strong>${safeName}</strong> after finding it on your public site.`
+    : `We added <strong>${safeName}</strong> to ToolIndex after finding it on your public site.`;
+  const statusLine = isDraft
+    ? `The draft is private and not published yet. Its description and facts currently come from public material rather than from the people who know the product best.`
+    : `The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.`;
   const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
 <p>Hi,</p>
-<p>I’m Alex from Strategic Flow. We added <strong>${safeName}</strong> to ToolIndex after finding it on your public site.</p>
-<p>The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.</p>
+<p>I’m Alex from Strategic Flow. ${introLine}</p>
+<p>${statusLine}</p>
 ${previewCardHtml}
 <p style="margin:0 0 8px;">Here is what the draft currently contains:</p>
 <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#374151;line-height:1.85;">
@@ -4356,9 +4362,13 @@ ${buildUnsubFooterHtml(email || '')}
 
   const textParts = [
     'Hi,', '',
-    `I’m Alex from Strategic Flow. We added ${name} to ToolIndex after finding it on your public site.`,
+    `I’m Alex from Strategic Flow. ${isDraft
+      ? `We prepared a private ToolIndex draft for ${name} after finding it on your public site.`
+      : `We added ${name} to ToolIndex after finding it on your public site.`}`,
     '',
-    `The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.`,
+    isDraft
+      ? `The draft is private and not published yet. Its description and facts currently come from public material rather than from the people who know the product best.`
+      : `The page is live, but it is still unclaimed. Its description and facts currently come from public material rather than from the people who know the product best.`,
   ];
   if (snippet) textParts.push('', `"${snippet}"`);
   textParts.push('', 'Here is what the draft currently contains:');
@@ -4384,7 +4394,7 @@ ${buildUnsubFooterHtml(email || '')}
   );
 
   return {
-    subject: `A ToolIndex profile for ${name}`,
+    subject: isDraft ? `A private ToolIndex draft for ${name}` : `A ToolIndex profile for ${name}`,
     html,
     text: textParts.join('\n'),
   };
@@ -4492,7 +4502,7 @@ const TOOLINDEX_FIRST_CONTACT_GENERIC_IDS = new Set([
 // Browser admins may use a session; maintenance jobs use the header-only token.
 async function sendClaimOutreachForListing(listingId, { policyOverride = null } = {}) {
   const { rows } = await pool.query(
-    `SELECT id, name, url, contact_email, outreach_emailed_at, ai_insights
+    `SELECT id, name, url, status, contact_email, outreach_emailed_at, ai_insights
      FROM directory_listings WHERE id=$1 AND status IN ('active','draft')`,
     [listingId]
   );
@@ -4555,12 +4565,15 @@ async function sendClaimOutreachForListing(listingId, { policyOverride = null } 
 
   const slug = toListingSlug(listing.name, listing.id);
   const listingUrl = `https://strategic-flow-audit.replit.app/directory/${slug}`;
-  const { subject, html: htmlBody, text: textBody } = buildClaimOutreachEmail(
-    listing.name,
-    listingUrl,
-    listing.ai_insights,
-    listing.contact_email
-  );
+  const message = listing.status === 'draft'
+    ? buildImportedDraftClaimEmail(listing)
+    : buildClaimOutreachEmail(
+        listing.name,
+        listingUrl,
+        listing.ai_insights,
+        listing.contact_email
+      );
+  const { subject, html: htmlBody, text: textBody } = message;
   const sendResult = await resend.emails.send({
     from: SENDER,
     to: listing.contact_email,
@@ -4602,6 +4615,143 @@ async function sendClaimOutreachForListing(listingId, { policyOverride = null } 
     email: listing.contact_email,
     sent_at: new Date().toISOString(),
   };
+}
+
+async function runManualDraftClaimCampaign(source = 'cron') {
+  const lockClient = await pool.connect();
+  const lockKey = `${TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY}:initial`;
+  try {
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [lockKey]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: true, reason: 'already_running' };
+
+    const claim = await lockClient.query(
+      `UPDATE toolindex_outreach_campaign_runs
+          SET status='running',
+              source=$3,
+              started_at=NOW(),
+              attempts=attempts+1
+        WHERE campaign_key=$1
+          AND run_kind='initial'
+          AND status='scheduled'
+          AND scheduled_for <= NOW()
+      RETURNING scheduled_for`,
+      [TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY, 'initial', source]
+    );
+    if (!claim.rows.length) {
+      return { skipped: true, reason: 'not_due_or_already_completed' };
+    }
+
+    const result = {
+      ok: true,
+      source,
+      scheduled_for: claim.rows[0].scheduled_for,
+      sent: 0,
+      skipped: 0,
+      errors: 0,
+      page_checks_failed: 0,
+      total: 0,
+    };
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, name, status, contact_email
+           FROM directory_listings
+          WHERE source=$1
+            AND status='draft'
+            AND NULLIF(TRIM(contact_email),'') IS NOT NULL
+            AND outreach_emailed_at IS NULL
+          ORDER BY id ASC`,
+        [TOOLINDEX_MANUAL_DRAFT_CLAIM_SOURCE]
+      );
+      result.total = rows.length;
+
+      for (const listing of rows) {
+        const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(listing.name, listing.id)}`;
+        try {
+          const page = await safeFetchPublicUrl(listingUrl, {
+            timeoutMs: 10_000,
+            maxBytes: 256 * 1024,
+            headers: { 'User-Agent': 'ToolIndex claim outreach verifier/1.0' },
+          });
+          if (!page.ok) {
+            result.page_checks_failed++;
+            result.skipped++;
+            console.error(`[manual-draft-claim] page check ${page.status} → ${listing.id}`);
+            continue;
+          }
+        } catch (error) {
+          result.page_checks_failed++;
+          result.skipped++;
+          console.error(`[manual-draft-claim] page check failed for ${listing.id}:`, error.message);
+          continue;
+        }
+
+        const sendResult = await sendClaimOutreachForListing(listing.id);
+        if (sendResult.ok) result.sent++;
+        else if (sendResult.error === 'provider_error') result.errors++;
+        else result.skipped++;
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      await pool.query(
+        `UPDATE toolindex_outreach_campaign_runs
+            SET status='completed', completed_at=NOW(), result=$3::jsonb
+          WHERE campaign_key=$1 AND run_kind='initial'`,
+        [
+          TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY,
+          'initial',
+          JSON.stringify(result),
+        ]
+      );
+      console.log(`[manual-draft-claim] ${source}: ${JSON.stringify(result)}`);
+      return result;
+    } catch (error) {
+      result.ok = false;
+      result.error = String(error.message || error).slice(0, 500);
+      await pool.query(
+        `UPDATE toolindex_outreach_campaign_runs
+            SET status='failed', completed_at=NOW(), result=$3::jsonb
+          WHERE campaign_key=$1 AND run_kind='initial'`,
+        [
+          TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY,
+          'initial',
+          JSON.stringify(result),
+        ]
+      ).catch(() => {});
+      throw error;
+    }
+  } finally {
+    await lockClient.query(
+      `SELECT pg_advisory_unlock(hashtext($1))`,
+      [lockKey]
+    ).catch(() => {});
+    lockClient.release();
+  }
+}
+
+function scheduleManualDraftClaimJob() {
+  if (Date.now() >= TOOLINDEX_MANUAL_DRAFT_CLAIM_TARGET.getTime()) {
+    console.log('[manual-draft-claim] target passed; relying on startup recovery');
+    return null;
+  }
+  let task = null;
+  task = cron.schedule(TOOLINDEX_MANUAL_DRAFT_CLAIM_CRON, async () => {
+    try {
+      await runManualDraftClaimCampaign('scheduled-cron');
+    } catch (error) {
+      console.error('[manual-draft-claim] scheduled run failed:', error.message);
+    } finally {
+      task.stop();
+      task.destroy();
+    }
+  }, { timezone: 'UTC' });
+  console.log(
+    `[manual-draft-claim] one-time send scheduled for ${TOOLINDEX_MANUAL_DRAFT_CLAIM_TARGET.toISOString()}`
+  );
+  return task;
 }
 
 app.post('/admin/send-claim-outreach', async (req, res) => {
@@ -5625,6 +5775,13 @@ const TOOLINDEX_FOUNDERS_SCHEDULES = {
     cron: '0 13 15 9 *',
   },
 };
+// One-off manual-draft batch imported from the 2026-09-09 validation file.
+// The run is durable in toolindex_outreach_campaign_runs and only becomes
+// eligible at the requested UTC time; it does not send during import or startup.
+const TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY = 'toolindex-manual-draft-2026-09-09';
+const TOOLINDEX_MANUAL_DRAFT_CLAIM_SOURCE = 'manual-draft-import-2026-09-09';
+const TOOLINDEX_MANUAL_DRAFT_CLAIM_TARGET = new Date('2026-09-10T10:00:00Z');
+const TOOLINDEX_MANUAL_DRAFT_CLAIM_CRON = '0 10 10 9 *';
 // Separate Product Hunt campaign: 100 claim emails per day, with a
 // campaign-specific five-day follow-up. It must not share the one-time
 // ToolIndex founders run or its four-day follow-up policy.
@@ -18702,6 +18859,22 @@ async function setupDB() {
           followup_delay_days=EXCLUDED.followup_delay_days,
           updated_at=NOW()
   `, [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]).catch(e => console.error('[DB] toolindex-founders campaign:', e.message));
+  await pool.query(`
+    INSERT INTO toolindex_outreach_campaigns
+      (campaign_key, display_name, sending_enabled, followup_delay_days)
+    VALUES ($1, 'Manual draft claim batch — 10:00 UTC', TRUE, 4)
+    ON CONFLICT (campaign_key) DO NOTHING
+  `, [TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY])
+    .catch(e => console.error('[DB] manual-draft-claim campaign:', e.message));
+  await pool.query(`
+    INSERT INTO toolindex_outreach_campaign_runs
+      (campaign_key, run_kind, scheduled_for, status)
+    VALUES ($1, 'initial', $2, 'scheduled')
+    ON CONFLICT (campaign_key, run_kind) DO NOTHING
+  `, [
+    TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY,
+    TOOLINDEX_MANUAL_DRAFT_CLAIM_TARGET.toISOString(),
+  ]).catch(e => console.error('[DB] manual-draft-claim run:', e.message));
   await pool.query(`
     INSERT INTO toolindex_outreach_campaign_runs
       (campaign_key, run_kind, scheduled_for, status)
@@ -32014,6 +32187,7 @@ full HTML body here
   // and prevents a second execution.
   scheduleToolindexFoundersOneTimeJob('initial');
   scheduleToolindexFoundersOneTimeJob('followup');
+  scheduleManualDraftClaimJob();
   setTimeout(() => {
     for (const runKind of ['initial', 'followup']) {
       runToolindexFoundersOneTime(runKind, 'startup-recovery').catch(error => {
@@ -32023,6 +32197,9 @@ full HTML body here
         );
       });
     }
+    runManualDraftClaimCampaign('startup-recovery').catch(error => {
+      console.error('[manual-draft-claim] startup recovery failed:', error.message);
+    });
   }, 15_000);
 
   // ── Product Hunt claim outreach: 100 initial emails per day ────────────────
