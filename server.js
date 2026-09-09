@@ -6197,6 +6197,11 @@ async function runToolindexFoundersOneTime(runKind, source = 'cron') {
         result.skipped++;
         continue;
       }
+      if (isJunkEmail(contact.email)) {
+        await recordToolindexFoundersSkip(contact, template, runKind, 'junk_email');
+        result.skipped++;
+        continue;
+      }
 
       const halted = await isSequenceHalted(contact.email, TOOLINDEX_FOUNDERS_CAMPAIGN_KEY);
       if (halted.halted) {
