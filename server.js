@@ -16806,6 +16806,14 @@ app.get('/blog/:slug', async (req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public', 'blog', 'index.html'));
 });
 
+// Keep direct static-file URLs behind the same paid-access routes as their
+// extensionless counterparts. These aliases must precede express.static.
+app.get('/sequence-gap-finder.html', (req, res) => res.redirect('/sequence-gap-finder'));
+app.get('/fatigue-detector.html', (req, res) => res.redirect('/fatigue-detector'));
+app.get('/dead-email-resurrector.html', (req, res) => res.redirect('/dead-email-resurrector'));
+app.get('/audience-mirror.html', (req, res) => res.redirect('/audience-mirror'));
+app.get('/best-send-window.html', (req, res) => res.redirect('/best-send-window'));
+
 app.use(express.static('public'));
 
 // ── ROOT — always serve app (no auth wall for free users) ─────────────────────
