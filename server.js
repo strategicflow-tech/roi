@@ -22658,7 +22658,8 @@ app.get('/audience-mirror', async (req, res) => {
     return res.sendFile('audience-mirror.html', { root: path.join(__dirname, 'public') });
   }
   try {
-    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
     if (row?.tier === 'architecture') {
       return res.sendFile('audience-mirror.html', { root: path.join(__dirname, 'public') });
     }
@@ -22744,7 +22745,8 @@ app.get('/dead-email-resurrector', async (req, res) => {
     return res.sendFile('dead-email-resurrector.html', { root: path.join(__dirname, 'public') });
   }
   try {
-    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
     if (row?.tier === 'architecture') {
       return res.sendFile('dead-email-resurrector.html', { root: path.join(__dirname, 'public') });
     }
@@ -22836,7 +22838,8 @@ app.get('/best-send-window', async (req, res) => {
     return res.sendFile('best-send-window.html', { root: path.join(__dirname, 'public') });
   }
   try {
-    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
     if (row?.tier === 'architecture') {
       return res.sendFile('best-send-window.html', { root: path.join(__dirname, 'public') });
     }
@@ -22920,7 +22923,8 @@ app.get('/sequence-gap-finder', async (req, res) => {
     return res.sendFile('sequence-gap-finder.html', { root: path.join(__dirname, 'public') });
   }
   try {
-    const row = await db.oneOrNone('SELECT tier FROM users WHERE email=$1', [req.session.userEmail]);
+    const r = await pool.query('SELECT tier, expires_at FROM users WHERE email = $1', [req.session.userEmail.toLowerCase().trim()]);
+    const row = r.rows[0];
     if (row?.tier === 'architecture') {
       return res.sendFile('sequence-gap-finder.html', { root: path.join(__dirname, 'public') });
     }
