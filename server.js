@@ -5723,6 +5723,18 @@ const TOOLINDEX_FOUNDERS_BATCH_CAP = Math.min(
   Math.max(Number.parseInt(process.env.TOOLINDEX_FOUNDERS_BATCH_CAP || '50', 10) || 50, 1),
   100
 );
+const TOOLINDEX_FOUNDERS_INITIAL_TARGET = new Date('2026-09-09T13:00:00Z');
+const TOOLINDEX_FOUNDERS_FOLLOWUP_TARGET = new Date('2026-09-15T13:00:00Z');
+const TOOLINDEX_FOUNDERS_SCHEDULES = {
+  initial: {
+    target: TOOLINDEX_FOUNDERS_INITIAL_TARGET,
+    cron: '0 13 9 9 *',
+  },
+  followup: {
+    target: TOOLINDEX_FOUNDERS_FOLLOWUP_TARGET,
+    cron: '0 13 15 9 *',
+  },
+};
 const TOOLINDEX_FOUNDERS_TEMPLATES = {
   initial_public: {
     subject: "{{app_name}}'s outreach is probably losing replies to one fixable bug",
@@ -6039,6 +6051,216 @@ async function runToolindexFoundersCampaign(source = 'cron') {
     ).catch(() => {});
     lockClient.release();
   }
+}
+
+function normalizeToolindexFoundersEmail(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  const displayMatch = raw.match(/<([^>]+)>/);
+  return String(displayMatch?.[1] || raw).trim();
+}
+
+async function getToolindexFoundersCurrentSuppression(email) {
+  const normalized = normalizeToolindexFoundersEmail(email);
+  if (!normalized) return 'invalid_email';
+  if (await isUnsubscribed(normalized)) return 'unsubscribed';
+
+  const { rows } = await pool.query(
+    `SELECT 1
+     FROM resend_webhook_events
+     WHERE type='email.bounced'
+       AND lower(trim(
+         CASE
+           WHEN position('<' IN trim("to")) > 0
+             THEN substring(trim("to") FROM '<([^>]+)>')
+           ELSE trim("to")
+         END
+       ))=$1
+     LIMIT 1`,
+    [normalized]
+  );
+  return rows.length ? 'bounced' : null;
+}
+
+async function ensureToolindexFoundersRunClaim(runKind, source) {
+  const client = await pool.connect();
+  const lockKey = `${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}:${runKind}`;
+  try {
+    const lock = await client.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [lockKey]
+    );
+    if (!lock.rows[0]?.locked) {
+      client.release();
+      return { claimed: false, reason: 'already_running' };
+    }
+
+    const claim = await client.query(
+      `UPDATE toolindex_outreach_campaign_runs
+       SET status='running',
+           source=$3,
+           started_at=NOW(),
+           attempts=attempts+1
+       WHERE campaign_key=$1
+         AND run_kind=$2
+         AND (
+           status='scheduled'
+           OR (status='running' AND started_at < NOW() - INTERVAL '20 minutes')
+         )
+       RETURNING run_kind, scheduled_for`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, runKind, source]
+    );
+    if (!claim.rows.length) {
+      await client.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch(() => {});
+      client.release();
+      return { claimed: false, reason: 'already_completed_or_running' };
+    }
+    return { claimed: true, client, lockKey, run: claim.rows[0] };
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+}
+
+async function finishToolindexFoundersRun(runKind, status, result) {
+  await pool.query(
+    `UPDATE toolindex_outreach_campaign_runs
+     SET status=$3,
+         completed_at=NOW(),
+         result=$4::jsonb
+     WHERE campaign_key=$1 AND run_kind=$2`,
+    [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, runKind, status, JSON.stringify(result || {})]
+  );
+}
+
+async function recordToolindexFoundersSkip(contact, template, kind, reason) {
+  await markToolindexFoundersContactError(contact.id, reason);
+  await recordAgencyOutreachAttempt({
+    campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+    id: contact.id,
+    email: contact.email,
+    subject: String(template.subject_template || '').replace(/\{\{app_name\}\}/g, contact.app_name),
+    kind,
+    status: reason === 'bounced' || reason === 'unsubscribed' ? reason : 'skipped',
+    error: reason
+  }).catch(() => {});
+}
+
+async function runToolindexFoundersOneTime(runKind, source = 'cron') {
+  const schedule = TOOLINDEX_FOUNDERS_SCHEDULES[runKind];
+  if (!schedule) throw new Error(`unknown_toolindex_founders_run:${runKind}`);
+  if (Date.now() < schedule.target.getTime()) {
+    return {
+      skipped: true,
+      reason: 'not_due',
+      run_kind: runKind,
+      scheduled_for: schedule.target.toISOString()
+    };
+  }
+
+  const claim = await ensureToolindexFoundersRunClaim(runKind, source);
+  if (!claim.claimed) return { skipped: true, reason: claim.reason, run_kind: runKind };
+
+  let result = {
+    run_kind: runKind,
+    source,
+    sent: 0,
+    skipped: 0,
+    errors: 0,
+    total: 0,
+  };
+  try {
+    const templates = await getToolindexFoundersTemplates();
+    const templateKind = runKind === 'initial' ? null : 'followup';
+    const { rows } = await pool.query(
+      `SELECT id, app_name, email, status
+       FROM toolindex_outreach_campaign_contacts
+       WHERE campaign_key=$1
+         AND ${
+           runKind === 'initial'
+             ? 'initial_sent=FALSE'
+             : 'initial_sent=TRUE AND followup_sent=FALSE'
+         }
+       ORDER BY id ASC`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]
+    );
+    result.total = rows.length;
+
+    for (const contact of rows) {
+      const selectedTemplateKind = templateKind ||
+        (contact.status === 'draft' ? 'initial_draft' : 'initial_public');
+      const template = templates.get(selectedTemplateKind);
+      if (!template) throw new Error(`toolindex_founders_template_missing:${selectedTemplateKind}`);
+
+      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
+      if (blocked.blocked) {
+        await recordToolindexFoundersSkip(contact, template, runKind, blocked.reason);
+        result.skipped++;
+        continue;
+      }
+
+      const halted = await isSequenceHalted(contact.email, TOOLINDEX_FOUNDERS_CAMPAIGN_KEY);
+      if (halted.halted) {
+        await recordToolindexFoundersSkip(
+          contact,
+          template,
+          runKind,
+          `engagement halted: ${halted.reason}`
+        );
+        result.skipped++;
+        continue;
+      }
+
+      // This is deliberately the last check before processToolindexFoundersContact
+      // calls Resend. It checks both the global unsubscribe table and provider
+      // bounce history as it exists at execution time.
+      const suppression = await getToolindexFoundersCurrentSuppression(contact.email);
+      if (suppression) {
+        await recordToolindexFoundersSkip(contact, template, runKind, suppression);
+        result.skipped++;
+        continue;
+      }
+
+      const sendResult = await processToolindexFoundersContact(contact, template, runKind);
+      if (sendResult.ok) result.sent++;
+      else if (sendResult.skipped) result.skipped++;
+      else result.errors++;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    await finishToolindexFoundersRun(runKind, 'completed', result);
+    console.log(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} ${source}: ${JSON.stringify(result)}`);
+    return { ok: true, ...result };
+  } catch (error) {
+    result.error = String(error.message || error).slice(0, 500);
+    await finishToolindexFoundersRun(runKind, 'failed', result).catch(() => {});
+    console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} failed:`, result.error);
+    return { ok: false, ...result };
+  } finally {
+    await claim.client.query(
+      `SELECT pg_advisory_unlock(hashtext($1))`,
+      [claim.lockKey]
+    ).catch(() => {});
+    claim.client.release();
+  }
+}
+
+function scheduleToolindexFoundersOneTimeJob(runKind) {
+  const schedule = TOOLINDEX_FOUNDERS_SCHEDULES[runKind];
+  let task = null;
+  task = cron.schedule(schedule.cron, async () => {
+    try {
+      await runToolindexFoundersOneTime(runKind, 'scheduled-cron');
+    } catch (error) {
+      console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} cron error:`, error.message);
+    } finally {
+      task.stop();
+      task.destroy();
+    }
+  }, { timezone: 'UTC' });
+  console.log(
+    `[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} one-time cron active for ${schedule.target.toISOString()}`
+  );
+  return task;
 }
 
 function newsletterConfirmTokenHash(token) {
@@ -17615,6 +17837,21 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] toolindex_outreach_campaign_templates:', e.message));
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_outreach_campaign_runs (
+      campaign_key  TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
+      run_kind      TEXT NOT NULL CHECK (run_kind IN ('initial','followup')),
+      scheduled_for TIMESTAMPTZ NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'scheduled'
+                    CHECK (status IN ('scheduled','running','completed','failed')),
+      source        TEXT,
+      attempts      INTEGER NOT NULL DEFAULT 0,
+      started_at    TIMESTAMPTZ,
+      completed_at  TIMESTAMPTZ,
+      result        JSONB,
+      PRIMARY KEY (campaign_key, run_kind)
+    )
+  `).catch(e => console.error('[DB] toolindex_outreach_campaign_runs:', e.message));
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS toolindex_outreach_campaign_contacts (
       id              BIGSERIAL PRIMARY KEY,
       campaign_key    TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
@@ -17673,6 +17910,18 @@ async function setupDB() {
           followup_delay_days=EXCLUDED.followup_delay_days,
           updated_at=NOW()
   `, [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]).catch(e => console.error('[DB] toolindex-founders campaign:', e.message));
+  await pool.query(`
+    INSERT INTO toolindex_outreach_campaign_runs
+      (campaign_key, run_kind, scheduled_for, status)
+    VALUES
+      ($1, 'initial', $2, 'scheduled'),
+      ($1, 'followup', $3, 'scheduled')
+    ON CONFLICT (campaign_key, run_kind) DO NOTHING
+  `, [
+    TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+    TOOLINDEX_FOUNDERS_INITIAL_TARGET.toISOString(),
+    TOOLINDEX_FOUNDERS_FOLLOWUP_TARGET.toISOString()
+  ]).catch(e => console.error('[DB] toolindex-founders scheduled runs:', e.message));
   for (const [templateKind, template] of Object.entries(TOOLINDEX_FOUNDERS_TEMPLATES)) {
     await pool.query(
       `INSERT INTO toolindex_outreach_campaign_templates
@@ -30955,19 +31204,21 @@ full HTML body here
   }, 15_000);
 
 
-  // ── ToolIndex-founders campaign: disabled until explicit approval ─────────
-  // The runner handles initial sends and generated +4-day follow-ups, but both
-  // the environment flag and the campaign row must be enabled before Resend is
-  // ever called. A 15-minute watchdog catches restarts and missed cron ticks.
-  cron.schedule('*/15 * * * *', () => {
-    runToolindexFoundersCampaign('cron').catch(error => {
-      console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] cron error:`, error.message);
-    });
-  }, { timezone: 'UTC' });
+  // ── ToolIndex-founders: two fixed, one-time UTC jobs ──────────────────────
+  // These are intentionally not a recurring scheduler. Each task destroys
+  // itself after firing, while the durable run row provides restart recovery
+  // and prevents a second execution.
+  scheduleToolindexFoundersOneTimeJob('initial');
+  scheduleToolindexFoundersOneTimeJob('followup');
   setTimeout(() => {
-    runToolindexFoundersCampaign('startup-recovery').catch(error => {
-      console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] startup recovery error:`, error.message);
-    });
+    for (const runKind of ['initial', 'followup']) {
+      runToolindexFoundersOneTime(runKind, 'startup-recovery').catch(error => {
+        console.error(
+          `[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} startup recovery error:`,
+          error.message
+        );
+      });
+    }
   }, 15_000);
 
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
