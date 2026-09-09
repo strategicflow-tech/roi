@@ -912,6 +912,9 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/batch-update',
   '/seq-upload-csv',
   '/toolindex-import-drafts',
+  '/import-toolindex-ph-latest',
+  '/setup-toolindex-ph-campaign',
+  '/run-toolindex-ph-campaign',
   '/toolindex-draft-previews',
   '/run-daily-launch-rollout',
   '/run-daily-launch-vote-seeding',
@@ -5545,6 +5548,16 @@ const TOOLINDEX_PH_CAMPAIGN_SOURCE = 'product-hunt-top10-june-july-2026';
 const TOOLINDEX_PH_BATCH_CAP = 100;
 const TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS = 5;
 const TOOLINDEX_PH_DAILY_CRON = '0 14 * * *';
+const TOOLINDEX_PH_LARGE_COMPANY_DOMAINS = new Set([
+  'databox.com',
+  'openart.ai',
+  'google.com',
+  'google.ai',
+  'nvidia.com',
+  'brilliant.org',
+  'slack.com',
+  'ideogram.ai',
+]);
 const TOOLINDEX_PH_TEMPLATES = {
   initial_public: {
     subject: "{{app_name}} is missing a free visibility asset",
@@ -5600,6 +5613,17 @@ Alex Iliescu
 Strategic Flow / ToolIndex`,
   },
 };
+
+function isToolindexPhManualContactEligible(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) return false;
+  const [local, domain] = normalized.split('@');
+  if (TOOLINDEX_PH_LARGE_COMPANY_DOMAINS.has(domain)) return false;
+  if (/^(abuse|noreply|no-reply|legal|privacy|security|compliance|postmaster|mailer-daemon|press|copyright|dmca)$/i.test(local)) {
+    return false;
+  }
+  return true;
+}
 const TOOLINDEX_FOUNDERS_TEMPLATES = {
   initial_public: {
     subject: "{{app_name}}'s outreach is probably losing replies to one fixable bug",
@@ -8116,6 +8140,144 @@ function parseToolIndexDraftCsv(csvText) {
   return rows;
 }
 
+function parseProductHuntLatestCsv(csvText) {
+  const lines = String(csvText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (!lines.length || !lines[0].trim()) throw new Error('CSV has no header row');
+  const header = parseCsvLine(lines[0].replace(/^\uFEFF/, '')).map(value => value.trim().toLowerCase());
+  const nameIndex = header.indexOf('aplicație');
+  const urlIndex = header.indexOf('website oficial');
+  const emailIndex = header.indexOf('email public');
+  if (nameIndex < 0 || urlIndex < 0 || emailIndex < 0) {
+    throw new Error('CSV must contain Aplicație, Website oficial, and Email public columns');
+  }
+  return lines.slice(1).flatMap((line, index) => {
+    if (!line.trim()) return [];
+    const values = parseCsvLine(line);
+    return [{
+      file_row: index + 2,
+      name: String(values[nameIndex] || '').trim(),
+      url: String(values[urlIndex] || '').trim(),
+      email: String(values[emailIndex] || '').trim().toLowerCase(),
+    }];
+  });
+}
+
+// POST /admin/import-toolindex-ph-latest — publish verified-link rows and
+// retain eligible-email rows as private manual drafts. Descriptions are
+// deliberately factual because the compact replacement CSV contains no
+// product copy beyond the application name.
+app.post('/admin/import-toolindex-ph-latest', csvUpload.single('csv'), async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const inputRows = parseProductHuntLatestCsv(req.file.buffer.toString('utf8'));
+    const existing = await pool.query(`SELECT id, name, url FROM directory_listings`);
+    const existingNames = new Set(existing.rows.map(row => String(row.name || '').trim().toLowerCase()).filter(Boolean));
+    const existingDomains = new Set();
+    for (const row of existing.rows) {
+      if (!row.url) continue;
+      try { existingDomains.add(toolIndexRootDomain(row.url)); } catch {}
+    }
+    const batchNames = new Set();
+    const batchDomains = new Set();
+    const created = [];
+    const skipped = [];
+    const failed = [];
+    for (const row of inputRows) {
+      const nameKey = row.name.toLowerCase();
+      if (!nameKey) {
+        failed.push({ file_row: row.file_row, reason: 'missing name' });
+        continue;
+      }
+      if (isBlockedDirectoryListingName(row.name) || isBlockedDirectoryEmail(row.email)) {
+        skipped.push({ file_row: row.file_row, name: row.name, reason: 'permanent listing/contact restriction' });
+        continue;
+      }
+      let normalizedUrl = row.url || '';
+      let rootDomain = null;
+      if (normalizedUrl) {
+        try {
+          rootDomain = toolIndexRootDomain(normalizedUrl);
+        } catch (error) {
+          failed.push({ file_row: row.file_row, name: row.name, reason: `invalid URL: ${error.message}` });
+          continue;
+        }
+      }
+      const duplicateName = existingNames.has(nameKey) || batchNames.has(nameKey);
+      const duplicateDomain = Boolean(
+        rootDomain &&
+        !isSharedProductHost(normalizedUrl) &&
+        (existingDomains.has(rootDomain) || batchDomains.has(rootDomain))
+      );
+      if (duplicateName || duplicateDomain) {
+        skipped.push({
+          file_row: row.file_row,
+          name: row.name,
+          reason: duplicateName ? 'duplicate name' : 'duplicate root domain',
+        });
+        continue;
+      }
+      const manualContact = isToolindexPhManualContactEligible(row.email);
+      const status = manualContact ? 'draft' : (normalizedUrl ? 'active' : 'draft');
+      const description = `Product Hunt launch entry for ${row.name}. Product details are awaiting founder confirmation.`;
+      try {
+        const inserted = await pool.query(
+          `INSERT INTO directory_listings
+             (name, url, description, category, founder_name, contact_email,
+              source, source_url, image_url, launch_date, status, is_seeded,
+              is_auto_imported, score_pending, submitted_at, contact_email_status,
+              outreach_campaign_status)
+           VALUES ($1,$2,$3,$4,'',$5,$6,$7,'',NULL,$8,FALSE,FALSE,FALSE,NOW(),$9,$10)
+           RETURNING id, name, status`,
+          [
+            row.name,
+            normalizedUrl,
+            description,
+            inferToolIndexCategory(row.name, normalizedUrl, description),
+            row.email,
+            TOOLINDEX_PH_CAMPAIGN_SOURCE,
+            `https://www.producthunt.com/search?q=${encodeURIComponent(row.name)}`,
+            status,
+            row.email ? (manualContact ? 'found' : 'excluded') : 'pending',
+            manualContact ? 'queued' : null,
+          ]
+        );
+        created.push({
+          file_row: row.file_row,
+          id: inserted.rows[0].id,
+          name: inserted.rows[0].name,
+          status: inserted.rows[0].status,
+          outreach_eligible: manualContact,
+          slug: toListingSlug(inserted.rows[0].name, inserted.rows[0].id),
+        });
+        existingNames.add(nameKey);
+        batchNames.add(nameKey);
+        if (rootDomain) {
+          existingDomains.add(rootDomain);
+          batchDomains.add(rootDomain);
+        }
+      } catch (error) {
+        failed.push({ file_row: row.file_row, name: row.name, reason: error.message });
+      }
+    }
+    console.log(`[toolindex-ph-latest] ${created.length} created (${created.filter(row => row.status === 'active').length} active, ${created.filter(row => row.status === 'draft').length} drafts), ${skipped.length} skipped, ${failed.length} failed`);
+    return res.json({
+      ok: true,
+      total_rows: inputRows.length,
+      created,
+      skipped,
+      failed,
+      active_created: created.filter(row => row.status === 'active').length,
+      draft_created: created.filter(row => row.status === 'draft').length,
+      outreach_eligible: created.filter(row => row.outreach_eligible).length,
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
 // POST /admin/toolindex-import-drafts — import one CSV batch as private drafts.
 // Pass multipart `batch_id` (or include a launch_batch_id CSV column) for the
 // verified daily rollout queue. Without it, the route remains a manual-draft
@@ -8326,7 +8488,12 @@ app.post('/admin/setup-toolindex-ph-campaign', async (req, res) => {
     for (const listing of rows) {
       const email = String(listing.contact_email || '').trim().toLowerCase();
       const blocked = isBlockedOutreachTarget(listing.name, email);
-      if (!email || isJunkEmail(email) || blocked.blocked || await isUnsubscribed(email)) {
+      if (
+        !isToolindexPhManualContactEligible(email) ||
+        isJunkEmail(email) ||
+        blocked.blocked ||
+        await isUnsubscribed(email)
+      ) {
         skipped++;
         continue;
       }
@@ -8357,6 +8524,18 @@ app.post('/admin/setup-toolindex-ph-campaign', async (req, res) => {
     });
   } catch (error) {
     console.error('[toolindex-ph-campaign] setup failed:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/run-toolindex-ph-campaign', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const result = await runToolindexPhCampaign('manual-owner-request');
+    return res.status(result?.ok === false ? 500 : 200).json(result);
+  } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 });
