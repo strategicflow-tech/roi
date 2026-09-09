@@ -8,7 +8,8 @@
     "test:agency-outreach": "node --test scripts/test-agency-outreach-send.js",
     "test:toolindex-outreach-policy": "node --test scripts/test-toolindex-outreach-policy.js",
     "test:resend-webhook": "node scripts/test-resend-webhook.js",
-    "test:founder-pack": "node scripts/test-founder-pack.js"
+    "test:founder-pack": "node scripts/test-founder-pack.js",
+    "test:email-send-preflight": "node --test scripts/test-email-send-preflight.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.86.1",

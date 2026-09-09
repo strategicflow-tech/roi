@@ -440,6 +440,38 @@ function formatOutboundEmail(params, { to, subject, isTransactional }) {
   return { ...params, html };
 }
 
+// Read-only send gate. This runs after the payload has been normalized and
+// before Resend is called. It intentionally fails closed for malformed email
+// payloads or an unavailable suppression/cooldown check.
+async function runEmailSendDryRun(
+  params,
+  { to, subject, isAdminAddr, isTransactional, allowDailyLeaderboardNotification }
+) {
+  const html = String(params.html || '');
+  const text = String(params.text || '');
+  const errors = [];
+  if (!to) errors.push('recipient_missing');
+  if (!String(subject || '').trim()) errors.push('subject_missing');
+  if (!html && !text) errors.push('body_missing');
+  if (!html.includes('data-readable-email="v2"')) errors.push('readable_layout_missing');
+  if (!isTransactional && !isAdminAddr && !/unsubscribe|manage email preferences/i.test(`${html}\n${text}`)) {
+    errors.push('marketing_unsubscribe_footer_missing');
+  }
+  if (errors.length) {
+    throw new Error(`email_preflight_failed:${errors.join(',')}`);
+  }
+
+  if (!isAdminAddr && !isTransactional) {
+    if (await isUnsubscribed(to)) {
+      return { id: 'unsubscribe-blocked', unsubscribed: true, preflight: true };
+    }
+    if (!allowDailyLeaderboardNotification && await wasEmailedRecently(to)) {
+      return { id: 'cooldown-blocked', cooldownBlocked: true, preflight: true };
+    }
+  }
+  return null;
+}
+
 // ── Global 24-hour email cooldown — monkey-patch resend.emails.send ──────────
 // Prevents any two emails going to the same address within 24 hours,
 // regardless of which sequence or cron triggered the send.
@@ -461,26 +493,25 @@ function formatOutboundEmail(params, { to, subject, isTransactional }) {
     const isAdminAddr   = to === OWNER_EMAIL.toLowerCase() || BYPASS_EMAILS.has(to);
     const isTransactional = _skipGlobalCooldown || /verif|management code|you.ve claimed|your.*report|your.*score|demo run|audit lead|new audit|claimed.*✓|ai visibility/i.test(subj);
 
-    if (!isAdminAddr && !isTransactional) {
-      if (await isUnsubscribed(to)) {
-        console.log(`[global-unsubscribe] blocked → ${to} | subj: "${subj.slice(0,60)}"`);
-        return { id: 'unsubscribe-blocked', unsubscribed: true };
-      }
-      let blocked = false;
-      try {
-        blocked = !_allowDailyLeaderboardNotification && await wasEmailedRecently(to);
-      } catch { /* non-fatal */ }
-      if (blocked) {
-        console.log(`[24h-cooldown] blocked → ${to} | subj: "${subj.slice(0,60)}"`);
-        return { id: 'cooldown-blocked', cooldownBlocked: true };
-      }
-    }
-
     const formattedParams = formatOutboundEmail(providerParams, {
       to,
       subject: subj,
       isTransactional,
     });
+    const preflightBlock = await runEmailSendDryRun(formattedParams, {
+      to,
+      subject: subj,
+      isAdminAddr,
+      isTransactional,
+      allowDailyLeaderboardNotification: _allowDailyLeaderboardNotification,
+    });
+    if (preflightBlock) {
+      console.log(
+        `[email-preflight] blocked → ${to} | subj: "${subj.slice(0, 60)}" | ` +
+        `${preflightBlock.unsubscribed ? 'unsubscribed' : 'cooldown'}`
+      );
+      return preflightBlock;
+    }
     const result = await _origSend(formattedParams);
 
     if (!_skipGlobalEmailLog && !isAdminAddr && !result?.error && !result?.cooldownBlocked) {
