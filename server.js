@@ -5712,6 +5712,335 @@ async function recordAgencyOutreachAttempt({
   ]);
 }
 
+// ── ToolIndex founders campaign ────────────────────────────────────────────
+// This campaign is intentionally isolated from the legacy 393-contact sequence.
+// The database row is the final sending gate; the environment flag is an
+// additional opt-in guard. Preparation and template storage never send email.
+const TOOLINDEX_FOUNDERS_CAMPAIGN_KEY = 'toolindex-founders';
+const TOOLINDEX_FOUNDERS_SEND_ENABLED =
+  process.env.TOOLINDEX_FOUNDERS_SENDING_ENABLED === 'true';
+const TOOLINDEX_FOUNDERS_BATCH_CAP = Math.min(
+  Math.max(Number.parseInt(process.env.TOOLINDEX_FOUNDERS_BATCH_CAP || '50', 10) || 50, 1),
+  100
+);
+const TOOLINDEX_FOUNDERS_TEMPLATES = {
+  initial_public: {
+    subject: "{{app_name}}'s outreach is probably losing replies to one fixable bug",
+    body: `Most outreach and upsell emails from small SaaS tools lose replies for the same reason: the ask comes last, buried after context nobody asked for. I run Strategic Flow — a structural diagnostic for SaaS emails, built on 59 real teardowns. The pattern repeats: feature-first language instead of outcome-first, CTA framed as an invitation instead of something the reader can act on immediately. {{app_name}} is listed on ToolIndex, which I also run. Free diagnostic, no signup — run it on your own outreach or upsell email and see exactly where it's losing people. Run my audit → https://strategic-flow-audit.replit.app/ Alex Iliescu, Strategic Flow / ToolIndex`
+  },
+  initial_draft: {
+    subject: "{{app_name}}'s ToolIndex listing + a pattern worth checking",
+    body: `{{app_name}} has a draft listing on ToolIndex, which I run — happy to help finish it if useful, just reply. Separately: most outreach and upsell emails from tools like {{app_name}} lose replies for the same reason — feature-first language, CTA that reads like an invitation instead of an action. Free diagnostic, no signup — run it on your outreach or upsell email and see where it's losing people. Run my audit → https://strategic-flow-audit.replit.app/ Alex Iliescu, Strategic Flow / ToolIndex`
+  },
+  followup: {
+    subject: "Still worth 2 minutes — {{app_name}}'s outreach check",
+    body: `Following up in case the link got buried. If {{app_name}} sends any outreach or upgrade nudges to users, this takes less time than reading this email: Run my audit → https://strategic-flow-audit.replit.app/ Last note from me on this either way. Alex Iliescu, Strategic Flow / ToolIndex`
+  }
+};
+
+function toolindexFoundersTemplateKind(kind, status) {
+  if (kind === 'initial') return status === 'draft' ? 'initial_draft' : 'initial_public';
+  return 'followup';
+}
+
+function renderToolindexFoundersMessage(template, appName, email) {
+  const subject = String(template.subject_template || '')
+    .replace(/\{\{app_name\}\}/g, String(appName || 'your product').trim());
+  const body = String(template.body_template || '')
+    .replace(/\{\{app_name\}\}/g, String(appName || 'your product').trim());
+  const text = `${body}${buildUnsubFooterText(email)}`;
+  const htmlBody = escapeHtml(body)
+    .replace(
+      /https:\/\/strategic-flow-audit\.replit\.app\//g,
+      '<a href="https://strategic-flow-audit.replit.app/" style="color:#0f766e;text-decoration:underline;">https://strategic-flow-audit.replit.app/</a>'
+    )
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  const html = `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.65;font-size:15px;"><p>${htmlBody}</p>${buildUnsubFooterHtml(email)}</div>`;
+  return { subject, text, html };
+}
+
+function isRetryableToolindexFoundersSend(resultOrError) {
+  const status = Number(
+    resultOrError?.statusCode ||
+    resultOrError?.status ||
+    resultOrError?.error?.statusCode ||
+    resultOrError?.error?.status ||
+    0
+  );
+  const message = String(
+    resultOrError?.message ||
+    resultOrError?.error?.message ||
+    resultOrError?.error ||
+    ''
+  ).toLowerCase();
+  return status === 429 ||
+    /429|rate.?limit|too many|temporar|timeout|timed out|econnreset|service unavailable/.test(message);
+}
+
+async function sendToolindexFoundersWithRetry(params, { campaignId, contactId, kind } = {}) {
+  const maxAttempts = 3;
+  let lastResult = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await resend.emails.send(params);
+      lastResult = result;
+      if (!isRetryableToolindexFoundersSend(result) || attempt === maxAttempts) return result;
+      await recordAgencyOutreachAttempt({
+        campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+        id: contactId,
+        email: params.to,
+        subject: params.subject,
+        kind,
+        status: 'rate_limited_retry',
+        error: `retry_${attempt}`,
+        providerId: result?.data?.id || result?.id || null,
+        httpStatus: result?.statusCode || result?.error?.statusCode || 429
+      }).catch(() => {});
+    } catch (error) {
+      lastResult = { error };
+      if (!isRetryableToolindexFoundersSend(error) || attempt === maxAttempts) throw error;
+      await recordAgencyOutreachAttempt({
+        campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+        id: contactId,
+        email: params.to,
+        subject: params.subject,
+        kind,
+        status: 'rate_limited_retry',
+        error: String(error.message || error).slice(0, 500),
+        httpStatus: 429
+      }).catch(() => {});
+    }
+    await new Promise(resolve => setTimeout(resolve, 750 * attempt));
+  }
+  return lastResult;
+}
+
+async function getToolindexFoundersTemplates() {
+  const { rows } = await pool.query(
+    `SELECT template_kind, subject_template, body_template
+     FROM toolindex_outreach_campaign_templates
+     WHERE campaign_key=$1`,
+    [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]
+  );
+  return new Map(rows.map(row => [row.template_kind, row]));
+}
+
+async function markToolindexFoundersContactError(contactId, message) {
+  await pool.query(
+    `UPDATE toolindex_outreach_campaign_contacts
+     SET last_error=$2, updated_at=NOW()
+     WHERE id=$1`,
+    [contactId, String(message || '').slice(0, 500)]
+  ).catch(() => {});
+}
+
+async function processToolindexFoundersContact(contact, template, kind) {
+  const message = renderToolindexFoundersMessage(template, contact.app_name, contact.email);
+  try {
+    const providerResult = await sendToolindexFoundersWithRetry(
+      {
+        from: SENDER,
+        to: contact.email,
+        replyTo: 'strategicflow@proton.me',
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+      },
+      { campaignId: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, contactId: contact.id, kind }
+    );
+    if (providerResult?.error) {
+      const error = providerResult.error.message || String(providerResult.error);
+      await recordAgencyOutreachAttempt({
+        campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+        id: contact.id,
+        email: contact.email,
+        subject: message.subject,
+        kind,
+        status: 'failed',
+        error,
+        providerId: providerResult?.data?.id || providerResult?.id || null,
+        httpStatus: providerResult?.error?.statusCode || providerResult?.statusCode || null
+      }).catch(() => {});
+      await markToolindexFoundersContactError(contact.id, error);
+      return { ok: false, error };
+    }
+    if (providerResult?.cooldownBlocked || providerResult?.unsubscribed) {
+      const reason = providerResult.cooldownBlocked ? 'cooldown_blocked' : 'unsubscribed';
+      await recordAgencyOutreachAttempt({
+        campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+        id: contact.id,
+        email: contact.email,
+        subject: message.subject,
+        kind,
+        status: reason,
+        error: reason,
+        providerId: providerResult?.data?.id || providerResult?.id || null
+      }).catch(() => {});
+      await markToolindexFoundersContactError(contact.id, reason);
+      return { ok: false, skipped: reason };
+    }
+
+    const sentColumn = kind === 'initial' ? 'initial_sent' : 'followup_sent';
+    const sentAtColumn = kind === 'initial' ? 'initial_sent_at' : 'followup_sent_at';
+    await pool.query(
+      `UPDATE toolindex_outreach_campaign_contacts
+       SET ${sentColumn}=TRUE, ${sentAtColumn}=NOW(), last_error=NULL, updated_at=NOW()
+       WHERE id=$1`,
+      [contact.id]
+    );
+    await recordAgencyOutreachAttempt({
+      campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+      id: contact.id,
+      email: contact.email,
+      subject: message.subject,
+      kind,
+      status: 'sent',
+      providerId: providerResult?.data?.id || providerResult?.id || null
+    }).catch(() => {});
+    return { ok: true };
+  } catch (error) {
+    await recordAgencyOutreachAttempt({
+      campaign: TOOLINDEX_FOUNDERS_CAMPAIGN_KEY,
+      id: contact.id,
+      email: contact.email,
+      subject: message.subject,
+      kind,
+      status: 'failed',
+      error: String(error.message || error).slice(0, 500)
+    }).catch(() => {});
+    await markToolindexFoundersContactError(contact.id, error.message || error);
+    return { ok: false, error: String(error.message || error) };
+  }
+}
+
+async function runToolindexFoundersCampaign(source = 'cron') {
+  if (!TOOLINDEX_FOUNDERS_SEND_ENABLED) {
+    return { skipped: true, reason: 'environment_send_gate_disabled' };
+  }
+  const campaignResult = await pool.query(
+    `SELECT campaign_key, sending_enabled
+     FROM toolindex_outreach_campaigns
+     WHERE campaign_key=$1`,
+    [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]
+  );
+  if (!campaignResult.rows[0]?.sending_enabled) {
+    return { skipped: true, reason: 'campaign_send_gate_disabled' };
+  }
+
+  const lockClient = await pool.connect();
+  try {
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: true, reason: 'already_running' };
+
+    const templates = await getToolindexFoundersTemplates();
+    const initialTemplate = templates.get('initial_public');
+    const draftTemplate = templates.get('initial_draft');
+    const followupTemplate = templates.get('followup');
+    if (!initialTemplate || !draftTemplate || !followupTemplate) {
+      throw new Error('toolindex_founders_templates_missing');
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, app_name, email, status, initial_sent, followup_sent
+       FROM toolindex_outreach_campaign_contacts
+       WHERE campaign_key=$1
+         AND initial_sent=FALSE
+         AND NOT EXISTS (
+           SELECT 1 FROM email_unsubscribes u
+           WHERE lower(trim(u.email))=lower(trim(toolindex_outreach_campaign_contacts.email))
+         )
+       ORDER BY id ASC
+       LIMIT $2`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, TOOLINDEX_FOUNDERS_BATCH_CAP]
+    );
+    let initialSent = 0;
+    let followupsSent = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const contact of rows) {
+      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
+      if (blocked.blocked || await isUnsubscribed(contact.email)) {
+        await markToolindexFoundersContactError(contact.id, blocked.reason || 'unsubscribed');
+        skipped++;
+        continue;
+      }
+      const halted = await isSequenceHalted(contact.email, TOOLINDEX_FOUNDERS_CAMPAIGN_KEY);
+      if (halted.halted) {
+        await markToolindexFoundersContactError(contact.id, `engagement halted: ${halted.reason}`);
+        skipped++;
+        continue;
+      }
+      const result = await processToolindexFoundersContact(
+        contact,
+        contact.status === 'draft' ? draftTemplate : initialTemplate,
+        'initial'
+      );
+      if (result.ok) initialSent++;
+      else if (result.skipped) skipped++;
+      else errors++;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    const followupRows = await pool.query(
+      `SELECT id, app_name, email, status, initial_sent, followup_sent
+       FROM toolindex_outreach_campaign_contacts
+       WHERE campaign_key=$1
+         AND initial_sent=TRUE
+         AND followup_sent=FALSE
+         AND followup_due_at IS NOT NULL
+         AND followup_due_at <= NOW()
+         AND NOT EXISTS (
+           SELECT 1 FROM email_unsubscribes u
+           WHERE lower(trim(u.email))=lower(trim(toolindex_outreach_campaign_contacts.email))
+         )
+       ORDER BY followup_due_at ASC, id ASC
+       LIMIT $2`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, TOOLINDEX_FOUNDERS_BATCH_CAP]
+    );
+    for (const contact of followupRows.rows) {
+      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
+      if (blocked.blocked || await isUnsubscribed(contact.email)) {
+        await markToolindexFoundersContactError(contact.id, blocked.reason || 'unsubscribed');
+        skipped++;
+        continue;
+      }
+      const halted = await isSequenceHalted(contact.email, TOOLINDEX_FOUNDERS_CAMPAIGN_KEY);
+      if (halted.halted) {
+        await markToolindexFoundersContactError(contact.id, `engagement halted: ${halted.reason}`);
+        skipped++;
+        continue;
+      }
+      const result = await processToolindexFoundersContact(contact, followupTemplate, 'followup');
+      if (result.ok) followupsSent++;
+      else if (result.skipped) skipped++;
+      else errors++;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    console.log(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${source}: ${initialSent} initial, ${followupsSent} follow-up, ${skipped} skipped, ${errors} errors`);
+    return {
+      ok: true,
+      source,
+      initial_sent: initialSent,
+      followups_sent: followupsSent,
+      skipped,
+      errors,
+      queued_initial: rows.length,
+      queued_followups: followupRows.rows.length
+    };
+  } finally {
+    await lockClient.query(
+      `SELECT pg_advisory_unlock(hashtext($1))`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]
+    ).catch(() => {});
+    lockClient.release();
+  }
+}
+
 function newsletterConfirmTokenHash(token) {
   return crypto.createHash('sha256').update(String(token || '')).digest('hex');
 }
@@ -17260,6 +17589,102 @@ async function setupDB() {
     CREATE INDEX IF NOT EXISTS idx_aosl_contact_time
     ON agency_outreach_send_log(lower(email), attempted_at DESC)
   `).catch(() => {});
+
+  // ── ToolIndex-founders campaign — isolated prepared cohort and templates ──
+  // sending_enabled remains FALSE until the owner explicitly approves launch.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_outreach_campaigns (
+      campaign_key        TEXT PRIMARY KEY,
+      display_name        TEXT NOT NULL,
+      sending_enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+      followup_delay_days INTEGER NOT NULL DEFAULT 4,
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `).catch(e => console.error('[DB] toolindex_outreach_campaigns:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_outreach_campaign_templates (
+      id               BIGSERIAL PRIMARY KEY,
+      campaign_key     TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
+      template_kind    TEXT NOT NULL CHECK (template_kind IN ('initial_public','initial_draft','followup')),
+      subject_template TEXT NOT NULL,
+      body_template    TEXT NOT NULL,
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (campaign_key, template_kind)
+    )
+  `).catch(e => console.error('[DB] toolindex_outreach_campaign_templates:', e.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_outreach_campaign_contacts (
+      id              BIGSERIAL PRIMARY KEY,
+      campaign_key    TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
+      source_listing_id BIGINT,
+      app_name        TEXT NOT NULL,
+      email           TEXT NOT NULL,
+      status          TEXT NOT NULL CHECK (status IN ('public','draft')),
+      initial_sent    BOOLEAN NOT NULL DEFAULT FALSE,
+      initial_sent_at TIMESTAMPTZ,
+      followup_sent   BOOLEAN NOT NULL DEFAULT FALSE,
+      followup_sent_at TIMESTAMPTZ,
+      followup_due_at TIMESTAMPTZ,
+      last_error      TEXT,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (campaign_key, email)
+    )
+  `).catch(e => console.error('[DB] toolindex_outreach_campaign_contacts:', e.message));
+  await pool.query(`
+    CREATE OR REPLACE FUNCTION set_toolindex_founders_followup_due()
+    RETURNS TRIGGER
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.followup_due_at :=
+        CASE
+          WHEN NEW.initial_sent_at IS NULL THEN NULL
+          ELSE NEW.initial_sent_at + INTERVAL '4 days'
+        END;
+      RETURN NEW;
+    END;
+    $$;
+  `).catch(e => console.error('[DB] toolindex-founders follow-up function:', e.message));
+  await pool.query(`
+    DROP TRIGGER IF EXISTS trg_toolindex_founders_followup_due
+    ON toolindex_outreach_campaign_contacts
+  `).catch(() => {});
+  await pool.query(`
+    CREATE TRIGGER trg_toolindex_founders_followup_due
+    BEFORE INSERT OR UPDATE OF initial_sent_at
+    ON toolindex_outreach_campaign_contacts
+    FOR EACH ROW
+    EXECUTE FUNCTION set_toolindex_founders_followup_due()
+  `).catch(e => console.error('[DB] toolindex-founders follow-up trigger:', e.message));
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toolindex_founders_due
+    ON toolindex_outreach_campaign_contacts(campaign_key, followup_due_at)
+    WHERE initial_sent=TRUE AND followup_sent=FALSE
+  `).catch(() => {});
+  await pool.query(`
+    INSERT INTO toolindex_outreach_campaigns
+      (campaign_key, display_name, sending_enabled, followup_delay_days)
+    VALUES ($1, 'ToolIndex founders', FALSE, 4)
+    ON CONFLICT (campaign_key) DO UPDATE
+      SET display_name=EXCLUDED.display_name,
+          followup_delay_days=EXCLUDED.followup_delay_days,
+          updated_at=NOW()
+  `, [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY]).catch(e => console.error('[DB] toolindex-founders campaign:', e.message));
+  for (const [templateKind, template] of Object.entries(TOOLINDEX_FOUNDERS_TEMPLATES)) {
+    await pool.query(
+      `INSERT INTO toolindex_outreach_campaign_templates
+         (campaign_key, template_kind, subject_template, body_template)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (campaign_key, template_kind) DO UPDATE
+         SET subject_template=EXCLUDED.subject_template,
+             body_template=EXCLUDED.body_template,
+             updated_at=NOW()`,
+      [TOOLINDEX_FOUNDERS_CAMPAIGN_KEY, templateKind, template.subject, template.body]
+    ).catch(e => console.error(`[DB] toolindex-founders template ${templateKind}:`, e.message));
+  }
 
   // ── Auto-generated blog posts — persistent store across restarts ─────────
   await pool.query(`
@@ -30529,6 +30954,21 @@ full HTML body here
     });
   }, 15_000);
 
+
+  // ── ToolIndex-founders campaign: disabled until explicit approval ─────────
+  // The runner handles initial sends and generated +4-day follow-ups, but both
+  // the environment flag and the campaign row must be enabled before Resend is
+  // ever called. A 15-minute watchdog catches restarts and missed cron ticks.
+  cron.schedule('*/15 * * * *', () => {
+    runToolindexFoundersCampaign('cron').catch(error => {
+      console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] cron error:`, error.message);
+    });
+  }, { timezone: 'UTC' });
+  setTimeout(() => {
+    runToolindexFoundersCampaign('startup-recovery').catch(error => {
+      console.error(`[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] startup recovery error:`, error.message);
+    });
+  }, 15_000);
 
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
   // Sends exactly ONE follow-up per listing, 4+ days after outreach_emailed_at,
