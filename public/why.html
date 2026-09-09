@@ -1997,21 +1997,49 @@ Or paste a cold email, landing page, proposal — anything with a reader who nee
   })();
   </script>
   <script>
-  /* Touch pause — tap non-link area to freeze ticker; auto-resumes after 4s */
+  /* Touch pause — pause on first tap; links navigate on the second tap */
   (function(){
-    document.querySelectorAll('.why-ticker-wrap').forEach(function(wrap){
+    var wraps=document.querySelectorAll('.why-ticker-wrap');
+    if(!wraps.length)return;
+    function getLink(target){
+      if(target&&target.nodeType!==1)target=target.parentElement;
+      return target&&target.closest?target.closest('a[href]'):null;
+    }
+    function setPaused(wrap, paused){
+      wrap.querySelectorAll('.why-ticker-track,.why-ticker-track-rtl').forEach(function(track){
+        track.style.animationPlayState=paused?'paused':'running';
+      });
+      wrap._whyTouchPaused=paused;
+      if(!paused)wrap._whyTouchPendingLink=null;
+    }
+    wraps.forEach(function(wrap){
       var tracks=wrap.querySelectorAll('.why-ticker-track,.why-ticker-track-rtl');
       if(!tracks.length)return;
-      var tmr;
+      wrap._whyTouchPaused=false;
+      wrap._whyTouchPendingLink=null;
       wrap.addEventListener('touchstart',function(e){
-        if(e.target.closest('a[href]'))return;
-        var paused=false;
-        tracks.forEach(function(t){if(t.style.animationPlayState==='paused')paused=true;});
-        tracks.forEach(function(t){t.style.animationPlayState=paused?'running':'paused';});
-        clearTimeout(tmr);
-        if(!paused)tmr=setTimeout(function(){tracks.forEach(function(t){t.style.animationPlayState='running';});},4000);
-      },{passive:true});
+        var link=getLink(e.target);
+        if(link){
+          if(wrap._whyTouchPendingLink===link&&wrap._whyTouchPaused){
+            setPaused(wrap,false);
+            return;
+          }
+          if(!wrap._whyTouchPaused)setPaused(wrap,true);
+          wrap._whyTouchPendingLink=link;
+          e.preventDefault();
+          return;
+        }
+        var paused=wrap._whyTouchPaused;
+        wrap._whyTouchPendingLink=null;
+        setPaused(wrap,!paused);
+      },{passive:false});
     });
+    document.addEventListener('touchstart',function(e){
+      var inside=e.target&&e.target.closest?e.target.closest('.why-ticker-wrap'):null;
+      wraps.forEach(function(wrap){
+        if(wrap!==inside&&wrap._whyTouchPaused)setPaused(wrap,false);
+      });
+    },{passive:true});
   })();
   </script>
   <a href="mailto:alex@strategicflow.tech" style="color:#FF4422;font-family:'Space Mono',monospace;font-size:12px;text-decoration:none;">alex@strategicflow.tech</a><br>

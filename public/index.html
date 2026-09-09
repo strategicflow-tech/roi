@@ -1701,19 +1701,47 @@ textarea{resize:vertical;line-height:1.7;}
     </div>
   </div>
   <script>
-  /* Touch pause — tap non-link area to freeze ticker; auto-resumes after 4s */
+  /* Touch pause — pause on first tap; links navigate on the second tap */
   (function(){
-    document.querySelectorAll('.sf-ticker-wrap').forEach(function(wrap){
+    var wraps=document.querySelectorAll('.sf-ticker-wrap');
+    if(!wraps.length)return;
+    function getLink(target){
+      if(target&&target.nodeType!==1)target=target.parentElement;
+      return target&&target.closest?target.closest('a[href]'):null;
+    }
+    function setPaused(wrap, paused){
+      var track=wrap.querySelector('.sf-ticker-track');
+      if(track)track.style.animationPlayState=paused?'paused':'running';
+      wrap._sfTouchPaused=paused;
+      if(!paused)wrap._sfTouchPendingLink=null;
+    }
+    wraps.forEach(function(wrap){
       var track=wrap.querySelector('.sf-ticker-track');if(!track)return;
-      var tmr;
+      wrap._sfTouchPaused=false;
+      wrap._sfTouchPendingLink=null;
       wrap.addEventListener('touchstart',function(e){
-        if(e.target.closest('a[href]'))return;
-        var running=track.style.animationPlayState!=='paused';
-        track.style.animationPlayState=running?'paused':'running';
-        clearTimeout(tmr);
-        if(running)tmr=setTimeout(function(){track.style.animationPlayState='running';},4000);
-      },{passive:true});
+        var link=getLink(e.target);
+        if(link){
+          if(wrap._sfTouchPendingLink===link&&wrap._sfTouchPaused){
+            setPaused(wrap,false);
+            return;
+          }
+          if(!wrap._sfTouchPaused)setPaused(wrap,true);
+          wrap._sfTouchPendingLink=link;
+          e.preventDefault();
+          return;
+        }
+        var paused=wrap._sfTouchPaused;
+        wrap._sfTouchPendingLink=null;
+        setPaused(wrap,!paused);
+      },{passive:false});
     });
+    document.addEventListener('touchstart',function(e){
+      var inside=e.target&&e.target.closest?e.target.closest('.sf-ticker-wrap'):null;
+      wraps.forEach(function(wrap){
+        if(wrap!==inside&&wrap._sfTouchPaused)setPaused(wrap,false);
+      });
+    },{passive:true});
   })();
   </script>
 </div>
