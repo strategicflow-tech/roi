@@ -368,6 +368,78 @@ function buildDecisionFrictionMcpEmail({ name, context }) {
   return { text, html };
 }
 
+// ── Canonical outbound email presentation ────────────────────────────────────
+// Every HTML send passes through this formatter. Individual campaigns can still
+// provide their own cards, tables, and buttons, but no future email should fall
+// back to an unstructured wall of text.
+function emailSubjectHeading(subject) {
+  const heading = String(subject || 'A note from Strategic Flow')
+    .replace(/\{\{[^}]+\}\}/g, '')
+    .replace(/^new on toolindex:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return heading.length > 92 ? `${heading.slice(0, 89).replace(/\s+\S*$/, '')}…` : heading;
+}
+
+function emailTextToHtml(text) {
+  return String(text || '')
+    .split(/\n{2,}/)
+    .map(paragraph => {
+      const content = escHtml(paragraph)
+        .replace(
+          /(https?:\/\/[^\s<]+)/g,
+          '<a href="$1" style="color:#0f766e;text-decoration:underline;">$1</a>'
+        )
+        .replace(/\n/g, '<br>');
+      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;">${content}</p>`;
+    })
+    .join('');
+}
+
+function readableEmailBodyFragment(html, text) {
+  if (html) {
+    const bodyMatch = String(html).match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) return bodyMatch[1];
+    return String(html)
+      .replace(/<!doctype[^>]*>/gi, '')
+      .replace(/<\/?(?:html|head)[^>]*>/gi, '')
+      .replace(/<meta[^>]*>/gi, '')
+      .replace(/<title>[\s\S]*?<\/title>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '');
+  }
+  return emailTextToHtml(text);
+}
+
+function formatOutboundEmail(params, { to, subject, isTransactional }) {
+  if (params._skipReadableEmailFormat || params.html?.includes('data-readable-email="v2"')) {
+    return params;
+  }
+
+  const fragment = readableEmailBodyFragment(params.html, params.text);
+  const hasHeading = /<(?:h1|h2|h3)\b/i.test(fragment);
+  const heading = hasHeading
+    ? ''
+    : `<h1 style="margin:0 0 22px;font-family:Arial,sans-serif;font-size:25px;line-height:1.2;letter-spacing:-.02em;color:#0f172a;">${escHtml(emailSubjectHeading(subject))}</h1>`;
+  const normalizedTo = String(to || '').toLowerCase().trim();
+  const hasUnsubscribe = /unsubscribe|manage email preferences/i.test(fragment);
+  const marketingFooter = !isTransactional && normalizedTo && !hasUnsubscribe
+    ? buildUnsubFooterHtml(normalizedTo)
+    : '';
+
+  const html = `<div data-readable-email="v2" style="margin:0;padding:24px 12px;background:#f1f5f9;font-family:Arial,sans-serif;color:#334155;">
+  <div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(15,23,42,.08);">
+    <div style="padding:18px 28px;background:#0a1628;color:#00d4c8;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;">Strategic Flow · ToolIndex</div>
+    <div style="padding:30px 28px 24px;">
+      ${heading}
+      ${fragment}
+      ${marketingFooter}
+    </div>
+  </div>
+</div>`;
+
+  return { ...params, html };
+}
+
 // ── Global 24-hour email cooldown — monkey-patch resend.emails.send ──────────
 // Prevents any two emails going to the same address within 24 hours,
 // regardless of which sequence or cron triggered the send.
@@ -404,7 +476,12 @@ function buildDecisionFrictionMcpEmail({ name, context }) {
       }
     }
 
-    const result = await _origSend(providerParams);
+    const formattedParams = formatOutboundEmail(providerParams, {
+      to,
+      subject: subj,
+      isTransactional,
+    });
+    const result = await _origSend(formattedParams);
 
     if (!_skipGlobalEmailLog && !isAdminAddr && !result?.error && !result?.cooldownBlocked) {
       recordEmailSent(to, subj).catch(() => {});   // fire-and-forget
@@ -5634,16 +5711,58 @@ function isToolindexPhManualContactEligible(email) {
 }
 const TOOLINDEX_FOUNDERS_TEMPLATES = {
   initial_public: {
-    subject: "{{app_name}}'s outreach is probably losing replies to one fixable bug",
-    body: `Most outreach and upsell emails from small SaaS tools lose replies for the same reason: the ask comes last, buried after context nobody asked for. I run Strategic Flow — a structural diagnostic for SaaS emails, built on 59 real teardowns. The pattern repeats: feature-first language instead of outcome-first, CTA framed as an invitation instead of something the reader can act on immediately. {{app_name}} is listed on ToolIndex, which I also run. Free diagnostic, no signup — run it on your own outreach or upsell email and see exactly where it's losing people. Run my audit → https://strategic-flow-audit.replit.app/ Alex Iliescu, Strategic Flow / ToolIndex`
+    subject: "{{app_name}} may be losing replies because the ask arrives too late",
+    body: `Hi {{app_name}} team,
+
+Most outreach and upsell emails from small SaaS tools lose replies for one structural reason: the ask arrives last, after context the reader never asked for.
+
+I run Strategic Flow, a structural diagnostic for SaaS emails built on 59 real teardowns. The same two patterns appear again and again:
+
+• Feature-first language instead of a clear outcome.
+• A CTA framed as an invitation instead of an action the reader can take now.
+
+{{app_name}} is listed on ToolIndex, which I also run. The diagnostic is free, requires no signup, and shows exactly where an email loses people.
+
+Run the audit:
+https://strategic-flow-audit.replit.app/
+
+Best,
+Alex Iliescu
+Strategic Flow / ToolIndex`
   },
   initial_draft: {
-    subject: "{{app_name}}'s ToolIndex listing + a pattern worth checking",
-    body: `{{app_name}} has a draft listing on ToolIndex, which I run — happy to help finish it if useful, just reply. Separately: most outreach and upsell emails from tools like {{app_name}} lose replies for the same reason — feature-first language, CTA that reads like an invitation instead of an action. Free diagnostic, no signup — run it on your outreach or upsell email and see where it's losing people. Run my audit → https://strategic-flow-audit.replit.app/ Alex Iliescu, Strategic Flow / ToolIndex`
+    subject: "{{app_name}} has a ToolIndex listing to finish — plus one outreach pattern worth checking",
+    body: `Hi {{app_name}} team,
+
+{{app_name}} has a draft listing on ToolIndex, which I run. If useful, I can help finish it; just reply to this email.
+
+There is also one pattern worth checking in your outreach and upgrade emails: feature-first language often arrives before the reader knows what outcome they will get.
+
+The free Strategic Flow diagnostic checks the structure, subject, CTA, and message hierarchy. No signup is required.
+
+Run the audit:
+https://strategic-flow-audit.replit.app/
+
+Best,
+Alex Iliescu
+Strategic Flow / ToolIndex`
   },
   followup: {
-    subject: "Still worth 2 minutes — {{app_name}}'s outreach check",
-    body: `Following up in case the link got buried. If {{app_name}} sends any outreach or upgrade nudges to users, this takes less time than reading this email: Run my audit → https://strategic-flow-audit.replit.app/ Last note from me on this either way. Alex Iliescu, Strategic Flow / ToolIndex`
+    subject: "A quick 2-minute check for {{app_name}}'s outreach",
+    body: `Hi {{app_name}} team,
+
+Following up in case the link got buried.
+
+If {{app_name}} sends outreach or upgrade nudges, this diagnostic takes less time than reading this email. It shows whether the subject, opening, and CTA make the next action obvious.
+
+Run the audit:
+https://strategic-flow-audit.replit.app/
+
+This is my last note on it either way.
+
+Best,
+Alex Iliescu
+Strategic Flow / ToolIndex`
   }
 };
 
@@ -5658,14 +5777,22 @@ function renderToolindexFoundersMessage(template, appName, email) {
   const body = String(template.body_template || '')
     .replace(/\{\{app_name\}\}/g, String(appName || 'your product').trim());
   const text = `${body}${buildUnsubFooterText(email)}`;
-  const htmlBody = escapeHtml(body)
-    .replace(
-      /https:\/\/strategic-flow-audit\.replit\.app\//g,
-      '<a href="https://strategic-flow-audit.replit.app/" style="color:#0f766e;text-decoration:underline;">https://strategic-flow-audit.replit.app/</a>'
-    )
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>');
-  const html = `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.65;font-size:15px;"><p>${htmlBody}</p>${buildUnsubFooterHtml(email)}</div>`;
+  const htmlBody = body
+    .split(/\n{2,}/)
+    .map(paragraph => {
+      const escaped = escapeHtml(paragraph)
+        .replace(
+          /https:\/\/strategic-flow-audit\.replit\.app\//g,
+          '<a href="https://strategic-flow-audit.replit.app/" style="color:#0f766e;text-decoration:underline;">Run the Strategic Flow audit →</a>'
+        )
+        .replace(/\n/g, '<br>');
+      if (/^https:\/\/strategic-flow-audit\.replit\.app\/$/i.test(paragraph.trim())) {
+        return `<p style="margin:0 0 18px;"><a href="https://strategic-flow-audit.replit.app/" style="display:inline-block;background:#00a99d;color:#ffffff;font-size:14px;font-weight:700;padding:13px 20px;border-radius:8px;text-decoration:none;">Run the free audit →</a></p>`;
+      }
+      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;">${escaped}</p>`;
+    })
+    .join('');
+  const html = `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.7;font-size:15px;">${htmlBody}${buildUnsubFooterHtml(email)}</div>`;
   return { subject, text, html };
 }
 
