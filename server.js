@@ -36,6 +36,14 @@ const {
   claimedListingVoteHash,
 } = require('./claimed-listing-votes');
 const {
+  TRENDING_VOTE_NAMESPACE,
+  TRENDING_VOTE_INTERVAL_MS,
+  TRENDING_VOTE_MAX,
+  TRENDING_VOTE_TARGETS,
+  trendingVotesDue,
+  trendingVoteHash,
+} = require('./trending-vote-seeding');
+const {
   MAX_SYNTHETIC_SEED_VOTES,
   syntheticSeedVotePredicate,
   remainingSyntheticSeedVotes,
@@ -9645,6 +9653,8 @@ async function computeWinnerForRange(start, end) {
 
 // ── Directory: compute trending listings ──────────────────────────────────────
 // Eligible: ≥3 votes in last 24h AND more than previous 24h. Cached 5 min.
+// The dedicated trending seed namespace is intentionally included here so the
+// scheduled 24-hour round can make low-activity listings visible.
 let _trendingCache = { data: null, at: 0 };
 const TRENDING_TTL = 5 * 60 * 1000;
 
@@ -9661,11 +9671,11 @@ async function computeTrending() {
       FROM dir_votes
       WHERE voted_at >= NOW() - INTERVAL '48 hours'
         AND voted_at <= NOW()
-        AND ${ORGANIC_VOTE_FILTER('dir_votes')}
+        AND ${TRENDING_VOTE_FILTER('dir_votes')}
       GROUP BY listing_id
       HAVING COUNT(*) FILTER (WHERE voted_at >= NOW() - INTERVAL '24 hours'
                                  AND voted_at <= NOW()
-                                 AND ${ORGANIC_VOTE_FILTER('dir_votes')}) >= 3
+                                 AND ${TRENDING_VOTE_FILTER('dir_votes')}) >= 3
     `);
     const data = r.rows
       .filter(row => row.cur > row.prev)
@@ -10595,6 +10605,187 @@ async function insertSyntheticVotesCapped(listingId, voteRows, { enforceCap = tr
   }
 }
 
+// ── Trending 24-hour seed rounds ─────────────────────────────────────────────
+// A new UTC round gives low-activity listings distinct vote targets. Each target
+// is unlocked over 24 hours, so the Trending surface changes gradually rather
+// than receiving one identical burst. The round table makes restarts and
+// repeated cron executions idempotent.
+let _trendingVoteSeedingRunning = false;
+
+async function runTrendingVoteSeeding(source = 'cron') {
+  if (_trendingVoteSeedingRunning) return { skipped: 'already_running' };
+  _trendingVoteSeedingRunning = true;
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtext($1))`,
+      ['toolindex:trending-vote-seeding']
+    );
+
+    const roundDate = new Date().toISOString().slice(0, 10);
+    const roundDateTag = roundDate.replace(/-/g, '');
+    const roundStartMs = Date.parse(`${roundDate}T00:00:00.000Z`);
+    const protectedIds = Array.from(SEED_VOTE_DISABLED_IDS);
+
+    let roundResult = await client.query(
+      `SELECT round_date, listing_id, position, seed_target
+       FROM dir_trending_seed_rounds
+       WHERE round_date=$1
+       ORDER BY position ASC`,
+      [roundDate]
+    );
+
+    if (!roundResult.rows.length) {
+      const candidates = await client.query(
+        `SELECT dl.id
+         FROM directory_listings dl
+         WHERE dl.status='active'
+           AND dl.id <> ALL($1::int[])
+           AND COALESCE(dl.vote_count, 0) < $2
+           AND COALESCE((
+             SELECT COUNT(*)::int
+             FROM dir_votes dv
+             WHERE dv.listing_id=dl.id
+               AND (${syntheticSeedVotePredicate('dv')})
+           ), 0) < $3
+         ORDER BY hashtext(dl.id::text || $4::text), dl.id
+         LIMIT $5`,
+        [
+          protectedIds,
+          TRENDING_VOTE_MAX,
+          MAX_SYNTHETIC_SEED_VOTES,
+          roundDate,
+          TRENDING_VOTE_TARGETS.length,
+        ]
+      );
+
+      for (let index = 0; index < candidates.rows.length; index++) {
+        await client.query(
+          `INSERT INTO dir_trending_seed_rounds
+             (round_date, listing_id, position, seed_target)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT DO NOTHING`,
+          [
+            roundDate,
+            candidates.rows[index].id,
+            index + 1,
+            TRENDING_VOTE_TARGETS[index],
+          ]
+        );
+      }
+
+      roundResult = await client.query(
+        `SELECT round_date, listing_id, position, seed_target
+         FROM dir_trending_seed_rounds
+         WHERE round_date=$1
+         ORDER BY position ASC`,
+        [roundDate]
+      );
+    }
+
+    const nowMs = Date.now();
+    let checked = 0;
+    let added = 0;
+
+    for (const round of roundResult.rows) {
+      checked++;
+      const target = Number(round.seed_target);
+      const dueCount = trendingVotesDue(target, nowMs - roundStartMs);
+      if (dueCount <= 0) continue;
+
+      const listingResult = await client.query(
+        `SELECT id, name, status
+         FROM directory_listings
+         WHERE id=$1
+         FOR UPDATE`,
+        [round.listing_id]
+      );
+      const listing = listingResult.rows[0];
+      if (!listing || listing.status !== 'active') continue;
+
+      const prefix = `${TRENDING_VOTE_NAMESPACE}_${roundDateTag}_${round.listing_id}_`;
+      const existingResult = await client.query(
+        `SELECT voter_hash
+         FROM dir_votes
+         WHERE listing_id=$1
+           AND voter_hash LIKE $2`,
+        [round.listing_id, `${prefix}%`]
+      );
+      const existingHashes = new Set(existingResult.rows.map(row => row.voter_hash));
+      const missingCount = Math.max(0, dueCount - existingHashes.size);
+      if (missingCount <= 0) continue;
+
+      const seededCountResult = await client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM dir_votes dv
+         WHERE dv.listing_id=$1
+           AND (${syntheticSeedVotePredicate('dv')})`,
+        [round.listing_id]
+      );
+      const allowed = Math.min(
+        missingCount,
+        remainingSyntheticSeedVotes(seededCountResult.rows[0]?.count)
+      );
+      if (allowed <= 0) continue;
+
+      const voteRows = Array.from({ length: allowed }, (_, offset) => {
+        const voteIndex = existingHashes.size + offset;
+        return [
+          round.listing_id,
+          trendingVoteHash(roundDate, round.listing_id, voteIndex),
+          new Date(Math.min(
+            nowMs,
+            roundStartMs + voteIndex * TRENDING_VOTE_INTERVAL_MS
+          )).toISOString(),
+        ];
+      });
+      const placeholders = voteRows
+        .map((_, index) => `($${index * 3 + 1},$${index * 3 + 2},$${index * 3 + 3})`)
+        .join(',');
+      const inserted = await client.query(
+        `INSERT INTO dir_votes (listing_id, voter_hash, voted_at)
+         VALUES ${placeholders}
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        voteRows.flat()
+      );
+
+      if (inserted.rowCount > 0) {
+        await client.query(
+          `UPDATE directory_listings
+           SET vote_count=COALESCE(vote_count, 0)+$1
+           WHERE id=$2`,
+          [inserted.rowCount, round.listing_id]
+        );
+        added += inserted.rowCount;
+        console.log(
+          `[trending-seed] ${listing.name} (#${round.listing_id}) +${inserted.rowCount} ` +
+          `(target ${target}, due ${dueCount}, round ${roundDate})`
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    if (added > 0) _trendingCache = { data: null, at: 0 };
+    if (checked || added) {
+      console.log(
+        `[trending-seed] ${source}: round=${roundDate}, checked=${checked}, added=${added}`
+      );
+    }
+    return { roundDate, checked, added };
+  } catch (error) {
+    await client?.query('ROLLBACK').catch(() => {});
+    console.error('[trending-seed] error:', error.message);
+    return { error: error.message };
+  } finally {
+    client?.release();
+    _trendingVoteSeedingRunning = false;
+  }
+}
+
 // ── Fresh Product Hunt vote seeding ──────────────────────────────────────────
 // Product Hunt imports and other newly active listings use submitted_at as
 // their durable arrival timestamp. Each listing gets one deterministic 4–12
@@ -11164,6 +11355,7 @@ const DAILY_LEADERBOARD_COUNT_FILTER = (alias, prefixParameter = '$2') => `
       AND ${alias}.voter_hash NOT LIKE 'promoted_boost_%'
       AND ${alias}.voter_hash NOT LIKE 'temporary_mcp_seed_%'
       AND ${alias}.voter_hash NOT LIKE 'daily_leaderboard_%'
+       AND ${alias}.voter_hash NOT LIKE 'trending_24h_%'
     )
   )
 `;
@@ -11180,6 +11372,14 @@ const ORGANIC_VOTE_FILTER = alias => `
   AND ${alias}.voter_hash NOT LIKE 'promoted_boost_%'
   AND ${alias}.voter_hash NOT LIKE 'temporary_mcp_seed_%'
   AND ${alias}.voter_hash NOT LIKE 'daily_leaderboard_%'
+  AND ${alias}.voter_hash NOT LIKE 'trending_24h_%'
+`;
+
+const TRENDING_VOTE_FILTER = alias => `
+  (
+    ${alias}.voter_hash LIKE 'trending_24h_%'
+    OR (${ORGANIC_VOTE_FILTER(alias)})
+  )
 `;
 
 async function seedDailyLeaderboard() {
@@ -13876,7 +14076,7 @@ app.get('/api/directory/leaderboard', async (req, res) => {
            LEFT JOIN dir_votes dv ON dv.listing_id = dl.id
              AND dv.voted_at >= NOW() - INTERVAL '24 hours'
              AND dv.voted_at <= NOW() AT TIME ZONE 'UTC'
-              AND ${ORGANIC_VOTE_FILTER('dv')}
+               AND ${TRENDING_VOTE_FILTER('dv')}
            WHERE dl.status='active'
            GROUP BY dl.id
            HAVING COUNT(dv.id) > 0
@@ -18010,6 +18210,22 @@ async function setupDB() {
       UNIQUE(listing_id, voter_hash)
     )
   `).catch(e => console.error('[DB] dir_votes:', e.message));
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dir_trending_seed_rounds (
+      round_date  DATE NOT NULL,
+      listing_id  INTEGER NOT NULL REFERENCES directory_listings(id) ON DELETE CASCADE,
+      position    INTEGER NOT NULL CHECK (position > 0),
+      seed_target INTEGER NOT NULL CHECK (seed_target BETWEEN 6 AND 25),
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (round_date, listing_id),
+      UNIQUE (round_date, position)
+    )
+  `).catch(e => console.error('[DB] dir_trending_seed_rounds:', e.message));
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_dir_trending_seed_rounds_listing
+      ON dir_trending_seed_rounds(listing_id, round_date DESC)
+  `).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dir_featured (
@@ -31530,6 +31746,9 @@ full HTML body here
   runClaimedListingVoteBoost().catch(error => {
     console.error('[claimed-boost] startup boost failed:', error.message);
   });
+  runTrendingVoteSeeding('startup-recovery').catch(error => {
+    console.error('[trending-seed] startup seeding failed:', error.message);
+  });
   runTargetedVoteCampaigns().catch(()=>{});
   scheduleTemporaryMcpVoteCampaign().catch(error => {
     console.error('[temporary-mcp-votes] startup scheduling failed:', error.message);
@@ -31637,6 +31856,14 @@ full HTML body here
   cron.schedule('0 */2 * * *', () => {
     runClaimedListingVoteBoost().catch(error => {
       console.error('[cron-claimed-boost]', error.message);
+    });
+  }, { timezone: 'UTC' });
+  // ── Every 2 hours: advance the current 24-hour Trending seed round ────────
+  // A new UTC round is created when the trend cohort changes; the runner is
+  // repeated here so restarts and missed boundaries catch up safely.
+  cron.schedule('0 */2 * * *', () => {
+    runTrendingVoteSeeding('cron').catch(error => {
+      console.error('[cron-trending-seed]', error.message);
     });
   }, { timezone: 'UTC' });
   // ── Every 15 minutes: catch the hourly due slots for daily launches ────────

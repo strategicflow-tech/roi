@@ -12,6 +12,7 @@ const SYNTHETIC_SEED_VOTE_PREFIXES = Object.freeze([
   'timed_seed_%',
   'daily_growth_%',
   'daily_leaderboard_%',
+  'trending_24h_%',
 ]);
 
 function syntheticSeedVotePredicate(alias = 'dv') {
