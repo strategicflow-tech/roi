@@ -5537,6 +5537,69 @@ const TOOLINDEX_FOUNDERS_SCHEDULES = {
     cron: '0 13 15 9 *',
   },
 };
+// Separate Product Hunt campaign: 100 claim emails per day, with a
+// campaign-specific five-day follow-up. It must not share the one-time
+// ToolIndex founders run or its four-day follow-up policy.
+const TOOLINDEX_PH_CAMPAIGN_KEY = 'toolindex-ph-top10-june-july-2026';
+const TOOLINDEX_PH_CAMPAIGN_SOURCE = 'product-hunt-top10-june-july-2026';
+const TOOLINDEX_PH_BATCH_CAP = 100;
+const TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS = 5;
+const TOOLINDEX_PH_DAILY_CRON = '0 14 * * *';
+const TOOLINDEX_PH_TEMPLATES = {
+  initial_public: {
+    subject: "{{app_name}} is missing a free visibility asset",
+    body: `Hi {{app_name}} team,
+
+The painful part of a Product Hunt launch is usually not the launch day itself. It is what happens after the spike: buyers keep searching, but the product has no durable discovery path and the next click goes to a competitor.
+
+I found {{app_name}} in Product Hunt and created a private ToolIndex draft for it. You have three simple options:
+
+• Claim the draft — correct the description, add the right logo and control how the page represents your product.
+• Keep the free listing — get a permanent dofollow backlink from a DR 86 domain, plus category and leaderboard visibility.
+• Add optional visibility later — featured placement can put the product in front of more founders, but it is not required.
+
+There is no payment or account required to claim the draft or keep the free listing. The important part is not leaving the product invisible after its launch window closes.
+
+Claim the draft: {{listing_url}}
+
+Alex Iliescu
+Strategic Flow / ToolIndex`,
+  },
+  initial_draft: {
+    subject: "{{app_name}} has a private ToolIndex draft waiting",
+    body: `Hi {{app_name}} team,
+
+After a Product Hunt launch, the visibility problem usually starts when the launch spike ends: the product is still useful, but there is no durable page for founders searching by category to discover it.
+
+I found {{app_name}} in Product Hunt and created a private ToolIndex draft. You can:
+
+• Claim it and correct the product facts, description and logo.
+• Keep the free listing with a permanent dofollow backlink from a DR 86 domain.
+• Gain category, upvote and leaderboard visibility, with optional featured placement if you want more exposure later.
+
+Claiming and the free listing cost nothing. The page stays private until you decide how it should represent {{app_name}}.
+
+Review the draft: {{listing_url}}
+
+Alex Iliescu
+Strategic Flow / ToolIndex`,
+  },
+  followup: {
+    subject: "Still worth claiming {{app_name}}'s free visibility",
+    body: `Hi {{app_name}} team,
+
+Following up because the costly part of a launch is often the quiet period after it: people can still be looking for the problem {{app_name}} solves, but the launch page is no longer putting the product in front of them.
+
+The ToolIndex draft is still available. Claim it to control the page, keep the free DR 86 dofollow backlink and appear in the relevant category and leaderboard. Optional featured visibility is available later, but the free listing is enough to start.
+
+Review the draft: {{listing_url}}
+
+This is my last note about it unless you claim or reply.
+
+Alex Iliescu
+Strategic Flow / ToolIndex`,
+  },
+};
 const TOOLINDEX_FOUNDERS_TEMPLATES = {
   initial_public: {
     subject: "{{app_name}}'s outreach is probably losing replies to one fixable bug",
@@ -6063,6 +6126,288 @@ function scheduleToolindexFoundersOneTimeJob(runKind) {
     `[${TOOLINDEX_FOUNDERS_CAMPAIGN_KEY}] ${runKind} one-time cron active for ${schedule.target.toISOString()}`
   );
   return task;
+}
+
+function renderToolindexPhMessage(template, contact) {
+  const appName = String(contact.app_name || 'your product').trim();
+  const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(appName, contact.source_listing_id)}`;
+  const replaceTokens = value => String(value || '')
+    .replace(/\{\{app_name\}\}/g, appName)
+    .replace(/\{\{listing_url\}\}/g, listingUrl);
+  const subject = replaceTokens(template.subject_template);
+  const textBody = replaceTokens(template.body_template);
+  const escapedUrl = escapeHtml(listingUrl);
+  const htmlBody = escapeHtml(textBody)
+    .replace(escapedUrl, `<a href="${escapedUrl}" style="color:#0f766e;text-decoration:underline;">Claim the ToolIndex draft →</a>`)
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  return {
+    subject,
+    text: `${textBody}${buildUnsubFooterText(contact.email)}`,
+    html: `<div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.65;font-size:15px;"><p>${htmlBody}</p>${buildUnsubFooterHtml(contact.email)}</div>`,
+  };
+}
+
+async function sendToolindexPhWithRetry(params) {
+  const maxAttempts = 3;
+  let lastResult = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await resend.emails.send(params);
+      lastResult = result;
+      if (!isRetryableToolindexFoundersSend(result) || attempt === maxAttempts) return result;
+    } catch (error) {
+      lastResult = { error };
+      if (!isRetryableToolindexFoundersSend(error) || attempt === maxAttempts) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 750 * attempt));
+  }
+  return lastResult;
+}
+
+async function recordToolindexPhSkip(contact, kind, reason, template) {
+  await pool.query(
+    `UPDATE toolindex_outreach_campaign_contacts
+     SET last_error=$2, updated_at=NOW()
+     WHERE id=$1`,
+    [contact.id, String(reason || '').slice(0, 500)]
+  ).catch(() => {});
+  await recordAgencyOutreachAttempt({
+    campaign: TOOLINDEX_PH_CAMPAIGN_KEY,
+    id: contact.id,
+    email: contact.email,
+    subject: String(template.subject_template || '').replace(/\{\{app_name\}\}/g, contact.app_name),
+    kind,
+    status: reason === 'bounced' || reason === 'unsubscribed' ? reason : 'skipped',
+    error: reason,
+  }).catch(() => {});
+}
+
+async function processToolindexPhContact(contact, template, kind) {
+  const message = renderToolindexPhMessage(template, contact);
+  try {
+    const providerResult = await sendToolindexPhWithRetry({
+      from: SENDER,
+      to: contact.email,
+      replyTo: 'strategicflow@proton.me',
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+    });
+    if (providerResult?.error) {
+      const error = providerResult.error.message || String(providerResult.error);
+      await recordAgencyOutreachAttempt({
+        campaign: TOOLINDEX_PH_CAMPAIGN_KEY,
+        id: contact.id,
+        email: contact.email,
+        subject: message.subject,
+        kind,
+        status: 'failed',
+        error,
+        providerId: providerResult?.data?.id || providerResult?.id || null,
+      }).catch(() => {});
+      await pool.query(
+        `UPDATE toolindex_outreach_campaign_contacts SET last_error=$2, updated_at=NOW() WHERE id=$1`,
+        [contact.id, error]
+      ).catch(() => {});
+      return { ok: false, error };
+    }
+    if (providerResult?.cooldownBlocked || providerResult?.unsubscribed) {
+      const reason = providerResult.cooldownBlocked ? 'cooldown_blocked' : 'unsubscribed';
+      await recordToolindexPhSkip(contact, kind, reason, template);
+      return { ok: false, skipped: reason };
+    }
+
+    const sentColumn = kind === 'initial' ? 'initial_sent' : 'followup_sent';
+    const sentAtColumn = kind === 'initial' ? 'initial_sent_at' : 'followup_sent_at';
+    await pool.query(
+      `UPDATE toolindex_outreach_campaign_contacts
+       SET ${sentColumn}=TRUE, ${sentAtColumn}=NOW(), last_error=NULL, updated_at=NOW()
+       WHERE id=$1`,
+      [contact.id]
+    );
+    await recordAgencyOutreachAttempt({
+      campaign: TOOLINDEX_PH_CAMPAIGN_KEY,
+      id: contact.id,
+      email: contact.email,
+      subject: message.subject,
+      kind,
+      status: 'sent',
+      providerId: providerResult?.data?.id || providerResult?.id || null,
+    }).catch(() => {});
+    return { ok: true };
+  } catch (error) {
+    await recordAgencyOutreachAttempt({
+      campaign: TOOLINDEX_PH_CAMPAIGN_KEY,
+      id: contact.id,
+      email: contact.email,
+      subject: message.subject,
+      kind,
+      status: 'failed',
+      error: String(error.message || error).slice(0, 500),
+    }).catch(() => {});
+    await pool.query(
+      `UPDATE toolindex_outreach_campaign_contacts SET last_error=$2, updated_at=NOW() WHERE id=$1`,
+      [contact.id, String(error.message || error).slice(0, 500)]
+    ).catch(() => {});
+    return { ok: false, error: String(error.message || error) };
+  }
+}
+
+async function runToolindexPhCampaign(source = 'cron') {
+  const campaign = await pool.query(
+    `SELECT sending_enabled FROM toolindex_outreach_campaigns WHERE campaign_key=$1`,
+    [TOOLINDEX_PH_CAMPAIGN_KEY]
+  );
+  if (!campaign.rows[0]?.sending_enabled) {
+    return { skipped: true, reason: 'campaign_not_prepared_or_paused' };
+  }
+
+  const lockClient = await pool.connect();
+  const runDate = new Date().toISOString().slice(0, 10);
+  try {
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [`${TOOLINDEX_PH_CAMPAIGN_KEY}:daily`]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: true, reason: 'already_running' };
+
+    const run = await pool.query(
+      `INSERT INTO toolindex_outreach_daily_runs
+         (campaign_key, run_date, status, source, started_at, attempts)
+       VALUES ($1,$2,'running',$3,NOW(),1)
+       ON CONFLICT (campaign_key, run_date) DO UPDATE
+         SET status='running',
+             source=EXCLUDED.source,
+             started_at=NOW(),
+             attempts=toolindex_outreach_daily_runs.attempts+1
+         WHERE toolindex_outreach_daily_runs.status='failed'
+            OR (
+              toolindex_outreach_daily_runs.status='running'
+              AND toolindex_outreach_daily_runs.started_at < NOW() - INTERVAL '20 minutes'
+            )
+       RETURNING run_date`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY, runDate, source]
+    );
+    if (!run.rows.length) return { skipped: true, reason: 'already_completed_or_running' };
+
+    const templatesResult = await pool.query(
+      `SELECT template_kind, subject_template, body_template
+       FROM toolindex_outreach_campaign_templates
+       WHERE campaign_key=$1`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY]
+    );
+    const templates = new Map(templatesResult.rows.map(row => [row.template_kind, row]));
+    const initialTemplate = templates.get('initial_public');
+    const draftTemplate = templates.get('initial_draft');
+    const followupTemplate = templates.get('followup');
+    if (!initialTemplate || !draftTemplate || !followupTemplate) {
+      throw new Error('toolindex_ph_templates_missing');
+    }
+
+    const initialRows = await pool.query(
+      `SELECT c.id, c.app_name, c.email, c.status, c.source_listing_id
+       FROM toolindex_outreach_campaign_contacts c
+       WHERE c.campaign_key=$1
+         AND c.initial_sent=FALSE
+         AND NOT EXISTS (
+           SELECT 1 FROM email_unsubscribes u
+           WHERE lower(trim(u.email))=lower(trim(c.email))
+         )
+       ORDER BY c.id ASC
+       LIMIT $2`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY, TOOLINDEX_PH_BATCH_CAP]
+    );
+    const followupRows = await pool.query(
+      `SELECT c.id, c.app_name, c.email, c.status, c.source_listing_id
+       FROM toolindex_outreach_campaign_contacts c
+       WHERE c.campaign_key=$1
+         AND c.initial_sent=TRUE
+         AND c.followup_sent=FALSE
+         AND c.followup_due_at IS NOT NULL
+         AND c.followup_due_at <= NOW()
+         AND NOT EXISTS (
+           SELECT 1 FROM email_unsubscribes u
+           WHERE lower(trim(u.email))=lower(trim(c.email))
+         )
+       ORDER BY c.followup_due_at ASC, c.id ASC
+       LIMIT $2`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY, TOOLINDEX_PH_BATCH_CAP]
+    );
+
+    const result = {
+      source,
+      run_date: runDate,
+      initial_sent: 0,
+      followups_sent: 0,
+      skipped: 0,
+      errors: 0,
+      queued_initial: initialRows.rows.length,
+      queued_followups: followupRows.rows.length,
+    };
+    for (const contact of initialRows.rows) {
+      const template = contact.status === 'draft' ? draftTemplate : initialTemplate;
+      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
+      let skipReason = blocked.blocked ? blocked.reason : null;
+      if (!skipReason) {
+        const halted = await isSequenceHalted(contact.email, TOOLINDEX_PH_CAMPAIGN_KEY);
+        if (halted.halted) skipReason = `engagement halted: ${halted.reason}`;
+      }
+      if (!skipReason) skipReason = await getToolindexFoundersCurrentSuppression(contact.email);
+      if (skipReason) {
+        await recordToolindexPhSkip(contact, 'initial', skipReason, template);
+        result.skipped++;
+        continue;
+      }
+      const sendResult = await processToolindexPhContact(contact, template, 'initial');
+      if (sendResult.ok) result.initial_sent++;
+      else if (sendResult.skipped) result.skipped++;
+      else result.errors++;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    for (const contact of followupRows.rows) {
+      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
+      let skipReason = blocked.blocked ? blocked.reason : null;
+      if (!skipReason) {
+        const halted = await isSequenceHalted(contact.email, TOOLINDEX_PH_CAMPAIGN_KEY);
+        if (halted.halted) skipReason = `engagement halted: ${halted.reason}`;
+      }
+      if (!skipReason) skipReason = await getToolindexFoundersCurrentSuppression(contact.email);
+      if (skipReason) {
+        await recordToolindexPhSkip(contact, 'followup', skipReason, followupTemplate);
+        result.skipped++;
+        continue;
+      }
+      const sendResult = await processToolindexPhContact(contact, followupTemplate, 'followup');
+      if (sendResult.ok) result.followups_sent++;
+      else if (sendResult.skipped) result.skipped++;
+      else result.errors++;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    await pool.query(
+      `UPDATE toolindex_outreach_daily_runs
+       SET status='completed', completed_at=NOW(), result=$3::jsonb
+       WHERE campaign_key=$1 AND run_date=$2`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY, runDate, JSON.stringify(result)]
+    );
+    console.log(`[${TOOLINDEX_PH_CAMPAIGN_KEY}] ${source}: ${JSON.stringify(result)}`);
+    return { ok: true, ...result };
+  } catch (error) {
+    await pool.query(
+      `UPDATE toolindex_outreach_daily_runs
+       SET status='failed', completed_at=NOW(), result=$3::jsonb
+       WHERE campaign_key=$1 AND run_date=$2`,
+      [TOOLINDEX_PH_CAMPAIGN_KEY, runDate, JSON.stringify({ error: String(error.message || error).slice(0, 500) })]
+    ).catch(() => {});
+    console.error(`[${TOOLINDEX_PH_CAMPAIGN_KEY}] daily run failed:`, error.message);
+    return { ok: false, error: String(error.message || error) };
+  } finally {
+    await lockClient.query(
+      `SELECT pg_advisory_unlock(hashtext($1))`,
+      [`${TOOLINDEX_PH_CAMPAIGN_KEY}:daily`]
+    ).catch(() => {});
+    lockClient.release();
+  }
 }
 
 function newsletterConfirmTokenHash(token) {
@@ -7839,7 +8184,10 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
         });
         continue;
       }
-      const emptyUrlAllowed = nameKey === 'milkmode' || nameKey === 'lubb';
+      // Product Hunt exports often contain a product name and source link
+      // without a verified product website yet. Keep those as private manual
+      // drafts instead of inventing a URL; the founder can add it after claim.
+      const emptyUrlAllowed = true;
       if (!normalizedUrl && !emptyUrlAllowed) {
         failed.push({ file_row: row.file_row, name, reason: 'missing URL' });
         continue;
@@ -7925,6 +8273,91 @@ app.post('/admin/toolindex-import-drafts', csvUpload.single('csv'), async (req, 
     });
   } catch (e) {
     res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /admin/setup-toolindex-ph-campaign — prepare the Product Hunt claim
+// campaign after its draft import. This is idempotent and is the explicit
+// owner action that enables the daily sender.
+app.post('/admin/setup-toolindex-ph-campaign', async (req, res) => {
+  if (!hasMatchingAdminJobToken(req) && req.query.key !== process.env.WHY_ADMIN_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO toolindex_outreach_campaigns
+         (campaign_key, display_name, sending_enabled, followup_delay_days)
+       VALUES ($1,$2,TRUE,$3)
+       ON CONFLICT (campaign_key) DO UPDATE
+         SET display_name=EXCLUDED.display_name,
+             sending_enabled=TRUE,
+             followup_delay_days=EXCLUDED.followup_delay_days,
+             updated_at=NOW()`,
+      [
+        TOOLINDEX_PH_CAMPAIGN_KEY,
+        'Product Hunt June–July 2026 claim outreach',
+        TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS,
+      ]
+    );
+    for (const [templateKind, template] of Object.entries(TOOLINDEX_PH_TEMPLATES)) {
+      await pool.query(
+        `INSERT INTO toolindex_outreach_campaign_templates
+           (campaign_key, template_kind, subject_template, body_template)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (campaign_key, template_kind) DO UPDATE
+           SET subject_template=EXCLUDED.subject_template,
+               body_template=EXCLUDED.body_template,
+               updated_at=NOW()`,
+        [TOOLINDEX_PH_CAMPAIGN_KEY, templateKind, template.subject, template.body]
+      );
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, name, contact_email, status
+       FROM directory_listings
+       WHERE source=$1
+         AND status IN ('draft','active')
+         AND NULLIF(TRIM(contact_email),'') IS NOT NULL
+       ORDER BY id ASC`,
+      [TOOLINDEX_PH_CAMPAIGN_SOURCE]
+    );
+    let created = 0;
+    let skipped = 0;
+    for (const listing of rows) {
+      const email = String(listing.contact_email || '').trim().toLowerCase();
+      const blocked = isBlockedOutreachTarget(listing.name, email);
+      if (!email || isJunkEmail(email) || blocked.blocked || await isUnsubscribed(email)) {
+        skipped++;
+        continue;
+      }
+      const inserted = await pool.query(
+        `INSERT INTO toolindex_outreach_campaign_contacts
+           (campaign_key, source_listing_id, app_name, email, status)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (campaign_key, email) DO NOTHING
+         RETURNING id`,
+        [
+          TOOLINDEX_PH_CAMPAIGN_KEY,
+          listing.id,
+          listing.name,
+          email,
+          listing.status === 'draft' ? 'draft' : 'public',
+        ]
+      );
+      if (inserted.rows.length) created++;
+    }
+    return res.json({
+      ok: true,
+      campaign_key: TOOLINDEX_PH_CAMPAIGN_KEY,
+      sending_enabled: true,
+      followup_delay_days: TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS,
+      source_rows_with_email: rows.length,
+      contacts_created: created,
+      contacts_skipped: skipped,
+    });
+  } catch (error) {
+    console.error('[toolindex-ph-campaign] setup failed:', error.message);
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -17659,6 +18092,20 @@ async function setupDB() {
     )
   `).catch(e => console.error('[DB] toolindex_outreach_campaign_runs:', e.message));
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS toolindex_outreach_daily_runs (
+      campaign_key  TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
+      run_date      DATE NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'running'
+                    CHECK (status IN ('running','completed','failed')),
+      source        TEXT,
+      attempts      INTEGER NOT NULL DEFAULT 0,
+      started_at    TIMESTAMPTZ,
+      completed_at  TIMESTAMPTZ,
+      result        JSONB,
+      PRIMARY KEY (campaign_key, run_date)
+    )
+  `).catch(e => console.error('[DB] toolindex daily campaign runs:', e.message));
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS toolindex_outreach_campaign_contacts (
       id              BIGSERIAL PRIMARY KEY,
       campaign_key    TEXT NOT NULL REFERENCES toolindex_outreach_campaigns(campaign_key) ON DELETE CASCADE,
@@ -17686,7 +18133,14 @@ async function setupDB() {
       NEW.followup_due_at :=
         CASE
           WHEN NEW.initial_sent_at IS NULL THEN NULL
-          ELSE NEW.initial_sent_at + INTERVAL '4 days'
+          ELSE NEW.initial_sent_at + (
+            COALESCE(
+              (SELECT followup_delay_days
+               FROM toolindex_outreach_campaigns
+               WHERE campaign_key=NEW.campaign_key),
+              4
+            ) * INTERVAL '1 day'
+          )
         END;
       RETURN NEW;
     END;
@@ -31027,6 +31481,24 @@ full HTML body here
       });
     }
   }, 15_000);
+
+  // ── Product Hunt claim outreach: 100 initial emails per day ────────────────
+  // Follow-ups use the same durable daily runner once each contact reaches its
+  // campaign-specific five-day due date.
+  cron.schedule(TOOLINDEX_PH_DAILY_CRON, () => {
+    runToolindexPhCampaign('cron').catch(error => {
+      console.error(`[${TOOLINDEX_PH_CAMPAIGN_KEY}] cron error:`, error.message);
+    });
+  }, { timezone: 'UTC' });
+  setTimeout(() => {
+    runToolindexPhCampaign('startup-recovery').catch(error => {
+      console.error(`[${TOOLINDEX_PH_CAMPAIGN_KEY}] startup recovery error:`, error.message);
+    });
+  }, 17_000);
+  console.log(
+    `[${TOOLINDEX_PH_CAMPAIGN_KEY}] daily cron active at 14:00 UTC; ` +
+    `initial cap ${TOOLINDEX_PH_BATCH_CAP}, follow-up +${TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS} days`
+  );
 
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
   // Sends exactly ONE follow-up per listing, 4+ days after outreach_emailed_at,
