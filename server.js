@@ -13128,21 +13128,26 @@ app.post('/api/directory/vote/:id', directoryEventCors, async (req, res) => {
 // ── GET /api/directory/recent-launches?interval=24h|7d|30d ───────────────────
 app.get('/api/directory/recent-launches', async (req, res) => {
   const interval = req.query.interval || '24h';
+  // Imported daily-launch listings keep their original submitted_at date.
+  // Use the rollout timestamp when present so the feed reflects when they
+  // actually went live, rather than when the source batch was imported.
+  const launchTimestamp = 'COALESCE(outreach_campaign_scheduled_at, submitted_at)';
   // Whitelist fixed SQL clauses and keep each tab as a non-overlapping bucket.
   const buckets = {
-    '24h': `submitted_at >= NOW() - INTERVAL '24 hours'`,
-    '7d': `submitted_at >= NOW() - INTERVAL '7 days'
-           AND submitted_at < NOW() - INTERVAL '24 hours'`,
-    '30d': `submitted_at >= NOW() - INTERVAL '30 days'
-            AND submitted_at < NOW() - INTERVAL '7 days'`,
+    '24h': `${launchTimestamp} >= NOW() - INTERVAL '24 hours'`,
+    '7d': `${launchTimestamp} >= NOW() - INTERVAL '7 days'
+           AND ${launchTimestamp} < NOW() - INTERVAL '24 hours'`,
+    '30d': `${launchTimestamp} >= NOW() - INTERVAL '30 days'
+            AND ${launchTimestamp} < NOW() - INTERVAL '7 days'`,
   };
   const bucket = buckets[interval] ? interval : '24h';
   try {
     const r = await pool.query(
-      `SELECT id, name, url, category, description, image_url, vote_count, submitted_at
+      `SELECT id, name, url, category, description, image_url, vote_count,
+              ${launchTimestamp} AS submitted_at
        FROM directory_listings
        WHERE status='active' AND ${buckets[bucket]}
-       ORDER BY submitted_at DESC LIMIT 10`
+       ORDER BY ${launchTimestamp} DESC LIMIT 15`
     );
     res.json({ listings: r.rows, interval: bucket });
   } catch(err) {
