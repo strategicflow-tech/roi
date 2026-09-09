@@ -58,6 +58,14 @@ const {
   createAgencyOutreachRouter,
   deriveAgencyOutreachToken
 } = require('./agency-outreach-endpoint');
+const {
+  LARGE_COMPANY_BLOCKLIST,
+  PERMANENT_OUTREACH_EXCLUSIONS,
+  isBlockedDirectoryEmail,
+  isBlockedDirectoryListingName,
+  isBlockedOutreachTarget,
+  isJunkEmail,
+} = require('./outreach-policy');
 
 const app    = express();
 app.set('trust proxy', 1);
