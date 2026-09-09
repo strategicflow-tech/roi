@@ -161,6 +161,13 @@ function isBlockedOutreachTarget(listingName, email) {
   return { blocked: false };
 }
 
+function toolindexFoundersSkipReason(listingName, email) {
+  const blocked = isBlockedOutreachTarget(listingName, email);
+  if (blocked.blocked) return blocked.reason;
+  if (isJunkEmail(email)) return 'junk_email';
+  return null;
+}
+
 module.exports = {
   LARGE_COMPANY_BLOCKLIST,
   PERMANENT_OUTREACH_EXCLUSIONS,
@@ -168,4 +175,5 @@ module.exports = {
   isBlockedDirectoryListingName,
   isBlockedOutreachTarget,
   isJunkEmail,
+  toolindexFoundersSkipReason,
 };

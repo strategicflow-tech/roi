@@ -65,6 +65,7 @@ const {
   isBlockedDirectoryListingName,
   isBlockedOutreachTarget,
   isJunkEmail,
+  toolindexFoundersSkipReason,
 } = require('./outreach-policy');
 
 const app    = express();
@@ -217,55 +218,6 @@ const AGENCY_OUTREACH_TRACKER_FILE = path.join(
   __dirname,
   'agency-outreach-tracker-clean-lifecycle-crm-marketing.html'
 );
-// Permanent legal erasure / objection exclusions. These are intentionally
-// code-level safeguards in addition to any provider suppression list so a
-// future import or tracker edit cannot re-enable contact.
-const PERMANENT_OUTREACH_EXCLUSIONS = new Set([
-  'hubspotpartner@karsten.anonaddy.com',
-  // Large/established companies from the ToolIndex daily-launch batch.
-  // They may remain listed, but must never receive founder outreach.
-  'eoin@tines.io',
-  'support@suno.com',
-  'support@zohocliq.com',
-  'support@recall.ai',
-  'support@workos.com',
-  'team@elevenlabs.io',
-  'media@calendly.com',
-  'sales@cloudways.com',
-  'investors@equitybee.com',
-  'per@scrimba.com',
-  'support@mem.ai',
-  'hi@cursor.com',
-  'support@x.ai',
-  'harness-privacy@deepseek.com',
-  // Resend-suppressed recipients from the 31 Aug agency follow-up batch.
-  'hello@adapticagency.com',
-  'hello@alythia.eu',
-  'hello@blooup.net',
-  'hello@boredsf.com',
-  'hello@demandforge-agency.com',
-  'hello@digitalbalance.com.au',
-  'hello@driveflow.agency',
-  'hello@gostepwise.co',
-  'hello@growthfoundry.com',
-  'hello@intelligentmobile.com',
-  'hello@jamseo.agency',
-  'hello@leadlion.co.uk',
-  'hello@marscale.ai',
-  'hello@northvii.com',
-  'hello@omnygrowth.agency',
-  'hello@re-tention.com',
-  'hello@recruitmentmarketing.com',
-  'hello@sayseo.com',
-  'hello@scalehealthcaregold.com',
-  'hello@sendastudio.com',
-  'hello@seoexpertinnepal.com',
-  'hello@squarefootadvisors.com',
-  'hello@stillloading.com',
-  'hello@teamalora.co',
-  'hello@thelobby.agency',
-  'hello@visualshawarma.com',
-]);
 const BYPASS_EMAILS  = new Set((process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -3295,164 +3247,6 @@ async function fetchProductLogo(url) {
   }
 }
 
-// ── Junk email guard — rejects image filenames, placeholders, privacy inboxes ─
-// Applied before storing any email in DB and before sending any outreach email.
-function isJunkEmail(email) {
-  if (!email || typeof email !== 'string') return true;
-  const e = email.toLowerCase().trim();
-  // Reject image/asset file extension domains (e.g. arrow-down-footer@2x.png)
-  if (/\.(png|svg|jpg|jpeg|gif|webp|ico|bmp|tiff?|avif)$/i.test(e)) return true;
-  // Reject placeholder local parts
-  if (/^(you|name|user|someone|your|test|example)@/i.test(e)) return true;
-  // Reject privacy / legal / compliance / abuse / press department inboxes
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|noreply|no-reply|donotreply|mailer-daemon|bounce|postmaster|unsubscribe)@/i.test(e)) return true;
-  // Reject any -abuse@ pattern (e.g. heroku-abuse@, aws-abuse@)
-  if (/-abuse@/i.test(e)) return true;
-  return false;
-}
-
-// ── Large/established company blocklist — never send outreach to these ────────
-// Permanent hard rule: skip any listing whose name matches a known large brand.
-// Add to this list; never remove. Company size heuristic: ~500+ employees or
-// a widely-recognised SaaS/dev-tool brand regardless of exact headcount.
-const LARGE_COMPANY_BLOCKLIST = new Set([
-  // Explicitly flagged by operator
-  'anthropic','figma','salesforce','elevenlabs','crisp','framer','atlassian',
-  'digitalocean','airtable','vercel','supabase','raycast','clerk','cursor',
-  'windsurf','linear','netlify','cohere','railway','upstash','huggingface',
-  'superhuman','runway','postman',
-  // AI / LLM
-  'openai','mistral','groq','together ai','together','replicate','stability ai',
-  'stability','cohere','perplexity','character ai','character','inflection',
-  // Big tech
-  'google','microsoft','apple','amazon','meta','facebook','twitter','x corp',
-  'samsung','oracle','ibm','intel','nvidia','amd','qualcomm','cisco','sap',
-  // Dev infra / hosting
-  'github','gitlab','bitbucket','heroku','render','fly.io','platform.sh',
-  'cloudflare','fastly','akamai','linode','vultr','hetzner','ovh','digitalocean',
-  'aws','azure','gcp',
-  // Payments / fintech
-  'stripe','paypal','braintree','square','adyen','klarna','checkout.com','brex',
-  'ramp','mercury','wise','revolut','plaid','marqeta','dwolla',
-  // Comms / collab
-  'slack','zoom','teams','webex','whereby','loom','miro','notion','confluence',
-  'jira','trello','asana','monday','clickup','basecamp','linear','height',
-  'shortcut','pivotal tracker',
-  // CMS / website builders
-  'shopify','wix','squarespace','webflow','ghost','wordpress','contentful',
-  'sanity','strapi','directus',
-  // CRM / marketing
-  'hubspot','mailchimp','sendgrid','twilio','intercom','zendesk','freshdesk',
-  'freshworks','marketo','pardot','activecampaign','klaviyo','drip','convertkit',
-  'customer.io','loops','beehiiv','substack','mailgun','postmark','sparkpost',
-  'resend','brevo','sendinblue',
-  // Analytics / monitoring
-  'datadog','pagerduty','sentry','logrocket','fullstory','mixpanel','amplitude',
-  'segment','heap','hotjar','smartlook','clarity','posthog','grafana','newrelic',
-  'dynatrace','appdynamics','honeycomb','elastic','elasticsearch','opensearch',
-  // Auth / identity
-  'auth0','okta','onelogin','ping identity','duo','jumpcloud','rippling',
-  // Design
-  'figma','sketch','invision','invisionapp','zeplin','abstract',
-  // Forms / surveys
-  'typeform','surveymonkey','qualtrics','medallia','delighted',
-  // Databases / data
-  'mongodb','redis','cassandra','confluent','snowflake','databricks','dbt labs',
-  'fivetran','airbyte','planetscale','neon','turso','cockroachdb','fauna',
-  'supabase','firebase','appwrite',
-  // Search
-  'algolia','elastic','meilisearch','typesense',
-  // Low-code / automation
-  'retool','appsmith','budibase','tooljet','zapier','make','n8n','activepieces',
-  // CI/CD / devops
-  'buildkite','circleci','travis ci','jenkins','hashicorp','terraform','pulumi',
-  'ansible','puppet','chef','vault','consul','nomad','sonarqube','snyk',
-  // Sales / outreach
-  'salesloft','outreach','apollo','zoominfo','clearbit','hunter','lusha',
-  // HR / payroll
-  'gusto','workday','adp','paychex','bamboohr',
-  // Social / media
-  'tiktok','snapchat','pinterest','reddit','linkedin','spotify','canva','adobe',
-  'dropbox','box',
-  // Scheduling
-  'calendly','cal.com','savvycal','doodle',
-  // Testing / QA
-  'browserstack','saucelabs','testio','applause',
-  // Feature flags / experimentation
-  'launchdarkly','optimizely','growthbook','statsig',
-  // Support
-  'front','help scout','kayako','gladly','kustomer',
-  // CRMs
-  'pipedrive','close','copper','insightly',
-  // Misc well-known
-  'notion','coda','roam research','obsidian','logseq','grammarly','jasper',
-  'copy ai','writer','lemon squeezy','paddle','gumroad','lemonsqueezy',
-  'plausible','fathom','umami','pirsch','cal','dub','short.io',
-  // Large companies present in reconstructed launch imports
-  'databox','jetbrains','deepseek',
-  // Added 2026-08-24: product names that differ from company name (filter missed these)
-  'midjourney',                                            // product = company
-  'capcut',                                               // ByteDance product (bytedance already listed)
-  'claude',                                               // Anthropic product (anthropic already listed)
-  'davinci resolve','davinci','blackmagic design','blackmagicdesign','blackmagic', // Blackmagic Design product
-  'vecteezy',                                             // standalone omission
-]);
-
-// Returns { blocked: true, reason } if the listing should be skipped for outreach,
-// or { blocked: false } if it is safe to contact.
-// PERMANENT RULE: call before every outreach send, no exceptions.
-const DIRECTORY_BLOCKED_EMAILS = new Set([
-  'jonathan@datafreak.net',
-]);
-const DIRECTORY_BLOCKED_DOMAINS = new Set([
-  'datafreak.net',
-]);
-const DIRECTORY_BLOCKED_LISTING_NAMES = new Set([
-  'stackscope',
-]);
-
-function isBlockedDirectoryEmail(email) {
-  const normalized = String(email || '').trim().toLowerCase();
-  if (!normalized || !normalized.includes('@')) return false;
-  if (DIRECTORY_BLOCKED_EMAILS.has(normalized)) return true;
-  return DIRECTORY_BLOCKED_DOMAINS.has(normalized.slice(normalized.lastIndexOf('@') + 1));
-}
-
-function isBlockedDirectoryListingName(name) {
-  return DIRECTORY_BLOCKED_LISTING_NAMES.has(String(name || '').trim().toLowerCase());
-}
-
-function isBlockedOutreachTarget(listingName, email) {
-  const e = (email || '').toLowerCase().trim();
-
-  if (isBlockedDirectoryListingName(listingName))
-    return { blocked: true, reason: 'permanent listing restriction (StackScope)' };
-
-  // Permanent contact restriction — exact address plus the whole domain.
-  if (isBlockedDirectoryEmail(e))
-    return { blocked: true, reason: 'permanent do-not-contact restriction (datafreak.net)' };
-  if (PERMANENT_OUTREACH_EXCLUSIONS.has(e))
-    return { blocked: true, reason: 'permanent do-not-contact restriction' };
-
-  // Rule 1 — restricted email prefix. Keep founder-facing role inboxes
-  // eligible; block only clearly automated, compliance, or bounce addresses.
-  if (/^(privacy|legal|abuse|press|dpo|eudatarep|gdpr|compliance|security|service|noreply|no-reply|donotreply|do-not-reply|billing|notifications?|newsletter|mailer|bounce|postmaster|webmaster)@/i.test(e))
-    return { blocked: true, reason: `restricted email prefix (${e.split('@')[0]}@)` };
-  if (/-abuse@/i.test(e))
-    return { blocked: true, reason: 'restricted email prefix (-abuse@)' };
-
-  // Rule 2 — large / established company name match
-  const name = (listingName || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  for (const term of LARGE_COMPANY_BLOCKLIST) {
-    const t = term.toLowerCase();
-    // Match: exact, or term is a whole word at start/end/middle of listing name
-    if (name === t || name.startsWith(t + ' ') || name.endsWith(' ' + t) || name.includes(' ' + t + ' ')) {
-      return { blocked: true, reason: `large/established company ("${term}")` };
-    }
-  }
-  return { blocked: false };
-}
-
 // ── Contact email extractor ──────────────────────────────────────────────────
 // Visits a product's own website and extracts publicly visible contact emails.
 // Only collects emails from mailto: links or text near contact keywords/footer.
@@ -6199,14 +5993,9 @@ async function runToolindexFoundersOneTime(runKind, source = 'cron') {
       const template = templates.get(selectedTemplateKind);
       if (!template) throw new Error(`toolindex_founders_template_missing:${selectedTemplateKind}`);
 
-      const blocked = isBlockedOutreachTarget(contact.app_name, contact.email);
-      if (blocked.blocked) {
-        await recordToolindexFoundersSkip(contact, template, runKind, blocked.reason);
-        result.skipped++;
-        continue;
-      }
-      if (isJunkEmail(contact.email)) {
-        await recordToolindexFoundersSkip(contact, template, runKind, 'junk_email');
+      const policySkipReason = toolindexFoundersSkipReason(contact.app_name, contact.email);
+      if (policySkipReason) {
+        await recordToolindexFoundersSkip(contact, template, runKind, policySkipReason);
         result.skipped++;
         continue;
       }
