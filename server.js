@@ -15927,6 +15927,7 @@ app.get('/scorecard', (req, res) => res.sendFile(path.join(__dirname, 'public/sc
 app.get('/assessment', (req, res) => res.sendFile(path.join(__dirname, 'public/assessment.html')));
 app.get('/saas-email-architecture-study', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-email-architecture-study.html')));
 app.get('/saas-changelog-email-architecture', (req, res) => res.sendFile(path.join(__dirname, 'public/saas-changelog-email-architecture.html')));
+app.get('/strategic-flow-vs-scalero', (req, res) => res.sendFile(path.join(__dirname, 'public/strategic-flow-vs-scalero.html')));
 
 // ── Decision Friction Model lead-magnet funnel ────────────────────────────────
 // ── GET /admin/friction-leads — friction model lead list (admin only) ────────
@@ -29983,6 +29984,7 @@ setupDB().then(async () => {
       { loc: `${base}/changelog-audit-page`,                    priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/onboarding-audit-page`,                   priority: '0.7', changefreq: 'monthly' },
       { loc: `${base}/saas-email-architecture-study`,           priority: '0.8', changefreq: 'monthly' },
+      { loc: `${base}/strategic-flow-vs-scalero`,                priority: '0.8', changefreq: 'monthly' },
       { loc: `${base}/glossary`,                                priority: '0.6', changefreq: 'monthly' },
       { loc: `${base}/directory`,                               priority: '0.9', changefreq: 'daily'   },
       { loc: `${base}/directory/alternative-to-product-hunt`,   priority: '0.8', changefreq: 'monthly' },
