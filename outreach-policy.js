@@ -46,6 +46,7 @@ const PERMANENT_OUTREACH_EXCLUSIONS = new Set([
   'hello@teamalora.co',
   'hello@thelobby.agency',
   'hello@visualshawarma.com',
+  'admin@emocia.net',
 ]);
 
 const LARGE_COMPANY_BLOCKLIST = new Set([
