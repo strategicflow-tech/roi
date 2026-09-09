@@ -4634,7 +4634,7 @@ async function runManualDraftClaimCampaign(source = 'cron') {
               started_at=NOW(),
               attempts=attempts+1
         WHERE campaign_key=$1
-          AND run_kind='initial'
+          AND run_kind=$2
           AND status='scheduled'
           AND scheduled_for <= NOW()
       RETURNING scheduled_for`,
@@ -4699,7 +4699,7 @@ async function runManualDraftClaimCampaign(source = 'cron') {
       await pool.query(
         `UPDATE toolindex_outreach_campaign_runs
             SET status='completed', completed_at=NOW(), result=$3::jsonb
-          WHERE campaign_key=$1 AND run_kind='initial'`,
+          WHERE campaign_key=$1 AND run_kind=$2`,
         [
           TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY,
           'initial',
@@ -4714,7 +4714,7 @@ async function runManualDraftClaimCampaign(source = 'cron') {
       await pool.query(
         `UPDATE toolindex_outreach_campaign_runs
             SET status='failed', completed_at=NOW(), result=$3::jsonb
-          WHERE campaign_key=$1 AND run_kind='initial'`,
+          WHERE campaign_key=$1 AND run_kind=$2`,
         [
           TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY,
           'initial',
