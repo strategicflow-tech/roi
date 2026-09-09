@@ -31139,6 +31139,7 @@ setupDB().then(async () => {
 <meta property="og:type" content="article">
 <meta property="og:title" content="${title} — Strategic Flow">
 <meta property="og:description" content="${meta_description}">
+<meta property="og:image" content="https://strategic-flow-audit.replit.app/playbook/og-playbook.svg">
 <meta property="og:url" content="${canonical}">
 <meta property="og:site_name" content="Strategic Flow">
 <meta name="twitter:card" content="summary_large_image">
