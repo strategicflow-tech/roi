@@ -27,6 +27,7 @@
 - [Replit shared database migration quirk](replit-shared-database-migration-quirk.md) — removing DATABASE_URL can switch development to an incomplete database while production retains legacy data.
 - [Directory contact restrictions](directory-contact-restrictions.md) — permanent outreach blocks must cover server sends, claim/checkout/submit entry points, and admin re-imports; UI filtering is only defense in depth.
 - [GitHub write fallback](github-write-fallback.md) — when the GitHub connector reads successfully but write calls hit Replit Cloudflare, use the authenticated GitHub CLI rather than a raw token.
+- [Strategic Flow teardown count](strategicflow-teardown-count.md) — derive the published total from live canonical cards, not stale headline copy or the legacy detail catalog.
 - [Agency tracker suppression correlation](agency-tracker-suppression-correlation.md) — identify a skipped batch from its send-window history; global suppression rows can include other cohorts.
 - [Daily leaderboard cohort](daily-leaderboard-cohort.md) — keep a durable UTC 10-app cohort with unique bounded counts and restart-safe founder notifications.
 - [Production versus preview imports](production-vs-preview-imports.md) — production mutations must use the published deployment URL, not the workspace preview.
