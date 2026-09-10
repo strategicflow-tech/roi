@@ -1039,6 +1039,7 @@ const ADMIN_JOB_POST_PATHS = new Set([
   '/send-claim-outreach',
   '/manual-claim',
   '/block-directory-contact',
+  '/add-unsubscribe',
   '/seq-send-step3-strict',
   '/run-followup2-batch',
 ]);
