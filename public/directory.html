@@ -3476,8 +3476,9 @@ function applyFilters(){
   // shuffle everything else so different apps get visibility each cycle.
   if(activeCategory === 'All' && !searchQuery){
     const featured = items.filter(l => l.featured_tier);
-    const rest     = items.filter(l => !l.featured_tier);
-    items = featured.concat(_seededShuffle(rest, _timeSeed()));
+    const recent   = items.filter(l => !l.featured_tier && l.published_today);
+    const rest     = items.filter(l => !l.featured_tier && !l.published_today);
+    items = featured.concat(recent, _seededShuffle(rest, _timeSeed()));
   }
   filteredListings = items;
   visibleCount = INITIAL_SIZE;

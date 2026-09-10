@@ -1319,12 +1319,18 @@ app.get('/directory', async (req, res) => {
     const r = await pool.query(
       `SELECT id, name, url, category, is_auto_imported, source, source_url, vote_count,
               featured_tier, featured_until,
+              (outreach_campaign_scheduled_at IS NOT NULL
+               AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
+                   (NOW() AT TIME ZONE 'UTC')::date) AS published_today,
               COALESCE(verified, FALSE) AS verified,
               (claimed_by IS NOT NULL) AS is_claimed,
               COALESCE(owner_description, description) AS description,
               CASE WHEN owner_image_url IS NOT NULL THEN '/api/directory/listing-logo/' || id::text ELSE image_url END AS image_url
        FROM directory_listings WHERE status='active'
        ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC,
+                (outreach_campaign_scheduled_at IS NOT NULL
+                 AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
+                     (NOW() AT TIME ZONE 'UTC')::date) DESC,
                 vote_count DESC, COALESCE(scored_at, submitted_at) DESC
        LIMIT 1000`
     );
@@ -3237,6 +3243,9 @@ app.get('/api/directory/listings', async (req, res) => {
     let q = `SELECT id, name, url, category, friction_score, score_pending,
                     is_seeded, is_auto_imported, source, source_url, submitted_at,
                     vote_count, featured_tier, featured_until,
+                    (outreach_campaign_scheduled_at IS NOT NULL
+                     AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
+                         (NOW() AT TIME ZONE 'UTC')::date) AS published_today,
                     COALESCE(verified, FALSE) AS verified,
                     COALESCE(priority_marquee, FALSE) AS priority_marquee,
                     COALESCE(editors_pick, FALSE) AS editors_pick,
@@ -3248,7 +3257,11 @@ app.get('/api/directory/listings', async (req, res) => {
              FROM directory_listings WHERE status='active'`;
     const params = [];
     if (category && category !== 'All') { q += ' AND category=$1'; params.push(category); }
-    q += ' ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC, vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 1000';
+    q += ` ORDER BY (featured_tier IS NOT NULL AND featured_until > NOW()) DESC,
+                    (outreach_campaign_scheduled_at IS NOT NULL
+                     AND (outreach_campaign_scheduled_at AT TIME ZONE 'UTC')::date =
+                         (NOW() AT TIME ZONE 'UTC')::date) DESC,
+                    vote_count DESC, COALESCE(scored_at, submitted_at) DESC LIMIT 1000`;
     const r = await pool.query(q, params);
 
     // ── Merge live badge data (winners + trending) ─────────────────────────
