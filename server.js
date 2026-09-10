@@ -4484,6 +4484,38 @@ Tenerife, Spain${buildUnsubFooterText(email || '')}`;
   };
 }
 
+function buildClaimFinalFollowupEmail(name, listingUrl, email) {
+  const safeName = escapeHtml(name || 'your product');
+  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:32px auto;color:#1a1a2e;line-height:1.7;font-size:15px;">
+<p>Hi,</p>
+<p>This is my last note about <strong>${safeName}'s ToolIndex profile</strong> unless you claim or reply.</p>
+<p>The profile is still private and unclaimed. Taking ownership lets your team correct the wording, links and logo, while keeping the permanent dofollow backlink from strategicflow.tech.</p>
+<p style="margin:28px 0;"><a href="${listingUrl}" style="display:inline-block;background:#00d4c8;color:#0a1628;padding:14px 32px;text-decoration:none;font-weight:700;border-radius:6px;font-size:15px;">Take ownership of ${safeName}'s profile &rarr;</a></p>
+<p style="font-size:13px;color:#6b7280;">Claiming is free. If the profile is already accurate, no action is needed.</p>
+<p style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#555;line-height:2;"><strong>Alex Iliescu</strong><br>Strategic Flow — <a href="https://strategicflow.tech" style="color:#00d4c8;">strategicflow.tech</a><br>ToolIndex — <a href="https://strategic-flow-audit.replit.app/directory" style="color:#00d4c8;">strategic-flow-audit.replit.app/directory</a><br>Tenerife, Spain</p>
+${buildUnsubFooterHtml(email || '')}</div>`;
+  const text = `Hi,
+
+This is my last note about ${name}'s ToolIndex profile unless you claim or reply.
+
+The profile is still private and unclaimed. Taking ownership lets your team correct the wording, links and logo, while keeping the permanent dofollow backlink from strategicflow.tech.
+
+Take ownership of ${name}'s profile: ${listingUrl}
+
+Claiming is free. If the profile is already accurate, no action is needed.
+
+--
+Alex Iliescu
+Strategic Flow — strategicflow.tech
+ToolIndex — https://strategic-flow-audit.replit.app/directory
+Tenerife, Spain${buildUnsubFooterText(email || '')}`;
+  return {
+    subject: `One final note about ${name}'s ToolIndex profile`,
+    html,
+    text,
+  };
+}
+
 function buildManualClaimConfirmationEmail(name, listingUrl, email) {
   const safeName = escapeHtml(name || 'your product');
   const founderPack = DIR_PRICES?.founder_pack || { amount: 49 };
@@ -4767,6 +4799,145 @@ async function runManualDraftClaimCampaign(source = 'cron') {
       ).catch(() => {});
       throw error;
     }
+  } finally {
+    await lockClient.query(
+      `SELECT pg_advisory_unlock(hashtext($1))`,
+      [lockKey]
+    ).catch(() => {});
+    lockClient.release();
+  }
+}
+
+async function runManualDraftFollowups(source = 'cron') {
+  const lockClient = await pool.connect();
+  const lockKey = `${TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE}:followups`;
+  try {
+    const lock = await lockClient.query(
+      `SELECT pg_try_advisory_lock(hashtext($1)) AS locked`,
+      [lockKey]
+    );
+    if (!lock.rows[0]?.locked) return { skipped: true, reason: 'already_running' };
+
+    const [firstDue, secondDue] = await Promise.all([
+      pool.query(
+        `SELECT id, name, contact_email
+           FROM directory_listings
+          WHERE source=$1
+            AND status='draft'
+            AND outreach_emailed_at IS NOT NULL
+            AND follow_up_sent_at IS NULL
+            AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
+            AND claimed_by IS NULL
+            AND claimed_at IS NULL
+            AND outreach_emailed_at <= NOW() - INTERVAL '5 days'
+            AND NULLIF(TRIM(contact_email),'') IS NOT NULL
+          ORDER BY outreach_emailed_at ASC, id ASC
+          LIMIT 50`,
+        [TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE]
+      ),
+      pool.query(
+        `SELECT id, name, contact_email
+           FROM directory_listings
+          WHERE source=$1
+            AND status='draft'
+            AND outreach_emailed_at IS NOT NULL
+            AND follow_up_sent_at IS NOT NULL
+            AND follow_up2_sent_at IS NULL
+            AND COALESCE(outreach_followups_disabled, FALSE)=FALSE
+            AND claimed_by IS NULL
+            AND claimed_at IS NULL
+            AND outreach_emailed_at <= NOW() - INTERVAL '10 days'
+            AND NULLIF(TRIM(contact_email),'') IS NOT NULL
+          ORDER BY outreach_emailed_at ASC, id ASC
+          LIMIT 50`,
+        [TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE]
+      ),
+    ]);
+
+    const result = {
+      ok: true,
+      source,
+      first_due: firstDue.rows.length,
+      second_due: secondDue.rows.length,
+      first_sent: 0,
+      second_sent: 0,
+      skipped: 0,
+      errors: 0,
+    };
+
+    async function processFollowup(listing, kind) {
+      const email = String(listing.contact_email || '').trim().toLowerCase();
+      const blocked = isBlockedOutreachTarget(listing.name, email);
+      let skipReason = blocked.blocked ? blocked.reason : null;
+      if (!skipReason && isJunkEmail(email)) skipReason = 'junk_email';
+      if (!skipReason && await isUnsubscribed(email)) skipReason = 'unsubscribed';
+      if (!skipReason) {
+        const halted = await isSequenceHalted(email, 'claim_followup');
+        if (halted.halted) skipReason = `engagement-halted (${halted.reason})`;
+      }
+      if (skipReason) {
+        await pool.query(
+          `UPDATE directory_listings
+              SET outreach_followups_disabled=TRUE
+            WHERE id=$1`,
+          [listing.id]
+        ).catch(() => {});
+        result.skipped++;
+        console.log(`[manual-draft-followup] ⊘ ${listing.name}: ${skipReason}`);
+        return;
+      }
+
+      const listingUrl = `https://strategic-flow-audit.replit.app/directory/${toListingSlug(listing.name, listing.id)}`;
+      const message = kind === 'first'
+        ? buildClaimFollowupEmail(listing.name, listingUrl, email)
+        : buildClaimFinalFollowupEmail(listing.name, listingUrl, email);
+      try {
+        const providerResult = await resend.emails.send({
+          from: SENDER,
+          to: email,
+          replyTo: 'strategicflow@proton.me',
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        if (providerResult?.unsubscribed) {
+          await pool.query(
+            `UPDATE directory_listings SET outreach_followups_disabled=TRUE WHERE id=$1`,
+            [listing.id]
+          );
+          result.skipped++;
+          console.log(`[manual-draft-followup] ⊘ unsubscribed → ${email} (${listing.name})`);
+          return;
+        }
+        if (providerResult?.cooldownBlocked) {
+          result.skipped++;
+          console.log(`[manual-draft-followup] ⊘ cooldown → ${email} (${listing.name})`);
+          return;
+        }
+        if (providerResult?.error) {
+          throw new Error(providerResult.error.message || String(providerResult.error));
+        }
+
+        const sentColumn = kind === 'first' ? 'follow_up_sent_at' : 'follow_up2_sent_at';
+        await pool.query(
+          `UPDATE directory_listings SET ${sentColumn}=NOW() WHERE id=$1 AND ${sentColumn} IS NULL`,
+          [listing.id]
+        );
+        result[`${kind}_sent`]++;
+        console.log(`[manual-draft-followup] ✓ ${kind} sent → ${email} (${listing.name})`);
+      } catch (error) {
+        result.errors++;
+        console.error(`[manual-draft-followup] ✗ ${kind} ${listing.name}:`, error.message);
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    for (const listing of firstDue.rows) await processFollowup(listing, 'first');
+    for (const listing of secondDue.rows) await processFollowup(listing, 'second');
+    if (result.first_due || result.second_due) {
+      console.log(`[manual-draft-followup] ${source}: ${JSON.stringify(result)}`);
+    }
+    return result;
   } finally {
     await lockClient.query(
       `SELECT pg_advisory_unlock(hashtext($1))`,
@@ -5826,6 +5997,9 @@ const TOOLINDEX_MANUAL_DRAFT_CLAIM_CAMPAIGN_KEY = 'toolindex-manual-draft-2026-0
 const TOOLINDEX_MANUAL_DRAFT_CLAIM_SOURCE = 'manual-draft-import-2026-09-09';
 const TOOLINDEX_MANUAL_DRAFT_CLAIM_TARGET = new Date('2026-09-10T10:00:00Z');
 const TOOLINDEX_MANUAL_DRAFT_CLAIM_CRON = '0 10 10 9 *';
+// The 2026-09-10 manual-draft batch has its own two-step follow-up timing:
+// +5 days after the initial email, then +10 days after the initial email.
+const TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE = 'manual-draft-import-2026-09-10';
 // Separate Product Hunt campaign: 100 claim emails per day, with a
 // campaign-specific five-day follow-up. It must not share the one-time
 // ToolIndex founders run or its four-day follow-up policy.
@@ -32264,6 +32438,25 @@ full HTML body here
     `initial cap ${TOOLINDEX_PH_BATCH_CAP}, follow-up +${TOOLINDEX_PH_FOLLOWUP_DELAY_DAYS} days`
   );
 
+  // ── Manual draft batch 2026-09-10: +5-day and +10-day follow-ups ─────────
+  // This source is excluded from the generic +4/+14-day reminders below.
+  // The hourly runner makes the timing durable across restarts without
+  // sending the batch again when the process recovers.
+  cron.schedule('0 * * * *', () => {
+    runManualDraftFollowups('cron').catch(error => {
+      console.error('[manual-draft-followup] cron error:', error.message);
+    });
+  }, { timezone: 'UTC' });
+  setTimeout(() => {
+    runManualDraftFollowups('startup-recovery').catch(error => {
+      console.error('[manual-draft-followup] startup recovery error:', error.message);
+    });
+  }, 18_000);
+  console.log(
+    `[manual-draft-followup] hourly cron active for ${TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE}; ` +
+    `follow-ups at +5 and +10 days`
+  );
+
   // ── Daily 08:00 UTC: 4-day follow-up reminder for unclaimed drafts/actives ──
   // Sends exactly ONE follow-up per listing, 4+ days after outreach_emailed_at,
   // only if still unclaimed. Tracked via follow_up_sent_at — never repeats.
@@ -32279,10 +32472,11 @@ full HTML body here
           AND claimed_by IS NULL
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '4 days'
+          AND (source IS NULL OR source <> $1)
           AND contact_email IS NOT NULL
         ORDER BY outreach_emailed_at ASC
         LIMIT 50
-      `);
+      `, [TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE]);
       console.log(`[cron-followup] ${dueListings.length} listings due for follow-up`);
       for (const listing of dueListings) {
         if (await isUnsubscribed(listing.contact_email)) {
@@ -32334,11 +32528,12 @@ full HTML body here
           AND claimed_by IS NULL
           AND claimed_at IS NULL
           AND outreach_emailed_at < NOW() - INTERVAL '14 days'
+          AND (source IS NULL OR source <> $1)
           AND contact_email IS NOT NULL
           AND status = 'active'
         ORDER BY outreach_emailed_at ASC
         LIMIT 50
-      `);
+      `, [TOOLINDEX_MANUAL_DRAFT_FOLLOWUP_SOURCE]);
       console.log(`[cron-followup2] ${rows.length} listings due for 14-day follow-up`);
       for (const listing of rows) {
         if (await isUnsubscribed(listing.contact_email)) {
