@@ -61,6 +61,7 @@ const {
 const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
+const { toListingSlug } = require('./public/directory-slug');
 const { safeFetchPublicUrl, validatePublicHttpUrl } = require('./safe-url-fetch');
 const {
   createAgencyOutreachRouter,
@@ -1157,6 +1158,33 @@ app.use((req, res, next) => {
   next();
 });
 
+// Keep the directory's live Replit origin canonical. This is deliberately
+// allowlisted: strategicflow.tech is a separate GitHub Pages marketing site.
+const DIRECTORY_CANONICAL_URL = new URL(process.env.APP_URL || 'https://strategic-flow-audit.replit.app');
+const DIRECTORY_CANONICAL_HOST = DIRECTORY_CANONICAL_URL.hostname.toLowerCase();
+const DIRECTORY_ALLOWED_HOSTS = new Set([
+  DIRECTORY_CANONICAL_HOST,
+  `www.${DIRECTORY_CANONICAL_HOST}`,
+]);
+app.use((req, res, next) => {
+  if (!['GET', 'HEAD'].includes(req.method)) return next();
+  const host = String(req.hostname || '').toLowerCase();
+  if (!DIRECTORY_ALLOWED_HOSTS.has(host)) return next();
+
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim().toLowerCase();
+  const protocol = forwardedProto || req.protocol;
+  const originalPath = String(req.originalUrl || '/').split('?')[0] || '/';
+  const canonicalPath = /^\/index\.html$/i.test(originalPath) ? '/' : originalPath;
+  if (host === DIRECTORY_CANONICAL_HOST && protocol === 'https' && canonicalPath === originalPath) {
+    return next();
+  }
+
+  const query = String(req.originalUrl || '').includes('?')
+    ? `?${String(req.originalUrl).split('?').slice(1).join('?')}`
+    : '';
+  return res.redirect(301, `${DIRECTORY_CANONICAL_URL.origin}${canonicalPath}${query}`);
+});
+
 app.get('/index.html', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'public/index.html'));
@@ -1437,15 +1465,6 @@ app.get('/directory', async (req, res) => {
   }
 });
 
-// ── Helper: generate a stable slug for a listing ─────────────────────────────
-function toListingSlug(name, id) {
-  const base = (name || '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 60);
-  return `${base}-${id}`;
-}
-
 // ── SEO/AEO landing pages — generated from real DB data ─────────────────────
 function dirSeoPage({ title, metaDesc, canonical, h1, intro, schema, body, faq }) {
   const BASE = 'https://strategic-flow-audit.replit.app';
@@ -1590,7 +1609,7 @@ function listingCard(l) {
       </div>
     </div>
     <div class="card-desc" itemprop="description">${desc}</div>
-    <a class="card-link" href="/directory/${l.slug}" itemprop="url">View listing →</a>
+    <a class="card-link" href="/directory/${toListingSlug(l.name, l.id)}" itemprop="url">View listing →</a>
   </div>`;
 }
 

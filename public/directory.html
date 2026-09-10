@@ -1882,6 +1882,7 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     </a>
   </div>
 </section>
+<script src="/directory-slug.js"></script>
 <script>
 // Hydrate from API if a newer post exists
 fetch('/api/blog/latest', {cache:'no-store'}).then(r=>r.json()).then(d=>{
@@ -2441,8 +2442,10 @@ function saveVoted(id){ votedIds.add(id); localStorage.setItem('dir_voted', JSON
 
 // ── Slug helper (must match server-side toListingSlug exactly) ───────────────
 function toSlug(name, id){
-  const base = (name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
-  return base + '-' + id;
+  return window.ToolIndexSlug.toListingSlug(name, id);
+}
+function listingHref(name, id){
+  return '/directory/' + toSlug(name, id);
 }
 
 // ── Click counts (real 30-day outbound clicks per listing) ────────────────────
@@ -2560,7 +2563,7 @@ function renderCard(l){
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
         <div style="min-width:0;">
-          <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
+          <a class="dir-card-name" href="${listingHref(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
           ${featBadge}${spBadgeRow}
         </div>
@@ -2604,7 +2607,7 @@ function renderInlinePromoCard(l){
       <div class="dir-card-left">
         ${avatarFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
         <div style="min-width:0;">
-          <a class="dir-card-name" href="/directory/${toSlug(l.name,l.id)}">${escHtml(l.name)}</a>
+          <a class="dir-card-name" href="${listingHref(l.name,l.id)}">${escHtml(l.name)}</a>
           <div class="dir-cat-tag">${escHtml(l.category||'General')}</div>
           <span class="dir-fp-inline-badge">⭐ Founder Pack</span>
         </div>
@@ -2779,7 +2782,7 @@ function renderPromotedCard(l){
     ${logo}
     <div class="dir-promoted-body">
       <div class="dir-promoted-top">
-        <a class="dir-promoted-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;">${escHtml(l.name)}</a>
+        <a class="dir-promoted-name" href="${listingHref(l.name,l.id)}" style="color:#fff;text-decoration:none;">${escHtml(l.name)}</a>
         <span class="dir-promoted-badge">⭐ Founder Pack</span>
       </div>
       <div class="dir-promoted-cat">${escHtml(l.category||'')}</div>
@@ -2828,7 +2831,7 @@ async function loadFeatured(){
             <span class="dir-featured-badge badge-${escHtml(l.featured_tier)}">${escHtml(badgeLabel)}</span>
             ${until?`<span style="font-size:10px;font-family:var(--mono);color:var(--muted);">until ${until}</span>`:''}
           </div>
-          <a class="dir-featured-name" href="/directory/${toSlug(l.name,l.id)}" style="color:#fff;text-decoration:none;display:block;">${escHtml(l.name)}</a>
+          <a class="dir-featured-name" href="${listingHref(l.name,l.id)}" style="color:#fff;text-decoration:none;display:block;">${escHtml(l.name)}</a>
           <div class="dir-featured-desc">${escHtml((l.description||'').slice(0,120))}</div>
           <div class="dir-featured-footer">
             <a href="${escHtml(l.url)}" class="dir-featured-link" target="_blank" rel="noopener" onclick="trackClick(${l.id})">Visit ${escHtml(domain)} →</a>
@@ -2910,7 +2913,7 @@ function loadRecentLaunches(interval){
         return;
       }
       el.innerHTML=items.slice(0,6).map((l,i)=>`
-        <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
+        <a class="dir-lb-row" href="${listingHref(l.name,l.id)}">
           <span class="dir-lb-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span>
           <img class="dir-lb-thumb" src="${l.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(l.name)}"/>
           <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
@@ -2949,7 +2952,7 @@ function loadRecentlyClaimed(){
       if(!items.length||!section||!el) return;
       section.style.display='block';
       el.innerHTML=items.map((l,i)=>`
-        <a class="dir-lb-row" href="/directory/${toSlug(l.name,l.id)}">
+        <a class="dir-lb-row" href="${listingHref(l.name,l.id)}">
           <span class="dir-lb-rank">${i+1}</span>
           ${lbThumbFor(l.name, l.category||'General', l.image_url||null, l.url||'')}
           <div class="dir-lb-info"><div class="dir-lb-name">${escHtml(l.name)}</div><div class="dir-lb-cat">${escHtml(l.category)}</div></div>
@@ -2985,7 +2988,7 @@ function buildPaidMarquee(){
     const label  = TIER_LABELS[tier] || tier;
     const logoSrc = l.image_url || (domain ? fav(domain) : '');
     const logo   = logoSrc ? `<img class="dir-paid-logo" src="${escHtml(logoSrc)}" alt="" loading="lazy" onerror="this.src='${domain ? fav(domain) : ''}';this.onerror=function(){this.style.display='none';}"/>` : '';
-    return `<a class="dir-paid-item" href="/directory/${escHtml(slug)}" title="${escHtml(l.name)}">${logo}<span>${escHtml(l.name)}</span><span class="dir-paid-tier">${label}</span></a>`;
+    return `<a class="dir-paid-item" href="${listingHref(l.name,l.id)}" title="${escHtml(l.name)}">${logo}<span>${escHtml(l.name)}</span><span class="dir-paid-tier">${label}</span></a>`;
   };
 
   // Duplicate for seamless infinite loop
@@ -3194,7 +3197,7 @@ function loadDailySection(){
           +'<div class="dir-daily-card-top">'
           +imgHtml
           +'<div style="min-width:0;">'
-          +'<a class="dir-daily-card-name" href="/directory/'+toSlug(l.name,l.id)+'" onclick="trackClick('+l.id+')">'+escHtml(l.name)+'</a>'
+          +'<a class="dir-daily-card-name" href="'+listingHref(l.name,l.id)+'" onclick="trackClick('+l.id+')">'+escHtml(l.name)+'</a>'
           +'<div class="dir-daily-card-cat">'+escHtml(l.category||'General')+'</div>'
           +'</div></div>'
           +'<p class="dir-daily-card-desc">'+escHtml(l.description||'')+'</p>'
@@ -3332,11 +3335,11 @@ function updateCatLeaderBadge(cat){
     const allLeaders = Object.values(_catLeaders);
     if(!allLeaders.length){ el.style.display='none'; el.innerHTML=''; return; }
     const top = allLeaders.sort((a,b)=>b.today_votes-a.today_votes)[0];
-    const slug = (top.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/,'')+'-'+top.id;
+     const slug = listingHref(top.name, top.id);
     el.style.display='';
     el.innerHTML=`<div class="dir-cat-leader">
       <span class="dir-cat-leader-label">🏆 Today's Overall #1</span>
-      <a href="/directory/${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(top.name)}</a>
+      <a href="${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(top.name)}</a>
       <span style="font-size:10px;font-family:var(--mono);color:#475569;margin-left:4px;">${escHtml(top.category)}</span>
       <span class="dir-cat-leader-votes">${top.today_votes} vote${top.today_votes!==1?'s':''} today</span>
     </div>`;
@@ -3345,11 +3348,11 @@ function updateCatLeaderBadge(cat){
 
   if(!_catLeaders[cat]){ el.style.display='none'; el.innerHTML=''; return; }
   const leader = _catLeaders[cat];
-  const slug = (leader.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/,'')+'-'+leader.id;
+   const slug = listingHref(leader.name, leader.id);
   el.style.display='';
   el.innerHTML=`<div class="dir-cat-leader">
     <span class="dir-cat-leader-label">🏆 Today's #1 in ${escHtml(cat)}</span>
-    <a href="/directory/${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(leader.name)}</a>
+    <a href="${slug}" class="dir-cat-leader-name" style="text-decoration:none;">${escHtml(leader.name)}</a>
     <span class="dir-cat-leader-votes">${leader.today_votes} vote${leader.today_votes!==1?'s':''} today</span>
   </div>`;
 }
@@ -3369,11 +3372,11 @@ function loadPulseSections(){
       const w=d.listing;
       if(!w){section.style.display='none';return;}
       section.style.display='';
-      const slug=toSlug(w.name,w.id);
+       const slug=listingHref(w.name,w.id);
       const weekVotes=w.week_votes||w.vote_count||0;
       const shareUrl=`https://strategic-flow-audit.replit.app/api/startup-of-the-week/${w.id}.svg`;
       el.innerHTML=`
-        <a class="dir-sotw-week-card" href="/directory/${slug}">
+        <a class="dir-sotw-week-card" href="${slug}">
           <img class="dir-sotw-week-logo" src="${w.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(w.name)}"/>
           <div class="dir-sotw-week-info">
             <div class="dir-sotw-week-name">${escHtml(w.name)}</div>
@@ -3400,7 +3403,7 @@ function loadPulseSections(){
       const top=d.listing;
       if(!top){el.innerHTML='<div class="dir-lb-empty">No featured startup today.</div>';return;}
       el.innerHTML=`
-        <a class="dir-sotw-card" href="/directory/${toSlug(top.name,top.id)}">
+        <a class="dir-sotw-card" href="${listingHref(top.name,top.id)}">
           <img class="dir-sotw-logo" src="${top.image_url||''}" onerror="this.style.display='none'" alt="${escHtml(top.name)}"/>
           <div class="dir-sotw-body">
             <div class="dir-sotw-name">🏆 ${escHtml(top.name)}</div>
