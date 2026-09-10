@@ -1057,7 +1057,6 @@ details[open] .dir-faq-q::after{transform:rotate(45deg);}
     <span class="dir-herosearch-icon">🔍</span>
     <input class="dir-herosearch-input" id="dirHeroSearch" type="text" placeholder="" autocomplete="off" spellcheck="false"/>
     <span id="heroTypewriter" style="position:absolute;left:52px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--muted);pointer-events:none;white-space:nowrap;overflow:hidden;font-family:var(--mono);letter-spacing:.01em;"></span>
-    <span class="dir-herosearch-count" id="heroSearchCount"></span>
   </div>
   <div id="heroDropdown" class="dir-hero-dropdown" style="display:none;"></div>
 </div>
@@ -3059,7 +3058,6 @@ function buildMarquee(){
 // ── Hero search — live dropdown suggestions ───────────────────────────────────
 (function(){
   const hs=document.getElementById('dirHeroSearch');
-  const cnt=document.getElementById('heroSearchCount');
   const dd=document.getElementById('heroDropdown');
   if(!hs||!dd) return;
 
@@ -3118,10 +3116,6 @@ function buildMarquee(){
 
   document.addEventListener('click',function(e){
     if(!hs.closest('.dir-herosearch-wrap').contains(e.target)) dd.style.display='none';
-  });
-
-  document.addEventListener('listingsLoaded',function(e){
-    if(cnt) cnt.textContent=(e.detail||0)+' products';
   });
 
   // ── Typewriter placeholder ────────────────────────────────────────────────
